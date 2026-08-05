@@ -1,20 +1,54 @@
-# XJAU-Helper
-
 <div align="center">
+
+<img src="docs/icon.png" width="160" alt="XJAU-Helper Logo" />
+
+# XJAU-Helper
 
 **新疆农业大学教务助手 · HarmonyOS 原生应用**
 
 一款为新疆农业大学学生打造的鸿蒙原生校园工具，集成登录、课表、成绩、考试、学业情况、通知公告、桌面卡片等常用功能于一体，数据对接学校正方教务系统。
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/FengHDSL/XJAU-Helper)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.0.0)
 [![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT%20(API%2026)-orange)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.0.0/XJAU-Helper_V1.0.0.hap)
 
 </div>
 
 ---
 
-## 功能
+## 📱 应用截图
+
+<table align="center">
+  <tr>
+    <td align="center" width="200"><b>登录</b></td>
+    <td align="center" width="200"><b>首页</b></td>
+    <td align="center" width="200"><b>课程表</b></td>
+    <td align="center" width="200"><b>课程详情</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/01-login.jpg" width="180" alt="登录" /></td>
+    <td><img src="docs/screenshots/02-home.jpg" width="180" alt="首页" /></td>
+    <td><img src="docs/screenshots/03-schedule.jpg" width="180" alt="课程表" /></td>
+    <td><img src="docs/screenshots/04-schedule-detail.jpg" width="180" alt="课程详情" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>成绩查询</b></td>
+    <td align="center"><b>成绩详情</b></td>
+    <td align="center"><b>考试安排</b></td>
+    <td align="center"><b>学业情况</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/05-score.jpg" width="180" alt="成绩查询" /></td>
+    <td><img src="docs/screenshots/06-score-detail.jpg" width="180" alt="成绩详情" /></td>
+    <td><img src="docs/screenshots/07-exam.jpg" width="180" alt="考试安排" /></td>
+    <td><img src="docs/screenshots/08-academic.jpg" width="180" alt="学业情况" /></td>
+  </tr>
+</table>
+
+---
+
+## ✨ 功能特性
 
 ### 核心功能
 
@@ -26,6 +60,8 @@
 | 🏆 成绩查询 | 成绩列表与绩点展示，学期切换，成绩详情按课程属性着色 |
 | 🎓 学业情况 | GPA、学分完成度、课程分类统计 |
 | 📢 通知公告 | 公告列表与详情阅读 |
+| 🎨 主题定制 | 顶栏主题色：中国红 / 天空蓝 / 农大绿，深浅色模式自动适配 |
+| 🖥️ 横屏适配 | 横屏 / 平板下内容自适应居中显示 |
 
 ### 桌面卡片
 
@@ -36,42 +72,73 @@
 
 ---
 
-## 技术栈
+## 🛠️ 技术栈
 
-- **平台**: HarmonyOS NEXT (API 26)
-- **语言**: ArkTS / ArkUI
-- **网络**: @ohos.net.http（正方教务系统接口）
-- **存储**: @ohos.data.preferences（本地缓存）
-- **UI**: HDS Design Kit、沉浸式悬浮底栏、系统颜色资源适配深色模式
-- **加密**: RSA PKCS#1 v1.5（密码加密传输）
-- **桌面卡片**: FormExtensionAbility + LocalStorage 数据绑定
+| 类别 | 技术 |
+|------|------|
+| 平台 | HarmonyOS NEXT (API 26) |
+| 语言 | ArkTS / ArkUI |
+| 网络 | @ohos.net.http（正方教务系统接口） |
+| 存储 | @ohos.data.preferences（本地缓存） |
+| UI | HDS Design Kit、沉浸式悬浮底栏、系统颜色资源适配深色模式 |
+| 加密 | RSA PKCS#1 v1.5（密码加密传输） |
+| 桌面卡片 | FormExtensionAbility + LocalStorage 数据绑定 |
 
 ---
 
-## 构建 & 运行
+## 📦 构建 & 运行
 
-1. 安装 [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/)
+```text
+1. 安装 DevEco Studio 5.x
 2. Clone 本仓库，用 DevEco Studio 打开
-3. 使用华为账号 Auto-Sign 签名后，连接设备或启动模拟器，点击运行
+3. 使用华为账号 Auto-Sign 签名后连接设备或启动模拟器，点击运行
+```
 
-> 内置"功能浏览"模式，未登录时可使用本地模拟数据体验全部界面。
-
----
-
-## 其他
-此应用由AI辅助完成开发，使用的工具有腾讯的WorkBuddy和华为的DevEco Code，主要使用DeepSeek V4-Flash，本人纯新手小白，所以你使用时不难发现，一些鸿蒙6.1特性，完全没适配，因为我看了半天文档，都没找到怎么实现那个效果，丢给AI，做出来的效果也很一般，所以如果你会，可以直接进行修改。
-应用后期会持续更新（至少会更新到API26正式版发布，也就是HarmonyOS 7公测），预计未来会支持：查询空闲教室、第二课堂学时情况查询，农大新闻，其他的服务研究了一下，要么太复杂，要么本科生没权限，就放弃了~
-我学校教务系统使用的是方正的系统，如果你学校的也是，那应该让AI改下一些服务的网址链接就能用了，具体我也没试过。
-最后再声明一下，该项目/软件，不会收集用户数据，更不会上传数据到私人服务器里，数据只会上传到学校的服务器中，不会获取也不会修改！该项目/软件也不会修改学校的任何服务，提供的服务都是从网页中获取并汇总呈现，
+> 💡 内置"功能浏览"模式，未登录时可使用本地模拟数据体验全部界面。
 
 ---
 
-## License
+## 📁 项目结构
 
-MIT
+```text
+XJAU-Helper/
+├── AppScope/                # 应用级配置与图标
+├── docs/                    # README 资源
+│   ├── icon.png             # 应用图标
+│   └── screenshots/         # 应用截图
+├── entry/                   # 主模块
+│   └── src/main/
+│       ├── ets/             # ArkTS 源码
+│       │   ├── api/         # 教务系统接口
+│       │   ├── common/      # 工具与状态
+│       │   ├── model/       # 数据模型
+│       │   ├── view/        # 页面与组件
+│       │   ├── widgets/     # 桌面卡片
+│       │   └── entryability/# 入口与扩展能力
+│       └── resources/       # 资源文件
+├── hvigor/                  # 构建配置
+├── build-profile.json5      # 工程配置
+├── LICENSE                  # MIT 许可证
+└── README.md                # 本文件
+```
 
-## 致谢
+---
 
-本项目桌面卡片、界面布局与交互实现参考了 [HiXD](https://github.com/PollenWang6/HiXD)，感谢该项目的开源分享与 UI 设计思路。
+## ⚠️ 已知限制
 
-本项目教务系统接口探索参考了 [Traintime PDA / XDYou](https://github.com/BenderBlog/traintime_pda)，感谢该项目的接口探索工作。
+- **教务接口依赖学校系统**：真实数据依赖学校教务系统（正方 zftal-ui v5）的接口稳定性，若学校调整接口，需同步更新代码
+- **功能浏览模式**：未登录时使用本地模拟数据，仅用于界面体验，请勿用于真实数据查询
+
+---
+
+## 🤝 致谢
+
+本项目桌面卡片、界面布局与交互实现参考了 [**HiXD**](https://github.com/PollenWang6/HiXD)（西安电子科技大学校园助手），感谢该项目的开源分享与 UI 设计思路。
+
+本项目教务系统接口探索参考了 [**Traintime PDA / XDYou**](https://github.com/BenderBlog/traintime_pda)（MPL-2.0），感谢该项目的接口探索工作。
+
+---
+
+## 📄 License
+
+[MIT](LICENSE) © 2026 FengHDSL
