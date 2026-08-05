@@ -1,0 +1,48 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "新农大教务微服务客户端"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "教务助手主入口"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "XJAU-Helper"
+    },
+    {
+      "name": "reason_internet",
+      "value": "用于连接学校教务系统获取课表、成绩等数据"
+    },
+    {
+      "name": "reason_calendar",
+      "value": "用于将考试安排写入系统日历，便于提醒"
+    },
+    {
+      "name": "EntryFormAbility_label",
+      "value": "课程预告"
+    },
+    {
+      "name": "EntryFormAbility_desc",
+      "value": "桌面卡片：今日课程预告与考试倒计时"
+    },
+    {
+      "name": "class_preview_card_name",
+      "value": "课程预告"
+    },
+    {
+      "name": "class_preview_card_desc",
+      "value": "今日/明日课程一屏速览"
+    },
+    {
+      "name": "exam_countdown_card_name",
+      "value": "考试倒计时"
+    },
+    {
+      "name": "exam_countdown_card_desc",
+      "value": "最近一场考试倒计时提醒"
+    }
+  ]
+}
