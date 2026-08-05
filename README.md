@@ -26,8 +26,6 @@
 | 🏆 成绩查询 | 成绩列表与绩点展示，学期切换，成绩详情按课程属性着色 |
 | 🎓 学业情况 | GPA、学分完成度、课程分类统计 |
 | 📢 通知公告 | 公告列表与详情阅读 |
-| 🎨 主题定制 | 顶栏主题色：中国红 / 天空蓝 / 农大绿，深浅色模式自动适配 |
-| 🖥️ 横屏适配 | 横屏 / 平板下内容自适应居中显示 |
 
 ### 桌面卡片
 
@@ -66,6 +64,6 @@ MIT
 
 ## 致谢
 
-本项目桌面卡片、界面布局与交互实现参考了 [HiXD](https://github.com/PollenWang6/HiXD)（西安电子科技大学校园助手），感谢该项目的开源分享与 UI 设计思路。
+本项目桌面卡片、界面布局与交互实现参考了 [HiXD](https://github.com/PollenWang6/HiXD)，感谢该项目的开源分享与 UI 设计思路。
 
-本项目教务系统接口探索参考了 [Traintime PDA / XDYou](https://github.com/BenderBlog/traintime_pda)（MPL-2.0），感谢该项目的接口探索工作。
+本项目教务系统接口探索参考了 [Traintime PDA / XDYou](https://github.com/BenderBlog/traintime_pda)，感谢该项目的接口探索工作。
