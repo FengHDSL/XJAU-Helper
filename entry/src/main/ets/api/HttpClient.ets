@@ -1,0 +1,210 @@
+/**
+ * 轻量 HTTP 封装（为后续抓取教务系统网页做准备）
+ *
+ * 参考 HiXD (github.com/PollenWang6/HiXD) 的 HttpUtil 思路：
+ *  - HarmonyOS NETSTACK 自动跟随 302 时，中间每个重定向响应的 Set-Cookie
+ *    都通过 on('headersReceive') 事件先回调。这里逐个收集并保存，
+ *    避免"只在最终响应读一次 header"导致登录成功后（302 链中下发的
+ *    JSESSIONID）丢失会话 Cookie —— 这是登录后查询失败的最大根因。
+ *  - 手动维护会话 Cookie，登录后带上，保证课表/成绩/考试等接口可用。
+ */
+import { http } from '@kit.NetworkKit';
+import { util } from '@kit.ArkTS';
+
+export interface HttpResult {
+  code: number;
+  body: string;
+  cookie: string;
+}
+
+export class HttpClient {
+  /** 教务系统根地址（不含 /jwglxt，各接口路径已自带）。接入学校真实教务系统时改这里。 */
+  static baseUrl: string = 'https://jwxt.xjau.edu.cn';
+  /** 会话 Cookie */
+  private static cookie: string = '';
+
+  /** 设置请求会话 Cookie（登录成功后保存，供后续接口携带） */
+  static setCookie(value: string): void {
+    HttpClient.cookie = value;
+  }
+
+  /** 读取当前会话 Cookie */
+  static getCookie(): string {
+    return HttpClient.cookie;
+  }
+
+  /** 清空会话 Cookie（退出登录时调用） */
+  static clearCookie(): void {
+    HttpClient.cookie = '';
+  }
+
+  private static buildHeader(extra: Record<string, string>): Record<string, string> {
+    const header: Record<string, string> = {};
+    header['User-Agent'] = 'Mozilla/5.0 (Linux; HarmonyOS) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36';
+    header['Accept'] = 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8';
+    if (HttpClient.cookie.length > 0) {
+      header['Cookie'] = HttpClient.cookie;
+    }
+    const keys: string[] = Object.keys(extra);
+    for (let i = 0; i < keys.length; i++) {
+      header[keys[i]] = extra[keys[i]];
+    }
+    return header;
+  }
+
+  /**
+   * 从 Set-Cookie 响应头解析出 key=value 片段。
+   * 多条 cookie 以逗号分隔，但 cookie 值里也可能含逗号，
+   * 用"逗号后紧跟非空 key=value"的正则边界分割（参考 HiXD saveResponseCookies）。
+   */
+  private static parseSetCookies(raw: string): string {
+    if (raw.length === 0) {
+      return '';
+    }
+    const pairs: string[] = [];
+    // 按 ", key=" 边界分割多条 Set-Cookie
+    const parts: string[] = raw.split(/,(?=\s*[^,;=]+=)/);
+    for (let i = 0; i < parts.length; i++) {
+      const seg: string = parts[i].split(';')[0].trim();
+      if (seg.indexOf('=') > 0) {
+        pairs.push(seg);
+      }
+    }
+    return pairs.join('; ');
+  }
+
+  /** 把新收到的 cookie 合并进会话（同名覆盖），返回合并后的完整 cookie */
+  private static mergeCookies(setCookieHeader: string): string {
+    if (setCookieHeader.length === 0) {
+      return HttpClient.cookie;
+    }
+    const fresh: string = HttpClient.parseSetCookies(setCookieHeader);
+    if (fresh.length === 0) {
+      return HttpClient.cookie;
+    }
+    // 合并：已有 cookie 保留，新 cookie 同名覆盖
+    const map: Record<string, string> = {};
+    const existing: string[] = HttpClient.cookie.split(';');
+    for (let i = 0; i < existing.length; i++) {
+      const kv: string = existing[i].trim();
+      const eq: number = kv.indexOf('=');
+      if (eq > 0) {
+        map[kv.substring(0, eq)] = kv.substring(eq + 1);
+      }
+    }
+    const freshPairs: string[] = fresh.split(';');
+    for (let i = 0; i < freshPairs.length; i++) {
+      const kv: string = freshPairs[i].trim();
+      const eq: number = kv.indexOf('=');
+      if (eq > 0) {
+        map[kv.substring(0, eq)] = kv.substring(eq + 1);
+      }
+    }
+    const keys: string[] = Object.keys(map);
+    const out: string[] = [];
+    for (let i = 0; i < keys.length; i++) {
+      out.push(`${keys[i]}=${map[keys[i]]}`);
+    }
+    HttpClient.cookie = out.join('; ');
+    return HttpClient.cookie;
+  }
+
+  private static async request(url: string, method: http.RequestMethod, body: string,
+    extraHeader: Record<string, string>): Promise<HttpResult> {
+    const client: http.HttpRequest = http.createHttp();
+    try {
+      const options: http.HttpRequestOptions = {
+        method: method,
+        header: HttpClient.buildHeader(extraHeader),
+        extraData: body,
+        connectTimeout: 15000,
+        readTimeout: 20000,
+        expectDataType: http.HttpDataType.STRING
+      };
+      // 关键：拦截重定向链上每个响应的 Set-Cookie，立即合并进会话。
+      // HarmonyOS 自动跟随 302 时，登录成功的 JSESSIONID 正是在重定向
+      // 响应头里下发，若不在此收集，最终 response.header 里会丢失。
+      client.on('headersReceive', (header: Object) => {
+        try {
+          const hdr: Record<string, Object> = header as Record<string, Object>;
+          const sc: Object | undefined = hdr['set-cookie'] ?? hdr['Set-Cookie'];
+          if (sc !== undefined) {
+            HttpClient.mergeCookies(String(sc));
+          }
+        } catch (e) {
+          // 单次拦截失败不影响请求
+        }
+      });
+      const response: http.HttpResponse = await client.request(url, options);
+      let text: string = '';
+      if (typeof response.result === 'string') {
+        text = response.result as string;
+      } else {
+        text = JSON.stringify(response.result);
+      }
+      return { code: response.responseCode as number, body: text, cookie: HttpClient.cookie };
+    } finally {
+      client.destroy();
+    }
+  }
+
+  /** 发送 GET 请求，返回响应 JSON 与状态码 */
+  static get(path: string): Promise<HttpResult> {
+    const url: string = path.startsWith('http') ? path : `${HttpClient.baseUrl}${path}`;
+    return HttpClient.request(url, http.RequestMethod.GET, '', {});
+  }
+
+  /**
+   * 拉取图片（验证码）并返回 base64（不含 data: 前缀）。
+   * 验证码图片与会话 Cookie 绑定，这里复用同一会话，确保用户输入的验证码与服务端一致。
+   * 失败时返回空字符串。
+   */
+  static async getImageBase64(path: string): Promise<string> {
+    const url: string = path.startsWith('http') ? path : `${HttpClient.baseUrl}${path}`;
+    const client: http.HttpRequest = http.createHttp();
+    try {
+      const options: http.HttpRequestOptions = {
+        method: http.RequestMethod.GET,
+        header: HttpClient.buildHeader({ 'Accept': 'image/png,image/jpeg,image/*' }),
+        connectTimeout: 15000,
+        readTimeout: 20000,
+        expectDataType: http.HttpDataType.ARRAY_BUFFER
+      };
+      client.on('headersReceive', (header: Object) => {
+        try {
+          const hdr: Record<string, Object> = header as Record<string, Object>;
+          const sc: Object | undefined = hdr['set-cookie'] ?? hdr['Set-Cookie'];
+          if (sc !== undefined) {
+            HttpClient.mergeCookies(String(sc));
+          }
+        } catch (e) {
+          // ignore
+        }
+      });
+      const response: http.HttpResponse = await client.request(url, options);
+      if (response.responseCode === 200 && response.result instanceof ArrayBuffer) {
+        const buf: ArrayBuffer = response.result as ArrayBuffer;
+        const bytes: Uint8Array = new Uint8Array(buf);
+        return new util.Base64Helper().encodeToString(bytes);
+      }
+    } catch (e) {
+      // 验证码获取失败时返回空串，由上层决定是否提示
+    } finally {
+      client.destroy();
+    }
+    return '';
+  }
+
+  /** 表单提交，教务系统登录基本都用这个 */
+  static postForm(path: string, form: Record<string, string>): Promise<HttpResult> {
+    const url: string = path.startsWith('http') ? path : `${HttpClient.baseUrl}${path}`;
+    const keys: string[] = Object.keys(form);
+    const parts: string[] = [];
+    for (let i = 0; i < keys.length; i++) {
+      parts.push(`${encodeURIComponent(keys[i])}=${encodeURIComponent(form[keys[i]])}`);
+    }
+    const header: Record<string, string> = {};
+    header['Content-Type'] = 'application/x-www-form-urlencoded';
+    return HttpClient.request(url, http.RequestMethod.POST, parts.join('&'), header);
+  }
+}

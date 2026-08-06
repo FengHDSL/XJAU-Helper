@@ -1,0 +1,25 @@
+# 构建产物
+build/
+entry/build/
+node_modules/
+**/node_modules/
+**/oh_modules/
+**/libs/
+
+# 鸿蒙 IDE
+.idea/
+*.iml
+.huawei/
+hvigor/
+
+# 工具缓存
+.workbuddy/
+*.log
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 临时
+*.tmp
+*.bak
