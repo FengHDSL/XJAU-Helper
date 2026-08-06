@@ -1,0 +1,48 @@
+{
+  "forms": [
+    {
+      "name": "class_preview_2x2",
+      "displayName": "$string:class_preview_card_name",
+      "description": "$string:class_preview_card_desc",
+      "src": "./ets/widgets/pages/ClassPreviewCard2x2.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDynamic": true,
+      "enableBlurBackground": true,
+      "isDefault": true,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "00:00",
+      "transparencyEnabled": true,
+      "defaultDimension": "2*2",
+      "supportDimensions": [
+        "2*2"
+      ]
+    },
+    {
+      "name": "exam_countdown_2x2",
+      "displayName": "$string:exam_countdown_card_name",
+      "description": "$string:exam_countdown_card_desc",
+      "src": "./ets/widgets/pages/ExamCountdownCard2x2.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDynamic": true,
+      "enableBlurBackground": true,
+      "isDefault": false,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "06:00",
+      "transparencyEnabled": true,
+      "defaultDimension": "2*2",
+      "supportDimensions": [
+        "2*2"
+      ]
+    }
+  ]
+}

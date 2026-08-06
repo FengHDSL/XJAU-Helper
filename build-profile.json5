@@ -1,0 +1,56 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:/Users/panda/.ohos/config/default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B5FB0B1155695F742AF31CF8AA861AEBE988D10388BC952CB9D37A3EACBCF0E104E80F8DE5C8FE0",
+          "profile": "C:/Users/panda/.ohos/config/default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:/Users/panda/.ohos/config/default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.p12",
+          "storePassword": "0000001BB95C30242E7ED48F2C87AD87E41FC5E95C5ADCB7D849EE5D37ACD3AE6D8CC7ACDF05585B9867D8"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "26.0.0",
+        "compatibleSdkVersion": "26.0.0",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}
