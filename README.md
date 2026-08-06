@@ -24,13 +24,13 @@
     <td align="center" width="200"><b>登录</b></td>
     <td align="center" width="200"><b>首页</b></td>
     <td align="center" width="200"><b>课程表</b></td>
-    <td align="center" width="200"><b>课程详情</b></td>
+    <td align="center" width="200"><b>我的</b></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/01-login.png" width="180" alt="登录" /></td>
     <td><img src="docs/screenshots/02-home.png" width="180" alt="首页" /></td>
     <td><img src="docs/screenshots/03-schedule.png" width="180" alt="课程表" /></td>
-    <td><img src="docs/screenshots/04-schedule-detail.png" width="180" alt="课程详情" /></td>
+    <td><img src="docs/screenshots/04-schedule-detail.png" width="180" alt="成绩查询" /></td>
   </tr>
   <tr>
     <td align="center"><b>成绩查询</b></td>
@@ -39,7 +39,7 @@
     <td align="center" width="200"><b>学业情况</b></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/05-score.png" width="180" alt="成绩查询" /></td>
+    <td><img src="docs/screenshots/05-score.png" width="180" alt="我的" /></td>
     <td><img src="docs/screenshots/06-mine.png" width="180" alt="我的" /></td>
     <td><img src="docs/screenshots/07-exam.png" width="180" alt="考试查询" /></td>
     <td><img src="docs/screenshots/08-academic.png" width="180" alt="学业情况" /></td>
