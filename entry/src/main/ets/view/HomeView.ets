@@ -376,12 +376,6 @@ export struct HomeView {
   @Builder
   termPickerSheet() {
     Column() {
-      Text('选择学期')
-        .fontSize(16)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.text_primary'))
-        .width('100%')
-        .margin({ bottom: 14 })
       if (this.terms.length === 0) {
         Text('暂无可选学期')
           .fontSize(13)
@@ -910,6 +904,11 @@ export struct HomeView {
             .width('100%')
             .onClick(() => {
               if (item.url.length > 0) {
+                // 功能浏览模式不允许打开网页
+                if (JwApi.USE_MOCK) {
+                  promptAction.showToast({ message: '当前模式暂不支持' });
+                  return;
+                }
                 // 有文章链接：打开教务处官网文章页
                 AppState.webUrl = item.url;
                 AppState.webTitle = '教务处通知';
@@ -1264,7 +1263,7 @@ export struct HomeView {
             height: SheetSize.FIT_CONTENT,
             dragBar: true,
             backgroundColor: $r('app.color.bg_card'),
-            title: { title: '选择学期' }
+            title: { title: '选择学年-学期' }
           })
         }
         .width(720)

@@ -160,3 +160,54 @@ export interface SectionInfo {
   start: number;
   end: number;
 }
+
+/** 空闲教室查询条件项（正方 kxjs：校区/楼号/场地类型） */
+export interface EmptyRoomCondition {
+  code: string;
+  name: string;
+}
+
+/** 空闲教室结果项（字段名与 web kxcdlb.js colModel 对齐） */
+export interface EmptyRoomItem {
+  cdbh: string;          // 场地编号
+  cdmc: string;          // 场地名称
+  xqmc: string;          // 校区
+  jxlmc: string;         // 楼号
+  lch: string;           // 楼层
+  cdlbmc: string;        // 场地类别（一级）
+  cdejlbmc: string;      // 场地二级类别
+  sjzws: string;         // 座位数
+  sybmmc: string;        // 使用部门
+  sybj: string;          // 使用班级
+  bz: string;            // 场地备注
+  sfkfy: string;         // 是否可借用（"1"/"是"=可借用）
+  time: string;          // 空闲时间（按周次/星期/节次计算）
+}
+
+/** 空闲教室查询条件集合（校区/楼号/场地类型） */
+export interface EmptyRoomConditions {
+  campus: EmptyRoomCondition[];
+  building: EmptyRoomCondition[];
+  roomType: EmptyRoomCondition[];
+}
+
+/** 空闲教室查询参数（周次/星期/节次支持多选） */
+export interface EmptyRoomQueryParams {
+  termId: string;
+  campus: string;        // xqh_id
+  building: string;      // lh
+  roomType: string;      // cdlb_id 场地类别（一级）
+  roomSubType: string;   // cdejlb_id 场地二级类别（选完一级才有）
+  seatMin: string;       // qszws 座位数下限
+  seatMax: string;       // jszws 座位数上限
+  roomName: string;      // cdmc 场地名称
+  weeks: number[];
+  weekdays: number[];
+  sections: number[];
+}
+
+/** 空闲教室查询结果（含服务端提示消息） */
+export interface EmptyRoomResult {
+  rooms: EmptyRoomItem[];
+  message: string;
+}

@@ -52,7 +52,7 @@ export class Const {
 
   /** 首页快捷入口（通知/校历已下放到右上角"消息"入口与日历组件） */
   static readonly QUICK_ENTRIES: QuickEntry[] = [
-    { key: 'exam', title: '考试安排', icon: '考试安排', color: $r('app.color.accent_orange') },
+    { key: 'exam', title: '考试查询', icon: '考试查询', color: $r('app.color.accent_orange') },
     { key: 'academic', title: '学业情况', icon: '学业情况', color: $r('app.color.accent_purple') }
   ];
 
@@ -63,6 +63,7 @@ export class Const {
   static readonly ROUTE_ACADEMIC: string = 'AcademicPage';
   static readonly ROUTE_PRIVACY: string = 'PrivacyPage';
   static readonly ROUTE_ABOUT: string = 'AboutPage';
+  static readonly ROUTE_EMPTY_ROOM: string = 'KxjsPage';
 
   /** 教务系统网址（应用内 WebView 打开） */
   static readonly WEB_PORTAL_URL: string = 'https://jwxt.xjau.edu.cn/jwglxt/xtgl/index_initMenu.html';

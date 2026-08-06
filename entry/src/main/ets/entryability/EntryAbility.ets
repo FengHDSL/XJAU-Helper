@@ -1,6 +1,7 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { mediaquery, window } from '@kit.ArkUI';
+import { AppState } from '../common/AppState';
 import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
 
@@ -10,8 +11,9 @@ export default class EntryAbility extends UIAbility {
   /** Ability 创建：初始化数据存储、头像开关、深色模式监听 */
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
-    // 初始化本地持久化（历史账号 + 数据缓存）
+    // 初始化本地持久化（历史账号 + 数据缓存），并保存全局 Context
     DataStore.init(this.context);
+    AppState.context = this.context;
     // 头像显示开关（默认关闭，仅影响圆形头像）
     const showAvatar: boolean = DataStore.get(DataStore.KEY_SHOW_AVATAR) === '1';
     AppStorage.setOrCreate('showAvatar', showAvatar);

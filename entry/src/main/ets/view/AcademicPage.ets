@@ -496,7 +496,7 @@ export struct AcademicPage {
             .margin({ left: 10 })
         }
         .width('100%')
-        .alignItems(VerticalAlign.Top)
+        .alignItems(VerticalAlign.Center)
         .margin({ bottom: 10 })
       }, (text: string) => text)
     }

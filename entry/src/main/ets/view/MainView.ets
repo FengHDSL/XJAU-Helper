@@ -15,6 +15,7 @@ import { AboutPage } from './AboutPage';
 import { AcademicPage } from './AcademicPage';
 import { ExamPage } from './ExamPage';
 import { HomeView } from './HomeView';
+import { KxjsPage } from './KxjsPage';
 import { MineView } from './MineView';
 import { NoticeDetailPage, NoticePage } from './NoticePage';
 import { PrivacyPage } from './PrivacyPage';
@@ -29,6 +30,9 @@ export struct MainView {
   @State currentIndex: number = 0;
   private tabsController: HdsTabsController = new HdsTabsController();
   onLogout: () => void = () => {
+  };
+  /** 前往登录页（不退出登录）：由 MineView 退出弹窗触发，向上传给 Index */
+  onGotoLogin: () => void = () => {
   };
 
   /** Tab 按钮：图标 + 文字，选中品牌色、未选中灰 */
@@ -71,6 +75,8 @@ export struct MainView {
       PrivacyPage()
     } else if (name === Const.ROUTE_ABOUT) {
       AboutPage()
+    } else if (name === Const.ROUTE_EMPTY_ROOM) {
+      KxjsPage()
     }
   }
 
@@ -101,6 +107,9 @@ export struct MainView {
           MineView({
             onLogout: () => {
               this.onLogout();
+            },
+            onGotoLogin: () => {
+              this.onGotoLogin();
             }
           })
         }

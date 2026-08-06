@@ -129,7 +129,7 @@ export struct AboutPage {
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('app.color.text_primary'))
                 .margin({ top: 12 })
-              Text('版本 1.1.0')
+              Text('版本 1.1.5')
                 .fontSize(12)
                 .fontColor($r('app.color.text_tertiary'))
                 .margin({ top: 4 })
@@ -141,6 +141,13 @@ export struct AboutPage {
             .width('100%')
             .alignItems(HorizontalAlign.Center)
             .padding({ top: 10, bottom: 24 })
+
+            this.changelog('1.1.5', '2026-08-06', [
+              '紧急更新！教务系统参数疑似变更，本次更新已修复部分问题，同时为了避免无法使用，登录方法变更（重新打开应用时会重新登录，以刷新获取数据）',
+              '完善登录规则：不再默认记住密码，首次启用需同意隐私协议',
+              '新增空闲教室查询（数据已对接，交互持续优化中）',
+              '优化多页面弹窗标题去重、字号对齐、选项靠右显示等界面细节'
+            ])
 
             this.changelog('1.1.0', '2026-08-06', [
               '启用新应用图标，登录页与顶栏统一农大绿，忘记密码跳转学校官网',

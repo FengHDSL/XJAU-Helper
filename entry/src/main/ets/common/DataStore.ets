@@ -7,6 +7,7 @@
 import { preferences } from '@kit.ArkData';
 import { common } from '@kit.AbilityKit';
 import { UserProfile } from '../model/Models';
+import { DateUtil } from './DateUtil';
 
 export class DataStore {
   private static pref: preferences.Preferences | null = null;
@@ -73,6 +74,43 @@ export class DataStore {
   static readonly KEY_SHOW_AVATAR: string = 'show_avatar';
   // 当前学期 ID（全局设置，启动时优先恢复）
   static readonly KEY_DS_TERM: string = 'current_term_id';
+  // 隐私协议：是否已同意 + 同意时间
+  static readonly KEY_PRIVACY_AGREED: string = 'privacy_agreed';
+  static readonly KEY_PRIVACY_AGREED_AT: string = 'privacy_agreed_at';
+  // 网页登录会话 Cookie（持久化，下次启动恢复）
+  static readonly KEY_SESSION_COOKIE: string = 'session_cookie';
+  // 自动重新登录凭据（账号+加密密码，冷启动时静默重登刷新会话）
+  static readonly KEY_AUTO_ACCOUNT: string = 'auto_relogin_account';
+  static readonly KEY_AUTO_PWD: string = 'auto_relogin_pwd';
+  // 当前登录方式：'pwd'=账号密码登录，'web'=网页登录（我的页退出按钮长按提示用）
+  static readonly KEY_LOGIN_METHOD: string = 'login_method';
+
+  /** 记录当前登录方式（pwd/web） */
+  static setLoginMethod(method: string): void {
+    DataStore.put(DataStore.KEY_LOGIN_METHOD, method);
+  }
+
+  /** 读取当前登录方式，未知返回空串 */
+  static getLoginMethod(): string {
+    return DataStore.get(DataStore.KEY_LOGIN_METHOD);
+  }
+
+  /** 是否已同意隐私协议 */
+  static isPrivacyAgreed(): boolean {
+    return DataStore.get(DataStore.KEY_PRIVACY_AGREED) === '1';
+  }
+
+  /** 设置隐私协议已同意（写入同意时间，供协议页右下角展示） */
+  static setPrivacyAgreed(): void {
+    const ts: string = DateUtil.formatCn(new Date());
+    DataStore.put(DataStore.KEY_PRIVACY_AGREED, '1');
+    DataStore.put(DataStore.KEY_PRIVACY_AGREED_AT, ts);
+  }
+
+  /** 读取同意时间（未同意返回空串） */
+  static getPrivacyAgreedAt(): string {
+    return DataStore.get(DataStore.KEY_PRIVACY_AGREED_AT);
+  }
 
   /** 记录一次成功登录的账号（去重、置顶、最多保留 8 个，密码 base64+XOR 编码存储） */
   static addAccount(account: string, password: string): void {

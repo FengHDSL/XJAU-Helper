@@ -10,6 +10,7 @@
  */
 import { KeyboardAvoidMode, promptAction } from '@kit.ArkUI';
 import { mediaquery } from '@kit.ArkUI';
+import { HttpClient } from '../api/HttpClient';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
@@ -26,21 +27,29 @@ export struct LoginView {
   @State captcha: string = '';
   @State captchaImage: string = '';
   @State showCaptcha: boolean = false;
-  @State remember: boolean = true;
+  @State remember: boolean = false; // 默认不勾选（用户隐私优先，每次启动重新输入密码）
   @State loading: boolean = false;
   @State showWeb: boolean = false;
-  @State showWebLogin: boolean = false;
   @State showHistory: boolean = false;
   @State historyList: Record<string, string>[] = [];
   @State isLandscape: boolean = false;
   @State showPwd: boolean = false; // 密码明文/密文切换
+  @State showPrivacy: boolean = false; // 隐私协议弹窗（首次启动未同意时显示）
+  @State privacyAgreedAt: string = ''; // 隐私协议同意时间（右下角展示用）
   private accountController: TextInputController = new TextInputController();
   private passwordController: TextInputController = new TextInputController();
   onSuccess: () => void = () => {
   };
+  /** 自动重登模式（冷启动恢复登录态）：显示加载符号、禁用交互、静默登录 */
+  autoRelogin: boolean = false;
+  /** 前往登录页模式（不退出登录）：左上角显示返回按钮 */
+  showBack: boolean = false;
+  /** 返回按钮回调（showBack 时显示，点击返回应用首页） */
+  onBack: () => void = () => {
+  };
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
 
-  /** 页面出现：读取历史账号并填充、注册屏幕方向监听 */
+  /** 页面出现：读取历史账号并填充、注册屏幕方向监听、检查隐私协议 */
   aboutToAppear(): void {
     // 键盘避让设为 RESIZE：键盘弹出时页面缩小而非上移，登录按钮可滚动到键盘上方点击
     try {
@@ -48,11 +57,36 @@ export struct LoginView {
     } catch (e) {
       // ignore
     }
-    // 读取历史账号（最近登录的账号+密码）
+    // 隐私协议：未同意时强制弹出（不同意时只能使用"功能浏览"）
+    this.privacyAgreedAt = DataStore.getPrivacyAgreedAt();
+    if (!DataStore.isPrivacyAgreed()) {
+      this.showPrivacy = true;
+    }
+    // 自动重登模式：用保存的凭据静默登录（显示加载、禁用交互），不再让用户手动输入
+    if (this.autoRelogin) {
+      const autoAcct: string = DataStore.get(DataStore.KEY_AUTO_ACCOUNT);
+      const autoPwd: string = DataStore.decodePwd(DataStore.get(DataStore.KEY_AUTO_PWD));
+      if (autoAcct.length > 0 && autoPwd.length > 0) {
+        this.account = autoAcct;
+        this.password = autoPwd;
+        this.accountController.addText(autoAcct);
+        this.passwordController.addText(autoPwd);
+        this.loading = true;
+        // 延迟一帧让 loading 先渲染，再发起自动登录
+        setTimeout(() => {
+          this.doLogin();
+        }, 150);
+      }
+      return;
+    }
+    // 读取历史账号（最近登录的账号+密码）。注意：默认不勾选"记住密码"，
+    // 因此即使有历史记录也只填账号、不填密码，避免出现"取消勾选却仍然保存了密码"的体验割裂。
     this.historyList = DataStore.getAccountList();
     if (this.historyList.length > 0) {
       this.account = this.historyList[0]['account'] ?? '';
-      this.password = DataStore.decodePwd(this.historyList[0]['password'] ?? '');
+      if (this.remember) {
+        this.password = DataStore.decodePwd(this.historyList[0]['password'] ?? '');
+      }
     }
     const mq: mediaquery.MediaQueryResult = mediaquery.matchMediaSync('(orientation: landscape)');
     this.isLandscape = mq.matches;
@@ -97,6 +131,11 @@ export struct LoginView {
    * 服务端要求验证码时，才把验证码图片推给用户输入后重试。
    */
   private async doLogin(): Promise<void> {
+    // 必须先同意隐私协议
+    if (!DataStore.isPrivacyAgreed()) {
+      this.showPrivacy = true;
+      return;
+    }
     if (this.account.trim().length === 0) {
       promptAction.showToast({ message: '请输入学号' });
       return;
@@ -105,8 +144,9 @@ export struct LoginView {
       promptAction.showToast({ message: '请输入密码' });
       return;
     }
-    // 真实登录：强制走真实接口
+    // 真实登录：强制走真实接口，关闭离线模式
     JwApi.USE_MOCK = false;
+    HttpClient.setOfflineMode(false);
     this.loading = true;
     const captchaVal: string = this.showCaptcha ? this.captchaInput.trim() : '';
     const result: LoginResult = await JwApi.login(this.account.trim(), this.password, captchaVal);
@@ -115,9 +155,15 @@ export struct LoginView {
     if (result.success && result.profile !== null) {
       AppState.profile = result.profile;
       AppState.account = this.account.trim();
-      // 记录历史账号（含密码），最近登录置顶
-      DataStore.addAccount(this.account.trim(), this.password);
+      // 记录历史账号：勾选"记住密码"保存密码；未勾选时保留该账号已保存的密码（不覆盖为空）
+      const historyPwd: string = this.savedPasswordOf(this.account.trim());
+      const pwdToSave: string = this.remember ? this.password : historyPwd;
+      DataStore.addAccount(this.account.trim(), pwdToSave);
       this.historyList = DataStore.getAccountList();
+      // 保存自动重登凭据（冷启动时静默重新登录刷新会话，否则服务端会话过期后功能不可用）
+      DataStore.put(DataStore.KEY_AUTO_ACCOUNT, this.account.trim());
+      DataStore.put(DataStore.KEY_AUTO_PWD, DataStore.encodePwd(this.password));
+      DataStore.setLoginMethod('pwd');
       promptAction.showToast({ message: '登录成功' });
       this.onSuccess();
     } else {
@@ -129,13 +175,15 @@ export struct LoginView {
         this.loadCaptcha();
       }
       promptAction.showToast({ message: result.message, duration: 2500 });
-      // 登录不成功（含需要验证码/密码错误），开放"网页版登录"兜底入口
-      this.showWebLogin = true;
     }
   }
 
   /** 在应用内 WebView 打开教务系统登录页，用于"网页版直接登录"的兜底方案。 */
   private openWebLogin(): void {
+    if (JwApi.USE_MOCK) {
+      promptAction.showToast({ message: '当前模式暂不支持' });
+      return;
+    }
     AppState.webLoginMode = true;
     AppState.onWebLogin = () => {
       this.showWeb = false;
@@ -148,6 +196,10 @@ export struct LoginView {
 
   /** 打开找回密码网页（学校统一身份认证平台），在应用内 WebView 中展示。 */
   private openForgotPassword(): void {
+    if (JwApi.USE_MOCK) {
+      promptAction.showToast({ message: '当前模式暂不支持' });
+      return;
+    }
     AppState.webLoginMode = false;
     AppState.onWebLogin = null;
     AppState.webUrl = Const.FORGOT_PASSWORD_URL;
@@ -158,6 +210,7 @@ export struct LoginView {
   /** 功能浏览（原"游客模式"）：临时切到 mock 数据，用占位账号直接登录（无需真实学号密码）。 */
   private async demoLogin(): Promise<void> {
     JwApi.USE_MOCK = true;
+    HttpClient.setOfflineMode(true); // 禁用所有网络请求
     this.loading = true;
     const result: LoginResult = await JwApi.login('demo123456', 'demo123456');
     this.loading = false;
@@ -171,24 +224,70 @@ export struct LoginView {
     }
   }
 
-  /** 选中历史账号 → 填充账号密码并折叠面板 */
+  /** 同意隐私协议：记录时间、关闭弹窗 */
+  private agreePrivacy(): void {
+    DataStore.setPrivacyAgreed();
+    this.privacyAgreedAt = DataStore.getPrivacyAgreedAt();
+    this.showPrivacy = false;
+  }
+
+  /** 暂不同意隐私协议：关闭弹窗，未登录账号前仅可使用"功能浏览" */
+  private declinePrivacy(): void {
+    this.showPrivacy = false;
+  }
+
+  /** 查询某账号在历史记录中已保存的密码（无则空串） */
+  private savedPasswordOf(account: string): string {
+    const list: Record<string, string>[] = DataStore.getAccountList();
+    for (const it of list) {
+      if (it['account'] === account) {
+        return DataStore.decodePwd(it['password'] ?? '');
+      }
+    }
+    return '';
+  }
+
+  /** 选中历史账号 → 填充账号密码并折叠面板
+   *  历史记录中保存了密码（勾选"记住密码"登录）则一并填充，否则只填账号 */
   private pickHistory(item: Record<string, string>): void {
     const acct: string = item['account'] ?? '';
-    const pwd: string = DataStore.decodePwd(item['password'] ?? '');
     this.account = acct;
-    this.password = pwd;
-    // TextInput 构造器 text 参数不会响应 @State 变化，需通过 controller 强制刷新
+    const savedPwd: string = DataStore.decodePwd(item['password'] ?? '');
+    this.password = savedPwd;
+    // TextInput 构造器 text 参数不会响应 @State 变化，必须通过 controller 强制刷新
     this.accountController.deleteText();
     if (acct.length > 0) {
       this.accountController.addText(acct);
     }
     this.passwordController.deleteText();
-    if (pwd.length > 0) {
-      this.passwordController.addText(pwd);
+    if (savedPwd.length > 0) {
+      this.passwordController.addText(savedPwd);
     }
     this.showHistory = false;
     this.showCaptcha = false;
     this.captchaInput = '';
+  }
+
+  /** 删除单个历史账号（带动画，swipeAction 滑动删除） */
+  private deleteHistory(index: number): void {
+    if (index < 0 || index >= this.historyList.length) {
+      return;
+    }
+    const removedAcct: string = this.historyList[index]['account'] ?? '';
+    animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
+      this.historyList.splice(index, 1);
+    });
+    // 持久化剩余列表
+    DataStore.put(DataStore.KEY_ACCOUNTS, JSON.stringify(this.historyList));
+    // 若删除的是"最近登录"，回退到剩余列表第一个
+    if (DataStore.get(DataStore.KEY_LAST_ACCOUNT) === removedAcct) {
+      DataStore.put(DataStore.KEY_LAST_ACCOUNT,
+        this.historyList.length > 0 ? (this.historyList[0]['account'] ?? '') : '');
+    }
+    // 全部删完时收起面板
+    if (this.historyList.length === 0) {
+      this.showHistory = false;
+    }
   }
 
   /** 清空历史账号列表并持久化 */
@@ -355,47 +454,56 @@ export struct LoginView {
       .width('100%')
       .margin({ bottom: 8 })
 
-      ForEach(this.historyList, (item: Record<string, string>, index: number) => {
-        Row() {
-          if (index === 0) {
-            Text('最近')
-              .fontSize(10)
-              .fontColor($r('app.color.brand_on'))
-              .backgroundColor($r('app.color.brand'))
-              .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-              .borderRadius(6)
-              .margin({ right: 8 })
-          }
+      List({ space: 6 }) {
+        ForEach(this.historyList, (item: Record<string, string>, index: number) => {
+          ListItem() {
+            Row() {
+              if (index === 0) {
+                Text('最近')
+                  .fontSize(10)
+                  .fontColor($r('app.color.brand_on'))
+                  .backgroundColor($r('app.color.brand'))
+                  .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+                  .borderRadius(6)
+                  .margin({ right: 8 })
+              }
 
-          Column() {
-            Text(item['account'] ?? '')
-              .fontSize(14)
-              .fontColor($r('app.color.text_primary'))
-            Text(item['password'] !== undefined && item['password'].length > 0 ? '已保存密码' : '无密码')
-              .fontSize(10)
-              .fontColor($r('app.color.text_tertiary'))
-              .margin({ top: 2 })
-          }
-          .alignItems(HorizontalAlign.Start)
-          .layoutWeight(1)
+              Column() {
+                Text(item['account'] ?? '')
+                  .fontSize(14)
+                  .fontColor($r('app.color.text_primary'))
+                Text(item['password'] !== undefined && item['password'].length > 0 ? '已保存密码' : '无密码')
+                  .fontSize(10)
+                  .fontColor($r('app.color.text_tertiary'))
+                  .margin({ top: 2 })
+              }
+              .alignItems(HorizontalAlign.Start)
+              .layoutWeight(1)
 
-          Button('使用')
-            .fontSize(12)
-            .fontColor($r('app.color.brand_on'))
-            .backgroundColor($r('app.color.brand'))
-            .height(30)
-            .padding({ left: 12, right: 12 })
-            .borderRadius(8)
-            .onClick(() => {
-              this.pickHistory(item);
-            })
-        }
-        .width('100%')
-        .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-        .backgroundColor($r('app.color.bg_chip'))
-        .borderRadius(10)
-        .margin({ bottom: 6 })
-      }, (item: Record<string, string>): string => item['account'] ?? '')
+              Button('使用')
+                .fontSize(12)
+                .fontColor($r('app.color.brand_on'))
+                .backgroundColor($r('app.color.brand'))
+                .height(30)
+                .padding({ left: 12, right: 12 })
+                .borderRadius(8)
+                .onClick(() => {
+                  this.pickHistory(item);
+                })
+            }
+            .width('100%')
+            .padding({ left: 12, right: 12, top: 10, bottom: 10 })
+            .backgroundColor($r('app.color.bg_chip'))
+            .borderRadius(10)
+          }
+          .swipeAction({
+            end: this.swipeDeleteButton(index)
+          })
+        }, (item: Record<string, string>): string => item['account'] ?? '')
+      }
+      .width('100%')
+      .scrollBar(BarState.Off)
+      .constraintSize({ maxHeight: 340 })
 
       Text('密码仅保存在本机（加密），不上传任何服务器。')
         .fontSize(10)
@@ -407,6 +515,24 @@ export struct LoginView {
     .backgroundColor($r('app.color.bg_page'))
     .borderRadius(12)
     .margin({ top: 10 })
+  }
+
+  /** 历史账号左滑删除按钮（SwipeAction end 侧） */
+  @Builder
+  swipeDeleteButton(index: number) {
+    Row() {
+      Text('删除')
+        .fontSize(13)
+        .fontColor('#FFFFFF')
+    }
+    .width(64)
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .backgroundColor('#F0524D')
+    .borderRadius(10)
+    .onClick(() => {
+      this.deleteHistory(index);
+    })
   }
 
   build() {
@@ -423,6 +549,7 @@ export struct LoginView {
           })
           .overlay(this.bannerOverlay(), { align: Alignment.TopStart })
 
+        // 前往登录页模式：登录按钮左侧显示灰色返回按钮（见登录按钮区域）
         Scroll() {
           Column() {
             // 顶部 XJAU Helper 圆角 logo
@@ -477,7 +604,7 @@ export struct LoginView {
                   .onChange((checked: boolean) => {
                     this.remember = checked;
                   })
-                Text('记住学号')
+                Text('记住密码')
                   .fontSize(12)
                   .fontColor($r('app.color.text_secondary'))
                   .margin({ left: 4 })
@@ -492,29 +619,51 @@ export struct LoginView {
               .width('100%')
               .margin({ top: 8, bottom: 18 })
 
-              Button() {
-                Row() {
-                  if (this.loading) {
-                    LoadingProgress()
-                      .width(18)
-                      .height(18)
-                      .color($r('app.color.brand_on'))
-                      .margin({ right: 8 })
+              Row() {
+                // 前往登录页模式：灰色返回按钮（左侧，与登录按钮等宽等高，合计与原登录按钮相同）
+                if (this.showBack) {
+                  Button() {
+                    Text('‹ 返回')
+                      .fontSize(16)
+                      .fontWeight(FontWeight.Medium)
+                      .fontColor($r('app.color.text_secondary'))
                   }
-                  Text(this.loading ? '正在连接教务系统…' : '登  录')
-                    .fontSize(16)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor($r('app.color.brand_on'))
+                  .layoutWeight(1)
+                  .height(48)
+                  .backgroundColor($r('app.color.bg_chip'))
+                  .borderRadius(12)
+                  .margin({ right: 10 })
+                  .enabled(!this.loading)
+                  .onClick(() => {
+                    this.onBack();
+                  })
                 }
+                // 登录按钮
+                Button() {
+                  Row() {
+                    if (this.loading) {
+                      LoadingProgress()
+                        .width(18)
+                        .height(18)
+                        .color($r('app.color.brand_on'))
+                        .margin({ right: 8 })
+                    }
+                    Text(this.loading ? '正在连接教务系统…' : '登  录')
+                      .fontSize(16)
+                      .fontWeight(FontWeight.Medium)
+                      .fontColor($r('app.color.brand_on'))
+                  }
+                }
+                .layoutWeight(1)
+                .height(48)
+                .backgroundColor($r('app.color.brand'))
+                .borderRadius(12)
+                .enabled(!this.loading)
+                .onClick(() => {
+                  this.doLogin();
+                })
               }
               .width('100%')
-              .height(48)
-              .backgroundColor($r('app.color.brand'))
-              .borderRadius(12)
-              .enabled(!this.loading)
-              .onClick(() => {
-                this.doLogin();
-              })
 
               // 历史账号入口（登录按钮下方，点击才展开）
               if (this.historyList.length > 0) {
@@ -554,27 +703,25 @@ export struct LoginView {
             .borderRadius(20)
             .shadow({ radius: 20, color: '#14000000', offsetY: 6 })
 
-            // 底部操作区：网页版登录（失败后）+ 功能浏览（并入 Scroll，键盘弹出时可滚动到登录按钮）
+            // 底部操作区：网页版登录（默认显示）+ 功能浏览
             Column() {
-              if (this.showWebLogin) {
-                Button() {
-                  Row() {
-                    Text('改用网页版登录')
-                      .fontSize(15)
-                      .fontWeight(FontWeight.Medium)
-                      .fontColor($r('app.color.brand'))
-                  }
+              Button() {
+                Row() {
+                  Text('改用网页版登录')
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor($r('app.color.brand'))
                 }
-                .width('72%')
-                .height(44)
-                .backgroundColor($r('app.color.brand_light'))
-                .borderRadius(22)
-                .margin({ bottom: 10 })
-                .enabled(!this.loading)
-                .onClick(() => {
-                  this.openWebLogin();
-                })
               }
+              .width('72%')
+              .height(44)
+              .backgroundColor($r('app.color.brand_light'))
+              .borderRadius(22)
+              .margin({ bottom: 10 })
+              .enabled(!this.loading)
+              .onClick(() => {
+                this.openWebLogin();
+              })
 
               Button() {
                 Row() {
@@ -616,15 +763,38 @@ export struct LoginView {
       }
       .layoutWeight(1)
       .width('100%')
+      // 网页版登录/找回密码弹窗（挂内层 Stack，与外层隐私弹窗分离避免同组件多 bindSheet 失效）
+      .bindSheet($$this.showWeb, this.webSheet, {
+        height: SheetSize.LARGE,
+        dragBar: false,
+        backgroundColor: $r('app.color.bg_page'),
+        title: { title: AppState.webTitle }
+      })
+
+      // 自动重登提示：居中弹窗样式（不遮罩页面、不拦截点击）
+      if (this.autoRelogin && this.loading) {
+        Column() {
+          Text('正在自动登录…')
+            .fontSize(14)
+            .fontColor($r('app.color.text_primary'))
+        }
+        .padding({ left: 28, right: 28, top: 18, bottom: 18 })
+        .backgroundColor($r('app.color.bg_card'))
+        .borderRadius(14)
+        .shadow({ radius: 24, color: '#33000000', offsetY: 6 })
+        .position({ x: '50%', y: '45%' })
+        .translate({ x: '-50%' })
+      }
     }
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.bg_page'))
-    .bindSheet($$this.showWeb, this.webSheet, {
+    // 隐私协议全屏弹窗（挂外层 Column；网页版登录挂内层 Stack，避免 bindSheet 互相覆盖）
+    .bindSheet($$this.showPrivacy, this.privacySheet(), {
       height: SheetSize.LARGE,
-      dragBar: false,
+      dragBar: true,
       backgroundColor: $r('app.color.bg_page'),
-      title: { title: AppState.webTitle }
+      showClose: true
     })
   }
 
@@ -640,5 +810,120 @@ export struct LoginView {
   @Builder
   webSheet() {
     WebSurface()
+  }
+
+  /** 隐私协议全屏弹窗：协议正文 + 底部"同意"按钮 + 右下角已同意时间 */
+  @Builder
+  privacySheet() {
+    Column() {
+      // 标题
+      Row() {
+        Text('隐私协议')
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+        Blank()
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 16, bottom: 12 })
+
+      // 协议正文（可滚动）
+      Scroll() {
+        Column() {
+          this.privacySection('1. 信息收集',
+            '本应用仅在您主动登录时收集学号与密码，用于访问学校教务系统获取课表、成绩、考试等数据。' +
+              '密码使用教务系统 RSA 公钥加密传输，本地仅保存登录状态标识，不存储明文密码。')
+          this.privacySection('2. 信息存储',
+            '课表、成绩、考试、头像等数据缓存仅保存在您设备本地（应用私有目录），不上传任何服务器。' +
+              '您可在"我的-清除缓存"中随时删除全部本地数据。')
+          this.privacySection('3. 权限使用',
+            '本应用仅申请网络权限（联网获取教务数据）与日历权限（将考试安排写入系统日历提醒）。' +
+              '不申请位置、相册、通讯录、麦克风等与教务功能无关的权限。')
+          this.privacySection('4. 数据安全',
+            '本地缓存不进行二次上传；登录会话仅用于教务系统接口调用。应用被卸载时，本地缓存将被系统一并清除。')
+          this.privacySection('5. 第三方服务',
+            '桌面卡片、快捷方式等系统能力仅在本机展示应用自身数据，不涉及第三方 SDK 数据共享。')
+          this.privacySection('6. 功能浏览',
+            '未同意本协议时，您仍可使用"功能浏览"模式查看应用界面布局，但该模式不连接任何服务器，' +
+              '使用本地虚拟数据，不读取、存储任何真实个人信息。')
+        }
+        .width('100%')
+        .padding({ left: 20, right: 20, top: 4, bottom: 16 })
+      }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
+
+      // 底部操作行：左侧"暂不同意" + 右侧"同意并继续"；左下角显示已同意时间
+      Column() {
+        // 已同意时间（未同意时显示提示）
+        if (this.privacyAgreedAt.length > 0) {
+          Text('已签订时间：' + this.privacyAgreedAt)
+            .fontSize(11)
+            .fontColor($r('app.color.text_tertiary'))
+            .width('100%')
+            .textAlign(TextAlign.End)
+            .margin({ bottom: 8 })
+        } else {
+          Text('未同意将无法使用账号登录，仅可使用"功能浏览"')
+            .fontSize(11)
+            .fontColor($r('app.color.text_tertiary'))
+            .width('100%')
+            .textAlign(TextAlign.End)
+            .margin({ bottom: 8 })
+        }
+        Row() {
+          Button('暂不同意')
+            .fontSize(14)
+            .fontColor($r('app.color.text_secondary'))
+            .backgroundColor($r('app.color.bg_chip'))
+            .height(42)
+            .layoutWeight(1)
+            .borderRadius(21)
+            .onClick(() => {
+              this.declinePrivacy();
+            })
+          Button('同意并继续')
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.brand_on'))
+            .backgroundColor($r('app.color.brand'))
+            .height(42)
+            .layoutWeight(1)
+            .borderRadius(21)
+            .margin({ left: 12 })
+            .onClick(() => {
+              this.agreePrivacy();
+            })
+        }
+        .width('100%')
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 12, bottom: 20 })
+      .backgroundColor($r('app.color.bg_card'))
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor($r('app.color.bg_page'))
+  }
+
+  @Builder
+  privacySection(title: string, content: string) {
+    Column() {
+      Text(title)
+        .fontSize(15)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.text_primary'))
+        .width('100%')
+        .margin({ bottom: 6 })
+      Text(content)
+        .fontSize(13)
+        .lineHeight(22)
+        .fontColor($r('app.color.text_secondary'))
+        .width('100%')
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .margin({ bottom: 16 })
   }
 }
