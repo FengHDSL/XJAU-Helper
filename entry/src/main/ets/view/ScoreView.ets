@@ -12,6 +12,7 @@ import { Theme } from '../common/ThemeUtil';
 import { ScoreItem, TermInfo, TermScore } from '../model/Models';
 import { EmptyTip, LoadingTip, TagChip } from './common/UiKit';
 import { WebSurface } from './WebSurface';
+import { promptAction } from '@kit.ArkUI';
 
 @Component
 export struct ScoreView {
@@ -89,6 +90,10 @@ export struct ScoreView {
 
   /** 打开绩点计算方法网页（教务处官网 kcjxf） */
   private openCalcWeb(): void {
+    if (JwApi.USE_MOCK) {
+      promptAction.showToast({ message: '当前模式暂不支持' });
+      return;
+    }
     AppState.webUrl = Const.JWC_KJXF_URL;
     AppState.webTitle = '课程及学分 · 绩点计算方法';
     this.showWeb = true;
@@ -520,12 +525,6 @@ export struct ScoreView {
   @Builder
   termPickerSheet() {
     Column() {
-      Text('选择学年学期')
-        .fontSize(16)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.text_primary'))
-        .width('100%')
-        .margin({ bottom: 14 })
       if (this.terms.length === 0) {
         Text('暂无可查询的学期')
           .fontSize(13)
@@ -667,7 +666,7 @@ export struct ScoreView {
       height: SheetSize.FIT_CONTENT,
       dragBar: true,
       backgroundColor: $r('app.color.bg_card'),
-      title: { title: '选择学年学期' }
+      title: { title: '选择学年-学期' }
     })
   }
 

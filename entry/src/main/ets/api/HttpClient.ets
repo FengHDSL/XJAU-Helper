@@ -10,6 +10,7 @@
  */
 import { http } from '@kit.NetworkKit';
 import { util } from '@kit.ArkTS';
+import { JwApi } from './JwApi';
 
 export interface HttpResult {
   code: number;
@@ -22,6 +23,12 @@ export class HttpClient {
   static baseUrl: string = 'https://jwxt.xjau.edu.cn';
   /** 会话 Cookie */
   private static cookie: string = '';
+  /** 功能浏览模式（USE_MOCK）下短路所有网络请求，避免意外访问真实接口 */
+  private static offlineMode: boolean = false;
+  /** 设置离线模式（功能浏览模式启用，HttpClient 所有请求直接返回空结果） */
+  static setOfflineMode(value: boolean): void {
+    HttpClient.offlineMode = value;
+  }
 
   /** 设置请求会话 Cookie（登录成功后保存，供后续接口携带） */
   static setCookie(value: string): void {
@@ -111,6 +118,9 @@ export class HttpClient {
 
   private static async request(url: string, method: http.RequestMethod, body: string,
     extraHeader: Record<string, string>): Promise<HttpResult> {
+    if (HttpClient.offlineMode) {
+      return { code: 0, body: '', cookie: HttpClient.cookie };
+    }
     const client: http.HttpRequest = http.createHttp();
     try {
       const options: http.HttpRequestOptions = {
@@ -160,6 +170,9 @@ export class HttpClient {
    * 失败时返回空字符串。
    */
   static async getImageBase64(path: string): Promise<string> {
+    if (HttpClient.offlineMode) {
+      return '';
+    }
     const url: string = path.startsWith('http') ? path : `${HttpClient.baseUrl}${path}`;
     const client: http.HttpRequest = http.createHttp();
     try {

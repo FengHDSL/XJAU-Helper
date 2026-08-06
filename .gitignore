@@ -22,4 +22,7 @@ Thumbs.db
 
 # 临时
 *.tmp
-*.bak
+*.bak# 鸿蒙构建缓存与本地配置
+.hvigor/
+local.properties
+*.hap

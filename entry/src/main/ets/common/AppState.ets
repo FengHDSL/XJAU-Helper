@@ -1,10 +1,13 @@
 /**
  * 全局运行时状态（登录态、当前学期、路由栈、页面间传值）
  */
+import { common } from '@kit.AbilityKit';
 import { CourseItem, NoticeItem, TermInfo, UserProfile } from '../model/Models';
 import { DateUtil } from './DateUtil';
 
 export class AppState {
+  /** 全局 Ability Context（EntryAbility 注入，供文件缓存等使用） */
+  static context: common.Context | null = null;
   /** 全局路由栈，二级页面统一从这里 push/pop */
   static stack: NavPathStack = new NavPathStack();
   /** 当前学期（默认最新学年第一学期，首页/课程表/考试/成绩一致） */

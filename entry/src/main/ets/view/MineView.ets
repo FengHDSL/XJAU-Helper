@@ -30,6 +30,9 @@ export struct MineView {
   @State historyList: Record<string, string>[] = [];
   onLogout: () => void = () => {
   };
+  /** 前往登录页（不退出登录，从"我的"页退出弹窗第二项触发） */
+  onGotoLogin: () => void = () => {
+  };
 
   /** 页面出现：加载学业概览并刷新缓存大小 */
   aboutToAppear(): void {
@@ -90,6 +93,10 @@ export struct MineView {
 
   /** 在应用内打开网页（注入会话 Cookie 保持登录态），通过底部全屏弹层展示 */
   private openWeb(url: string, title: string): void {
+    if (JwApi.USE_MOCK) {
+      promptAction.showToast({ message: '当前模式暂不支持' });
+      return;
+    }
     AppState.webUrl = url;
     AppState.webTitle = title;
     this.showWeb = true;
@@ -128,21 +135,33 @@ export struct MineView {
     }
   }
 
-  /** 弹出退出登录确认框，确认后回调 onLogout */
-  private confirmLogout(): void {    promptAction.showDialog({
+  /** 弹出退出登录确认框：取消 / 前往登录页（不退出）/ 退出 */
+  private confirmLogout(): void {
+    promptAction.showDialog({
       title: '退出登录',
       message: '退出后需要重新使用学号密码登录，确定退出吗？',
       buttons: [
         { text: '取消', color: '#888888' },
+        { text: '前往登录页', color: '#888888' },
         { text: '退出', color: '#F0524D' }
       ]
     }).then((result: promptAction.ShowDialogSuccessResponse) => {
       if (result.index === 1) {
+        // 前往登录页：不退出登录，仅跳转登录界面（可返回）
+        this.onGotoLogin();
+      } else if (result.index === 2) {
         JwApi.logout();
         AppState.clear();
         this.onLogout();
       }
     });
+  }
+
+  /** 长按退出按钮：提示当前登录方式（密码登录 / 网页登录） */
+  private showLoginMethod(): void {
+    const method: string = DataStore.getLoginMethod();
+    const text: string = method === 'web' ? '当前为网页登录' : (method === 'pwd' ? '当前为密码登录' : '当前登录方式未知');
+    promptAction.showToast({ message: text, duration: 2000 });
   }
 
   /** 在系统浏览器打开网页版教务系统（已弃用，改应用内 WebView） */
@@ -233,6 +252,13 @@ export struct MineView {
       .onClick(() => {
         this.confirmLogout();
       })
+      // 长按提示当前登录方式（密码登录 / 网页登录）
+      .gesture(
+        LongPressGesture()
+          .onAction(() => {
+            this.showLoginMethod();
+          })
+      )
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
@@ -313,10 +339,16 @@ build() {
 
           this.academicCard()
 
-          // 常用功能（精简：只留 考试安排 / 学业情况；删除查询个人信息）
+          // 常用功能：空闲教室查询 / 考试查询 / 学业情况
           Column() {
             SettingRow({
-              icon: '', title: '考试安排', onTap: () => {
+              icon: '', title: '空闲教室查询', onTap: () => {
+                AppState.stack.pushPath({ name: Const.ROUTE_EMPTY_ROOM });
+              }
+            })
+            Divider().color($r('app.color.divider'))
+            SettingRow({
+              icon: '', title: '考试查询', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_EXAM });
               }
             })
@@ -405,7 +437,7 @@ build() {
                 } catch (e) {
                   // ignore
                 }
-                promptAction.showToast({ message: '缓存已清除（含网页缓存）' });
+                promptAction.showToast({ message: '缓存已清除' });
                 this.refreshCacheSize(500);
               }
             })
@@ -443,7 +475,7 @@ build() {
             Divider().color($r('app.color.divider'))
             // 8. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于', value: 'v1.1.0', onTap: () => {
+              icon: '', title: '关于', value: 'v1.1.5', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })

@@ -11,6 +11,7 @@
  */
 import { webview } from '@kit.ArkWeb';
 import { AppState } from '../common/AppState';
+import { DataStore } from '../common/DataStore';
 import { HttpClient } from '../api/HttpClient';
 import { JwApi } from '../api/JwApi';
 import { UserProfile } from '../model/Models';
@@ -49,24 +50,32 @@ export struct WebSurface {
     }
   }
 
-  /** 网页版登录成功后：把 WebView 会话 Cookie 同步回 HttpClient，并自动进入主页 */
+  /** 网页版登录成功后：Cookie 回 HttpClient、缓存资料到本地持久化、自动进入主页 */
   private async handleWebLoginSuccess(): Promise<void> {
     this.loggedIn = true;
     // 读取 WebView 在 jwxt.xjau.edu.cn 下的会话 Cookie（JSESSIONID 等）
     const cookie: string = webview.WebCookieManager.getCookie(AppState.webUrl);
     if (cookie.length > 0) {
       HttpClient.setCookie(cookie);
+      // 持久化会话 Cookie，下次冷启动自动恢复登录态
+      DataStore.put(DataStore.KEY_SESSION_COOKIE, cookie);
     }
     // 后续数据接口切到真实教务系统
+    HttpClient.setOfflineMode(false);
     JwApi.USE_MOCK = false;
     try {
       const profile: UserProfile = await JwApi.getProfile();
       if (profile.name.length > 0) {
         AppState.profile = profile;
         AppState.account = profile.studentId;
+        // 缓存资料到本地，下次启动秒进主页
+        DataStore.cacheProfile(profile);
+        // 保存账号（但标记为网页登录，不在最近登录列表显示）
+        DataStore.put(DataStore.KEY_LAST_ACCOUNT, profile.studentId);
+        DataStore.setLoginMethod('web');
       }
     } catch (e) {
-      // 资料接口异常不影响进入主页，主页会自行拉取
+      // 资料接口异常不影响进入主页
     }
     // 触发进入主页（由 LoginView 注入：关闭面板 + 跳转）
     if (AppState.onWebLogin !== null) {

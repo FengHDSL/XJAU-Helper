@@ -177,6 +177,48 @@ export struct SettingRow {
   }
 }
 
+/** 选择行（点击弹选择器）。value 用 @Prop 单向同步：父组件 @State 变化后文本实时刷新
+ *  （与 SettingRow 同款响应式机制；不能用 @Builder 值传递，否则状态更新后显示不刷新）
+ *  value 过长（多选结果）时 Marquee 滚动显示，避免溢出屏幕 */
+@Component
+export struct PickRow {
+  @Prop label: string = '';
+  @Prop value: string = '';
+  @Prop placeholder: string = '';
+  onTap: () => void = () => {
+  };
+
+  build() {
+    Row() {
+      Text(this.label)
+        .fontSize(13)
+        .fontColor($r('app.color.text_secondary'))
+        .width(86)
+      Blank()
+      Text(this.value.length > 0 ? this.value : this.placeholder)
+        .fontSize(13)
+        .fontColor(this.value.length > 0 ? $r('app.color.text_primary') : $r('app.color.text_tertiary'))
+        .layoutWeight(1)
+        .maxLines(1)
+        .textAlign(TextAlign.End)
+        .textOverflow({ overflow: TextOverflow.MARQUEE })
+      Text('›')
+        .fontSize(16)
+        .fontColor($r('app.color.text_tertiary'))
+        .margin({ left: 6 })
+    }
+    .width('100%')
+    .height(46)
+    .padding({ left: 10, right: 10 })
+    .backgroundColor($r('app.color.bg_chip'))
+    .borderRadius(10)
+    .margin({ bottom: 10 })
+    .onClick(() => {
+      this.onTap();
+    })
+  }
+}
+
 /** 二级页面统一头部（简约白底 + 返回） */
 @Component
 export struct PageHeader {

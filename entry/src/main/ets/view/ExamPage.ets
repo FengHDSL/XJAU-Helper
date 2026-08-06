@@ -286,12 +286,6 @@ export struct ExamPage {
   @Builder
   termPickerSheet() {
     Column() {
-      Text('选择学年学期')
-        .fontSize(16)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.text_primary'))
-        .width('100%')
-        .margin({ bottom: 14 })
       if (this.terms.length === 0) {
         Text('暂无可查询的学期')
           .fontSize(13)
@@ -479,7 +473,7 @@ Row() {
         height: SheetSize.FIT_CONTENT,
         dragBar: true,
         backgroundColor: $r('app.color.bg_card'),
-        title: { title: '选择学年学期' }
+        title: { title: '选择学年-学期' }
       })
     }
     .hideTitleBar(true)

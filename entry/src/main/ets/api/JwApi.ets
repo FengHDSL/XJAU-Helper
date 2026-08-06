@@ -18,7 +18,7 @@
  *
  * 待完成：学业情况(xsxyqk 返回 911)；通知公告(HTML 解析)。
  */
-import { AcademicReport, CourseItem, CreditCategory, ExamItem, LoginResult, NoticeItem, ScoreItem, SectionInfo, TermGpa, TermInfo, TermScore,
+import { AcademicReport, CourseItem, CreditCategory, EmptyRoomCondition, EmptyRoomConditions, EmptyRoomItem, EmptyRoomQueryParams, EmptyRoomResult, ExamItem, LoginResult, NoticeItem, ScoreItem, SectionInfo, TermGpa, TermInfo, TermScore,
   UserProfile, WeekInfo } from '../model/Models';
 import { TeachingCalendar } from '../model/TeachingCalendar';
 import { MockData } from '../mock/MockData';
@@ -370,9 +370,34 @@ export class JwApi {
     return '';
   }
 
-  /** 退出登录：清空会话与本地登录状态 */
+  /** 退出登录：清空会话、本地 Cookie 持久化、自动重登凭据、缓存资料、离线模式 */
   static logout(): void {
     HttpClient.clearCookie();
+    DataStore.put(DataStore.KEY_SESSION_COOKIE, '');
+    DataStore.put(DataStore.KEY_AUTO_ACCOUNT, '');
+    DataStore.put(DataStore.KEY_AUTO_PWD, '');
+    // 清除缓存的登录资料，确保下次打开回到登录页而不是直接进主页
+    DataStore.cacheProfile(null);
+    AppState.clear();
+    HttpClient.setOfflineMode(true);
+  }
+
+  /**
+   * 验证当前会话是否有效（冷启动恢复 cookie 后检测）。
+   * 用轻量 GET 请求探测（不带业务参数，不解析结果），只要不是 302 到登录页即为有效。
+   */
+  static async verifySession(): Promise<boolean> {
+    try {
+      const res: HttpResult = await HttpClient.get('/jwglxt/xtgl/index_initMenu.html?jsdm=xs');
+      // 如果被重定向到登录页（302 login_slogin），说明会话失效
+      if (res.body.indexOf('login_slogin') >= 0 || res.body.indexOf('统一身份认证') >= 0) {
+        return false;
+      }
+      // 正常返回菜单页或其他页面即会话有效
+      return res.body.length > 500;
+    } catch (e) {
+      return false;
+    }
   }
 
   /** 当前学期 */
@@ -409,6 +434,9 @@ export class JwApi {
     try {
       const root: ESObject = JSON.parse(res.body);
       const xs: ESObject = (root['xsxx'] as ESObject) ?? {};
+      if (xs === null || xs === undefined) {
+        throw new Error('no xsxx');
+      }
       const nj: string = (xs['NJDM_ID'] as string) ?? '';
       const profile: UserProfile = {
         studentId: (xs['XH'] as string) ?? AppState.account,
@@ -1070,8 +1098,10 @@ export class JwApi {
     let cm: RegExpExecArray | null = catRe.exec(html);
     while (cm !== null) {
       const name: string = cm[4].trim();
-      // 排除顶层汇总节点（如"2023应用化学"），只保留真实分类
-      if (name.length > 0 && name.indexOf('应用化学') < 0 && name.indexOf('化学') < 0 || name.length > 0) {
+      // 排除顶层汇总节点（如"2023应用化学"），只保留真实分类。
+      // 原写法 `... || name.length > 0` 恒真（name 非空即通过），等于没排除，已修复。
+      // 不排除所有含"化学"的节点，避免误伤真实子分类（如"化学类基础课"）。
+      if (name.length > 0 && name.indexOf('应用化学') < 0) {
         const earned: number = Number(cm[1]);
         const required: number = Number(cm[2]);
         // 只加入有"要求学分"的真实分类（要求>0），且去重
@@ -1131,5 +1161,290 @@ export class JwApi {
       return isNaN(n) ? 0 : n;
     }
     return 0;
+  }
+
+  /**
+   * 空闲教室查询条件（校区/楼号/场地类别）。
+   * 真实入口：信息查询-查询空闲教室（cdjy），条件数据来自 cdjy_cxKxcdlb.html 页面 <select> 选项
+   * （xqh_id 校区 / lh 楼号 / cdlb_id 场地类别一级）。解析失败返回空数组，页面降级为"全部"。
+   */
+  static async getEmptyRoomConditions(): Promise<EmptyRoomConditions> {
+    const empty: EmptyRoomConditions = { campus: [], building: [], roomType: [] };
+    if (JwApi.USE_MOCK) {
+      // 功能浏览模式：返回固定校区/楼号/场地类别，便于演示
+      return {
+        campus: [
+          { code: '1', name: '老满城校区' },
+          { code: '2', name: '亚心校区' },
+          { code: '3', name: '塔城校区' }
+        ],
+        building: [
+          { code: '01', name: '主教学楼' },
+          { code: '02', name: '综合实验楼' },
+          { code: '03', name: '博学楼' },
+          { code: '04', name: '图书馆' }
+        ],
+        roomType: [
+          { code: '1', name: '普通教室' },
+          { code: '2', name: '多媒体教室' },
+          { code: '3', name: '实验室' },
+          { code: '4', name: '机房' },
+          { code: '5', name: '报告厅' }
+        ]
+      };
+    }
+    try {
+      const res: HttpResult = await HttpClient.get(
+        `/jwglxt/cdjy/cdjy_cxKxcdlb.html?gnmkdm=N2155&layout=default&su=${AppState.account}`);
+      const body: string = res.body;
+      const parseSelect = (name: string): EmptyRoomCondition[] => {
+        const out: EmptyRoomCondition[] = [];
+        const m: RegExpExecArray | null = new RegExp(
+          `<select[^>]*name="${name}"[^>]*>([\\s\\S]*?)</select>`).exec(body);
+        if (m === null) {
+          return out;
+        }
+        const optRe: RegExp = /<option[^>]*value="([^"]*)"[^>]*>([^<]*)<\/option>/g;
+        let om: RegExpExecArray | null = null;
+        while ((om = optRe.exec(m[1])) !== null) {
+          const code: string = om[1];
+          const text: string = om[2].trim();
+          if (text.length > 0 && (code.length > 0 || text === '全部')) {
+            out.push({ code: code, name: text });
+          }
+        }
+        return out;
+      };
+      const campus: EmptyRoomCondition[] = parseSelect('xqh_id');
+      const building: EmptyRoomCondition[] = parseSelect('lh');
+      const roomType: EmptyRoomCondition[] = parseSelect('cdlb_id');
+      return { campus: campus, building: building, roomType: roomType };
+    } catch (e) {
+      return empty;
+    }
+  }
+
+  /**
+   * 场地二级类别（选完一级类别 cdlb_id 后联动加载）。
+   * 真实接口：/jwglxt/query/query_cxEjjxcdlbList.html?sscdlb_id=xxx&cdyysfkj=1
+   * 返回数组项 { CDLB_ID, CDLBMC }（大写字段）。
+   */
+  static async getSubRoomTypes(parentId: string): Promise<EmptyRoomCondition[]> {
+    if (parentId.length === 0) {
+      return [];
+    }
+    if (JwApi.USE_MOCK) {
+      const mocks: Record<string, EmptyRoomCondition[]> = {
+        '1': [{ code: '11', name: '普通小教室' }, { code: '12', name: '普通大教室' }],
+        '2': [{ code: '21', name: '多媒体小教室' }, { code: '22', name: '多媒体大教室' }, { code: '23', name: '智慧教室' }],
+        '3': [{ code: '31', name: '化学实验室' }, { code: '32', name: '物理实验室' }, { code: '33', name: '计算机实验室' }],
+        '4': [{ code: '41', name: '公共机房' }, { code: '42', name: '专业机房' }],
+        '5': [{ code: '51', name: '大型报告厅' }, { code: '52', name: '中型报告厅' }]
+      };
+      const list: EmptyRoomCondition[] = mocks[parentId];
+      return list !== undefined ? list : [];
+    }
+    try {
+      const res: HttpResult = await HttpClient.postForm('/jwglxt/query/query_cxEjjxcdlbList.html', {
+        'sscdlb_id': parentId,
+        'cdyysfkj': '1'
+      });
+      const out: EmptyRoomCondition[] = [];
+      const root: ESObject = JSON.parse(res.body);
+      if (Array.isArray(root)) {
+        for (let i: number = 0; i < root.length; i++) {
+          const row: ESObject = root[i] as ESObject;
+          const code: string = String(row['CDLB_ID'] ?? row['cdlb_id'] ?? '');
+          const name: string = String(row['CDLBMC'] ?? row['cdlbmc'] ?? '');
+          if (code.length > 0 && name.length > 0) {
+            out.push({ code: code, name: name });
+          }
+        }
+      }
+      return out;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /** 功能浏览模式用的模拟空闲教室 */
+  private static buildMockEmptyRooms(p: EmptyRoomQueryParams): EmptyRoomItem[] {
+    const name: string = p.roomName.length > 0 ? p.roomName : '';
+    const out: EmptyRoomItem[] = [];
+    const buildings: string[] = ['主教学楼', '综合实验楼', '博学楼', '图书馆'];
+    const roomNames: string[] = ['101', '102', '201', '202', '301', '305', '401', '408', '502', '506'];
+    for (let i: number = 0; i < roomNames.length; i++) {
+      const b: string = buildings[i % buildings.length];
+      const r: string = roomNames[i];
+      out.push({
+        cdbh: `${b.charAt(0)}${r}`,
+        cdmc: `${b} ${r}室`,
+        xqmc: '老满城校区',
+        jxlmc: b,
+        lch: `${1 + Math.floor(i / 3)}`,
+        cdlbmc: i % 3 === 0 ? '多媒体教室' : (i % 3 === 1 ? '普通教室' : '实验室'),
+        cdejlbmc: i % 3 === 0 ? '多媒体小教室' : (i % 3 === 1 ? '普通小教室' : '物理实验室'),
+        sjzws: `${40 + (i % 5) * 20}`,
+        sybmmc: i % 2 === 0 ? '教务处' : '学院',
+        sybj: '',
+        bz: '',
+        sfkfy: '1',
+        time: JwApi.buildEmptyRoomTimeText(p)
+      });
+    }
+    if (name.length > 0) {
+      return out.filter((item) => item.cdmc.indexOf(name) >= 0 || item.cdbh.indexOf(name) >= 0);
+    }
+    return out;
+  }
+
+  /**
+   * 空闲教室查询（信息查询-查询空闲教室 cdjy，grid 接口 + JSON）。
+   * 参数与 web kxcdlb.js queryFunc 完全对齐：jyfs=0 + zcd 周次二进制 + xqj 星期 + jcd 节次二进制，
+   * 含场地类别 cdlb_id / 二级类别 cdejlb_id / 座位数范围 qszws-jszws / 场地名称 cdmc，
+   * 加 datagrid 标准参数（page/rows/sortName/sortOrder/_search/nd）。
+   */
+  static async queryEmptyRooms(p: EmptyRoomQueryParams): Promise<EmptyRoomResult> {
+    const emptyResult: EmptyRoomResult = { rooms: [], message: '' };
+    if (JwApi.USE_MOCK) {
+      const mockResult: EmptyRoomResult = { rooms: JwApi.buildMockEmptyRooms(p), message: '' };
+      return JwApi.delay(mockResult, 300);
+    }
+    const tparts: string[] = p.termId.split('-');
+    const xnm: string = tparts.length >= 3 ? tparts[0] : '';
+    // 关键：必须用 xqmOf 转换学期后缀（新农大编码：1→3、2→12、3→16）
+    const xqm: string = JwApi.xqmOf(p.termId);
+    // 多选参数：zcd = Σ 2^(week-1)、xqj = "1,3,5"、jcd = Σ 2^(section-1)
+    const zcd: number = p.weeks.reduce((s: number, w: number) => s + Math.pow(2, Math.max(0, w - 1)), 0);
+    const jcd: number = p.sections.reduce((s: number, n: number) => s + Math.pow(2, Math.max(0, n - 1)), 0);
+    // web queryFunc 完整表单（与 kxcdlb.js 对齐）
+    const form: Record<string, string> = {};
+    form['xnm'] = xnm;
+    form['xqm'] = xqm;
+    form['xqh_id'] = p.campus;
+    form['lh'] = p.building;
+    form['cdlb_id'] = p.roomType;
+    form['cdejlb_id'] = p.roomSubType;
+    form['qszws'] = p.seatMin;
+    form['jszws'] = p.seatMax;
+    form['cdmc'] = p.roomName;
+    form['cd_id'] = '';
+    form['cdjylx'] = '';
+    form['zysx'] = '';
+    form['sflb'] = '';
+    form['hbsl'] = '';
+    form['bbsl'] = '';
+    form['sfyzz'] = '';
+    form['sfjtjs'] = '';
+    form['tjsl'] = '';
+    form['tymbsl'] = '';
+    form['yczb'] = '';
+    form['zws'] = '';
+    form['sfbhkc'] = '';
+    form['kszws1'] = '';
+    // 借用方式 jyfs=0：按周次/星期/节次位运算
+    form['jyfs'] = '0';
+    form['zcd'] = `${zcd}`;
+    form['xqj'] = p.weekdays.join(',');
+    form['jcd'] = `${jcd}`;
+    // datagrid 标准排序/搜索参数（正方 grid 必需）
+    form['sortName'] = 'cdbh';
+    form['sortOrder'] = 'asc';
+    form['_search'] = 'false';
+    try {
+      const url: string =
+        `/jwglxt/cdjy/cdjy_cxKxcdlb.html?doType=query&gnmkdm=N2155&layout=default&su=${AppState.account}`;
+      // 循环翻页：后端固执按 pageSize 限制单次返回，需逐页拉取直到数据不足
+      const pageSize: number = 50;
+      let page: number = 1;
+      let allRooms: EmptyRoomItem[] = [];
+      while (true) {
+        form['page'] = `${page}`;
+        form['rows'] = `${pageSize}`;
+        form['nd'] = `${Date.now()}`;
+        const res: HttpResult = await HttpClient.postForm(url, form);
+        if (res.body.indexOf('尚未开放') >= 0 || res.body.indexOf('cdwkfsq') >= 0) {
+          return { rooms: [], message: '该学年学期场地预约尚未开放申请' };
+        }
+        const pageRooms: EmptyRoomItem[] = JwApi.parseEmptyRoomGrid(res.body, p);
+        if (pageRooms.length === 0) {
+          break;
+        }
+        allRooms = allRooms.concat(pageRooms);
+        if (pageRooms.length < pageSize) {
+          break;
+        }
+        page++;
+      }
+      return {
+        rooms: allRooms,
+        message: allRooms.length === 0 ? '该条件下暂无可用的空闲教室，可尝试调整条件' : ''
+      };
+    } catch (e) {
+      return emptyResult;
+    }
+  }
+
+  /** 解析 grid 接口 JSON（兼容 items / rows / totalList 与顶层数组） */
+  private static parseEmptyRoomGrid(body: string, p: EmptyRoomQueryParams): EmptyRoomItem[] {
+    const out: EmptyRoomItem[] = [];
+    try {
+      const root: ESObject = JSON.parse(body);
+      let items: ESObject[] = [];
+      if (Array.isArray(root)) {
+        items = root as ESObject[];
+      } else if (Array.isArray(root['items'])) {
+        items = root['items'] as ESObject[];
+      } else if (Array.isArray(root['rows'])) {
+        items = root['rows'] as ESObject[];
+      } else if (Array.isArray(root['totalList'])) {
+        items = root['totalList'] as ESObject[];
+      }
+      const timeText: string = JwApi.buildEmptyRoomTimeText(p);
+      const pick = (o: ESObject, keys: string[]): string => {
+        for (let k: number = 0; k < keys.length; k++) {
+          const v: ESObject = o[keys[k]];
+          if (v !== undefined && v !== null && String(v).length > 0) {
+            return String(v);
+          }
+        }
+        return '';
+      };
+      for (let i: number = 0; i < items.length; i++) {
+        const it: ESObject = items[i];
+        out.push({
+          cdbh: pick(it, ['cdbh', 'cd_id', 'roomCode']),
+          cdmc: pick(it, ['cdmc', 'roomName', 'jsmc', 'name']),
+          xqmc: pick(it, ['xqmc', 'xx', 'xxmc', 'qskxjs', 'campusName']),
+          jxlmc: pick(it, ['jxlmc', 'jxl', 'jxl_id', 'buildingName']),
+          lch: pick(it, ['lch', 'floor', 'floorName']),
+          cdlbmc: pick(it, ['cdlbmc', 'lx', 'lxmc', 'cdlxmc', 'typeName']),
+          cdejlbmc: pick(it, ['cdejlbmc', 'cdejlxmc', 'subTypeName']),
+          sjzws: pick(it, ['zws', 'sjzws', 'rl', 'capacity']),
+          sybmmc: pick(it, ['sydxmc', 'sybmmc', 'ssbm', 'useDept', 'deptName']),
+          sybj: pick(it, ['sybj', 'useClass', 'className']),
+          bz: pick(it, ['bz', 'remark', 'remarkName']),
+          sfkfy: pick(it, ['sfkjy', 'sfkfy', 'sfkfy0', 'borrowable', 'isBorrowable']),
+          time: timeText
+        });
+      }
+    } catch (e) {
+      // 非 JSON，按 HTML/纯文本处理 → 上层 message 已覆盖
+    }
+    return out;
+  }
+
+  /** 构造空闲教室时间描述（多选周次/星期/节次） */
+  private static buildEmptyRoomTimeText(p: EmptyRoomQueryParams): string {
+    const weeksStr: string = p.weeks.length > 0 ? p.weeks.map((w: number) => `${w}`).join('、') : '-';
+    const weekDaysStr: string = p.weekdays.length > 0
+      ? p.weekdays.map((w: number) => Const.WEEK_LABELS[w - 1]).join('、')
+      : '-';
+    const sectionsStr: string = p.sections.length > 0
+      ? (p.sections.length === 1
+          ? `${p.sections[0]}`
+          : `${Math.min(...p.sections)}-${Math.max(...p.sections)}`)
+      : '-';
+    return `第 ${weeksStr} 周 ${weekDaysStr} 第 ${sectionsStr} 节`;
   }
 }
