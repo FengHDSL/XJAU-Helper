@@ -40,7 +40,6 @@ export struct WebSurface {
       if (kv.length === 0) {
         continue;
       }
-      // 追加强制域名/路径，确保 WebView 在请求该域时带上这些 Cookie
       const withMeta: string = `${kv}; Domain=jwxt.xjau.edu.cn; Path=/`;
       try {
         webview.WebCookieManager.setCookie(url, withMeta);
@@ -53,14 +52,11 @@ export struct WebSurface {
   /** 网页版登录成功后：Cookie 回 HttpClient、缓存资料到本地持久化、自动进入主页 */
   private async handleWebLoginSuccess(): Promise<void> {
     this.loggedIn = true;
-    // 读取 WebView 在 jwxt.xjau.edu.cn 下的会话 Cookie（JSESSIONID 等）
     const cookie: string = webview.WebCookieManager.getCookie(AppState.webUrl);
     if (cookie.length > 0) {
       HttpClient.setCookie(cookie);
-      // 持久化会话 Cookie，下次冷启动自动恢复登录态
       DataStore.put(DataStore.KEY_SESSION_COOKIE, cookie);
     }
-    // 后续数据接口切到真实教务系统
     HttpClient.setOfflineMode(false);
     JwApi.USE_MOCK = false;
     try {
@@ -68,16 +64,13 @@ export struct WebSurface {
       if (profile.name.length > 0) {
         AppState.profile = profile;
         AppState.account = profile.studentId;
-        // 缓存资料到本地，下次启动秒进主页
         DataStore.cacheProfile(profile);
-        // 保存账号（但标记为网页登录，不在最近登录列表显示）
         DataStore.put(DataStore.KEY_LAST_ACCOUNT, profile.studentId);
         DataStore.setLoginMethod('web');
       }
     } catch (e) {
-      // 资料接口异常不影响进入主页
+      // ignore
     }
-    // 触发进入主页（由 LoginView 注入：关闭面板 + 跳转）
     if (AppState.onWebLogin !== null) {
       AppState.onWebLogin();
     }
@@ -92,12 +85,10 @@ export struct WebSurface {
         .javaScriptAccess(true)
         .domStorageAccess(true)
         .onControllerAttached(() => {
-          // 控制器就绪后再注入一次并加载，确保 Cookie 在首次请求前已写入
           WebSurface.injectCookies(AppState.webUrl);
           this.controller.loadUrl(AppState.webUrl);
         })
         .onPageEnd(() => {
-          // 网页版登录模式：当页面已离开登录页（说明登录成功并跳转），自动进入主页
           const url: string = this.controller.getUrl();
           if (AppState.webLoginMode && !this.loggedIn &&
               url.indexOf('login_slogin') < 0 && url.indexOf('jwglxt') >= 0) {

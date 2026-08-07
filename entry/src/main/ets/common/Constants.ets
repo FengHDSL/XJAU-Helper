@@ -64,6 +64,9 @@ export class Const {
   static readonly ROUTE_PRIVACY: string = 'PrivacyPage';
   static readonly ROUTE_ABOUT: string = 'AboutPage';
   static readonly ROUTE_EMPTY_ROOM: string = 'KxjsPage';
+  static readonly ROUTE_NEWS_DETAIL: string = 'NewsDetailPage';
+  static readonly ROUTE_SEARCH: string = 'SearchResultPage';
+  static readonly ROUTE_WEB_PAGE: string = 'WebViewPage';
 
   /** 教务系统网址（应用内 WebView 打开） */
   static readonly WEB_PORTAL_URL: string = 'https://jwxt.xjau.edu.cn/jwglxt/xtgl/index_initMenu.html';

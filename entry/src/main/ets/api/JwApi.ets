@@ -234,6 +234,94 @@ export class JwApi {
     };
   }
 
+  /**
+   * 按课程名生成稳定的颜色索引（0-7），同名课程始终返回同一颜色。
+   * 使用 djb2 hash 算法 → 模 8 取索引，颜色板与 Const.COURSE_BG / COURSE_FG 对齐。
+   * 课程名做 trim 处理避免空格差异；空名回退到 0。
+   */
+  static colorIndexOf(name: string): number {
+    const key: string = (name ?? '').trim();
+    if (key.length === 0) {
+      return 0;
+    }
+    let hash: number = 5381;
+    for (let i = 0; i < key.length; i++) {
+      hash = ((hash << 5) + hash + key.charCodeAt(i)) & 0x7FFFFFFF;
+    }
+    return hash % 8;
+  }
+
+  /**
+   * 课程颜色索引缓存：保证用户首次打开应用时同名课程使用一致颜色，
+   * 同时减少 hash 计算（虽然 djb2 极快，但缓存是 O(1) 直查）。
+   * 格式：{ "课程名": "颜色索引(0-7)", ... }
+   */
+  static loadColorMap(): Record<string, number> {
+    const raw: string = DataStore.loadJSON(DataStore.KEY_COURSE_COLOR_MAP);
+    if (raw.length === 0) {
+      return {};
+    }
+    try {
+      const parsed: Record<string, number> = JSON.parse(raw) as Record<string, number>;
+      return parsed;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  static saveColorMap(map: Record<string, number>): void {
+    DataStore.cacheJSON(DataStore.KEY_COURSE_COLOR_MAP, JSON.stringify(map));
+  }
+
+  /**
+   * ArrayBuffer → base64 字符串（用于图片转 DataStore 持久化）。
+   * 逐字节读 Uint8Array，拼接标准 base64 字符表。
+   */
+  static arrayBufferToBase64(buf: ArrayBuffer): string {
+    const u8: Uint8Array = new Uint8Array(buf);
+    const chars: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let out: string = '';
+    let i: number = 0;
+    for (; i + 2 < u8.length; i += 3) {
+      const b0: number = u8[i];
+      const b1: number = u8[i + 1];
+      const b2: number = u8[i + 2];
+      out += chars.charAt(b0 >> 2);
+      out += chars.charAt(((b0 & 0x03) << 4) | (b1 >> 4));
+      out += chars.charAt(((b1 & 0x0F) << 2) | (b2 >> 6));
+      out += chars.charAt(b2 & 0x3F);
+    }
+    if (i < u8.length) {
+      const b0: number = u8[i];
+      const b1: number = i + 1 < u8.length ? u8[i + 1] : 0;
+      out += chars.charAt(b0 >> 2);
+      out += chars.charAt(((b0 & 0x03) << 4) | (b1 >> 4));
+      out += i + 1 < u8.length ? chars.charAt(((b1 & 0x0F) << 2)) : '=';
+      out += '=';
+    }
+    return out;
+  }
+
+  /**
+   * 确保课程名有颜色索引：先读缓存，命中直接返回；未命中按 name hash 计算并写入缓存。
+   * 用于 ScheduleView 渲染时按 course.name 取颜色。
+   */
+  static ensureColorIndex(name: string): number {
+    const trimmed: string = (name ?? '').trim();
+    if (trimmed.length === 0) {
+      return 0;
+    }
+    const map: Record<string, number> = JwApi.loadColorMap();
+    const cached: number | undefined = map[trimmed];
+    if (cached !== undefined) {
+      return cached;
+    }
+    const idx: number = JwApi.colorIndexOf(trimmed);
+    map[trimmed] = idx;
+    JwApi.saveColorMap(map);
+    return idx;
+  }
+
   /** 登录教务系统 */
   static async login(account: string, password: string, captcha: string = ''): Promise<LoginResult> {
     if (JwApi.USE_MOCK) {
@@ -543,7 +631,9 @@ export class JwApi {
   /** 课程表 */
   static async getCourses(termId: string): Promise<CourseItem[]> {
     if (JwApi.USE_MOCK) {
-      return JwApi.delay(MockData.courses(), 500);
+      const list: CourseItem[] = MockData.courses();
+      DataStore.cacheJSON(DataStore.KEY_COURSES, JSON.stringify(list));
+      return JwApi.delay(list, 500);
     }
     const parts: string[] = termId.split('-');
     const xnm: string = parts[0];
@@ -562,7 +652,9 @@ export class JwApi {
   /** 考试安排 */
   static async getExams(termId: string): Promise<ExamItem[]> {
     if (JwApi.USE_MOCK) {
-      return JwApi.delay(MockData.exams(), 500);
+      const list: ExamItem[] = MockData.exams();
+      DataStore.cacheJSON(DataStore.KEY_EXAMS, JSON.stringify(list));
+      return JwApi.delay(list, 500);
     }
     const parts: string[] = termId.split('-');
     const xnm: string = parts[0];
@@ -640,7 +732,9 @@ export class JwApi {
   /** 消息/通知（真实接口：GET /jwglxt/xtgl/index_cxDbsy.html?doType=query&flag=1&sfyy=1 -> JSON items[]） */
   static async getNotices(): Promise<NoticeItem[]> {
     if (JwApi.USE_MOCK) {
-      return JwApi.delay(MockData.notices(), 400);
+      const list: NoticeItem[] = MockData.notices();
+      DataStore.cacheJSON(DataStore.KEY_NOTICES, JSON.stringify(list));
+      return JwApi.delay(list, 400);
     }
     // 1) 优先读本地缓存（上次成功拉取）
     const cached: string = DataStore.loadJSON(DataStore.KEY_NOTICES);
@@ -1048,7 +1142,9 @@ export class JwApi {
    */
   static async getAcademic(): Promise<AcademicReport> {
     if (JwApi.USE_MOCK) {
-      return JwApi.delay(MockData.academic(), 550);
+      const report: AcademicReport = MockData.academic();
+      DataStore.cacheJSON(DataStore.KEY_ACADEMIC, JSON.stringify(report));
+      return JwApi.delay(report, 550);
     }
     // 1) 优先读本地缓存
     const cached: string = DataStore.loadJSON(DataStore.KEY_ACADEMIC);

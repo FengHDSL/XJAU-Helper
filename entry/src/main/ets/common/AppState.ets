@@ -17,6 +17,21 @@ export class AppState {
   /** 学期切换监听器（首页顶栏切换后广播，课程表/成绩页注册后自动同步，避免依赖 @Watch 触发） */
   private static termListenerKeys: string[] = [];
   private static termListeners: Array<() => void> = [];
+  /**
+   * 桌面卡片跳转意图（EntryAbility.onCreate/onNewWant 写入）。
+   *  - 'home'      → 进入应用首页（不切换任何页面）
+   *  - 'exam-pick' → 进入应用，自动切到"考试安排"页并弹出"选择要倒计时的考试"弹窗
+   *  - 'schedule'  → 进入应用，自动切到"课程表"页（桌面课程预告卡片点击跳转）
+   * 处理一次后清空，避免重复触发。
+   */
+  static openPageRequest: string = '';
+
+  /**
+   * 主页"重登"按钮触发回调（Index 注入）。
+   * HomeView 检测到校历为空时显示重登按钮，点击后调用此回调。
+   * 回调内部负责：弹"真正重新登录"提示 + 重新登录 + 跳回主页。
+   */
+  static onForceRelogin: (() => void) | null = null;
   /** 注册学期切换监听器（key 去重，组件 aboutToAppear 注册） */
   static registerTermListener(key: string, listener: () => void): void {
     const idx: number = AppState.termListenerKeys.indexOf(key);
@@ -39,6 +54,10 @@ export class AppState {
   static account: string = '';
   /** 通知详情页要展示的数据 */
   static currentNotice: NoticeItem | null = null;
+  /** 新闻详情页要加载的 URL */
+  static currentNewsUrl: string = '';
+  /** 搜索结果页要搜索的关键词 */
+  static currentSearchKeyword: string = '';
   /** 应用内 WebView 要打开的网址与标题（网页版教务系统 / 找回密码 共用） */
   static webUrl: string = '';
   static webTitle: string = '';

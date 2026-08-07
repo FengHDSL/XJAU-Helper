@@ -5,13 +5,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:/Users/panda/.ohos/config/default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.cer",
+          "certpath": "C:\\Users\\panda\\.ohos\\config\\default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B5FB0B1155695F742AF31CF8AA861AEBE988D10388BC952CB9D37A3EACBCF0E104E80F8DE5C8FE0",
-          "profile": "C:/Users/panda/.ohos/config/default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.p7b",
+          "keyPassword": "0000001B63B39A570450294EB87CAFD886544E5643458BF0B1EE2EF4F3765A14556CE83BF9CED4B049693C",
+          "profile": "C:\\Users\\panda\\.ohos\\config\\default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:/Users/panda/.ohos/config/default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.p12",
-          "storePassword": "0000001BB95C30242E7ED48F2C87AD87E41FC5E95C5ADCB7D849EE5D37ACD3AE6D8CC7ACDF05585B9867D8"
+          "storeFile": "C:\\Users\\panda\\.ohos\\config\\default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.p12",
+          "storePassword": "0000001B377567BE0C448A25A7864FD57ADC3BF7C56C3341D311140B377047432E325D12E2ABFE64F7AF58"
         }
       }
     ],

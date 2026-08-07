@@ -43,6 +43,22 @@
     {
       "name": "exam_countdown_card_desc",
       "value": "最近一场考试倒计时提醒"
+    },
+    {
+      "name": "weekly_schedule_card_name",
+      "value": "周视图"
+    },
+    {
+      "name": "weekly_schedule_card_desc",
+      "value": "显示整周的课程，高级功能专属"
+    },
+    {
+      "name": "today_schedule_card_name",
+      "value": "今日课程"
+    },
+    {
+      "name": "today_schedule_card_desc",
+      "value": "显示今天要上的课程"
     }
   ]
 }

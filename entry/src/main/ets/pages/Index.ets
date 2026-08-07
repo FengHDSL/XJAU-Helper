@@ -17,6 +17,8 @@ struct Index {
   @State autoRelogin: boolean = false;
   /** 前往登录页模式（不退出登录，仅跳转登录界面，可从登录页返回首页） */
   @State showLoginOnly: boolean = false;
+  /** 主页"重登"按钮触发时的全局遮罩（与 LoginView 自动重登共用 loading 效果） */
+  @State forceReloginLoading: boolean = false;
 
   /** 页面出现：初始化 AppStorage 兜底值并加载主界面 */
   aboutToAppear(): void {
@@ -42,9 +44,11 @@ struct Index {
     }
     // 自动重登凭据存在：进入 LoginView 自动重登模式（遮罩+加载符号+静默登录）。
     // 10 秒超时兜底：自动登录失败/无网时仍进入主页（用缓存数据），避免用户卡在登录页。
+    // 「旧版本登录模式」用户选择不自动重新登录：跳过自动重登，直接用缓存进主页。
     const autoAcct: string = DataStore.get(DataStore.KEY_AUTO_ACCOUNT);
     const autoPwd: string = DataStore.get(DataStore.KEY_AUTO_PWD);
-    if (autoAcct.length > 0 && autoPwd.length > 0) {
+    const loginMode: string = DataStore.getLoginMode();
+    if (autoAcct.length > 0 && autoPwd.length > 0 && loginMode !== 'legacy') {
       this.autoRelogin = true;
       setTimeout(() => {
         if (!this.logged) {
@@ -59,37 +63,57 @@ struct Index {
     if (sessionCookie.length > 0 && HttpClient.getCookie().length === 0) {
       HttpClient.setCookie(sessionCookie);
     }
-    // 启动时如果有缓存资料，先验证会话有效性再恢复登录态。
-    // 会话 cookie 可能已过期（服务端动态刷新），失效时清除并回登录页让用户重新登录。
+    // 启动时如果有缓存资料，先恢复登录态（旧版本模式 / 无自动凭据 / 凭据已用）：
+    // 旧版本模式不刷新会话（用户可手动点"重登"），其他情况照常刷新。
     const cachedProfile: UserProfile | null = JwApi.USE_MOCK ? null : DataStore.loadCachedProfile();
     if (cachedProfile !== null && cachedProfile.name.length > 0 && cachedProfile.studentId !== 'demo') {
-      // 异步验证会话（aboutToAppear 不能直接 await，用 then 链）
-      const doLogin: () => void = () => {
-        AppState.profile = cachedProfile;
-        AppState.account = cachedProfile.studentId;
-        this.logged = true;
-        JwApi.USE_MOCK = false;
-        HttpClient.setOfflineMode(false);
+      AppState.profile = cachedProfile;
+      AppState.account = cachedProfile.studentId;
+      this.logged = true;
+      JwApi.USE_MOCK = false;
+      HttpClient.setOfflineMode(false);
+      if (loginMode !== 'legacy') {
         JwApi.refreshAll().catch(() => {});
-      };
-      if (sessionCookie.length > 0) {
-        JwApi.verifySession().then((valid: boolean) => {
-          if (valid) {
-            doLogin();
-          } else {
-            // 会话失效：清除过期数据，回到登录页
-            DataStore.put(DataStore.KEY_SESSION_COOKIE, '');
-            HttpClient.clearCookie();
-            DataStore.cacheProfile(null);
-          }
-        }).catch(() => {
-          // 网络不通也直接进主页（用缓存数据）
-          doLogin();
-        });
-      } else {
-        doLogin();
       }
     }
+    // 注册主页"重登"按钮回调（HomeView 在 aboutToAppear 触发）
+    AppState.onForceRelogin = () => {
+      this.forceRelogin();
+    };
+  }
+
+  /**
+   * 主页"重登"按钮：弹"真正重新登录"确认对话框，
+   * 用户确认后切换到 LoginView 自动重登模式（遮罩+静默登录），
+   * 登录成功回到主页 + 刷新数据；登录失败/超时兜底回主页用缓存。
+   */
+  private forceRelogin(): void {
+    promptAction.showDialog({
+      title: '真正重新登录',
+      message: '将使用保存的账号密码重新登录教务系统，登录期间不允许操作其他功能。',
+      buttons: [
+        { text: '取消', color: '#888888' },
+        { text: '重新登录', color: '#FF9800' }
+      ]
+    }).then((r: promptAction.ShowDialogSuccessResponse) => {
+      if (r.index !== 1) {
+        return;
+      }
+      // 用户确认：切到登录页自动重登模式
+      this.autoRelogin = true;
+      this.showLoginOnly = true;
+      this.forceReloginLoading = true;
+      // 10 秒超时兜底
+      setTimeout(() => {
+        if (this.forceReloginLoading) {
+          this.forceReloginLoading = false;
+          promptAction.showToast({ message: '登录失败，请稍后再试', duration: 2000 });
+          this.showLoginOnly = false;
+        }
+      }, 10000);
+    }).catch(() => {
+      // 弹窗失败时不做任何事
+    });
   }
 
   build() {
@@ -130,6 +154,8 @@ struct Index {
           onSuccess: () => {
             this.logged = true;
             this.autoRelogin = false;
+            this.forceReloginLoading = false;
+            this.showLoginOnly = false;
             // 登录成功后：如果是真实登录（USE_MOCK=false）才开启网络、刷新数据
             if (!JwApi.USE_MOCK) {
               HttpClient.setOfflineMode(false);
@@ -143,6 +169,26 @@ struct Index {
               HttpClient.setOfflineMode(true);
             }
           }
+        })
+      }
+      // "重登" 全局遮罩：叠加在主页之上，居中提示正在重新登录
+      if (this.forceReloginLoading) {
+        Column() {
+          LoadingProgress()
+            .width(42)
+            .height(42)
+            .color($r('app.color.brand_on'))
+          Text('正在重新登录…')
+            .fontSize(14)
+            .fontColor($r('app.color.brand_on'))
+            .margin({ top: 14 })
+        }
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .backgroundColor('#CC079841')
+        .onClick(() => {
+          // 拦截点击
         })
       }
     }

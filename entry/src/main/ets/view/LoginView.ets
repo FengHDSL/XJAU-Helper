@@ -136,6 +136,25 @@ export struct LoginView {
       this.showPrivacy = true;
       return;
     }
+    // 首次登录：让用户选择登录方式（默认值）
+    if (DataStore.getLoginMode().length === 0) {
+      const picked: number = await new Promise<number>((resolve) => {
+        promptAction.showDialog({
+          title: '选择登录方式',
+          message: '「自动重新登录」会在每次打开应用时用账号密码重新登录，确保服务可用（推荐）。\n\n「旧版本登录」不会自动重新登录，遇到「首页底部校历为空」等情况，可点左上角「重登」按钮手动重新登录。',
+          buttons: [
+            { text: '旧版本登录', color: '#888888' },
+            { text: '自动重新登录', color: '#079841' }
+          ]
+        }).then((r: promptAction.ShowDialogSuccessResponse) => {
+          resolve(r.index);
+        }).catch(() => {
+          resolve(0);
+        });
+      });
+      // picked=0 = 旧版本；picked=1 = 自动重新登录
+      DataStore.setLoginMode(picked === 1 ? 'auto' : 'legacy');
+    }
     if (this.account.trim().length === 0) {
       promptAction.showToast({ message: '请输入学号' });
       return;
@@ -648,7 +667,7 @@ export struct LoginView {
                         .color($r('app.color.brand_on'))
                         .margin({ right: 8 })
                     }
-                    Text(this.loading ? '正在连接教务系统…' : '登  录')
+                    Text(this.loading ? '正在登录' : '登  录')
                       .fontSize(16)
                       .fontWeight(FontWeight.Medium)
                       .fontColor($r('app.color.brand_on'))
