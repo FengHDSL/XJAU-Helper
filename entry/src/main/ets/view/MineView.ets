@@ -323,9 +323,8 @@ export struct MineView {
     })
   }
 
-build() {
+  build() {
     Column() {
-      // 顶部标题栏：固定不动 + 半透明白 + 毛玻璃
       this.titleBar()
       // 中间内容：可滚动；横屏/平板下内容限宽 720vp 并居中（一多适配）
       Row() {
@@ -416,29 +415,40 @@ build() {
             .width('100%')
             .height(52)
             Divider().color($r('app.color.divider'))
-            // 5. 清除缓存
+            // 5. 清除缓存（低配版清除数据：保留登录信息/登录 Cookie/用户设置，只删数据缓存）
             SettingRow({
               icon: '', title: '清除缓存', value: this.cacheSizeText, onTap: () => {
-                DataStore.remove(DataStore.KEY_PROFILE);
-                DataStore.remove(DataStore.KEY_COURSES);
-                DataStore.remove(DataStore.KEY_TERM_SCORES);
-                DataStore.remove(DataStore.KEY_EXAMS);
-                DataStore.remove(DataStore.KEY_ACADEMIC);
-                DataStore.remove(DataStore.KEY_NOTICES);
-                DataStore.remove(DataStore.KEY_NOTICES_JWC);
-                DataStore.remove(DataStore.KEY_TEACHING_CAL);
-                DataStore.remove(DataStore.KEY_JWC_CAL);
-                DataStore.remove(DataStore.KEY_PHOTO);
-                DataStore.remove(DataStore.KEY_CACHE_TIME);
-                // 同时清除 WebView 缓存与 Cookie（否则缓存大小不变）
-                try {
-                  webview.WebCookieManager.clearAllCookies();
-                  webview.WebStorage.deleteAllData();
-                } catch (e) {
-                  // ignore
-                }
-                promptAction.showToast({ message: '缓存已清除' });
-                this.refreshCacheSize(500);
+                promptAction.showDialog({
+                  title: '清除缓存',
+                  message: '将删除课表、成绩、考试、通知、校历、头像等数据缓存，\n保留登录信息、登录 Cookie 与您的个性化设置。确认继续？',
+                  buttons: [
+                    { text: '取消', color: '#666666' },
+                    { text: '确认清除', color: '#DB5252', primary: true }
+                  ]
+                }).then((res) => {
+                  if (res.index === 1) {
+                    // 数据缓存（登录信息/历史账号/登录凭据/用户设置等一律保留）
+                    DataStore.remove(DataStore.KEY_PROFILE);
+                    DataStore.remove(DataStore.KEY_COURSES);
+                    DataStore.remove(DataStore.KEY_TERM_SCORES);
+                    DataStore.remove(DataStore.KEY_EXAMS);
+                    DataStore.remove(DataStore.KEY_ACADEMIC);
+                    DataStore.remove(DataStore.KEY_NOTICES);
+                    DataStore.remove(DataStore.KEY_NOTICES_JWC);
+                    DataStore.remove(DataStore.KEY_TEACHING_CAL);
+                    DataStore.remove(DataStore.KEY_JWC_CAL);
+                    DataStore.remove(DataStore.KEY_PHOTO);
+                    DataStore.remove(DataStore.KEY_CACHE_TIME);
+                    // 只清 WebView DOM 存储（新闻等网页缓存），保留 Cookie（教务登录会话）
+                    try {
+                      webview.WebStorage.deleteAllData();
+                    } catch (e) {
+                      // ignore
+                    }
+                    promptAction.showToast({ message: '已清除数据缓存（保留登录信息与设置）' });
+                    this.refreshCacheSize(500);
+                  }
+                });
               }
             })
             Divider().color($r('app.color.divider'))
@@ -475,7 +485,7 @@ build() {
             Divider().color($r('app.color.divider'))
             // 8. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于', value: 'v1.1.5', onTap: () => {
+              icon: '', title: '关于', value: 'v1.1.9', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
@@ -497,20 +507,34 @@ build() {
           .backgroundColor($r('app.color.bg_card'))
           .borderRadius(18)
           .margin({ top: 14 })
+
+        // 数据来源（Scroll 大 Column 内部）
+        Column() {
+          Text('数据来源：新疆农业大学教务系统').fontSize(11)
+            .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+          Text('新疆农业大学新闻网').fontSize(11)
+            .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+            .margin({ top: 3 })
+          Text('新疆农业大学教务处').fontSize(11)
+            .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+            .margin({ top: 3 })
         }
         .width('100%')
-        .padding({ left: 16, right: 16, top: 12, bottom: 100 }) // 底部预留悬浮底栏高度，避免内容被遮挡
-        }
-        .width(720)
-        .constraintSize({ maxWidth: '100%' })
-        .height('100%')
-        .scrollBar(BarState.Off)
-        .align(Alignment.Top)
-        .edgeEffect(EdgeEffect.Spring)
+        .margin({ top: 8, bottom: 12 })
       }
       .width('100%')
-      .layoutWeight(1)
-      .justifyContent(FlexAlign.Center) // 横屏/平板下 Scroll 水平居中
+      .padding({ left: 16, right: 16, top: 12, bottom: 100 }) // 底部预留悬浮底栏高度，避免内容被遮挡
+    }
+    .width(720)
+    .constraintSize({ maxWidth: '100%' })
+    .height('100%')
+      .scrollBar(BarState.Off)
+      .align(Alignment.Top)
+      .edgeEffect(EdgeEffect.Spring)
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center) // 横屏/平板下 Scroll 水平居中
     }
     .width('100%')
     .height('100%')

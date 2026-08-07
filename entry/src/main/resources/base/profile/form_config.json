@@ -43,6 +43,50 @@
       "supportDimensions": [
         "2*2"
       ]
+    },
+    {
+      "name": "weekly_schedule_2x2",
+      "displayName": "$string:weekly_schedule_card_name",
+      "description": "$string:weekly_schedule_card_desc",
+      "src": "./ets/widgets/pages/WeeklyScheduleCard2x2.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDynamic": true,
+      "enableBlurBackground": true,
+      "isDefault": false,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "06:30",
+      "transparencyEnabled": true,
+      "defaultDimension": "4*4",
+      "supportDimensions": [
+        "4*4"
+      ]
+    },
+    {
+      "name": "today_schedule_2x2",
+      "displayName": "$string:today_schedule_card_name",
+      "description": "$string:today_schedule_card_desc",
+      "src": "./ets/widgets/pages/TodayScheduleCard2x2.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDynamic": true,
+      "enableBlurBackground": true,
+      "isDefault": false,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "06:00",
+      "transparencyEnabled": true,
+      "defaultDimension": "2*4",
+      "supportDimensions": [
+        "2*4"
+      ]
     }
   ]
 }

@@ -479,24 +479,32 @@ export struct AcademicPage {
       .margin({ bottom: 10 })
 
       ForEach(this.report.warnings, (text: string, index: number) => {
-        Row() {
-          Text(`${index + 1}`)
-            .fontSize(11)
-            .fontColor($r('app.color.state_warn'))
-            .width(18)
-            .height(18)
-            .textAlign(TextAlign.Center)
-            .backgroundColor($r('app.color.bg_chip'))
-            .borderRadius(9)
+        Stack({ alignContent: Alignment.Start }) {
+          // 序号圆圈：固定在左上（Stack 定位，不受文本行数影响）
+          Row() {
+            Text(`${index + 1}`)
+              .fontSize(11)
+              .fontColor($r('app.color.state_warn'))
+              .width(18)
+              .height(18)
+              .lineHeight(18)
+              .textAlign(TextAlign.Center)
+              .backgroundColor($r('app.color.bg_chip'))
+              .borderRadius(9)
+          }
+          .width(18)
+          .height(18)
+          .position({ x: 0, y: 0 })
+
+          // 文字：左侧预留 28vp 给序号圆圈，width 100% 自然换行
           Text(text)
             .fontSize(13)
             .lineHeight(21)
             .fontColor($r('app.color.text_secondary'))
-            .layoutWeight(1)
-            .margin({ left: 10 })
+            .margin({ left: 28 })
+            .width('100%')
         }
         .width('100%')
-        .alignItems(VerticalAlign.Center)
         .margin({ bottom: 10 })
       }, (text: string) => text)
     }

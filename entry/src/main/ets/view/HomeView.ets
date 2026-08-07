@@ -7,6 +7,7 @@ import { mediaquery } from '@kit.ArkUI';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
+import { DataStore } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { Theme } from '../common/ThemeUtil';
 import { CourseItem, ExamItem, NoticeItem, QuickEntry, TermInfo, TodayCourse } from '../model/Models';
@@ -20,6 +21,8 @@ interface NextFutureCourse {
   weekdayLabel: string;
   weekTag: string;
   timeRange: string;
+  /** 月日（如 "8月12日"），用于卡片显示具体日期 */
+  dateLabel: string;
 }
 
 @Component
@@ -167,11 +170,13 @@ export struct HomeView {
     for (let w: number = todayW + 1; w <= 7; w++) {
       for (const c of courses) {
         if (c.weekday === w && c.weeks.includes(cw)) {
+          const dt: Date = DateUtil.dateOfWeekDay(term, cw, w);
           return {
             course: c,
             weekdayLabel: Const.WEEK_SHORT[w - 1],
             weekTag: '本周',
-            timeRange: DateUtil.sectionRange(c.startSection, c.endSection)
+            timeRange: DateUtil.sectionRange(c.startSection, c.endSection),
+            dateLabel: DateUtil.formatCn(dt)
           };
         }
       }
@@ -180,11 +185,13 @@ export struct HomeView {
       for (let w: number = 1; w <= 7; w++) {
         for (const c of courses) {
           if (c.weekday === w && c.weeks.includes(wk)) {
+            const dt: Date = DateUtil.dateOfWeekDay(term, wk, w);
             return {
               course: c,
               weekdayLabel: Const.WEEK_SHORT[w - 1],
               weekTag: `第 ${wk} 周`,
-              timeRange: DateUtil.sectionRange(c.startSection, c.endSection)
+              timeRange: DateUtil.sectionRange(c.startSection, c.endSection),
+              dateLabel: DateUtil.formatCn(dt)
             };
           }
         }
@@ -334,6 +341,22 @@ export struct HomeView {
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .fontColor(Color.White)
+      // 旧版本登录模式 + 校历为空：标题右侧显示"重登"胶囊（点击执行自动重新登录）
+      if (this.shouldShowRelogin()) {
+        Text('重登')
+          .fontSize(11)
+          .fontWeight(FontWeight.Medium)
+          .fontColor('#FFFFFF')
+          .backgroundColor('#FF9800')
+          .height(22)
+          .padding({ left: 8, right: 8 })
+          .borderRadius(11)
+          .margin({ left: 8 })
+          .textAlign(TextAlign.Center)
+          .onClick(() => {
+            this.onReloginClick();
+          })
+      }
       Blank()
       // 右侧：当前教学周（未开学显示"未开学"），模仿课程表右上角样式（不可点、无左右箭头）
       Text(this.isTermStarted() ? `第 ${this.todayTeachingWeek()} 周` : '未开学')
@@ -559,13 +582,22 @@ export struct HomeView {
               .padding({ left: 8, right: 8, top: 12, bottom: 12 })
               .border({ width: { right: 1 }, color: $r('app.color.divider') })
 
-              // 最右侧时间
-              Text(this.nextFutureCourse.timeRange)
-                .fontSize(12)
-                .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.text_primary'))
-                .textAlign(TextAlign.Center)
-                .padding({ left: 10, right: 12 })
+              // 最右侧：日期 + 时间（与桌面卡片"X月X日"对齐）
+              Column() {
+                Text(this.nextFutureCourse.dateLabel)
+                  .fontSize(11)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.brand'))
+                  .textAlign(TextAlign.Center)
+                Text(this.nextFutureCourse.timeRange)
+                  .fontSize(11)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.text_primary'))
+                  .textAlign(TextAlign.Center)
+                  .margin({ top: 3 })
+              }
+              .padding({ left: 10, right: 12 })
+              .justifyContent(FlexAlign.Center)
             }
             .width('100%')
             .backgroundColor($r('app.color.bg_chip'))
@@ -1004,6 +1036,32 @@ export struct HomeView {
     return DateUtil.parse(cal.startDate).getTime() <= new Date().getTime();
   }
 
+  /**
+   * 是否在顶栏显示"重登"胶囊。
+   * 条件：旧版本登录模式 + 首页底部校历为空 + 数据已加载完 + 真实登录（非功能浏览）。
+   */
+  private shouldShowRelogin(): boolean {
+    if (JwApi.USE_MOCK) {
+      return false;
+    }
+    if (this.loading) {
+      return false;
+    }
+    if (DataStore.getLoginMode() !== 'legacy') {
+      return false;
+    }
+    return this.teachingCal === null;
+  }
+
+  /** 点击"重登"胶囊：调用 Index 注册的回调（弹"真正重新登录"确认 + 全局遮罩重登） */
+  private onReloginClick(): void {
+    if (AppState.onForceRelogin !== null) {
+      AppState.onForceRelogin();
+    } else {
+      promptAction.showToast({ message: '重登功能暂不可用' });
+    }
+  }
+
   /** 校历覆盖的自然月列表：[年份*100+月份, ...]（如 202608 ~ 202702） */
   private calMonthList(): number[] {
     const cal: TeachingCalendar | null = this.teachingCal;
@@ -1228,7 +1286,6 @@ export struct HomeView {
 
   build() {
     Column() {
-      // 顶部标题栏：固定不动 + 半透明白 + 毛玻璃
       this.titleBar()
       // 中间内容：可滚动；横屏/平板下内容限宽 720vp 并居中（一多适配）
       Row() {
@@ -1251,10 +1308,18 @@ export struct HomeView {
             this.examSection()
             this.messageSection()
             this.noticeSection()
-            Text('数据来源：学校教务系统（功能浏览模式为本地模拟数据）')
-              .fontSize(11)
-              .fontColor($r('app.color.text_tertiary'))
-              .margin({ top: 20, bottom: 24 })
+            Column() {
+              Text('数据来源：新疆农业大学教务系统').fontSize(11)
+                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+              Text('新疆农业大学教务处').fontSize(11)
+                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .margin({ top: 3 })
+              Text('"功能浏览"模式为本地模拟数据').fontSize(11)
+                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .margin({ top: 3 })
+            }
+            .width('100%')
+            .margin({ top: 20, bottom: 24 })
           }
           .width('100%')
           .padding({ left: 16, right: 16, top: 12, bottom: 100 }) // 底部预留悬浮底栏高度，避免内容被遮挡

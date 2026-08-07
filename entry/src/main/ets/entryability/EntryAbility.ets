@@ -4,6 +4,7 @@ import { mediaquery, window } from '@kit.ArkUI';
 import { AppState } from '../common/AppState';
 import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
+import { NewsApi } from '../api/NewsApi';
 
 const DOMAIN = 0x0000;
 
@@ -14,6 +15,11 @@ export default class EntryAbility extends UIAbility {
     // 初始化本地持久化（历史账号 + 数据缓存），并保存全局 Context
     DataStore.init(this.context);
     AppState.context = this.context;
+    // 处理桌面卡片跳转意图（params.open = 'home' | 'exam-pick'）
+    const open: string = (want.parameters?.['open'] as string) ?? '';
+    if (open.length > 0) {
+      AppState.openPageRequest = open;
+    }
     // 头像显示开关（默认关闭，仅影响圆形头像）
     const showAvatar: boolean = DataStore.get(DataStore.KEY_SHOW_AVATAR) === '1';
     AppStorage.setOrCreate('showAvatar', showAvatar);
@@ -31,9 +37,19 @@ export default class EntryAbility extends UIAbility {
     }
   }
 
+  /** Ability 已存在时再次被拉起（桌面卡片点击） */
+  onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    const open: string = (want.parameters?.['open'] as string) ?? '';
+    if (open.length > 0) {
+      AppState.openPageRequest = open;
+    }
+  }
+
   /** Ability 销毁回调 */
   onDestroy(): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
+    // 清理农大新闻图片缓存
+    NewsApi.clearCache();
   }
 
   /** 窗口创建：加载主页面并设置沉浸式状态栏 */

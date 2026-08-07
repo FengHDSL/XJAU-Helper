@@ -85,6 +85,85 @@ export class DataStore {
   // 当前登录方式：'pwd'=账号密码登录，'web'=网页登录（我的页退出按钮长按提示用）
   static readonly KEY_LOGIN_METHOD: string = 'login_method';
 
+  // 用户在桌面卡片主动选择的"要倒计时的考试"id（持久化，供 EntryFormAbility 读取）
+  static readonly KEY_PICKED_EXAM: string = 'picked_exam_id';
+
+  /** 用户主动选定的考试 id（空串表示用最近一场未开始的考试） */
+  static setPickedExamId(id: string): void {
+    DataStore.put(DataStore.KEY_PICKED_EXAM, id);
+  }
+
+  /** 读取用户主动选定的考试 id */
+  static getPickedExamId(): string {
+    return DataStore.get(DataStore.KEY_PICKED_EXAM);
+  }
+
+  // 课程表设置（背景图、网格虚线、课程名→颜色索引）
+  static readonly KEY_SCHEDULE_BG: string = 'schedule_bg';
+  static readonly KEY_SCHEDULE_DASHED: string = 'schedule_dashed';
+  static readonly KEY_SCHEDULE_CFG: string = 'schedule_cfg';
+  static readonly KEY_COURSE_COLOR_MAP: string = 'course_color_map';
+  /** 课程独立颜色：课程名 → 自定义 hex（3 套 × 20 色选择器，空=按课程名 hash 默认） */
+  static readonly KEY_COURSE_CUSTOM_COLOR: string = 'course_custom_color';
+
+  /** 设置课程表背景图（base64 编码的 JPEG/PNG），空串表示恢复默认 */
+  static setScheduleBg(b64: string): void {
+    DataStore.put(DataStore.KEY_SCHEDULE_BG, b64);
+  }
+
+  /** 读取课程表背景图（空串=无背景） */
+  static getScheduleBg(): string {
+    return DataStore.get(DataStore.KEY_SCHEDULE_BG);
+  }
+
+  /** 开启/关闭网格虚线（旧版，迁移到 ScheduleConfig.gridEnabled） */
+  static setScheduleDashed(on: boolean): void {
+    DataStore.put(DataStore.KEY_SCHEDULE_DASHED, on ? '1' : '0');
+  }
+
+  /** 是否开启网格虚线（默认开启，背景图是图片时建议关闭） */
+  static getScheduleDashed(): boolean {
+    return DataStore.get(DataStore.KEY_SCHEDULE_DASHED) !== '0';
+  }
+
+  /** 保存课程表完整自定义配置（JSON，见 ScheduleConfig） */
+  static setScheduleCfg(json: string): void {
+    DataStore.put(DataStore.KEY_SCHEDULE_CFG, json);
+  }
+
+  /** 读取课程表完整自定义配置 JSON（空串=从未保存过） */
+  static getScheduleCfg(): string {
+    return DataStore.get(DataStore.KEY_SCHEDULE_CFG);
+  }
+
+  /** 读取课程独立颜色 JSON（课程名 → hex 的 Record 序列化，空串=无自定义） */
+  static getCourseCustomColors(): string {
+    return DataStore.get(DataStore.KEY_COURSE_CUSTOM_COLOR);
+  }
+
+  /** 保存课程独立颜色 JSON */
+  static setCourseCustomColors(json: string): void {
+    DataStore.put(DataStore.KEY_COURSE_CUSTOM_COLOR, json);
+  }
+
+  /**
+   * 登录方式：
+   *  - 'auto'   = 新版：冷启动自动用保存的账号密码重新登录（推荐，默认）
+   *  - 'legacy' = 旧版：冷启动不重新登录（保留会话过期可能导致功能不可用）
+   *  - ''       = 用户尚未选择（首次启用时由 LoginView 询问）
+   */
+  static readonly KEY_LOGIN_MODE: string = 'login_mode';
+
+  /** 设置登录方式（auto/legacy） */
+  static setLoginMode(mode: string): void {
+    DataStore.put(DataStore.KEY_LOGIN_MODE, mode);
+  }
+
+  /** 读取登录方式，未选择时返回空串 */
+  static getLoginMode(): string {
+    return DataStore.get(DataStore.KEY_LOGIN_MODE);
+  }
+
   /** 记录当前登录方式（pwd/web） */
   static setLoginMethod(method: string): void {
     DataStore.put(DataStore.KEY_LOGIN_METHOD, method);
