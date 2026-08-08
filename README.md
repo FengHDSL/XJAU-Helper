@@ -94,7 +94,7 @@
 
 ---
 
-## 📦 构建 & 运行
+## 📦 构建
 
 ```text
 1. 安装 DevEco Studio 5.x
@@ -103,20 +103,6 @@
 ```
 
 > 💡 内置"功能浏览"模式，未登录时可使用本地模拟数据体验全部界面。
-
-### 沙箱命令行构建（参考）
-
-```bash
-export NODE_HOME="/c/Users/panda/.workbuddy/binaries/node/versions/22.22.2"
-export PATH="$NODE_HOME:$PATH"
-export DEVECO_SDK_HOME="C:/Users/panda/Downloads/Edge/command-line-tools/sdk"
-export DEVECO_NODE_HOME="C:/Users/panda/Downloads/Edge/command-line-tools/tool/node"
-export JAVA_HOME="/d/App/DevEco Studio/jbr"; export PATH="$JAVA_HOME/bin:$PATH"
-export NODE_OPTIONS=""
-cd /c/Users/panda/xjau
-node "C:/Users/panda/Downloads/Edge/command-line-tools/hvigor/bin/hvigorw.js" clean assembleHap --no-daemon
-# 产物：entry/build/default/outputs/default/entry-default-signed.hap
-```
 
 ---
 
