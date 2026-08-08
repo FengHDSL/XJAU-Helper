@@ -97,7 +97,7 @@
 ## 构建
 
 ```text
-1. 安装 DevEco Studio 5.x
+1. 安装 DevEco Studio 26.0.0及以上版本
 2. Clone 本仓库，用 DevEco Studio 打开
 3. 使用华为账号 Auto-Sign 签名后连接设备或启动模拟器，点击运行
 ```
