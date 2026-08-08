@@ -88,7 +88,7 @@ export struct ScoreView {
     return credits > 0 ? sum / credits : 0;
   }
 
-  /** 打开绩点计算方法网页（教务处官网 kcjxf） */
+  /** 打开绩点计算方法网页（教务处官网 kcjxf，在"外部链接"页面中访问） */
   private openCalcWeb(): void {
     if (JwApi.USE_MOCK) {
       promptAction.showToast({ message: '当前模式暂不支持' });
@@ -96,7 +96,7 @@ export struct ScoreView {
     }
     AppState.webUrl = Const.JWC_KJXF_URL;
     AppState.webTitle = '课程及学分 · 绩点计算方法';
-    this.showWeb = true;
+    AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
   }
 
   /** 顶部统计卡：按学校「课程及学分」方法自动计算的平均分与 GPA */

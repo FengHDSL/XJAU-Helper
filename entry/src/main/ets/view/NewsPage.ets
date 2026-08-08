@@ -278,7 +278,7 @@ export struct NewsPage {
           .onClick(() => {
             AppState.webUrl = 'https://news.xjau.edu.cn/main.htm';
             AppState.webTitle = '农大新闻 · 网页端';
-            this.showWeb = true;
+            AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
           })
       }
       .width('100%').height(px2vp(this.topInsetPx) + 60)

@@ -27,7 +27,6 @@ export struct MineView {
   @State syncing: boolean = false;
   @State photo: string = '';
   @State cacheSizeText: string = '计算中…';
-  @State historyList: Record<string, string>[] = [];
   onLogout: () => void = () => {
   };
   /** 前往登录页（不退出登录，从"我的"页退出弹窗第二项触发） */
@@ -164,9 +163,15 @@ export struct MineView {
     promptAction.showToast({ message: text, duration: 2000 });
   }
 
-  /** 在系统浏览器打开网页版教务系统（已弃用，改应用内 WebView） */
+  /** 打开网页端教务系统（在"外部链接"页面中访问，自动注入会话 Cookie 保持登录态） */
   private openWebPortal(): void {
-    this.openWeb(Const.WEB_PORTAL_URL, '网页版教务系统');
+    if (JwApi.USE_MOCK) {
+      promptAction.showToast({ message: '当前模式暂不支持' });
+      return;
+    }
+    AppState.webUrl = Const.WEB_PORTAL_URL;
+    AppState.webTitle = '网页端教务系统';
+    AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
   }
 
   @Builder
@@ -366,10 +371,23 @@ export struct MineView {
 
           // 设置（顺序：网页版教务系统 → 数据同步 → 头像显示 → 清除缓存 → 隐私协议 → 清空数据 → 关于）
           Column() {
-            // 1. 网页版教务系统（最顶上）
+            // 1. 网页端教务系统（最顶上）
             SettingRow({
-              icon: '', title: '网页版教务系统', value: '', onTap: () => {
+              icon: '', title: '网页端教务系统', value: '', onTap: () => {
                 this.openWebPortal();
+              }
+            })
+            Divider().color($r('app.color.divider'))
+            // 1.1 学校官网（外部链接页打开）
+            SettingRow({
+              icon: '', title: '学校官网', value: '', onTap: () => {
+                if (JwApi.USE_MOCK) {
+                  promptAction.showToast({ message: '当前模式暂不支持' });
+                  return;
+                }
+                AppState.webUrl = 'https://www.xjau.edu.cn/';
+                AppState.webTitle = '学校官网';
+                AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
               }
             })
             Divider().color($r('app.color.divider'))
@@ -380,9 +398,9 @@ export struct MineView {
               }
             })
             Divider().color($r('app.color.divider'))
-            // 3. 主题模式（顶栏颜色：中国红/天空蓝/农大绿）
+            // 3. 主题颜色（顶栏颜色：中国红/天空蓝/农大绿）
             SettingRow({
-              icon: '', title: '主题模式', value: this.themeColor === 'red' ? '中国红' : (this.themeColor === 'blue' ? '天空蓝' : '农大绿'), onTap: () => {
+              icon: '', title: '主题颜色', value: this.themeColor === 'red' ? '中国红' : (this.themeColor === 'blue' ? '天空蓝' : '农大绿'), onTap: () => {
                 promptAction.showActionMenu({
                   title: '顶栏主题色',
                   buttons: [

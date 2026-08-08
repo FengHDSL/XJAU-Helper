@@ -54,10 +54,6 @@ export class DateUtil {
     return w === 0 ? 7 : w;
   }
 
-  /** 本周周一 */
-  static mondayOf(date: Date): Date {
-    return DateUtil.addDays(DateUtil.startOfDay(date), 1 - DateUtil.weekdayOf(date));
-  }
 
   /**
    * 构造"当前学期"。
@@ -81,22 +77,6 @@ export class DateUtil {
     };
   }
 
-  /** 上一个学期（相对当前学期，向前一个学期）。功能浏览模式 mock 数据用。 */
-  static buildPreviousTerm(): TermInfo {
-    const cur: TermInfo = DateUtil.buildCurrentTerm();
-    const curStart: Date = DateUtil.parse(cur.startDate);
-    const prevStart: Date = new Date(curStart);
-    prevStart.setMonth(prevStart.getMonth() - 6);
-    const isFirst: boolean = prevStart.getMonth() >= 9;
-    const beginYear: number = isFirst ? prevStart.getFullYear() : prevStart.getFullYear() - 1;
-    const label: string = `${beginYear}-${beginYear + 1}学年 ${isFirst ? '第一学期' : '第二学期'}`;
-    return {
-      id: `${beginYear}-${beginYear + 1}-${isFirst ? 1 : 2}`,
-      label: label,
-      startDate: `${prevStart.getFullYear()}-${DateUtil.pad(prevStart.getMonth() + 1)}-01`,
-      totalWeeks: 20
-    };
-  }
 
   /** 最新学年第一学期（默认选择的第一个：首页/课程表/考试/成绩一致） */
   static buildLatestTerm(): TermInfo {

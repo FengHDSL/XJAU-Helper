@@ -81,6 +81,4 @@ export class Const {
   static readonly JWC_LIST_URL: string = 'https://jwc.xjau.edu.cn/jxrl_3318/list.htm';
   /** 教务处官网「课程及学分」：绩点计算方法（成绩页入口 + GPA/平均分计算依据） */
   static readonly JWC_KJXF_URL: string = 'https://jwc.xjau.edu.cn/kcjxf/list.htm';
-  /** 正方教学日历端点（实测学生端不可用：方法未定义）。已弃用，校历改用 JWC_LIST_URL。 */
-  static readonly TEACHING_CALENDAR_URL: string = '/jwglxt/jxrl/jxrl_cxJxrl.html';
 }

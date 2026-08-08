@@ -18,7 +18,7 @@
  *
  * 待完成：学业情况(xsxyqk 返回 911)；通知公告(HTML 解析)。
  */
-import { AcademicReport, CourseItem, CreditCategory, EmptyRoomCondition, EmptyRoomConditions, EmptyRoomItem, EmptyRoomQueryParams, EmptyRoomResult, ExamItem, LoginResult, NoticeItem, ScoreItem, SectionInfo, TermGpa, TermInfo, TermScore,
+import { AcademicReport, CourseItem, CreditCategory, EmptyRoomCondition, EmptyRoomConditions, EmptyRoomItem, EmptyRoomQueryParams, EmptyRoomResult, ExamItem, LoginResult, NoticeItem, ScoreItem, SectionInfo, TermInfo, TermScore,
   UserProfile, WeekInfo } from '../model/Models';
 import { TeachingCalendar } from '../model/TeachingCalendar';
 import { MockData } from '../mock/MockData';
@@ -31,7 +31,6 @@ import { HttpClient, HttpResult, BinaryResult } from './HttpClient';
 import { RsaUtil } from '../common/RsaUtil';
 import zlib from '@ohos.zlib';
 import { fileIo } from '@kit.CoreFileKit';
-import { util } from '@kit.ArkTS';
 
 /** 正方下发的 RSA 公钥 */
 interface RsaPublicKey {
@@ -45,13 +44,6 @@ interface JwcCalCacheStore {
   sourcePdfUrl: string;
   data: string;
 }
-
-/** grid 接口单页解析结果：本页条目 + 总记录数（datagrid 标准 total，-1 = 未返回） */
-interface RoomGridPage {
-  items: EmptyRoomItem[];
-  total: number;
-}
-
 
 export class JwApi {
   /** demo 开关：true = 使用本地模拟数据。默认 false（直连真实教务系统）。
@@ -81,16 +73,6 @@ export class JwApi {
     return '16';
   }
 
-  /** 正方学期码 -> 学期序号（1/2/3） */
-  private static semIndexOf(xqm: string): number {
-    if (xqm === '3') {
-      return 1;
-    }
-    if (xqm === '12') {
-      return 2;
-    }
-    return 3;
-  }
 
   /**
    * 本地生成学年学期列表（不依赖网络，与正方 select 结构一致）。
@@ -455,18 +437,6 @@ export class JwApi {
     }
   }
 
-  /** 从 HTML 中提取指定 name 的隐藏域 value（如 csrftoken）。 */
-  private static extractHidden(html: string, name: string): string {
-    const tagRe: RegExp = new RegExp('<input[^>]*name=["\']?' + name + '["\']?[^>]*>', 'i');
-    const m: ESObject | null = html.match(tagRe);
-    if (m !== null) {
-      const vm: ESObject | null = m[0].match(/value=["']?([^"'>\s]*)/i);
-      if (vm !== null) {
-        return vm[1] ?? '';
-      }
-    }
-    return '';
-  }
 
   /** 退出登录：清空会话、本地 Cookie 持久化、自动重登凭据、缓存资料、离线模式 */
   static logout(): void {
@@ -480,28 +450,7 @@ export class JwApi {
     HttpClient.setOfflineMode(true);
   }
 
-  /**
-   * 验证当前会话是否有效（冷启动恢复 cookie 后检测）。
-   * 用轻量 GET 请求探测（不带业务参数，不解析结果），只要不是 302 到登录页即为有效。
-   */
-  static async verifySession(): Promise<boolean> {
-    try {
-      const res: HttpResult = await HttpClient.get('/jwglxt/xtgl/index_initMenu.html?jsdm=xs');
-      // 如果被重定向到登录页（302 login_slogin），说明会话失效
-      if (res.body.indexOf('login_slogin') >= 0 || res.body.indexOf('统一身份认证') >= 0) {
-        return false;
-      }
-      // 正常返回菜单页或其他页面即会话有效
-      return res.body.length > 500;
-    } catch (e) {
-      return false;
-    }
-  }
 
-  /** 当前学期 */
-  static currentTerm(): TermInfo {
-    return JwApi.term;
-  }
 
   /**
    * 切换学期（全局设置）。同步更新 JwApi.term 与 AppState.term，
@@ -1205,12 +1154,13 @@ export class JwApi {
     let cm: RegExpExecArray | null = catRe.exec(html);
     while (cm !== null) {
       const name: string = cm[4].trim();
-      // 排除顶层汇总节点（如"2023应用化学"），只保留真实分类。
-      // 原写法 `... || name.length > 0` 恒真（name 非空即通过），等于没排除，已修复。
-      // 不排除所有含"化学"的节点，避免误伤真实子分类（如"化学类基础课"）。
-      if (name.length > 0 && name.indexOf('应用化学') < 0) {
-        const earned: number = Number(cm[1]);
-        const required: number = Number(cm[2]);
+      const earned: number = Number(cm[1]);
+      const required: number = Number(cm[2]);
+      // 排除顶层汇总节点（节点名 = 入学年份 + 专业名），只保留真实分类。
+      // 用通用特征替代专业名硬编码（保证不同专业学生使用都正常）：
+      // 汇总节点名称以 4 位年份开头且要求学分=0；真实分类（通识教育/专业基础课等）不以年份开头。
+      const isSummaryNode: boolean = name.length >= 4 && (name.match(/^\d{4}/) !== null);
+      if (name.length > 0 && !isSummaryNode) {
         // 只加入有"要求学分"的真实分类（要求>0），且去重
         if (!isNaN(required) && required > 0 && !JwApi.hasCategory(categories, name)) {
           categories.push({ name: name, required: required, earned: isNaN(earned) ? 0 : earned });
@@ -1405,101 +1355,6 @@ export class JwApi {
     return out;
   }
 
-  /**
-   * 空闲教室查询（信息查询-查询空闲教室 cdjy，grid 接口 + JSON）。
-   * 参数与 web kxcdlb.js queryFunc 完全对齐：jyfs=0 + zcd 周次二进制 + xqj 星期 + jcd 节次二进制，
-   * 含场地类别 cdlb_id / 二级类别 cdejlb_id / 座位数范围 qszws-jszws / 场地名称 cdmc，
-   * 加 datagrid 标准参数（page/rows/sortName/sortOrder/_search/nd）。
-   */
-  static async queryEmptyRooms(p: EmptyRoomQueryParams): Promise<EmptyRoomResult> {
-    const emptyResult: EmptyRoomResult = { rooms: [], message: '' };
-    if (JwApi.USE_MOCK) {
-      const mockResult: EmptyRoomResult = { rooms: JwApi.buildMockEmptyRooms(p), message: '' };
-      return JwApi.delay(mockResult, 300);
-    }
-    const tparts: string[] = p.termId.split('-');
-    const xnm: string = tparts.length >= 3 ? tparts[0] : '';
-    // 关键：必须用 xqmOf 转换学期后缀（新农大编码：1→3、2→12、3→16）
-    const xqm: string = JwApi.xqmOf(p.termId);
-    // 多选参数：zcd = Σ 2^(week-1)、xqj = "1,3,5"、jcd = Σ 2^(section-1)
-    const zcd: number = p.weeks.reduce((s: number, w: number) => s + Math.pow(2, Math.max(0, w - 1)), 0);
-    const jcd: number = p.sections.reduce((s: number, n: number) => s + Math.pow(2, Math.max(0, n - 1)), 0);
-    // web queryFunc 完整表单（与 kxcdlb.js 对齐）
-    const form: Record<string, string> = {};
-    form['xnm'] = xnm;
-    form['xqm'] = xqm;
-    form['xqh_id'] = p.campus;
-    form['lh'] = p.building;
-    form['cdlb_id'] = p.roomType;
-    form['cdejlb_id'] = p.roomSubType;
-    form['qszws'] = p.seatMin;
-    form['jszws'] = p.seatMax;
-    form['cdmc'] = p.roomName;
-    form['cd_id'] = '';
-    form['cdjylx'] = '';
-    form['zysx'] = '';
-    form['sflb'] = '';
-    form['hbsl'] = '';
-    form['bbsl'] = '';
-    form['sfyzz'] = '';
-    form['sfjtjs'] = '';
-    form['tjsl'] = '';
-    form['tymbsl'] = '';
-    form['yczb'] = '';
-    form['zws'] = '';
-    form['sfbhkc'] = '';
-    form['kszws1'] = '';
-    // 借用方式 jyfs=0：按周次/星期/节次位运算
-    form['jyfs'] = '0';
-    form['zcd'] = `${zcd}`;
-    form['xqj'] = p.weekdays.join(',');
-    form['jcd'] = `${jcd}`;
-    // datagrid 标准排序/搜索参数（正方 grid 必需）
-    form['sortName'] = 'cdbh';
-    form['sortOrder'] = 'asc';
-    form['_search'] = 'false';
-    try {
-      const url: string =
-        `/jwglxt/cdjy/cdjy_cxKxcdlb.html?doType=query&gnmkdm=N2155&layout=default&su=${AppState.account}`;
-      // 循环翻页：后端固定每页最多 10 条（即使请求 rows=50 也只回 10 条），
-      // 必须按返回的 total 总记录数逐页拉取，直到拉满为止
-      const pageSize: number = 50;
-      let page: number = 1;
-      let allRooms: EmptyRoomItem[] = [];
-      let total: number = -1; // -1 = 接口未返回 total
-      while (true) {
-        form['page'] = `${page}`;
-        form['rows'] = `${pageSize}`;
-        form['nd'] = `${Date.now()}`;
-        const res: HttpResult = await HttpClient.postForm(url, form);
-        if (res.body.indexOf('尚未开放') >= 0 || res.body.indexOf('cdwkfsq') >= 0) {
-          return { rooms: [], message: '该学年学期场地预约尚未开放申请' };
-        }
-        const pg: RoomGridPage = JwApi.parseEmptyRoomGrid(res.body, p);
-        if (pg.items.length === 0) {
-          break;
-        }
-        allRooms = allRooms.concat(pg.items);
-        total = pg.total;
-        if (total >= 0) {
-          // 有 total：拉满即止（后端每页 10 条，total 是多少就翻多少页）
-          if (allRooms.length >= total) {
-            break;
-          }
-        } else if (pg.items.length < pageSize) {
-          // 接口没给 total：按旧逻辑兜底（本页不足一页视为到底）
-          break;
-        }
-        page++;
-      }
-      return {
-        rooms: allRooms,
-        message: allRooms.length === 0 ? '该条件下暂无可用的空闲教室，可尝试调整条件' : ''
-      };
-    } catch (e) {
-      return emptyResult;
-    }
-  }
 
   /**
    * 空闲教室导出（网页版"导出Excel"）：一次拉取全量数据（不受每页条数限制）。
@@ -1757,64 +1612,6 @@ export class JwApi {
       .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#10;/g, ' ');
   }
 
-  /** 解析 grid 接口 JSON（兼容 items / rows / totalList 与顶层数组），并提取 datagrid total 总数 */
-  private static parseEmptyRoomGrid(body: string, p: EmptyRoomQueryParams): RoomGridPage {
-    const out: EmptyRoomItem[] = [];
-    let total: number = -1;
-    try {
-      const root: ESObject = JSON.parse(body);
-      let items: ESObject[] = [];
-      if (Array.isArray(root)) {
-        items = root as ESObject[];
-      } else if (Array.isArray(root['items'])) {
-        items = root['items'] as ESObject[];
-      } else if (Array.isArray(root['rows'])) {
-        items = root['rows'] as ESObject[];
-      } else if (Array.isArray(root['totalList'])) {
-        items = root['totalList'] as ESObject[];
-      }
-      // datagrid 标准 total 字段（number 或 string 都可能）
-      const tv: ESObject = root['total'];
-      if (typeof tv === 'number') {
-        total = tv as number;
-      } else if (typeof tv === 'string') {
-        const n: number = parseInt(tv as string, 10);
-        total = isNaN(n) ? -1 : n;
-      }
-      const timeText: string = JwApi.buildEmptyRoomTimeText(p);
-      const pick = (o: ESObject, keys: string[]): string => {
-        for (let k: number = 0; k < keys.length; k++) {
-          const v: ESObject = o[keys[k]];
-          if (v !== undefined && v !== null && String(v).length > 0) {
-            return String(v);
-          }
-        }
-        return '';
-      };
-      for (let i: number = 0; i < items.length; i++) {
-        const it: ESObject = items[i];
-        out.push({
-          cdbh: pick(it, ['cdbh', 'cd_id', 'roomCode']),
-          cdmc: pick(it, ['cdmc', 'roomName', 'jsmc', 'name']),
-          xqmc: pick(it, ['xqmc', 'xx', 'xxmc', 'qskxjs', 'campusName']),
-          jxlmc: pick(it, ['jxlmc', 'jxl', 'jxl_id', 'buildingName']),
-          lch: pick(it, ['lch', 'floor', 'floorName']),
-          cdlbmc: pick(it, ['cdlbmc', 'lx', 'lxmc', 'cdlxmc', 'typeName']),
-          cdejlbmc: pick(it, ['cdejlbmc', 'cdejlxmc', 'subTypeName']),
-          sjzws: pick(it, ['zws', 'sjzws', 'rl', 'capacity']),
-          sybmmc: pick(it, ['sydxmc', 'sybmmc', 'ssbm', 'useDept', 'deptName']),
-          sybj: pick(it, ['sybj', 'useClass', 'className']),
-          bz: pick(it, ['bz', 'remark', 'remarkName']),
-          sfkfy: pick(it, ['sfkjy', 'sfkfy', 'sfkfy0', 'borrowable', 'isBorrowable']),
-          time: timeText
-        });
-      }
-    } catch (e) {
-      // 非 JSON，按 HTML/纯文本处理 → 上层 message 已覆盖
-    }
-    const page: RoomGridPage = { items: out, total: total };
-    return page;
-  }
 
   /** 构造空闲教室时间描述（多选周次/星期/节次） */
   private static buildEmptyRoomTimeText(p: EmptyRoomQueryParams): string {

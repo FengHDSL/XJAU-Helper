@@ -887,7 +887,11 @@ export struct HomeView {
   @Builder
   noticeSection() {
     Column() {
-      SectionHeader({ title: '校历信息', action: '', onAction: () => {
+      SectionHeader({ title: '校历信息', action: '查看校历', onAction: () => {
+        // 打开教务处官网学期校历列表（外部链接页）
+        AppState.webUrl = Const.JWC_LIST_URL;
+        AppState.webTitle = '学期校历';
+        AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
       } })
       if (this.jwcNotices.length === 0) {
         Column() {
@@ -941,10 +945,10 @@ export struct HomeView {
                   promptAction.showToast({ message: '当前模式暂不支持' });
                   return;
                 }
-                // 有文章链接：打开教务处官网文章页
+                // 有文章链接：在"外部链接"页面打开教务处官网文章页
                 AppState.webUrl = item.url;
                 AppState.webTitle = '教务处通知';
-                this.showWebSheet = true;
+                AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
               } else {
                 this.sheetNotice = item;
                 this.showNoticeSheet = true;
@@ -1134,6 +1138,7 @@ export struct HomeView {
       .padding({ left: 10, right: 10, top: 5, bottom: 5 })
       .backgroundColor($r('app.color.bg_chip'))
       .borderRadius(10)
+      .margin({ right: 8 })
   }
 
   /** 日期是否在校历学期范围内（开学日 ~ 结束日），范围外灰色显示 */

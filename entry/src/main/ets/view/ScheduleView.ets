@@ -412,7 +412,7 @@ export struct ScheduleView {
             Text(this.currentTerm().label)
               .fontSize(11)
               .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
-            // 深色模式用白底图标（expand_dark.png 是白 chevron + 透明背景），浅色模式用原图
+            // 学期选择箭头：list.png 图标，深色模式用浅色 fillColor 适配
             Image($r('app.media.list'))
               .width(14)
               .height(14)
@@ -897,6 +897,18 @@ export struct ScheduleView {
       }
       .width('100%')
       .layoutWeight(1)
+      // 左右滑动切换上一周/下一周（水平滑动手势，不干扰表格内部垂直滚动）
+      .gesture(
+        SwipeGesture({ direction: SwipeDirection.Horizontal })
+          .onAction((event: SwipeGestureEvent) => {
+            // angle > 90 或 < -90 表示向左滑动，否则为向右滑动
+            if (event.angle > 90 || event.angle < -90) {
+              this.changeWeek(1); // 向左滑，下一周
+            } else {
+              this.changeWeek(-1); // 向右滑，上一周
+            }
+          })
+      )
       // 课程详情弹层（bindSheet 半屏，内容组件本地镜像+回调实时刷新）
       .bindSheet($$this.showSheet, this.courseSheet(), {
         height: SheetSize.MEDIUM,

@@ -100,10 +100,6 @@ export class NewsApi {
     return items;
   }
 
-  static async fetchDetail(item: NewsItem): Promise<NewsDetail> {
-    return NewsApi.fetchDetailByUrl(item.url);
-  }
-
   static async fetchDetailByUrl(url: string): Promise<NewsDetail> {
     const resp = await http.createHttp().request(url, { expectDataType: http.HttpDataType.STRING });
     return NewsApi.parseDetail(resp.result as string);

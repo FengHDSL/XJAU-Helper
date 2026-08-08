@@ -6,12 +6,12 @@
 
 **新疆农业大学教务助手 · HarmonyOS 原生应用**
 
-一款为新疆农业大学学生打造的鸿蒙原生校园工具，集成登录、课表、成绩、考试、学业情况、校历信息、通知公告等常用功能于一体，数据对接学校正方教务系统与教务处官网。
+一款为新疆农业大学学生打造的鸿蒙原生校园工具，集成登录、课表、成绩、考试、学业情况、校历信息、通知公告、空闲教室查询、农大新闻等常用功能于一体，数据对接学校正方教务系统与教务处官网。
 
-[![Version](https://img.shields.io/badge/version-1.1.9-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.1.9)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.2.0)
 [![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT%20(API%2026)-orange)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.1.9/XJAU-Helper_v1.1.9.hap)
+[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.2.0/XJAU-Helper_v1.2.0.hap)
 
 </div>
 
@@ -24,25 +24,31 @@
     <td align="center" width="200"><b>登录</b></td>
     <td align="center" width="200"><b>首页</b></td>
     <td align="center" width="200"><b>课程表</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/14c8fc3d9c379f8726f7c0eca4d3bd4d.png" width="180" alt="登录" /></td>
+    <td><img src="docs/screenshots/7a7532c39a3d347d7f97cf74a30438e6.png" width="180" alt="首页" /></td>
+    <td><img src="docs/screenshots/1f1f30a57b446bcd6176845d633d4be5.png" width="180" alt="课程表" /></td>
+  </tr>
+  <tr>
     <td align="center" width="200"><b>成绩查询</b></td>
+    <td align="center" width="200"><b>农大新闻</b></td>
+    <td align="center" width="200"><b>我的</b></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/01-login.png" width="180" alt="登录" /></td>
-    <td><img src="docs/screenshots/02-home.png" width="180" alt="首页" /></td>
-    <td><img src="docs/screenshots/03-schedule.png" width="180" alt="课程表" /></td>
-    <td><img src="docs/screenshots/04-schedule-detail.png" width="180" alt="成绩查询" /></td>
+    <td><img src="docs/screenshots/2e77b9882731d023f7369842588d6b89.png" width="180" alt="成绩查询" /></td>
+    <td><img src="docs/screenshots/33f541c907cc50e3f493241d0c07c81e.png" width="180" alt="农大新闻" /></td>
+    <td><img src="docs/screenshots/a32f708aa22158bc27e1c2cdcb8f5329.png" width="180" alt="我的" /></td>
   </tr>
   <tr>
-    <td align="center"><b>我的</b></td>
+    <td align="center" width="200"><b>空闲教室查询</b></td>
     <td align="center" width="200"><b>考试查询</b></td>
     <td align="center" width="200"><b>学业情况</b></td>
-    <td align="center" width="200"><b>消息</b></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/05-score.png" width="180" alt="我的" /></td>
-    <td><img src="docs/screenshots/06-mine.png" width="180" alt="考试查询" /></td>
-    <td><img src="docs/screenshots/07-exam.png" width="180" alt="学业情况" /></td>
-    <td><img src="docs/screenshots/08-academic.png" width="180" alt="消息" /></td>
+    <td><img src="docs/screenshots/cd29d910e3ec4362a8986164e7be13dd.png" width="180" alt="空闲教室查询" /></td>
+    <td><img src="docs/screenshots/37ede7a84c4928e4972f31333c729ac2.png" width="180" alt="考试查询" /></td>
+    <td><img src="docs/screenshots/d0677e36ad9f7017bd465dd0fd9684b3.png" width="180" alt="学业情况" /></td>
   </tr>
 </table>
 
@@ -54,13 +60,15 @@
 
 | 功能 | 说明 |
 |------|------|
-| 🔐 统一身份认证 | 学号密码登录（RSA PKCS#1 v1.5 加密），历史账号一键填充（"最近"标记居行首）+ 过渡动画，服务端验证码 + 忘记密码跳转学校官网 |
-| 📅 课程表 | 周视图课表，按"周一为首"对齐，周次/学期切换；课程详情（教师、教室、节次、周次、属性着色），学号/密码输入框精简 |
+| 🔐 统一身份认证 | 学号密码登录（RSA PKCS#1 v1.5 加密），历史账号一键填充，服务端验证码 + 网页版登录兜底 + 忘记密码跳转学校官网 |
+| 📅 课程表 | 周视图课表，周次/学期切换；课程详情（教师、教室、节次、周次、属性着色）；支持更换背景/网格/纯色背景/表头颜色/格子高度/圆角/边框/文字等超多设置项；**左右滑动切换上一周/下一周** |
 | 📝 考试查询 | 考试时间、地点、座位号查询，最近考试倒计时，按剩余天数分级配色（红紧急 / 黄中等 / 绿充足） |
-| 🏆 成绩查询 | 学期成绩列表与平均分 / GPA 展示（按学校「课程及学分」办法自动换算），详情页圆点居中对齐 |
-| 🎓 学业情况 | GPA、学分完成度、课程分类统计、学历预警 |
-| 📅 校历信息 | 对接教务处官网「学期校历」栏目最新两条通知 |
+| 🏆 成绩查询 | 学期成绩列表与平均分 / GPA 展示（按学校「课程及学分」办法自动换算） |
+| 🎓 学业情况 | GPA、学分完成度、课程分类统计、学历预警；对接教务处官网「学期校历」文章通知 |
 | 📅 日历 | 按月分块的正常日历样式，左右滑动查看月份，未开学/学期外日期灰色显示，附校历说明 |
+| 🔍 空闲教室查询 | 数据对接教务系统空闲教室查询页面，支持按校区/楼号/场地类别/时间筛选，按属性本地筛选导出结果 |
+| 📰 农大新闻 | 对接新闻网官网「农大要闻 / 综合新闻 / 教学科研 / 媒体农大」四大板块，支持站内搜索、一键分享、下拉刷新、滚动翻页 |
+| 🌐 外部链接页 | 应用内 WebView 浏览教务处官网/教务系统/新闻网任意页面，右上角**复制链接/分享**胶囊按钮（链接自动变成网页标题） |
 
 ### 桌面卡片
 
@@ -68,67 +76,6 @@
 |------|------|------|
 | 课程预告 | 2×2 | 今日/明日课程预览，点击切换 |
 | 考试倒计时 | 2×2 | 最近考试天数与详情 |
-
----
-
-## 📝 更新日志
-
-> 💡 应用内的"关于 → 更新日志"与此保持同步。
-
-### 1.2.0（2026-08-08）
-
-- 完善空闲教室查询功能
-- 优化课程表设置使用体验
-- 优化部分文本显示效果
-- 替换部分图标
-- 修复一些已知 bug
-
-### 1.1.9（2026-08-07）
-
-- 农大新闻上线：农大要闻、综合新闻、教学科研、媒体农大四大板块接入官网真实数据，支持站内搜索、一键分享、下拉刷新、滚动翻页（不再限制条数）
-- 新闻详情全新排版：标题、发布时间、来源、浏览量、编辑/审核人一应俱全，正文图文按原顺序展示，外站链接自动以网页方式打开
-- 课程表重大更新：支持更换背景图片、纯色背景、网格辅助线、表头颜色、格子高度/圆角/边框/文字等超多设置项，课程可单独配色
-- 修复文本错误问题
-- 修复已知 bug：课程表设置与学期选择弹层冲突、周次面板标题重复、清除缓存误删登录信息等
-
-### 1.1.6（2026-08-07）
-
-- 桌面卡片全面优化：考试倒计时支持主动选择要倒计时的考试，课程预告支持今天/明天/下次有课日三态切换，修复课程时间格式与课程表不一致的问题
-- 登录机制升级：首次登录可选择"自动重新登录"或"旧版本登录"，旧版本下首页显示"重登"按钮一键刷新会话
-- 首页下次课卡片增加月日显示，课程时间修正为完整节次范围
-- 完善数据缓存机制，无网络时也能正常浏览课程表与校历
-
-### 1.1.5（2026-08-06）
-
-- 紧急更新！教务系统参数疑似变更，本次更新已修复部分问题，同时为了避免无法使用，登录方法变更（重新打开应用时会重新登录，以刷新获取数据）
-- 完善登录规则：不再默认记住密码，首次启用需同意隐私协议
-- 新增空闲教室查询（数据已对接，交互持续优化中）
-- 优化多页面弹窗标题去重、字号对齐、选项靠右显示等界面细节
-
-### 1.1.0（2026-08-06）
-
-- 启用新应用图标，登录页与顶栏统一为农大绿，忘记密码跳转学校官网
-- 成绩查询支持按学校「课程及学分」办法自动换算平均分与GPA
-- 首页新增校历（正常日历样式，左右滑动查看月份，未开学/学期外灰色）
-- 首页新增"校历信息"卡，对接教务处官网「学期校历」栏目最新两条通知
-- 首页顶栏显示当前教学周与学年学期，支持全局切换（课程表/成绩页自动同步刷新）
-- 首页无课时展示"当前没课了哦！"+ 下次课卡片（课程/时间/教室，居中布局）
-- 消息时间精确到时分秒，标题与正文重复时只显示标题；顶部统一适配主题色
-- 所有详情页圆点与文字垂直居中对齐，菜单/退出按钮图标优化
-- 清除缓存同时清理 WebView 缓存与 Cookie（含大小变化）
-- 功能浏览模式与真实登录数据完全隔离，固定周次确保全功能有数据；张三信息占位化
-- 登录页历史账号展开带过渡动画，输入框提示精简为"学号/密码"
-- 考试页更名"考试查询"，倒计时按剩余天数分级配色（红/黄/绿）
-- 底栏切换页面时按钮文字颜色即时变化，不再等待滑动动画完成
-
-### 1.0.1（2026-08-05）
-
-- 修复考试页面和消息页面的显示效果
-
-### 1.0.0（2026-08-05）
-
-- 第一个正式版
-- 增加并确认了基础功能的正常运行
 
 ---
 
@@ -142,6 +89,7 @@
 | 存储 | @ohos.data.preferences（本地缓存）+ AppStorage（学期切换广播） |
 | UI | HDS Design Kit（沉浸式悬浮底栏）、系统颜色资源适配深色模式、Swiper 日历左右滑动 |
 | 加密 | RSA PKCS#1 v1.5（密码加密传输） |
+| 分享 | @kit.ShareKit systemShare（外部链接页分享面板） |
 | 动画 | animateTo + TransitionEffect（登录页历史账号展开过渡） |
 
 ---
@@ -202,6 +150,19 @@ XJAU-Helper/
 - **教务接口依赖学校系统**：真实数据依赖学校教务系统（正方 zftal-ui v5）与教务处官网接口的稳定性，若学校调整接口，需同步更新代码
 - **功能浏览模式**：未登录时使用本地模拟数据（含占位头像/学院/班级/学号），仅用于界面体验，请勿用于真实数据查询
 - **客户端 PDF 解析**：校历 PDF 表头为矢量图，客户端无法可靠自动转换；目前由预置数据提供，校历更新需要版本发布
+
+---
+
+## 🤖 AI 辅助开发
+
+本项目由 AI 辅助完成开发：
+
+- **架构与接口逆向**：通过与 AI 协作完成正方 zftal-ui v5 教务系统接口探索与字段映射
+- **代码实现**：ArkTS 业务逻辑、UI 交互、跨页面状态管理由 AI 辅助编写与重构
+- **调试与修复**：编译错误排查（ArkTS 严格规范）、正则解析、空教室导出 Excel 解析等问题由 AI 辅助定位与修复
+- **工程清理**：废弃 API/资源/代码扫描与清理由 AI 辅助完成
+
+人负责需求决策、功能边界、产品体验与最终验证；AI 负责实现探索、代码编写与迭代优化。**仅供学习交流使用，严禁用于商业用途！**
 
 ---
 

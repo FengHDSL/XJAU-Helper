@@ -116,25 +116,13 @@ export class DataStore {
     return DataStore.get(DataStore.KEY_SCHEDULE_BG);
   }
 
-  /** 开启/关闭网格虚线（旧版，迁移到 ScheduleConfig.gridEnabled） */
-  static setScheduleDashed(on: boolean): void {
-    DataStore.put(DataStore.KEY_SCHEDULE_DASHED, on ? '1' : '0');
-  }
 
-  /** 是否开启网格虚线（默认开启，背景图是图片时建议关闭） */
-  static getScheduleDashed(): boolean {
-    return DataStore.get(DataStore.KEY_SCHEDULE_DASHED) !== '0';
-  }
 
   /** 保存课程表完整自定义配置（JSON，见 ScheduleConfig） */
   static setScheduleCfg(json: string): void {
     DataStore.put(DataStore.KEY_SCHEDULE_CFG, json);
   }
 
-  /** 读取课程表完整自定义配置 JSON（空串=从未保存过） */
-  static getScheduleCfg(): string {
-    return DataStore.get(DataStore.KEY_SCHEDULE_CFG);
-  }
 
   /** 读取课程独立颜色 JSON（课程名 → hex 的 Record 序列化，空串=无自定义） */
   static getCourseCustomColors(): string {
@@ -237,15 +225,6 @@ export class DataStore {
     }
   }
 
-  /** 读取历史账号（仅账号字符串数组，登录页 chips 用） */
-  static getAccounts(): string[] {
-    const list: Record<string, string>[] = DataStore.getAccountList();
-    const out: string[] = [];
-    for (const it of list) {
-      out.push(it['account'] ?? '');
-    }
-    return out;
-  }
 
   /** 解密历史账号的密码 */
   static decodePwd(encoded: string): string {
@@ -336,10 +315,6 @@ export class DataStore {
     return out;
   }
 
-  /** 读取最近一次登录的账号 */
-  static getLastAccount(): string {
-    return DataStore.get(DataStore.KEY_LAST_ACCOUNT);
-  }
 
   // ── 数据缓存（登录成功后 refreshAll 写入，各页启动读）──
   static readonly KEY_PROFILE: string = 'cache_profile';
@@ -349,7 +324,7 @@ export class DataStore {
   static readonly KEY_ACADEMIC: string = 'cache_academic';
   static readonly KEY_NOTICES: string = 'cache_notices';
   static readonly KEY_NOTICES_JWC: string = 'cache_notices_jwc'; // 教务处官网通知（最新两条）
-  static readonly KEY_TEACHING_CAL: string = 'cache_teaching_cal';
+  static readonly KEY_TEACHING_CAL: string = 'cache_teaching_cal'; // 校历缓存 key（清理缓存时一并清除）
   static readonly KEY_JWC_CAL: string = 'cache_jwc_cal'; // 校历转换结果（含来源标记，变化才更新）
   static readonly KEY_PHOTO: string = 'cache_photo';
   static readonly KEY_CACHE_TIME: string = 'cache_time';

@@ -15,6 +15,7 @@ import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
+import { PRIVACY_SECTIONS, PRIVACY_EXTRA_SECTIONS, PrivacySection } from '../common/PrivacyText';
 import { LoginResult } from '../model/Models';
 import { WebSurface } from './WebSurface';
 
@@ -36,6 +37,7 @@ export struct LoginView {
   @State showPwd: boolean = false; // 密码明文/密文切换
   @State showPrivacy: boolean = false; // 隐私协议弹窗（首次启动未同意时显示）
   @State privacyAgreedAt: string = ''; // 隐私协议同意时间（右下角展示用）
+  @State loginMode: string = 'auto'; // 重登方式（auto=自动重登 / legacy=旧版本登录），切换后实时刷新显示
   private accountController: TextInputController = new TextInputController();
   private passwordController: TextInputController = new TextInputController();
   onSuccess: () => void = () => {
@@ -62,6 +64,8 @@ export struct LoginView {
     if (!DataStore.isPrivacyAgreed()) {
       this.showPrivacy = true;
     }
+    // 重登方式：读取本地配置（未设置默认自动重登）
+    this.loginMode = DataStore.getLoginMode().length > 0 ? DataStore.getLoginMode() : 'auto';
     // 自动重登模式：用保存的凭据静默登录（显示加载、禁用交互），不再让用户手动输入
     if (this.autoRelogin) {
       const autoAcct: string = DataStore.get(DataStore.KEY_AUTO_ACCOUNT);
@@ -136,24 +140,10 @@ export struct LoginView {
       this.showPrivacy = true;
       return;
     }
-    // 首次登录：让用户选择登录方式（默认值）
+    // 首次登录：未设置重登方式时默认使用"自动重登"（用户可在「改用网页版登录」上方的固定入口随时更改）
     if (DataStore.getLoginMode().length === 0) {
-      const picked: number = await new Promise<number>((resolve) => {
-        promptAction.showDialog({
-          title: '选择登录方式',
-          message: '「自动重新登录」会在每次打开应用时用账号密码重新登录，确保服务可用（推荐）。\n\n「旧版本登录」不会自动重新登录，遇到「首页底部校历为空」等情况，可点左上角「重登」按钮手动重新登录。',
-          buttons: [
-            { text: '旧版本登录', color: '#888888' },
-            { text: '自动重新登录', color: '#079841' }
-          ]
-        }).then((r: promptAction.ShowDialogSuccessResponse) => {
-          resolve(r.index);
-        }).catch(() => {
-          resolve(0);
-        });
-      });
-      // picked=0 = 旧版本；picked=1 = 自动重新登录
-      DataStore.setLoginMode(picked === 1 ? 'auto' : 'legacy');
+      DataStore.setLoginMode('auto');
+      this.loginMode = 'auto';
     }
     if (this.account.trim().length === 0) {
       promptAction.showToast({ message: '请输入学号' });
@@ -211,6 +201,46 @@ export struct LoginView {
     AppState.webUrl = Const.WEB_LOGIN_URL;
     AppState.webTitle = '网页版登录';
     this.showWeb = true;
+  }
+
+  /** 当前重登方式文案（自动重登 / 旧版本登录） */
+  private loginModeText(): string {
+    return this.loginMode === 'auto' ? '自动重登' : '旧版本登录';
+  }
+
+  /** 更改重登方式（固定入口，可随时切换，切换后立即刷新显示） */
+  private changeLoginMode(): void {
+    const current: string = this.loginModeText();
+    promptAction.showActionMenu({
+      title: `选择重登方式（当前：${current}）`,
+      buttons: [
+        { text: '自动重登', color: '#079841' },
+        { text: '旧版本登录', color: '#888888' }
+      ]
+    }).then((res: promptAction.ActionMenuSuccessResponse) => {
+      if (res.index === 0) {
+        DataStore.setLoginMode('auto');
+        this.loginMode = 'auto';
+        promptAction.showToast({ message: '已切换为自动重登' });
+      } else if (res.index === 1) {
+        DataStore.setLoginMode('legacy');
+        this.loginMode = 'legacy';
+        promptAction.showToast({ message: '已切换为旧版本登录' });
+      }
+    }).catch(() => {
+      // 取消选择
+    });
+  }
+
+  /** 弹窗说明两种重登方式的区别（问号图标点击） */
+  private showLoginModeInfo(): void {
+    promptAction.showDialog({
+      title: '重登方式说明',
+      message: '「自动重登」每次重新打开应用，均会重新使用账号密码进行登录，免去你重新点击，该方法可以尽可能避免旧版本登录出现功能不可用的情况，但会出现加载慢的情况（默认使用自动重登）。\n\n「旧版本登录」不会重新登录，不稳定，可能出现功能不可用的情况，若出现，可在首页左上角点击黄色重登按钮进行重新登录。',
+      buttons: [
+        { text: '我知道了', color: '#079841', primary: true }
+      ]
+    });
   }
 
   /** 打开找回密码网页（学校统一身份认证平台），在应用内 WebView 中展示。 */
@@ -724,6 +754,38 @@ export struct LoginView {
 
             // 底部操作区：网页版登录（默认显示）+ 功能浏览
             Column() {
+              // 重登方式（固定入口，可随时更改）
+              Row() {
+                Image($r('app.media.question'))
+                  .width(14)
+                  .height(14)
+                  .margin({ right: 4 })
+                  .fillColor($r('app.color.text_tertiary'))
+                  .onClick(() => {
+                    this.showLoginModeInfo();
+                  })
+                Text('重登方式')
+                  .fontSize(13)
+                  .fontColor($r('app.color.text_secondary'))
+                Blank()
+                Text(this.loginModeText())
+                  .fontSize(13)
+                  .fontColor($r('app.color.brand'))
+                Text('›')
+                  .fontSize(13)
+                  .fontColor($r('app.color.text_tertiary'))
+                  .margin({ left: 2 })
+              }
+              .width('72%')
+              .padding({ left: 18, right: 14, top: 10, bottom: 10 })
+              .backgroundColor($r('app.color.bg_chip'))
+              .borderRadius(22)
+              .margin({ bottom: 10 })
+              .enabled(!this.loading)
+              .onClick(() => {
+                this.changeLoginMode();
+              })
+
               Button() {
                 Row() {
                   Text('改用网页版登录')
@@ -846,25 +908,15 @@ export struct LoginView {
       .width('100%')
       .padding({ left: 20, right: 20, top: 16, bottom: 12 })
 
-      // 协议正文（可滚动）
+      // 协议正文（可滚动；正文取自 PrivacyText 单一事实源，追加"功能浏览"补充节）
       Scroll() {
         Column() {
-          this.privacySection('1. 信息收集',
-            '本应用仅在您主动登录时收集学号与密码，用于访问学校教务系统获取课表、成绩、考试等数据。' +
-              '密码使用教务系统 RSA 公钥加密传输，本地仅保存登录状态标识，不存储明文密码。')
-          this.privacySection('2. 信息存储',
-            '课表、成绩、考试、头像等数据缓存仅保存在您设备本地（应用私有目录），不上传任何服务器。' +
-              '您可在"我的-清除缓存"中随时删除全部本地数据。')
-          this.privacySection('3. 权限使用',
-            '本应用仅申请网络权限（联网获取教务数据）与日历权限（将考试安排写入系统日历提醒）。' +
-              '不申请位置、相册、通讯录、麦克风等与教务功能无关的权限。')
-          this.privacySection('4. 数据安全',
-            '本地缓存不进行二次上传；登录会话仅用于教务系统接口调用。应用被卸载时，本地缓存将被系统一并清除。')
-          this.privacySection('5. 第三方服务',
-            '桌面卡片、快捷方式等系统能力仅在本机展示应用自身数据，不涉及第三方 SDK 数据共享。')
-          this.privacySection('6. 功能浏览',
-            '未同意本协议时，您仍可使用"功能浏览"模式查看应用界面布局，但该模式不连接任何服务器，' +
-              '使用本地虚拟数据，不读取、存储任何真实个人信息。')
+          ForEach(PRIVACY_SECTIONS, (sec: PrivacySection) => {
+            this.privacySection(sec.title, sec.content)
+          }, (sec: PrivacySection) => sec.title)
+          ForEach(PRIVACY_EXTRA_SECTIONS, (sec: PrivacySection) => {
+            this.privacySection(sec.title, sec.content)
+          }, (sec: PrivacySection) => sec.title)
         }
         .width('100%')
         .padding({ left: 20, right: 20, top: 4, bottom: 16 })

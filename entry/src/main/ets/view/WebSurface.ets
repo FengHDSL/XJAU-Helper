@@ -18,6 +18,9 @@ import { UserProfile } from '../model/Models';
 
 @Component
 export struct WebSurface {
+  /** 页面加载完成后回传网页标题（供外部链接页更新标题栏；默认空回调） */
+  onTitleChange: (title: string) => void = () => {
+  };
   private controller: webview.WebviewController = new webview.WebviewController();
   /** 防止网页版登录成功回调被重复触发 */
   private loggedIn: boolean = false;
@@ -25,7 +28,10 @@ export struct WebSurface {
   /** WebView 组件出现：加载目标网页 */
   aboutToAppear(): void {
     this.loggedIn = false;
-    WebSurface.injectCookies(AppState.webUrl);
+    // 仅教务系统域名注入会话 Cookie（外部链接如 GitHub 不注入，避免隐私泄漏）
+    if (AppState.webUrl.indexOf('jwxt.xjau.edu.cn') >= 0) {
+      WebSurface.injectCookies(AppState.webUrl);
+    }
   }
 
   /** 把 HttpClient 的会话 Cookie 写入 WebView 的域名 Cookie 存储，保持登录态 */
@@ -85,7 +91,10 @@ export struct WebSurface {
         .javaScriptAccess(true)
         .domStorageAccess(true)
         .onControllerAttached(() => {
-          WebSurface.injectCookies(AppState.webUrl);
+          // 仅教务系统域名注入会话 Cookie（外部链接不注入，避免隐私泄漏）
+          if (AppState.webUrl.indexOf('jwxt.xjau.edu.cn') >= 0) {
+            WebSurface.injectCookies(AppState.webUrl);
+          }
           this.controller.loadUrl(AppState.webUrl);
         })
         .onPageEnd(() => {
@@ -93,6 +102,11 @@ export struct WebSurface {
           if (AppState.webLoginMode && !this.loggedIn &&
               url.indexOf('login_slogin') < 0 && url.indexOf('jwglxt') >= 0) {
             this.handleWebLoginSuccess();
+          }
+          // 页面加载完成：读取网页标题回传（让"外部链接"页标题栏自动变成网页标题）
+          const pageTitle: string = this.controller.getTitle();
+          if (pageTitle.length > 0) {
+            this.onTitleChange(pageTitle);
           }
         })
     }

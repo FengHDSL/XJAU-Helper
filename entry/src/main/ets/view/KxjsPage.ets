@@ -297,7 +297,7 @@ export struct KxjsPage {
       const synced: boolean = this.syncWebCookie();
       if (!synced) {
         this.rooms = [];
-        this.resultMessage = '请先打开右上角"网页版"登录教务系统（登录后 App 会自动同步会话），或使用账号密码登录';
+        this.resultMessage = '请先打开右上角"网页端"登录教务系统（登录后 App 会自动同步会话），或使用账号密码登录';
         return;
       }
     }
@@ -402,7 +402,7 @@ export struct KxjsPage {
     promptAction.showToast({ message: '已清空', duration: 1500 });
   }
 
-  /** 打开网页版空闲教室查询（WebView 共享登录 Cookie） */
+  /** 打开网页端空闲教室查询（在"外部链接"页面中访问，共享登录 Cookie） */
   private openWebQuery(): void {
     if (JwApi.USE_MOCK) {
       promptAction.showToast({ message: '当前模式暂不支持' });
@@ -410,11 +410,11 @@ export struct KxjsPage {
     }
     AppState.webUrl =
       `https://jwxt.xjau.edu.cn/jwglxt/cdjy/cdjy_cxKxcdlb.html?gnmkdm=N2155&layout=default&su=${AppState.account}`;
-    AppState.webTitle = '空教室查询（网页版）';
-    // 关键：开启网页登录模式，用户在网页版登录成功后 WebSurface 会把 WebView 的会话 Cookie
+    AppState.webTitle = '空教室查询（网页端）';
+    // 关键：开启网页登录模式，用户在网页端登录成功后 WebSurface 会把 WebView 的会话 Cookie
     // 同步回 HttpClient，导出/查询才能带上有效会话（否则一直用旧 cookie 导致网关 502）
     AppState.webLoginMode = true;
-    this.showWeb = true;
+    AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
   }
 
   /** 总页数（至少 1） */
@@ -579,15 +579,6 @@ export struct KxjsPage {
     this.showMultiPicker = false;
   }
 
-  /** 字段是否全空 */
-  private hasField(arr: string[]): boolean {
-    for (let i: number = 0; i < arr.length; i++) {
-      if (arr[i].length > 0) {
-        return true;
-      }
-    }
-    return false;
-  }
 
   /** 是否可借用 */
   private isBorrowable(sfkfy: string): boolean {
@@ -735,7 +726,7 @@ export struct KxjsPage {
             .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
             .margin({ left: 6 })
             .layoutWeight(1)
-          Text('网页版')
+          Text('网页端')
             .fontSize(13)
             .fontColor(this.isDarkMode ? $r('app.color.text_secondary') : Color.White)
             .padding({ left: 10, right: 10, top: 5, bottom: 5 })

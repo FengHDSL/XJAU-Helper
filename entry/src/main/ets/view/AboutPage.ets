@@ -4,6 +4,7 @@
 import { pasteboard } from '@kit.BasicServicesKit';
 import { promptAction } from '@kit.ArkUI';
 import { AppState } from '../common/AppState';
+import { Const } from '../common/Constants';
 import { PageHeader } from './common/UiKit';
 
 @Component
@@ -60,7 +61,7 @@ export struct AboutPage {
         .fontColor($r('app.color.text_primary'))
         .width('100%')
         .margin({ bottom: 10 })
-      this.linkRow('XJAU-Helper（本校）', 'https://github.com/FengHDSL/XJAU-Helper')
+      this.linkRow('XJAU-Helper（本项目）', 'https://github.com/FengHDSL/XJAU-Helper', true)
       this.linkRow('HiXD（参考）', 'https://github.com/PollenWang6/HiXD')
       this.linkRow('Traintime PDA（参考）', 'https://github.com/BenderBlog/traintime_pda')
 
@@ -80,7 +81,7 @@ export struct AboutPage {
   }
 
   @Builder
-  linkRow(title: string, url: string) {
+  linkRow(title: string, url: string, openInApp: boolean = false) {
     Row() {
       Text(title)
         .fontSize(13)
@@ -98,9 +99,16 @@ export struct AboutPage {
     .padding({ left: 4, right: 4 })
     .borderRadius(8)
     .onClick(() => {
-      // 复制到剪贴板，方便用户在浏览器中打开
-      pasteboard.getSystemPasteboard().setDataSync(pasteboard.createPlainTextData(url));
-      promptAction.showToast({ message: '链接已复制' });
+      if (openInApp) {
+        // 本项目的链接：打开应用内"外部链接"页面（WebView）直接访问
+        AppState.webUrl = url;
+        AppState.webTitle = '项目链接';
+        AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
+      } else {
+        // 参考链接：复制到剪贴板，方便用户在浏览器中打开
+        pasteboard.getSystemPasteboard().setDataSync(pasteboard.createPlainTextData(url));
+        promptAction.showToast({ message: '链接已复制' });
+      }
     })
   }
 
@@ -133,7 +141,7 @@ export struct AboutPage {
                 .fontSize(12)
                 .fontColor($r('app.color.text_tertiary'))
                 .margin({ top: 4 })
-              Text('新疆农业大学教务助手 · 校园微服务客户端')
+              Text('仅供学习交流使用，严禁用于商业用途！')
                 .fontSize(11)
                 .fontColor($r('app.color.text_tertiary'))
                 .margin({ top: 8 })
@@ -144,7 +152,7 @@ export struct AboutPage {
 
             // 应用简介（用户可快速了解功能）
             Column() {
-              Text('新农大小助手，支持查询课程表、考试成绩、考试信息、学业情况、校历和空闲教室。应用数据不经过第三方服务器，通过教务系统网页获取数据，经整理后直观呈现。不修改、不上传，完全开源。方便你的校园生活！')
+              Text('XJAU-Helper（新农大助手）是一款专为新疆农业大学学生打造的鸿蒙原生校园工具，集课表、成绩、考试、学业情况、校历、通知公告、空闲教室查询、农大新闻于一体。数据来自学校服务网页，不经过第三方服务器，不上传、不存储任何个人信息，完全开源。让校园学习更高效！')
                 .fontSize(12)
                 .lineHeight(20)
                 .fontColor($r('app.color.text_secondary'))
@@ -155,11 +163,16 @@ export struct AboutPage {
             .padding({ left: 20, right: 20, bottom: 20 })
 
             this.changelog('1.2.0', '2026-08-08', [
-              '完善空闲教室查询功能',
-              '优化课程表设置使用体验',
-              '优化部分文本显示效果',
-              '替换部分图标',
-              '修复一些已知 bug'
+              '新增「外部链接」页面：校历信息/成绩参考/我的-网页端教务系统/空教室网页端/农大新闻网页端等入口跳转；页面右上角集成「复制/分享」胶囊按钮；标题自动同步为网页自身标题',
+              '我的页面新增「学校官网」入口；「主题模式」更名为「主题颜色」',
+              '课程表支持左右滑动切换上一周/下一周',
+              '首页日历胶囊（未开学/开学日期/结束日期）间距加大',
+              '隐私协议全面重写为 10 节规范版本（单一事实源，登录弹窗与「我的」页共用）',
+              '登录页「重登方式」：首次启动默认「自动重登」；新增固定入口（可随时切换，切换后实时刷新）；问号图标说明两种方式区别',
+              '清理项目废弃代码与未用资源（10 个文件净删 600+ 行）',
+              '关于页版本号下方加「仅供学习交流使用，严禁用于商业用途！」；应用简介文案更新',
+              '修复若干已知 bug：空闲教室导出 502、校历通知点击跳转等',
+              '优化部分文本显示效果与交互细节'
             ])
 
             this.changelog('1.1.9', '2026-08-07', [
