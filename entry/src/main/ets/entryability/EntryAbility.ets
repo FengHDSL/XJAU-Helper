@@ -1,6 +1,7 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { mediaquery, window } from '@kit.ArkUI';
+import { fileIo } from '@kit.CoreFileKit';
 import { AppState } from '../common/AppState';
 import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
@@ -50,6 +51,29 @@ export default class EntryAbility extends UIAbility {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
     // 清理农大新闻图片缓存
     NewsApi.clearCache();
+    // 删除空闲教室导出 Excel 临时文件（含解压目录）
+    try {
+      const cacheDir: string = this.context.cacheDir;
+      const files: string[] = [
+        `${cacheDir}/kxcdlb_export.xlsx`,
+        `${cacheDir}/kxcdlb_xlsx`
+      ];
+      for (let i = 0; i < files.length; i++) {
+        try {
+          if (fileIo.accessSync(files[i])) {
+            if (fileIo.statSync(files[i]).isDirectory()) {
+              fileIo.rmdirSync(files[i]);
+            } else {
+              fileIo.unlinkSync(files[i]);
+            }
+          }
+        } catch (e) {
+          // 单文件清理失败可忽略
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
   /** 窗口创建：加载主页面并设置沉浸式状态栏 */

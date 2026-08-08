@@ -12,11 +12,14 @@
  * - 不发起任何真实网络请求、不注入 Cookie、无网页版兜底
  */
 import { promptAction } from '@kit.ArkUI';
+import { webview } from '@kit.ArkWeb';
 import { JwApi } from '../api/JwApi';
+import { HttpClient } from '../api/HttpClient';
+import { DataStore } from '../common/DataStore';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
-import { EmptyRoomCondition, EmptyRoomItem, TermInfo } from '../model/Models';
+import { EmptyRoomCondition, EmptyRoomItem, EmptyRoomQueryParams, EmptyRoomResult, TermInfo } from '../model/Models';
 import { EmptyTip, LoadingTip, PickRow } from './common/UiKit';
 import { WebSurface } from './WebSurface';
 
@@ -89,6 +92,12 @@ export struct KxjsPage {
   @State rooms: EmptyRoomItem[] = [];
   @State resultMessage: string = '';
   @State loading: boolean = false;
+  // 导出全量缓存（点击查询时导出当前"校区+时间"条件的数据，之后本地筛选，不再请求后端）
+  @State exportedRooms: EmptyRoomItem[] = [];
+  /** 上次导出时的条件指纹：校区|周次|星期|节次（导出数据只含所选校区） */
+  @State lastExportKey: string = '';
+  @State hasExported: boolean = false;
+  @State refreshing: boolean = false;
   // 翻页（每页 15 条）
   @State pageIndex: number = 1;
   private readonly pageSize: number = 15;
@@ -192,34 +201,175 @@ export struct KxjsPage {
     return '';
   }
 
+  /** 组装查询参数（导出的时间条件 + 场地属性条件） */
+  private buildParams(): EmptyRoomQueryParams {
+    return {
+      termId: this.currentTerm().id,
+      campus: this.codeOf(this.campusList, this.campusIndex),
+      building: this.codeOf(this.buildingList, this.buildingIndex),
+      roomType: this.codeOf(this.roomTypeList, this.roomTypeIndex),
+      roomSubType: this.codeOf(this.subTypeList, this.subTypeIndex),
+      seatMin: this.seatMinText,
+      seatMax: this.seatMaxText,
+      roomName: this.roomName,
+      weeks: this.weeksSet,
+      weekdays: this.weekdaysSet,
+      sections: this.sectionsSet
+    };
+  }
+
+  /** 导出条件指纹：校区|周次|星期|节次（属性条件不影响导出，本地筛选即可） */
+  private exportKey(): string {
+    const campusCode: string = this.codeOf(this.campusList, this.campusIndex);
+    return `${campusCode}|${this.weeksSet.join(',')}|${this.weekdaysSet.join(',')}|${this.sectionsSet.join(',')}`;
+  }
+
+  /** 从已导出的全量数据中按场地属性本地筛选（校区/楼号/类别/二级/座位数/名称） */
+  private filterLocal(p: EmptyRoomQueryParams): EmptyRoomItem[] {
+    const campusName: string = this.campusIndex >= 0 && this.campusIndex < this.campusList.length
+      ? this.campusList[this.campusIndex].name : '';
+    const buildingName: string = this.buildingIndex >= 0 && this.buildingIndex < this.buildingList.length
+      ? this.buildingList[this.buildingIndex].name : '';
+    const roomTypeName: string = this.roomTypeIndex >= 0 && this.roomTypeIndex < this.roomTypeList.length
+      ? this.roomTypeList[this.roomTypeIndex].name : '';
+    const subTypeName: string = this.subTypeIndex >= 0 && this.subTypeIndex < this.subTypeList.length
+      ? this.subTypeList[this.subTypeIndex].name : '';
+    const seatMin: number = p.seatMin.length > 0 ? parseInt(p.seatMin, 10) : -1;
+    const seatMax: number = p.seatMax.length > 0 ? parseInt(p.seatMax, 10) : -1;
+    const out: EmptyRoomItem[] = [];
+    for (let i = 0; i < this.exportedRooms.length; i++) {
+      const it: EmptyRoomItem = this.exportedRooms[i];
+      if (campusName.length > 0 && campusName !== '全部' && it.xqmc !== campusName) {
+        continue;
+      }
+      if (buildingName.length > 0 && buildingName !== '全部' && it.jxlmc !== buildingName) {
+        continue;
+      }
+      if (roomTypeName.length > 0 && roomTypeName !== '全部' && it.cdlbmc !== roomTypeName) {
+        continue;
+      }
+      if (subTypeName.length > 0 && subTypeName !== '全部' && it.cdejlbmc !== subTypeName) {
+        continue;
+      }
+      const seat: number = parseInt(it.sjzws, 10);
+      if (!isNaN(seat)) {
+        if (seatMin >= 0 && seat < seatMin) {
+          continue;
+        }
+        if (seatMax >= 0 && seat > seatMax) {
+          continue;
+        }
+      } else if (seatMin >= 0 || seatMax >= 0) {
+        continue; // 座位数条件存在但该教室无座位数
+      }
+      if (p.roomName.length > 0 && it.cdmc.indexOf(p.roomName) < 0) {
+        continue;
+      }
+      out.push(it);
+    }
+    return out;
+  }
+
+  /**
+   * 从网页版（Web 组件）会话同步 cookie 到 HttpClient。
+   * 用户打开"网页版"登录过教务系统后，该域的 cookie 存在系统 WebView 存储里，
+   * 读出来注入 App 的 HTTP 会话，导出请求即可带上有效会话（解决网关 502）。
+   */
+  private syncWebCookie(): boolean {
+    try {
+      const ck: string = webview.WebCookieManager.getCookie('https://jwxt.xjau.edu.cn');
+      if (ck !== null && ck.length > 0) {
+        HttpClient.setCookie(ck);
+        DataStore.put(DataStore.KEY_SESSION_COOKIE, ck);
+        return true;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  }
+
+  /** 查询：点击后自动导出当前"校区+时间"条件的全量数据（导出只含所选校区），
+   *  之后从导出的数据里按属性条件本地筛选；换校区/改时间 → 重新导出 */
   private async query(): Promise<void> {
+    // 导出依赖教务系统登录会话：App 会话 cookie 为空时，先尝试同步网页版(Web 组件)的登录 cookie
+    if (HttpClient.getCookie().length === 0) {
+      const synced: boolean = this.syncWebCookie();
+      if (!synced) {
+        this.rooms = [];
+        this.resultMessage = '请先打开右上角"网页版"登录教务系统（登录后 App 会自动同步会话），或使用账号密码登录';
+        return;
+      }
+    }
+    // 条件仍是静态占位（之前未登录时加载失败）→ 从网页版页面重新加载真实条件（校区/楼号/类别与网页版一致）
+    if (this.campusList === STATIC_CAMPUS || this.buildingList === STATIC_BUILDING ||
+      this.roomTypeList === STATIC_ROOM_TYPE) {
+      await this.loadRemoteConditions();
+    }
     this.loading = true;
     this.resultMessage = '';
     this.pageIndex = 1;
+    const params: EmptyRoomQueryParams = this.buildParams();
+    const key: string = this.exportKey();
     try {
-      const res = await JwApi.queryEmptyRooms({
-        termId: this.currentTerm().id,
-        campus: this.codeOf(this.campusList, this.campusIndex),
-        building: this.codeOf(this.buildingList, this.buildingIndex),
-        roomType: this.codeOf(this.roomTypeList, this.roomTypeIndex),
-        roomSubType: this.codeOf(this.subTypeList, this.subTypeIndex),
-        seatMin: this.seatMinText,
-        seatMax: this.seatMaxText,
-        roomName: this.roomName,
-        weeks: this.weeksSet,
-        weekdays: this.weekdaysSet,
-        sections: this.sectionsSet
-      });
-      this.rooms = res.rooms;
-      this.resultMessage = res.message;
-      if (this.rooms.length === 0 && this.resultMessage.length === 0) {
-        this.resultMessage = '该条件下暂无可用的空闲教室，可尝试调整条件';
+      if (this.hasExported && key === this.lastExportKey) {
+        // 校区+时间未变 → 从已导出的数据里本地筛选（楼号/类别/二级/座位数/名称）
+        this.rooms = this.filterLocal(params);
+        if (this.rooms.length === 0 && this.resultMessage.length === 0) {
+          this.resultMessage = '当前条件下无匹配的教室，可尝试调整条件';
+        }
+      } else {
+        // 首次 / 换校区 / 改时间 → 重新导出（导出仅带校区+时间条件，属性条件不传）
+        const exportP: EmptyRoomQueryParams = {
+          termId: params.termId,
+          campus: params.campus,
+          building: '',
+          roomType: '',
+          roomSubType: '',
+          seatMin: '',
+          seatMax: '',
+          roomName: '',
+          weeks: params.weeks,
+          weekdays: params.weekdays,
+          sections: params.sections
+        };
+        const res0: EmptyRoomResult = await JwApi.exportEmptyRooms(exportP);
+        let res: EmptyRoomResult = res0;
+        // 会话类失败 → 同步网页版登录 cookie 后重试一次（网关 502 多为会话无效）
+        if (res0.rooms.length === 0 && (res0.message.indexOf('会话') >= 0 || res0.message.indexOf('code=502') >= 0)) {
+          if (this.syncWebCookie()) {
+            res = await JwApi.exportEmptyRooms(exportP);
+          }
+        }
+        if (res.rooms.length > 0) {
+          this.exportedRooms = res.rooms;
+          this.lastExportKey = key;
+          this.hasExported = true;
+          this.rooms = this.filterLocal(params);
+          if (this.rooms.length === 0 && this.resultMessage.length === 0) {
+            this.resultMessage = '当前条件下无匹配的教室，可尝试调整条件';
+          }
+        } else {
+          // 导出失败/无数据：只提示，不再回退网页查询数据（用户明确要求结果只用导出的 Excel 数据）
+          this.hasExported = false;
+          this.exportedRooms = [];
+          this.rooms = [];
+          this.resultMessage = res.message.length > 0 ? res.message : '导出空闲教室数据失败，请检查网络后重试';
+        }
       }
     } catch (e) {
       this.resultMessage = '查询失败，请检查网络或稍后重试';
     } finally {
       this.loading = false;
     }
+  }
+
+  /** 下拉刷新：强制重新导出全量数据 */
+  private async onRefresh(): Promise<void> {
+    this.hasExported = false;
+    this.exportedRooms = [];
+    await this.query();
+    this.refreshing = false;
   }
 
   /** 一键清空（保留学年学期 + 校区，其余全部重置/清空） */
@@ -261,6 +411,9 @@ export struct KxjsPage {
     AppState.webUrl =
       `https://jwxt.xjau.edu.cn/jwglxt/cdjy/cdjy_cxKxcdlb.html?gnmkdm=N2155&layout=default&su=${AppState.account}`;
     AppState.webTitle = '空教室查询（网页版）';
+    // 关键：开启网页登录模式，用户在网页版登录成功后 WebSurface 会把 WebView 的会话 Cookie
+    // 同步回 HttpClient，导出/查询才能带上有效会话（否则一直用旧 cookie 导致网关 502）
+    AppState.webLoginMode = true;
     this.showWeb = true;
   }
 
@@ -614,9 +767,10 @@ export struct KxjsPage {
           title: { title: '场地详情' }
         })
 
-        // 内容区：整页可滚动（条件卡 + 结果列表 + 底部翻页）
+        // 内容区：整页可滚动（条件卡 + 结果列表 + 底部翻页），下拉刷新重新导出数据
         Column() {
-          Scroll() {
+          Refresh({ refreshing: $$this.refreshing }) {
+            Scroll() {
             Column() {
               // 查询条件卡
               Column() {
@@ -783,6 +937,10 @@ export struct KxjsPage {
             backgroundColor: $r('app.color.bg_page'),
             title: { title: AppState.webTitle }
           })
+          }
+          .width('100%')
+          .height('100%')
+          .onRefreshing(() => { this.onRefresh(); })
         }
         .layoutWeight(1)
         .width('100%')

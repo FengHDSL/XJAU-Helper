@@ -253,18 +253,25 @@ export struct NewsPage {
     Column() {
       Row() {
         Text('农大新闻').fontSize(20).fontWeight(FontWeight.Bold).fontColor(Color.White)
-        // 搜索框：输入关键词回车，在 WebView 中打开官网搜索结果
-        TextInput({ text: this.keyword, placeholder: '搜索新闻' })
-          .fontSize(13)
-          .fontColor(Color.White)
-          .placeholderColor('#CCFFFFFF')
-          .backgroundColor('#26FFFFFF')
-          .borderRadius(16)
-          .height(32)
-          .layoutWeight(1)
-          .margin({ left: 10, right: 10 })
-          .onChange((v: string) => { this.keyword = v; })
-          .onSubmit(() => { this.doSearch(); })
+        // 搜索框：左侧搜索图标 + 输入框，回车跳转搜索结果页
+        Row() {
+          Image($r('app.media.search')).width(14).height(14)
+            .fillColor('#CCFFFFFF').margin({ left: 10, right: 6 })
+          TextInput({ text: this.keyword, placeholder: '搜索新闻' })
+            .fontSize(13)
+            .fontColor(Color.White)
+            .placeholderColor('#CCFFFFFF')
+            .backgroundColor(Color.Transparent)
+            .layoutWeight(1)
+            .height(32)
+            .onChange((v: string) => { this.keyword = v; })
+            .onSubmit(() => { this.doSearch(); })
+        }
+        .backgroundColor('#26FFFFFF')
+        .borderRadius(16)
+        .height(32)
+        .layoutWeight(1)
+        .margin({ left: 10, right: 10 })
         Text('网页端').fontSize(12).fontColor(Color.White)
           .padding({ left: 14, right: 14, top: 6, bottom: 6 })
           .backgroundColor('#33FFFFFF').borderRadius(14)

@@ -18,6 +18,13 @@ export interface HttpResult {
   cookie: string;
 }
 
+/** 二进制响应结果（导出 Excel 等）：data 为空表示失败，code/body 用于诊断 */
+export interface BinaryResult {
+  data: ArrayBuffer | null;
+  code: number;
+  body: string;
+}
+
 export class HttpClient {
   /** 教务系统根地址（不含 /jwglxt，各接口路径已自带）。接入学校真实教务系统时改这里。 */
   static baseUrl: string = 'https://jwxt.xjau.edu.cn';
@@ -210,6 +217,12 @@ export class HttpClient {
 
   /** 表单提交，教务系统登录基本都用这个 */
   static postForm(path: string, form: Record<string, string>): Promise<HttpResult> {
+    return HttpClient.postFormExtra(path, form, {});
+  }
+
+  /** 表单提交（可附加自定义请求头，如 X-Requested-With 等） */
+  static postFormExtra(path: string, form: Record<string, string>,
+    extraHeader: Record<string, string>): Promise<HttpResult> {
     const url: string = path.startsWith('http') ? path : `${HttpClient.baseUrl}${path}`;
     const keys: string[] = Object.keys(form);
     const parts: string[] = [];
@@ -218,6 +231,71 @@ export class HttpClient {
     }
     const header: Record<string, string> = {};
     header['Content-Type'] = 'application/x-www-form-urlencoded';
+    const extraKeys: string[] = Object.keys(extraHeader);
+    for (let i = 0; i < extraKeys.length; i++) {
+      header[extraKeys[i]] = extraHeader[extraKeys[i]];
+    }
     return HttpClient.request(url, http.RequestMethod.POST, parts.join('&'), header);
+  }
+
+  /**
+   * 表单提交，返回二进制（ArrayBuffer）响应（导出 Excel 等）。
+   * 失败时 data 为 null，code/body 提供诊断（body 截断前 600 字符）。
+   */
+  static async postFormBinary(path: string, form: Record<string, string>,
+    extraHeader: Record<string, string>): Promise<BinaryResult> {
+    const fail: BinaryResult = { data: null, code: 0, body: '' };
+    if (HttpClient.offlineMode) {
+      return fail;
+    }
+    const url: string = path.startsWith('http') ? path : `${HttpClient.baseUrl}${path}`;
+    const keys: string[] = Object.keys(form);
+    const parts: string[] = [];
+    for (let i = 0; i < keys.length; i++) {
+      parts.push(`${encodeURIComponent(keys[i])}=${encodeURIComponent(form[keys[i]])}`);
+    }
+    const header: Record<string, string> = {};
+    header['Content-Type'] = 'application/x-www-form-urlencoded';
+    const extraKeys: string[] = Object.keys(extraHeader);
+    for (let i = 0; i < extraKeys.length; i++) {
+      header[extraKeys[i]] = extraHeader[extraKeys[i]];
+    }
+    const client: http.HttpRequest = http.createHttp();
+    try {
+      const options: http.HttpRequestOptions = {
+        method: http.RequestMethod.POST,
+        header: HttpClient.buildHeader(header),
+        extraData: parts.join('&'),
+        connectTimeout: 15000,
+        readTimeout: 30000,
+        expectDataType: http.HttpDataType.ARRAY_BUFFER
+      };
+      client.on('headersReceive', (h: Object) => {
+        try {
+          const hdr: Record<string, Object> = h as Record<string, Object>;
+          const sc: Object | undefined = hdr['set-cookie'] ?? hdr['Set-Cookie'];
+          if (sc !== undefined) {
+            HttpClient.mergeCookies(String(sc));
+          }
+        } catch (e) {
+          // ignore
+        }
+      });
+      const response: http.HttpResponse = await client.request(url, options);
+      const code: number = response.responseCode as number;
+      if (code === 200 && response.result instanceof ArrayBuffer) {
+        return { data: response.result as ArrayBuffer, code: code, body: '' };
+      }
+      // 失败：非 200 或 result 不是二进制（如被重定向到登录页返回 HTML）
+      let diag: string = '';
+      if (typeof response.result === 'string') {
+        diag = (response.result as string).substring(0, 600);
+      }
+      return { data: null, code: code, body: diag };
+    } catch (e) {
+      return fail;
+    } finally {
+      client.destroy();
+    }
   }
 }

@@ -364,7 +364,7 @@ export struct MineView {
           .borderRadius(18)
           .margin({ top: 14 })
 
-          // 设置（顺序：网页版教务系统 → 数据同步 → 头像显示 → 清除缓存 → 隐私协议 → 清空数据 → 关于 → 服务备案号）
+          // 设置（顺序：网页版教务系统 → 数据同步 → 头像显示 → 清除缓存 → 隐私协议 → 清空数据 → 关于）
           Column() {
             // 1. 网页版教务系统（最顶上）
             SettingRow({
@@ -485,22 +485,10 @@ export struct MineView {
             Divider().color($r('app.color.divider'))
             // 8. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于', value: 'v1.1.9', onTap: () => {
+              icon: '', title: '关于', value: 'v1.2.0', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
-            // 9. 服务备案号（关于下面）
-            Row() {
-              Text('服务备案号')
-                .fontSize(15)
-                .fontColor($r('app.color.text_primary'))
-              Blank()
-              Text('待备案')
-                .fontSize(13)
-                .fontColor($r('app.color.text_tertiary'))
-            }
-            .width('100%')
-            .height(52)
           }
           .width('100%')
           .padding({ left: 16, right: 16 })

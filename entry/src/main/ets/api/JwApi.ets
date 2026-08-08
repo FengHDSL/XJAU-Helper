@@ -27,8 +27,11 @@ import { DataStore } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { EMPTY_REPORT } from '../model/Empty';
 import { Const } from '../common/Constants';
-import { HttpClient, HttpResult } from './HttpClient';
+import { HttpClient, HttpResult, BinaryResult } from './HttpClient';
 import { RsaUtil } from '../common/RsaUtil';
+import zlib from '@ohos.zlib';
+import { fileIo } from '@kit.CoreFileKit';
+import { util } from '@kit.ArkTS';
 
 /** 正方下发的 RSA 公钥 */
 interface RsaPublicKey {
@@ -42,6 +45,13 @@ interface JwcCalCacheStore {
   sourcePdfUrl: string;
   data: string;
 }
+
+/** grid 接口单页解析结果：本页条目 + 总记录数（datagrid 标准 total，-1 = 未返回） */
+interface RoomGridPage {
+  items: EmptyRoomItem[];
+  total: number;
+}
+
 
 export class JwApi {
   /** demo 开关：true = 使用本地模拟数据。默认 false（直连真实教务系统）。
@@ -1189,6 +1199,7 @@ export class JwApi {
 
     // ── 课程分类学分（从原始 HTML 直接正则，类别名在属性后）──
     // 结构：yxxf='已获得' yqzdxf='要求' sftg='..'>" + "类别名&nbsp;"
+    // 注意：ArkTS 正则字面量不支持裸双引号，用 new RegExp 字符串构造
     const categories: CreditCategory[] = [];
     const catRe: RegExp = /yxxf='([\d.]+)'\s*yqzdxf='([\d.]+)'\s*sftg='(\d)'[^>]*>\s*"\s*\+\s*"([^"&]{2,30})&nbsp;/g;
     let cm: RegExpExecArray | null = catRe.exec(html);
@@ -1450,10 +1461,12 @@ export class JwApi {
     try {
       const url: string =
         `/jwglxt/cdjy/cdjy_cxKxcdlb.html?doType=query&gnmkdm=N2155&layout=default&su=${AppState.account}`;
-      // 循环翻页：后端固执按 pageSize 限制单次返回，需逐页拉取直到数据不足
+      // 循环翻页：后端固定每页最多 10 条（即使请求 rows=50 也只回 10 条），
+      // 必须按返回的 total 总记录数逐页拉取，直到拉满为止
       const pageSize: number = 50;
       let page: number = 1;
       let allRooms: EmptyRoomItem[] = [];
+      let total: number = -1; // -1 = 接口未返回 total
       while (true) {
         form['page'] = `${page}`;
         form['rows'] = `${pageSize}`;
@@ -1462,12 +1475,19 @@ export class JwApi {
         if (res.body.indexOf('尚未开放') >= 0 || res.body.indexOf('cdwkfsq') >= 0) {
           return { rooms: [], message: '该学年学期场地预约尚未开放申请' };
         }
-        const pageRooms: EmptyRoomItem[] = JwApi.parseEmptyRoomGrid(res.body, p);
-        if (pageRooms.length === 0) {
+        const pg: RoomGridPage = JwApi.parseEmptyRoomGrid(res.body, p);
+        if (pg.items.length === 0) {
           break;
         }
-        allRooms = allRooms.concat(pageRooms);
-        if (pageRooms.length < pageSize) {
+        allRooms = allRooms.concat(pg.items);
+        total = pg.total;
+        if (total >= 0) {
+          // 有 total：拉满即止（后端每页 10 条，total 是多少就翻多少页）
+          if (allRooms.length >= total) {
+            break;
+          }
+        } else if (pg.items.length < pageSize) {
+          // 接口没给 total：按旧逻辑兜底（本页不足一页视为到底）
           break;
         }
         page++;
@@ -1481,9 +1501,266 @@ export class JwApi {
     }
   }
 
-  /** 解析 grid 接口 JSON（兼容 items / rows / totalList 与顶层数组） */
-  private static parseEmptyRoomGrid(body: string, p: EmptyRoomQueryParams): EmptyRoomItem[] {
+  /**
+   * 空闲教室导出（网页版"导出Excel"）：一次拉取全量数据（不受每页条数限制）。
+   * 流程与 kxcdlb.js 对齐：先初始化导出配置（dcclbh=JW_N2155_CXKXJS），
+   * 再 POST cdjy_cxDcKxcdlb.html 拿标准 xlsx（zip），解压解析后按用户选择的条件展示全部结果。
+   * 导出失败返回空 rooms + message 诊断。
+   */
+  static async exportEmptyRooms(p: EmptyRoomQueryParams): Promise<EmptyRoomResult> {
+    const emptyResult: EmptyRoomResult = { rooms: [], message: '' };
+    if (JwApi.USE_MOCK) {
+      const mockResult: EmptyRoomResult = { rooms: JwApi.buildMockEmptyRooms(p), message: '' };
+      return JwApi.delay(mockResult, 300);
+    }
+    // 导出接口走正方反代网关，用桌面浏览器请求头避免被网关拒绝（移动端 UA 曾触发 502）。
+    // Referer 必须指向导出来源页（kxcdlb 查询页），X-Requested-With 标识 ajax 调用，
+    // 否则反代可能判为异常请求或网关层 502。
+    const browserHeader: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+      'Accept-Language': 'zh-CN,zh;q=0.9',
+      'Referer': `https://jwxt.xjau.edu.cn/jwglxt/cdjy/cdjy_cxKxcdlb.html?gnmkdm=N2155&layout=default&su=${AppState.account}`,
+      'X-Requested-With': 'XMLHttpRequest'
+    };
+    const tparts: string[] = p.termId.split('-');
+    const xnm: string = tparts.length >= 3 ? tparts[0] : '';
+    const xqm: string = JwApi.xqmOf(p.termId);
+    const zcd: number = p.weeks.reduce((s: number, w: number) => s + Math.pow(2, Math.max(0, w - 1)), 0);
+    const jcd: number = p.sections.reduce((s: number, n: number) => s + Math.pow(2, Math.max(0, n - 1)), 0);
+    const form: Record<string, string> = {
+      'xnm': xnm, 'xqm': xqm, 'xqh_id': p.campus, 'lh': p.building,
+      'cdlb_id': p.roomType, 'cdejlb_id': p.roomSubType,
+      'qszws': p.seatMin, 'jszws': p.seatMax, 'cdmc': p.roomName,
+      'cd_id': '', 'cdjylx': '', 'zysx': '', 'sflb': '', 'hbsl': '', 'bbsl': '',
+      'sfyzz': '', 'sfjtjs': '', 'tjsl': '', 'tymbsl': '', 'yczb': '', 'zws': '',
+      'sfbhkc': '', 'kszws1': '', 'jyfs': '0',
+      'zcd': `${zcd}`, 'xqj': p.weekdays.join(','), 'jcd': `${jcd}`
+    };
+    try {
+      // Step1 初始化导出配置（与 kxcdlb.js exportDialog 一致，dcclbh 是导出处类别编码）。
+      // 关键：路径必须带 /jwglxt 前缀，与其它接口一致；少了前缀会被反向代理判为不存在路径并返回 502。
+      const initForm: Record<string, string> = { 'dcclbh': 'JW_N2155_CXKXJS' };
+      await HttpClient.postFormExtra('/jwglxt/zftal/drdc/export_exportInitDcpz.html', initForm, browserHeader);
+      // Step2 导出（带查询条件 + 排序，返回标准 xlsx）
+      const expForm: Record<string, string> = {};
+      const formKeys: string[] = Object.keys(form);
+      for (let i = 0; i < formKeys.length; i++) {
+        expForm[formKeys[i]] = form[formKeys[i]];
+      }
+      expForm['dcclbh'] = 'JW_N2155_CXKXJS';
+      expForm['xsnrbt'] = '0';
+      expForm['queryModel.sortName'] = 'cdbh';
+      expForm['queryModel.sortOrder'] = 'asc';
+      const bin: BinaryResult =
+        await HttpClient.postFormBinary('/jwglxt/cdjy/cdjy_cxDcKxcdlb.html', expForm, browserHeader);
+      if (bin.data === null) {
+        // 请求失败：按诊断信息区分原因
+        let reason: string = '';
+        if (bin.body.indexOf('login_slogin') >= 0 || bin.body.indexOf('登录') >= 0) {
+          reason = '登录会话已失效，请到"我的-网页版教务系统"重新登录后再试';
+        } else if (bin.body.indexOf('尚未开放') >= 0 || bin.body.indexOf('cdwkfsq') >= 0) {
+          reason = '该学年学期场地预约尚未开放申请';
+        } else if (bin.code === 200) {
+          reason = '导出数据格式异常，请稍后重试';
+        } else {
+          reason = `导出请求失败(code=${bin.code})，请检查网络后重试`;
+        }
+        return { rooms: [], message: reason };
+      }
+      const rooms: EmptyRoomItem[] = await JwApi.parseXlsxRooms(bin.data, p);
+      // 解析失败时把具体诊断透传给用户（解压失败/文件为空等），避免误报"该条件下暂无教室"
+      if (rooms.length === 0 && JwApi.lastXlsxError.length > 0) {
+        return { rooms: [], message: JwApi.lastXlsxError };
+      }
+      return {
+        rooms: rooms,
+        message: rooms.length === 0 ? '该条件下暂无可用的空闲教室，可尝试调整条件' : ''
+      };
+    } catch (e) {
+      return { rooms: [], message: '导出异常，请检查网络后重试' };
+    }
+  }
+
+  /** 最近一次导出 xlsx 解析失败的诊断（供 exportEmptyRooms 提示用户，避免误报"无数据"） */
+  private static lastXlsxError: string = '';
+  /** 解析导出 xlsx（zip）：写临时文件 → unzipFile 解压 → 读 sheet1.xml + sharedStrings.xml → 按表头名映射字段 */
+  private static async parseXlsxRooms(bin: ArrayBuffer, p: EmptyRoomQueryParams): Promise<EmptyRoomItem[]> {
     const out: EmptyRoomItem[] = [];
+    JwApi.lastXlsxError = '';
+    const ctx = AppState.context;
+    if (ctx === null) {
+      return out;
+    }
+    const cacheDir: string = ctx.cacheDir;
+    try {
+      // 1. 把 xlsx 二进制写入应用缓存目录
+      const xlsxPath: string = `${cacheDir}/kxcdlb_export.xlsx`;
+      const file = fileIo.openSync(xlsxPath,
+        fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC);
+      // writeSync 的 buffer 参数要求 ArrayBuffer | string（不能传 Uint8Array）
+      fileIo.writeSync(file.fd, bin);
+      fileIo.closeSync(file);
+      // 2. 解压：unzipFile 要求 outFile 目录【已存在】，否则解压直接失败（SDK 文档明确）；
+      //    且 rmdirSync 只能删空目录（非空抛异常）。因此每次用时间戳唯一目录并提前 mkdir，
+      //    规避"目录不存在解压失败"与"旧文件残留删除失败"两个坑。
+      const outDir: string = `${cacheDir}/kxcdlb_xlsx_${new Date().getTime()}`;
+      fileIo.mkdirSync(outDir);
+      await zlib.unzipFile(xlsxPath, outDir, {});
+      // 3. 读 XML（标准 OOXML 路径；unzipFile 未按标准结构解压时递归查找兜底）
+      let sheetXml: string = '';
+      let sharedXml: string = '';
+      try {
+        sheetXml = fileIo.readTextSync(`${outDir}/xl/worksheets/sheet1.xml`);
+      } catch (e) {
+        sheetXml = JwApi.findXmlText(outDir, 'sheet1.xml');
+      }
+      try {
+        sharedXml = fileIo.readTextSync(`${outDir}/xl/sharedStrings.xml`);
+      } catch (e) {
+        sharedXml = JwApi.findXmlText(outDir, 'sharedStrings.xml');
+      }
+      if (sheetXml.length === 0 || sharedXml.length === 0) {
+        JwApi.lastXlsxError = '导出文件解压失败（未找到工作表数据），请稍后重试';
+        return out;
+      }
+      const shared: string[] = JwApi.parseSharedStrings(sharedXml);
+      const rows: string[][] = JwApi.parseSheetRows(sheetXml, shared);
+      if (rows.length < 2) {
+        JwApi.lastXlsxError = '导出文件内容为空，该条件下暂无教室数据';
+        return out;
+      }
+      // 4. 表头 → 列索引，按表头名映射字段（鲁棒，列序变化不影响）
+      const header: string[] = rows[0];
+      const colIdx: Record<string, number> = {};
+      for (let i = 0; i < header.length; i++) {
+        colIdx[header[i]] = i;
+      }
+      const pick = (name: string): number => {
+        const idx: number = colIdx[name];
+        return idx !== undefined && idx >= 0 && idx < header.length ? idx : -1;
+      };
+      const iCdbh: number = pick('场地编号');
+      const iCdmc: number = pick('场地名称');
+      const iXqmc: number = pick('校区');
+      const iCdlbmc: number = pick('场地类别');
+      const iZws: number = pick('座位数');
+      const iJxlmc: number = pick('楼号');
+      const iLch: number = pick('楼层号');
+      const iBz: number = pick('场地备注信息');
+      const iSybm: number = pick('使用部门');
+      const iSybj: number = pick('使用班级');
+      const iCdejlb: number = pick('场地二级类别');
+      const iSfkjy: number = pick('是否可借用');
+      const timeText: string = JwApi.buildEmptyRoomTimeText(p);
+      for (let r = 1; r < rows.length; r++) {
+        const row: string[] = rows[r];
+        const cell = (idx: number): string => (idx >= 0 && idx < row.length ? row[idx] : '');
+        const item: EmptyRoomItem = {
+          cdbh: cell(iCdbh),
+          cdmc: cell(iCdmc),
+          xqmc: cell(iXqmc),
+          jxlmc: cell(iJxlmc),
+          lch: cell(iLch),
+          cdlbmc: cell(iCdlbmc),
+          cdejlbmc: cell(iCdejlb),
+          sjzws: cell(iZws),
+          sybmmc: cell(iSybm),
+          sybj: cell(iSybj),
+          bz: cell(iBz),
+          sfkfy: cell(iSfkjy),
+          time: timeText
+        };
+        out.push(item);
+      }
+    } catch (e) {
+      JwApi.lastXlsxError = '导出文件解析异常，请稍后重试';
+      return out;
+    }
+    return out;
+  }
+
+  /** 在目录（含子目录）递归查找指定 xml 文件并返回其文本内容（unzipFile 解压结构兜底） */
+  private static findXmlText(dir: string, fileName: string): string {
+    try {
+      const names: string[] = fileIo.listFileSync(dir);
+      for (let i = 0; i < names.length; i++) {
+        const child: string = `${dir}/${names[i]}`;
+        try {
+          const st = fileIo.statSync(child);
+          if (st.isDirectory()) {
+            const sub: string = JwApi.findXmlText(child, fileName);
+            if (sub.length > 0) {
+              return sub;
+            }
+          } else if (names[i] === fileName) {
+            return fileIo.readTextSync(child);
+          }
+        } catch (e) {
+          // 单个条目 stat/read 失败跳过，继续找下一个
+        }
+      }
+    } catch (e) {
+      // 目录不存在/不可读，返回空
+    }
+    return '';
+  }
+
+  /** 解析 sharedStrings.xml → 字符串数组 */
+  private static parseSharedStrings(xml: string): string[] {
+    const out: string[] = [];
+    if (xml.length === 0) {
+      return out;
+    }
+    const siRegex = /<si>([\s\S]*?)<\/si>/gi;
+    let sm: RegExpExecArray | null;
+    while ((sm = siRegex.exec(xml)) !== null) {
+      const tRegex = /<t[^>]*>([\s\S]*?)<\/t>/gi;
+      let tm: RegExpExecArray | null;
+      let txt: string = '';
+      while ((tm = tRegex.exec(sm[1])) !== null) {
+        txt += tm[1];
+      }
+      out.push(JwApi.xmlUnescape(txt));
+    }
+    return out;
+  }
+
+  /** 解析 sheet1.xml → 行二维数组（含表头行），单元格按 t 属性还原 sharedString/数字 */
+  private static parseSheetRows(xml: string, shared: string[]): string[][] {
+    const rows: string[][] = [];
+    const rowRegex = /<row[^>]*>([\s\S]*?)<\/row>/gi;
+    let rm: RegExpExecArray | null;
+    while ((rm = rowRegex.exec(xml)) !== null) {
+      const cells: string[] = [];
+      const cellRegex = /<c([^>]*)>(?:<v>([\s\S]*?)<\/v>)?\s*<\/c>|<c([^>]*)\/>/gi;
+      let cm: RegExpExecArray | null;
+      while ((cm = cellRegex.exec(rm[1])) !== null) {
+        const attrs: string = cm[1] !== undefined ? cm[1] : (cm[3] !== undefined ? cm[3] : '');
+        let val: string = cm[2] !== undefined ? cm[2] : '';
+        const tMatch = /t="([^"]*)"/i.exec(attrs);
+        const t: string = tMatch !== null ? tMatch[1] : '';
+        if (t === 's') {
+          const idx: number = parseInt(val, 10);
+          val = !isNaN(idx) && idx >= 0 && idx < shared.length ? shared[idx] : '';
+        }
+        cells.push(JwApi.xmlUnescape(val));
+      }
+      rows.push(cells);
+    }
+    return rows;
+  }
+
+  /** XML 实体反转义 */
+  private static xmlUnescape(s: string): string {
+    return s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#10;/g, ' ');
+  }
+
+  /** 解析 grid 接口 JSON（兼容 items / rows / totalList 与顶层数组），并提取 datagrid total 总数 */
+  private static parseEmptyRoomGrid(body: string, p: EmptyRoomQueryParams): RoomGridPage {
+    const out: EmptyRoomItem[] = [];
+    let total: number = -1;
     try {
       const root: ESObject = JSON.parse(body);
       let items: ESObject[] = [];
@@ -1495,6 +1772,14 @@ export class JwApi {
         items = root['rows'] as ESObject[];
       } else if (Array.isArray(root['totalList'])) {
         items = root['totalList'] as ESObject[];
+      }
+      // datagrid 标准 total 字段（number 或 string 都可能）
+      const tv: ESObject = root['total'];
+      if (typeof tv === 'number') {
+        total = tv as number;
+      } else if (typeof tv === 'string') {
+        const n: number = parseInt(tv as string, 10);
+        total = isNaN(n) ? -1 : n;
       }
       const timeText: string = JwApi.buildEmptyRoomTimeText(p);
       const pick = (o: ESObject, keys: string[]): string => {
@@ -1527,7 +1812,8 @@ export class JwApi {
     } catch (e) {
       // 非 JSON，按 HTML/纯文本处理 → 上层 message 已覆盖
     }
-    return out;
+    const page: RoomGridPage = { items: out, total: total };
+    return page;
   }
 
   /** 构造空闲教室时间描述（多选周次/星期/节次） */
