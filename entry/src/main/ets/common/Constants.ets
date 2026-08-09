@@ -65,6 +65,8 @@ export class Const {
   static readonly ROUTE_ABOUT: string = 'AboutPage';
   static readonly ROUTE_EMPTY_ROOM: string = 'KxjsPage';
   static readonly ROUTE_NEWS_DETAIL: string = 'NewsDetailPage';
+  static readonly ROUTE_NEWS_FAV: string = 'NewsFavPage';
+  static readonly ROUTE_LOG: string = 'LogPage';
   static readonly ROUTE_SEARCH: string = 'SearchResultPage';
   static readonly ROUTE_WEB_PAGE: string = 'WebViewPage';
 

@@ -219,7 +219,7 @@ export struct PickRow {
   }
 }
 
-/** 二级页面统一头部（简约白底 + 返回） */
+/** 二级页面统一头部（简约白底 + 返回）；可选右侧按钮（actionText + onAction） */
 @Component
 export struct PageHeader {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
@@ -227,7 +227,17 @@ export struct PageHeader {
   @StorageProp('themeColor') themeColor: string = 'green';
   @Prop title: string = '';
   @Prop subtitle: string = '';
+  /** 右侧按钮文字（空 = 不显示按钮） */
+  @Prop actionText: string = '';
+  /** 右侧是否显示收集开关（Toggle；与 actionText 可并存） */
+  @Prop showActionToggle: boolean = false;
+  /** 收集开关状态 */
+  @Prop actionToggleOn: boolean = false;
   onBack: () => void = () => {
+  };
+  onAction: () => void = () => {
+  };
+  onActionToggle: (on: boolean) => void = () => {
   };
 
   build() {
@@ -258,6 +268,34 @@ export struct PageHeader {
       .margin({ left: 6 })
 
       Blank()
+
+      // 右侧操作区：文字按钮（红底白字）与收集开关可并存（如日志页：清空 + 开关）
+      if (this.showActionToggle) {
+        Row() {
+          Text(this.actionToggleOn ? '收集中' : '已暂停')
+            .fontSize(11)
+            .fontColor(Color.White)
+            .margin({ right: 8 })
+          Toggle({ type: ToggleType.Switch, isOn: this.actionToggleOn })
+            .selectedColor('#DB5252')
+            .onChange((on: boolean) => {
+              this.onActionToggle(on);
+            })
+        }
+      }
+      if (this.actionText.length > 0) {
+        Text(this.actionText)
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Color.White)
+          .padding({ left: 14, right: 14, top: 5, bottom: 5 })
+          .backgroundColor('#DB5252')
+          .borderRadius(14)
+          .margin({ left: 10 })
+          .onClick(() => {
+            this.onAction();
+          })
+      }
     }
     .width('100%')
     .height(px2vp(this.topInsetPx) + 60)

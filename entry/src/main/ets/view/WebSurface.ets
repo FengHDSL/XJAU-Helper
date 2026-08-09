@@ -1,5 +1,5 @@
 /**
- * 应用内网页视图：用于"网页版教务系统"和"找回密码"。
+ * 应用内网页视图：用于"网页版教务系统"、"找回密码"和外部链接。
  *
  * 关键点：
  * 1) 登录本 App 后，HttpClient 已保存教务系统会话 Cookie。这里在网页加载前
@@ -8,6 +8,8 @@
  *    页面会离开 login_slogin 跳转到主页。此时把 WebView 的会话 Cookie 读回 HttpClient，
  *    拉取学生资料，并自动调用 onWebLogin 回调进入主页，无需手动回退。
  * 若尚未登录（游客模式 / 未登录态），Cookie 为空，网页会显示教务系统登录页，属正常行为。
+ * 3) controller 附着后通过 onControllerReady 回调把 WebviewController 交给外层，
+ *    供"外部链接"页（WebViewPage）的左上角"更多"菜单操作：前进后退/刷新/UA/历史记录/释放内存等。
  */
 import { webview } from '@kit.ArkWeb';
 import { AppState } from '../common/AppState';
@@ -20,6 +22,9 @@ import { UserProfile } from '../model/Models';
 export struct WebSurface {
   /** 页面加载完成后回传网页标题（供外部链接页更新标题栏；默认空回调） */
   onTitleChange: (title: string) => void = () => {
+  };
+  /** WebviewController 附着后回调（供外层菜单操作前进后退/刷新/UA/历史等） */
+  onControllerReady: (ctrl: webview.WebviewController) => void = () => {
   };
   private controller: webview.WebviewController = new webview.WebviewController();
   /** 防止网页版登录成功回调被重复触发 */
@@ -91,11 +96,19 @@ export struct WebSurface {
         .javaScriptAccess(true)
         .domStorageAccess(true)
         .onControllerAttached(() => {
+          // 功能浏览模式（USE_MOCK）默认断网：不加载真实网页，避免意外联网；
+          // 隐藏调试模式（AppState.debugNetwork）开启后允许联网
+          if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+            this.controller.loadUrl('about:blank');
+            return;
+          }
           // 仅教务系统域名注入会话 Cookie（外部链接不注入，避免隐私泄漏）
           if (AppState.webUrl.indexOf('jwxt.xjau.edu.cn') >= 0) {
             WebSurface.injectCookies(AppState.webUrl);
           }
           this.controller.loadUrl(AppState.webUrl);
+          // 把 controller 交给外层（"更多"菜单操作前进后退/刷新/UA/历史等）
+          this.onControllerReady(this.controller);
         })
         .onPageEnd(() => {
           const url: string = this.controller.getUrl();
@@ -107,6 +120,10 @@ export struct WebSurface {
           const pageTitle: string = this.controller.getTitle();
           if (pageTitle.length > 0) {
             this.onTitleChange(pageTitle);
+          }
+          // 记录到应用级共享历史（所有网页场景互通：教务系统/新闻网页/外部链接）
+          if (url.length > 0 && url.indexOf('about:blank') < 0 && url.indexOf('resource://') < 0) {
+            AppState.recordWebHistory(pageTitle, url);
           }
         })
     }

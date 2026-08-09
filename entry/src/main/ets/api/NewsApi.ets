@@ -4,6 +4,9 @@
 import { http } from '@kit.NetworkKit';
 import { image } from '@kit.ImageKit';
 import { util } from '@kit.ArkTS';
+import { JwApi } from './JwApi';
+import { AppState } from '../common/AppState';
+import { LogStore } from '../common/LogStore';
 
 export class NewsItem {
   title: string = '';
@@ -51,13 +54,20 @@ export class NewsApi {
 
   /** 抓指定板块列表页（pageIndex 从 1 开始，>1 请求 listN.htm）→ 并行抓每篇详情取第一张图做缩略图 */
   static async fetchPage(section: string, pageIndex: number): Promise<NewsItem[]> {
+    // 功能浏览模式默认断网；隐藏调试模式（debugNetwork）开启后允许联网
+    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+      return [];
+    }
     const base: string = NewsApi.SECTION_URLS[section] ?? NewsApi.SECTION_URLS['农大要闻'];
     let url: string = base;
     if (pageIndex > 1) {
       url = base.replace(/list\.htm$/i, `list${pageIndex}.htm`);
     }
+    const t0: number = Date.now();
     const resp = await http.createHttp().request(url, { expectDataType: http.HttpDataType.STRING });
     const items: NewsItem[] = NewsApi.parseList(resp.result as string);
+    LogStore.logNet('新闻', `列表[${section}]`, `${items.length}条`,
+      { url: url, status: `${resp.responseCode}`, cost: `${Date.now() - t0}ms` });
     const jobs: Promise<void>[] = [];
     for (let i = 0; i < items.length; i++) {
       jobs.push(NewsApi.fillThumb(items[i]));
@@ -101,12 +111,24 @@ export class NewsApi {
   }
 
   static async fetchDetailByUrl(url: string): Promise<NewsDetail> {
+    // 功能浏览模式默认断网（详情跟随列表，避免联网）；调试模式开启后允许
+    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+      return new NewsDetail();
+    }
+    const t0: number = Date.now();
     const resp = await http.createHttp().request(url, { expectDataType: http.HttpDataType.STRING });
-    return NewsApi.parseDetail(resp.result as string);
+    const d: NewsDetail = NewsApi.parseDetail(resp.result as string);
+    LogStore.logNet('新闻', '详情', `${d.blocks.length}块`,
+      { url: url, status: `${resp.responseCode}`, cost: `${Date.now() - t0}ms` });
+    return d;
   }
 
   /** 下载图片（带防盗链请求头）→ PixelMap，带内存缓存 */
   static async fetchImage(url: string): Promise<image.PixelMap> {
+    // 功能浏览模式默认断网；调试模式开启后允许
+    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+      throw new Error('offline');
+    }
     const cached = NewsApi.imgCache.get(url);
     if (cached !== undefined) {
       return cached;
@@ -140,6 +162,10 @@ export class NewsApi {
 
   /** 站内搜索：POST 官方搜索接口，按页返回（每页 10 条左右） */
   static async search(keyword: string, pageIndex: number): Promise<SearchItem[]> {
+    // 功能浏览模式默认断网；调试模式开启后允许
+    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+      return [];
+    }
     const jsonStr: string = JSON.stringify([
       { 'field': 'pageIndex', 'value': pageIndex },
       { 'field': 'group', 'value': 0 },

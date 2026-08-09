@@ -15,7 +15,7 @@ import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
-import { PRIVACY_SECTIONS, PRIVACY_EXTRA_SECTIONS, PrivacySection } from '../common/PrivacyText';
+import { PRIVACY_SECTIONS, PRIVACY_EXTRA_SECTIONS, DEVELOPER_DECLARATION, DeclarationSection, PrivacySection } from '../common/PrivacyText';
 import { LoginResult } from '../model/Models';
 import { WebSurface } from './WebSurface';
 
@@ -36,8 +36,9 @@ export struct LoginView {
   @State isLandscape: boolean = false;
   @State showPwd: boolean = false; // 密码明文/密文切换
   @State showPrivacy: boolean = false; // 隐私协议弹窗（首次启动未同意时显示）
+  @State showDeclaration: boolean = false; // 开发者声明弹窗（同意隐私协议后首次展示）
   @State privacyAgreedAt: string = ''; // 隐私协议同意时间（右下角展示用）
-  @State loginMode: string = 'auto'; // 重登方式（auto=自动重登 / legacy=旧版本登录），切换后实时刷新显示
+  @State loginMode: string = 'auto'; // 重登方式（auto=自动重登 / legacy=手动重登），切换后实时刷新显示
   private accountController: TextInputController = new TextInputController();
   private passwordController: TextInputController = new TextInputController();
   onSuccess: () => void = () => {
@@ -189,8 +190,8 @@ export struct LoginView {
 
   /** 在应用内 WebView 打开教务系统登录页，用于"网页版直接登录"的兜底方案。 */
   private openWebLogin(): void {
-    if (JwApi.USE_MOCK) {
-      promptAction.showToast({ message: '当前模式暂不支持' });
+    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+      promptAction.showToast({ message: '当前模式禁止使用' });
       return;
     }
     AppState.webLoginMode = true;
@@ -203,9 +204,9 @@ export struct LoginView {
     this.showWeb = true;
   }
 
-  /** 当前重登方式文案（自动重登 / 旧版本登录） */
+  /** 当前重登方式文案（自动重登 / 手动重登） */
   private loginModeText(): string {
-    return this.loginMode === 'auto' ? '自动重登' : '旧版本登录';
+    return this.loginMode === 'auto' ? '自动重登' : '手动重登';
   }
 
   /** 更改重登方式（固定入口，可随时切换，切换后立即刷新显示） */
@@ -215,7 +216,7 @@ export struct LoginView {
       title: `选择重登方式（当前：${current}）`,
       buttons: [
         { text: '自动重登', color: '#079841' },
-        { text: '旧版本登录', color: '#888888' }
+        { text: '手动重登', color: '#888888' }
       ]
     }).then((res: promptAction.ActionMenuSuccessResponse) => {
       if (res.index === 0) {
@@ -225,7 +226,7 @@ export struct LoginView {
       } else if (res.index === 1) {
         DataStore.setLoginMode('legacy');
         this.loginMode = 'legacy';
-        promptAction.showToast({ message: '已切换为旧版本登录' });
+        promptAction.showToast({ message: '已切换为手动重登' });
       }
     }).catch(() => {
       // 取消选择
@@ -236,7 +237,7 @@ export struct LoginView {
   private showLoginModeInfo(): void {
     promptAction.showDialog({
       title: '重登方式说明',
-      message: '「自动重登」每次重新打开应用，均会重新使用账号密码进行登录，免去你重新点击，该方法可以尽可能避免旧版本登录出现功能不可用的情况，但会出现加载慢的情况（默认使用自动重登）。\n\n「旧版本登录」不会重新登录，不稳定，可能出现功能不可用的情况，若出现，可在首页左上角点击黄色重登按钮进行重新登录。',
+      message: '「自动重登」每次重新打开应用，均会重新使用账号密码进行登录，免去你重新点击，该方法可以尽可能避免手动重登出现功能不可用的情况，但会出现加载慢的情况（默认使用自动重登）。\n\n「手动重登」不会自动重新登录，需在首页左上角点击黄色重登按钮进行重新登录，适合会话长期有效的场景。',
       buttons: [
         { text: '我知道了', color: '#079841', primary: true }
       ]
@@ -245,8 +246,8 @@ export struct LoginView {
 
   /** 打开找回密码网页（学校统一身份认证平台），在应用内 WebView 中展示。 */
   private openForgotPassword(): void {
-    if (JwApi.USE_MOCK) {
-      promptAction.showToast({ message: '当前模式暂不支持' });
+    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+      promptAction.showToast({ message: '当前模式禁止使用' });
       return;
     }
     AppState.webLoginMode = false;
@@ -273,11 +274,15 @@ export struct LoginView {
     }
   }
 
-  /** 同意隐私协议：记录时间、关闭弹窗 */
+  /** 同意隐私协议：记录时间、关闭弹窗，随后展示开发者声明（仅首次） */
   private agreePrivacy(): void {
     DataStore.setPrivacyAgreed();
     this.privacyAgreedAt = DataStore.getPrivacyAgreedAt();
     this.showPrivacy = false;
+    // 切换展示开发者声明（本应用由新疆农业大学学生独立开发等）
+    setTimeout(() => {
+      this.showDeclaration = true;
+    }, 300);
   }
 
   /** 暂不同意隐私协议：关闭弹窗，未登录账号前仅可使用"功能浏览" */
@@ -852,6 +857,17 @@ export struct LoginView {
         title: { title: AppState.webTitle }
       })
 
+      // 开发者声明弹窗（同意隐私协议后首次展示）：挂独立占位组件，避免与其它弹窗同宿主冲突
+      Column()
+        .width('100%')
+        .height(1)
+        .bindSheet($$this.showDeclaration, this.declarationSheet(), {
+          height: SheetSize.FIT_CONTENT,
+          dragBar: false,
+          showClose: true,
+          backgroundColor: $r('app.color.bg_page')
+        })
+
       // 自动重登提示：居中弹窗样式（不遮罩页面、不拦截点击）
       if (this.autoRelogin && this.loading) {
         Column() {
@@ -976,6 +992,70 @@ export struct LoginView {
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.bg_page'))
+  }
+
+  /** 开发者声明弹窗（同意隐私协议后首次展示：独立开发声明，标题加粗 + 正文排版） */
+  @Builder
+  declarationSheet() {
+    Column() {
+      // 标题
+      Row() {
+        Text('开发者声明')
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+        Blank()
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 18, bottom: 10 })
+
+      // 声明正文（分段：标题加粗、正文正常）
+      Scroll() {
+        Column() {
+          ForEach(DEVELOPER_DECLARATION, (sec: DeclarationSection) => {
+            Column() {
+              Text(sec.title)
+                .fontSize(15)
+                .fontWeight(FontWeight.Bold)
+                .fontColor($r('app.color.text_primary'))
+                .width('100%')
+                .margin({ bottom: 4 })
+              Text(sec.content)
+                .fontSize(13)
+                .lineHeight(22)
+                .fontColor($r('app.color.text_secondary'))
+                .width('100%')
+            }
+            .width('100%')
+            .alignItems(HorizontalAlign.Start)
+            .margin({ bottom: 14 })
+          }, (sec: DeclarationSection) => sec.title)
+        }
+        .width('100%')
+        .padding({ left: 20, right: 20, top: 4, bottom: 16 })
+      }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
+
+      // 底部按钮（宽度适配内容，居中）
+      Button('我已知晓')
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.brand_on'))
+        .backgroundColor($r('app.color.brand'))
+        .height(40)
+        .width(160)
+        .borderRadius(20)
+        .margin({ bottom: 20 })
+        .onClick(() => {
+          this.showDeclaration = false;
+        })
+    }
+    .width('100%')
+    .height('100%')
+    .backgroundColor($r('app.color.bg_page'))
+    .alignItems(HorizontalAlign.Center)
   }
 
   @Builder

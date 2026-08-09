@@ -1,15 +1,97 @@
 /**
  * 关于页：应用图标 + 版本号 + 更新日志 + 项目链接（独立页面）
+ * 隐藏调试入口：连点应用图标 5 次，输入密码 admin——
+ *  - 功能浏览模式（USE_MOCK）：开启/关闭调试联网（debugNetwork）
+ *  - 真实登录模式：开启/关闭日志调试（logEnabled）
  */
 import { pasteboard } from '@kit.BasicServicesKit';
 import { promptAction } from '@kit.ArkUI';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
+import { LogStore } from '../common/LogStore';
+import { JwApi } from '../api/JwApi';
 import { PageHeader } from './common/UiKit';
 
 @Component
 export struct AboutPage {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
+  /** 应用图标连点计数（5 次内有效） */
+  @State iconTapCount: number = 0;
+  /** 调试模式密码输入弹窗开关 */
+  @State showDebugSheet: boolean = false;
+  @State debugPwd: string = '';
+  /** 连点计时器（超时重置计数） */
+  private iconTapTimer: number = -1;
+
+  /** 应用图标连点：5 次内累计，满 5 次——
+   *  已开启对应模式 → 弹"是否退出"；未开启 → 弹密码输入 */
+  private onIconTapped(): void {
+    this.iconTapCount++;
+    if (this.iconTapTimer >= 0) {
+      clearTimeout(this.iconTapTimer);
+    }
+    // 3 秒内未继续点击则重置计数
+    this.iconTapTimer = setTimeout(() => {
+      this.iconTapCount = 0;
+    }, 3000);
+    if (this.iconTapCount < 5) {
+      return;
+    }
+    this.iconTapCount = 0;
+    const active: boolean = AppState.logEnabled || AppState.debugNetwork;
+    if (active) {
+      // 已开启：询问是否退出（按当前生效的模式提示）
+      const isLog: boolean = AppState.logEnabled;
+      promptAction.showDialog({
+        title: isLog ? '日志调试已开启' : '调试模式已开启',
+        message: isLog ? '当前正在收集功能使用日志。是否退出日志调试？' : '当前功能浏览模式允许联网。是否退出调试模式？',
+        buttons: [
+          { text: '取消', color: '#888888' },
+          { text: isLog ? '退出日志调试' : '退出调试模式', color: '#DB5252', primary: true }
+        ]
+      }).then((res) => {
+        if (res.index === 1) {
+          if (isLog) {
+            AppState.logEnabled = false;
+            LogStore.clear(); // 退出日志调试：自动删除已收集日志
+            promptAction.showToast({ message: '已退出日志调试，日志已清除' });
+          } else {
+            AppState.debugNetwork = false;
+            promptAction.showToast({ message: '已退出调试模式，功能浏览模式恢复断网' });
+          }
+        }
+      });
+    } else {
+      // 未开启：弹密码输入
+      this.debugPwd = '';
+      this.showDebugSheet = true;
+    }
+  }
+
+  /** 提交调试模式密码：admin——
+   *  功能浏览模式（USE_MOCK）开启调试联网；真实登录模式开启日志调试 */
+  private submitDebugPwd(): void {
+    if (this.debugPwd !== 'admin') {
+      promptAction.showToast({ message: '密码错误' });
+      return;
+    }
+    this.showDebugSheet = false;
+    if (AppState.logEnabled || AppState.debugNetwork) {
+      // 已开启：提示已开启，避免重复开启
+      promptAction.showToast({ message: AppState.logEnabled ? '日志调试已开启' : '调试模式已开启' });
+      return;
+    }
+    if (JwApi.USE_MOCK) {
+      // 功能浏览模式：开启调试联网
+      AppState.debugNetwork = true;
+      promptAction.showToast({ message: '调试模式已开启，功能浏览模式允许联网' });
+    } else {
+      // 真实登录：开启日志调试
+      AppState.logEnabled = true;
+      LogStore.log('日志调试', '开启', '成功', '真实登录模式');
+      promptAction.showToast({ message: '日志调试已开启，开始收集使用日志' });
+    }
+  }
 
   @Builder
   changelog(version: string, date: string, items: string[]) {
@@ -27,20 +109,30 @@ export struct AboutPage {
       .margin({ bottom: 8 })
 
       ForEach(items, (item: string) => {
-        Row() {
-          Text('·')
+        // 分组标题（@新增@ / @修复@ 开头 → 渲染为品牌色加粗小标题）
+        if (item.startsWith('@新增@') || item.startsWith('@修复@')) {
+          Text(item.substring(3))
             .fontSize(13)
+            .fontWeight(FontWeight.Bold)
             .fontColor($r('app.color.brand'))
-            .margin({ right: 8 })
-          Text(item)
-            .fontSize(13)
-            .lineHeight(20)
-            .fontColor($r('app.color.text_secondary'))
-            .layoutWeight(1)
+            .width('100%')
+            .margin({ top: 6, bottom: 2 })
+        } else {
+          Row() {
+            Text('·')
+              .fontSize(13)
+              .fontColor($r('app.color.brand'))
+              .margin({ right: 8 })
+            Text(item)
+              .fontSize(13)
+              .lineHeight(20)
+              .fontColor($r('app.color.text_secondary'))
+              .layoutWeight(1)
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Top)
+          .margin({ bottom: 6 })
         }
-        .width('100%')
-        .alignItems(VerticalAlign.Top)
-        .margin({ bottom: 6 })
       }, (item: string) => item)
     }
     .width('100%')
@@ -125,19 +217,22 @@ export struct AboutPage {
 
         Scroll() {
           Column() {
-            // 应用图标 + 名称 + 版本
+            // 应用图标 + 名称 + 版本（连点 5 次进入隐藏调试模式）
             Column() {
               Image($r('app.media.startIcon'))
                 .width(88)
                 .height(88)
                 .borderRadius(20)
                 .backgroundColor('#FFFFFF')
+                .onClick(() => {
+                  this.onIconTapped();
+                })
               Text('XJAU-Helper')
                 .fontSize(20)
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('app.color.text_primary'))
                 .margin({ top: 12 })
-              Text('版本 1.2.0')
+              Text('版本 1.2.1')
                 .fontSize(12)
                 .fontColor($r('app.color.text_tertiary'))
                 .margin({ top: 4 })
@@ -162,17 +257,12 @@ export struct AboutPage {
             .width('100%')
             .padding({ left: 20, right: 20, bottom: 20 })
 
+            this.changelog('1.2.1', '2026-08-09', [
+              '修复了一些已知问题'
+            ])
+
             this.changelog('1.2.0', '2026-08-08', [
-              '新增「外部链接」页面：校历信息/成绩参考/我的-网页端教务系统/空教室网页端/农大新闻网页端等入口跳转；页面右上角集成「复制/分享」胶囊按钮；标题自动同步为网页自身标题',
-              '我的页面新增「学校官网」入口；「主题模式」更名为「主题颜色」',
-              '课程表支持左右滑动切换上一周/下一周',
-              '首页日历胶囊（未开学/开学日期/结束日期）间距加大',
-              '隐私协议全面重写为 10 节规范版本（单一事实源，登录弹窗与「我的」页共用）',
-              '登录页「重登方式」：首次启动默认「自动重登」；新增固定入口（可随时切换，切换后实时刷新）；问号图标说明两种方式区别',
-              '清理项目废弃代码与未用资源（10 个文件净删 600+ 行）',
-              '关于页版本号下方加「仅供学习交流使用，严禁用于商业用途！」；应用简介文案更新',
-              '修复若干已知 bug：空闲教室导出 502、校历通知点击跳转等',
-              '优化部分文本显示效果与交互细节'
+              '修复了一些已知问题'
             ])
 
             this.changelog('1.1.9', '2026-08-07', [
@@ -196,7 +286,7 @@ export struct AboutPage {
             ])
 
             this.changelog('1.0.0', '2026-08-05', [
-              '修复了一些已知问题'
+              '第一版上线'
             ])
 
             this.footer()
@@ -219,5 +309,62 @@ export struct AboutPage {
     .hideTitleBar(true)
     .width('100%')
     .height('100%')
+    // 调试模式密码输入弹窗（连点图标 5 次触发）
+    .bindSheet($$this.showDebugSheet, this.debugSheet(), {
+      height: SheetSize.FIT_CONTENT,
+      dragBar: false,
+      showClose: true,
+      backgroundColor: $r('app.color.bg_page')
+    })
+  }
+
+  /** 隐藏调试入口：输入密码开启对应模式的调试能力（功能浏览=联网；真实登录=日志） */
+  @Builder
+  debugSheet() {
+    Column() {
+      Text('调试模式')
+        .fontSize(17)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.text_primary'))
+        .width('100%')
+        .margin({ top: 16, bottom: 8 })
+
+      Text(JwApi.USE_MOCK ? '输入密码以开启功能浏览模式的联网能力' : '输入密码以开启日志调试（收集使用日志）')
+        .fontSize(12)
+        .fontColor($r('app.color.text_tertiary'))
+        .width('100%')
+        .margin({ bottom: 12 })
+
+      TextInput({ text: this.debugPwd, placeholder: '请输入密码' })
+        .fontSize(15)
+        .fontColor($r('app.color.text_primary'))
+        .placeholderColor($r('app.color.text_tertiary'))
+        .backgroundColor($r('app.color.bg_chip'))
+        .borderRadius(10)
+        .height(44)
+        .width('100%')
+        .onChange((v: string) => {
+          this.debugPwd = v;
+        })
+        .onSubmit(() => {
+          this.submitDebugPwd();
+        })
+
+      Button('确认')
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.brand_on'))
+        .backgroundColor($r('app.color.brand'))
+        .height(40)
+        .width('100%')
+        .borderRadius(20)
+        .margin({ top: 12, bottom: 16 })
+        .onClick(() => {
+          this.submitDebugPwd();
+        })
+    }
+    .width('100%')
+    .padding({ left: 20, right: 20 })
+    .backgroundColor($r('app.color.bg_page'))
   }
 }

@@ -404,8 +404,8 @@ export struct KxjsPage {
 
   /** 打开网页端空闲教室查询（在"外部链接"页面中访问，共享登录 Cookie） */
   private openWebQuery(): void {
-    if (JwApi.USE_MOCK) {
-      promptAction.showToast({ message: '当前模式暂不支持' });
+    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+      promptAction.showToast({ message: '当前模式禁止使用' });
       return;
     }
     AppState.webUrl =

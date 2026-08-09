@@ -11,6 +11,7 @@
  */
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
+import { LogStore } from '../common/LogStore';
 import { CourseItem, AcademicReport, CreditCategory, TermScore } from '../model/Models';
 import { EMPTY_REPORT } from '../model/Empty';
 import { LoadingTip, PageHeader, StatCell } from './common/UiKit';
@@ -39,6 +40,9 @@ export struct AcademicPage {
       this.courses = cachedCourses;
     }
     this.termScores = JwApi.loadCachedTermScores();
+    // 日志调试：记录本地操作（先展示缓存）+ 实际反馈
+    LogStore.log('学业', '页面加载', '开始',
+      `先展示缓存 GPA=${cached.gpa} 课程${cachedCourses.length}节 成绩${this.termScores.length}学期`);
     try {
       const report: AcademicReport = await JwApi.getAcademic();
       this.report = report;
@@ -46,8 +50,11 @@ export struct AcademicPage {
       this.courses = courses;
       const scores: TermScore[] = await JwApi.getTermScores();
       this.termScores = scores;
+      LogStore.log('学业', '页面加载', '完成',
+        `网络更新 GPA=${report.gpa} 课程${courses.length}节 成绩${scores.length}学期`);
     } catch (e) {
       // 网络异常时保持缓存
+      LogStore.log('学业', '页面加载', '网络异常', LogStore.errorOf(e as Object));
     }
     this.loading = false;
   }

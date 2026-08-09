@@ -11,6 +11,8 @@
 import { http } from '@kit.NetworkKit';
 import { util } from '@kit.ArkTS';
 import { JwApi } from './JwApi';
+import { AppState } from '../common/AppState';
+import { LogStore } from '../common/LogStore';
 
 export interface HttpResult {
   code: number;
@@ -125,9 +127,11 @@ export class HttpClient {
 
   private static async request(url: string, method: http.RequestMethod, body: string,
     extraHeader: Record<string, string>): Promise<HttpResult> {
-    if (HttpClient.offlineMode) {
+    // 功能浏览模式默认断网；隐藏调试模式（AppState.debugNetwork）开启后允许联网
+    if (HttpClient.offlineMode && !AppState.debugNetwork) {
       return { code: 0, body: '', cookie: HttpClient.cookie };
     }
+    const t0: number = Date.now();
     const client: http.HttpRequest = http.createHttp();
     try {
       const options: http.HttpRequestOptions = {
@@ -159,10 +163,51 @@ export class HttpClient {
       } else {
         text = JSON.stringify(response.result);
       }
+      const cost: number = Date.now() - t0;
+      // 日志调试：对齐开发者工具网络面板——URL / Method / 状态 / 请求头 / 响应头 / 耗时 / 响应片段
+      const reqHeaders: Record<string, string> = HttpClient.buildHeader(extraHeader);
+      LogStore.logNet('网络', '请求', '成功',
+        {
+          method: HttpClient.methodName(method),
+          url: url,
+          status: `${response.responseCode}`,
+          cost: `${cost}ms`,
+          reqHeaders: LogStore.reqHeaderSummary(reqHeaders),
+          respHeaders: LogStore.respHeaderSummary(response.header as Object),
+          body: text
+        });
       return { code: response.responseCode as number, body: text, cookie: HttpClient.cookie };
+    } catch (e) {
+      const cost: number = Date.now() - t0;
+      LogStore.logNet('网络', '请求', '异常',
+        {
+          method: HttpClient.methodName(method),
+          url: url,
+          status: '',
+          cost: `${cost}ms`,
+          error: LogStore.errorOf(e as Object)
+        });
+      throw e as Error;
     } finally {
       client.destroy();
     }
+  }
+
+  /** RequestMethod → 名称（日志用） */
+  static methodName(m: http.RequestMethod): string {
+    if (m === http.RequestMethod.GET) {
+      return 'GET';
+    }
+    if (m === http.RequestMethod.POST) {
+      return 'POST';
+    }
+    if (m === http.RequestMethod.PUT) {
+      return 'PUT';
+    }
+    if (m === http.RequestMethod.DELETE) {
+      return 'DELETE';
+    }
+    return 'OTHER';
   }
 
   /** 发送 GET 请求，返回响应 JSON 与状态码 */
@@ -177,7 +222,7 @@ export class HttpClient {
    * 失败时返回空字符串。
    */
   static async getImageBase64(path: string): Promise<string> {
-    if (HttpClient.offlineMode) {
+    if (HttpClient.offlineMode && !AppState.debugNetwork) {
       return '';
     }
     const url: string = path.startsWith('http') ? path : `${HttpClient.baseUrl}${path}`;
@@ -224,6 +269,13 @@ export class HttpClient {
   static postFormExtra(path: string, form: Record<string, string>,
     extraHeader: Record<string, string>): Promise<HttpResult> {
     const url: string = path.startsWith('http') ? path : `${HttpClient.baseUrl}${path}`;
+    // 日志调试：记录脱敏表单参数（密码/账号打码），便于复现请求
+    LogStore.logNet('网络', '表单', '提交',
+      {
+        method: 'POST',
+        url: url,
+        params: LogStore.paramsSummary(form, ['mm', 'yhm', 'password'])
+      });
     const keys: string[] = Object.keys(form);
     const parts: string[] = [];
     for (let i = 0; i < keys.length; i++) {
@@ -245,7 +297,7 @@ export class HttpClient {
   static async postFormBinary(path: string, form: Record<string, string>,
     extraHeader: Record<string, string>): Promise<BinaryResult> {
     const fail: BinaryResult = { data: null, code: 0, body: '' };
-    if (HttpClient.offlineMode) {
+    if (HttpClient.offlineMode && !AppState.debugNetwork) {
       return fail;
     }
     const url: string = path.startsWith('http') ? path : `${HttpClient.baseUrl}${path}`;

@@ -351,6 +351,91 @@ export class DataStore {
     }
   }
 
+  // 农大新闻收藏（title/url/date/thumb 的 JSON 数组，按收藏时间倒序）
+  static readonly KEY_NEWS_FAVS: string = 'news_favs';
+
+  /** 读取收藏的新闻列表（NewsItem 序列化数组，按收藏时间倒序） */
+  static loadNewsFavs(): string[] {
+    const raw: string = DataStore.get(DataStore.KEY_NEWS_FAVS);
+    if (raw.length === 0) {
+      return [];
+    }
+    try {
+      const parsed: string[] = JSON.parse(raw) as string[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /** 保存收藏列表（内部：整表覆盖） */
+  private static saveNewsFavs(list: string[]): void {
+    DataStore.put(DataStore.KEY_NEWS_FAVS, JSON.stringify(list));
+  }
+
+  /** 是否已收藏（按 url 判断） */
+  static isNewsFav(url: string): boolean {
+    if (url.length === 0) {
+      return false;
+    }
+    const list: string[] = DataStore.loadNewsFavs();
+    for (const raw of list) {
+      try {
+        const it: Record<string, string> = JSON.parse(raw) as Record<string, string>;
+        if (it['url'] === url) {
+          return true;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    return false;
+  }
+
+  /** 收藏一篇新闻（传 NewsItem 关键字段 JSON；已收藏则忽略，返回是否新增） */
+  static addNewsFav(itemJson: string): boolean {
+    if (itemJson.length === 0) {
+      return false;
+    }
+    let url: string = '';
+    try {
+      const it: Record<string, string> = JSON.parse(itemJson) as Record<string, string>;
+      url = it['url'] ?? '';
+    } catch (e) {
+      return false;
+    }
+    if (url.length === 0) {
+      return false;
+    }
+    if (DataStore.isNewsFav(url)) {
+      return false;
+    }
+    const list: string[] = DataStore.loadNewsFavs();
+    list.unshift(itemJson); // 新收藏置顶
+    DataStore.saveNewsFavs(list);
+    return true;
+  }
+
+  /** 取消收藏（按 url 移除） */
+  static removeNewsFav(url: string): void {
+    if (url.length === 0) {
+      return;
+    }
+    const list: string[] = DataStore.loadNewsFavs();
+    const filtered: string[] = [];
+    for (const raw of list) {
+      try {
+        const it: Record<string, string> = JSON.parse(raw) as Record<string, string>;
+        if (it['url'] !== url) {
+          filtered.push(raw);
+        }
+      } catch (e) {
+        filtered.push(raw);
+      }
+    }
+    DataStore.saveNewsFavs(filtered);
+  }
+
   /** 以 JSON 字符串形式缓存数据 */
   static cacheJSON(key: string, value: string): void {
     DataStore.put(key, value);
@@ -360,5 +445,18 @@ export class DataStore {
   /** 读取 JSON 字符串缓存，无则返回空串 */
   static loadJSON(key: string): string {
     return DataStore.get(key);
+  }
+
+  // 应用级共享网页浏览历史（持久化：重启后保留）
+  static readonly KEY_WEB_HISTORY: string = 'web_history';
+
+  /** 读取共享网页历史 JSON 数组（未记录返回空串） */
+  static loadWebHistoryJson(): string {
+    return DataStore.get(DataStore.KEY_WEB_HISTORY);
+  }
+
+  /** 保存共享网页历史 JSON 数组（空串=清空） */
+  static saveWebHistoryJson(json: string): void {
+    DataStore.put(DataStore.KEY_WEB_HISTORY, json);
   }
 }

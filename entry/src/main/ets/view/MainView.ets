@@ -18,7 +18,9 @@ import { HomeView } from './HomeView';
 import { KxjsPage } from './KxjsPage';
 import { MineView } from './MineView';
 import { NewsDetailPage } from './NewsDetailPage';
+import { NewsFavPage } from './NewsFavPage';
 import { NewsPage } from './NewsPage';
+import { LogPage } from './LogPage';
 import { SearchResultPage } from './SearchResultPage';
 import { WebViewPage } from './WebViewPage';
 import { NoticeDetailPage, NoticePage } from './NoticePage';
@@ -104,6 +106,10 @@ export struct MainView {
       KxjsPage()
     } else if (name === Const.ROUTE_NEWS_DETAIL) {
       NewsDetailPage()
+    } else if (name === Const.ROUTE_NEWS_FAV) {
+      NewsFavPage()
+    } else if (name === Const.ROUTE_LOG) {
+      LogPage()
     } else if (name === Const.ROUTE_SEARCH) {
       SearchResultPage()
     } else if (name === Const.ROUTE_WEB_PAGE) {

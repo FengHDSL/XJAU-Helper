@@ -4,10 +4,12 @@
  */
 import { image } from '@kit.ImageKit';
 import { webview } from '@kit.ArkWeb';
+import { promptAction } from '@kit.ArkUI';
 import { Theme } from '../common/ThemeUtil';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { NewsApi, NewsItem } from '../api/NewsApi';
+import { JwApi } from '../api/JwApi';
 
 @Component
 struct NewsRow {
@@ -60,6 +62,8 @@ export struct NewsPage {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 调试模式（AppStorage 响应式）：开启后功能浏览模式允许加载新闻 */
+  @StorageProp('debugNetwork') @Watch('onDebugNetworkChanged') debugNetwork: boolean = false;
   @State currentTab: number = 0;
   @State showWeb: boolean = false;
   @State keyword: string = '';
@@ -82,6 +86,21 @@ export struct NewsPage {
   controller: webview.WebviewController = new webview.WebviewController();
 
   aboutToAppear(): void { this.ensureLoaded(0); }
+
+  /** 调试模式状态变化：功能浏览模式下开启调试 → 强制重新加载当前板块（清列表 + 加载态） */
+  private onDebugNetworkChanged(): void {
+    if (JwApi.USE_MOCK && this.debugNetwork) {
+      for (let i = 0; i < this.loadedTabs.length; i++) {
+        this.loadedTabs[i] = false;
+      }
+      // 清空当前板块列表并直接重新加载（不依赖 ensureLoaded 去重，保证 UI 进入加载态）
+      this.lists[this.currentTab] = [];
+      this.pendingMore[this.currentTab] = [];
+      this.pageIdx[this.currentTab] = 1;
+      this.hasMore[this.currentTab] = true;
+      this.loadPage(this.currentTab, 1, false);
+    }
+  }
 
   /** 懒加载指定板块（每个板块只加载一次） */
   private ensureLoaded(index: number): void {
@@ -190,9 +209,17 @@ export struct NewsPage {
       .width('100%').height('100%').javaScriptAccess(true).domStorageAccess(true)
   }
 
-  /** 通用新闻列表（index = 板块下标），支持下拉刷新 */
+  /** 通用新闻列表（index = 板块下标），支持下拉刷新；
+   *  功能浏览模式默认禁用（不加载新闻），调试模式开启后自动加载 */
   @Builder tabNewsList(index: number) {
-    if (this.listLoading[index]) {
+    if (JwApi.USE_MOCK && !this.debugNetwork) {
+      Column() {
+        Text('当前模式禁止使用')
+          .fontSize(14)
+          .fontColor($r('app.color.text_tertiary'))
+      }
+      .width('100%').height('100%').justifyContent(FlexAlign.Center)
+    } else if (this.listLoading[index]) {
       Column() {
         LoadingProgress().width(32).height(32).color($r('app.color.brand'))
         Text('加载中').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 10 })
@@ -200,9 +227,20 @@ export struct NewsPage {
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.lists[index].length === 0) {
       Column() {
-        Text('暂无新闻').fontSize(14).fontColor($r('app.color.text_tertiary'))
+        Text(this.listLoading[index] ? '加载中' : '暂无新闻')
+          .fontSize(14)
+          .fontColor($r('app.color.text_tertiary'))
       }
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
+      .onAppear(() => {
+        // 列表为空：功能浏览+调试模式下强制触发加载（兜底 @Watch/懒加载标记时序问题）
+        if (JwApi.USE_MOCK && this.debugNetwork && !this.listLoading[index]) {
+          this.pageIdx[index] = 1;
+          this.pendingMore[index] = [];
+          this.hasMore[index] = true;
+          this.loadPage(index, 1, false);
+        }
+      })
     } else {
       Refresh({ refreshing: $$this.refreshing }) {
         List() {
@@ -253,10 +291,8 @@ export struct NewsPage {
     Column() {
       Row() {
         Text('农大新闻').fontSize(20).fontWeight(FontWeight.Bold).fontColor(Color.White)
-        // 搜索框：左侧搜索图标 + 输入框，回车跳转搜索结果页
+        // 搜索框：输入框，回车跳转搜索结果页
         Row() {
-          Image($r('app.media.search')).width(14).height(14)
-            .fillColor('#CCFFFFFF').margin({ left: 10, right: 6 })
           TextInput({ text: this.keyword, placeholder: '搜索新闻' })
             .fontSize(13)
             .fontColor(Color.White)
@@ -272,10 +308,22 @@ export struct NewsPage {
         .height(32)
         .layoutWeight(1)
         .margin({ left: 10, right: 10 })
-        Text('网页端').fontSize(12).fontColor(Color.White)
+        Text('收藏').fontSize(12).fontColor(Color.White)
           .padding({ left: 14, right: 14, top: 6, bottom: 6 })
           .backgroundColor('#33FFFFFF').borderRadius(14)
           .onClick(() => {
+            AppState.stack.pushPath({ name: Const.ROUTE_NEWS_FAV });
+          })
+        Text('网页端').fontSize(12).fontColor(Color.White)
+          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+          .backgroundColor('#33FFFFFF').borderRadius(14)
+          .margin({ left: 8 })
+          .onClick(() => {
+            // 功能浏览模式默认禁止；调试模式开启后允许
+            if (JwApi.USE_MOCK && !this.debugNetwork) {
+              promptAction.showToast({ message: '当前模式禁止使用' });
+              return;
+            }
             AppState.webUrl = 'https://news.xjau.edu.cn/main.htm';
             AppState.webTitle = '农大新闻 · 网页端';
             AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });

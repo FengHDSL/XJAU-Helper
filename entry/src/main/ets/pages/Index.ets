@@ -44,7 +44,7 @@ struct Index {
     }
     // 自动重登凭据存在：进入 LoginView 自动重登模式（遮罩+加载符号+静默登录）。
     // 10 秒超时兜底：自动登录失败/无网时仍进入主页（用缓存数据），避免用户卡在登录页。
-    // 「旧版本登录模式」用户选择不自动重新登录：跳过自动重登，直接用缓存进主页。
+    // 「手动重登模式」用户选择不自动重新登录：跳过自动重登，直接用缓存进主页。
     const autoAcct: string = DataStore.get(DataStore.KEY_AUTO_ACCOUNT);
     const autoPwd: string = DataStore.get(DataStore.KEY_AUTO_PWD);
     const loginMode: string = DataStore.getLoginMode();
@@ -63,8 +63,8 @@ struct Index {
     if (sessionCookie.length > 0 && HttpClient.getCookie().length === 0) {
       HttpClient.setCookie(sessionCookie);
     }
-    // 启动时如果有缓存资料，先恢复登录态（旧版本模式 / 无自动凭据 / 凭据已用）：
-    // 旧版本模式不刷新会话（用户可手动点"重登"），其他情况照常刷新。
+    // 启动时如果有缓存资料，先恢复登录态（手动重登模式 / 无自动凭据 / 凭据已用）：
+    // 手动重登模式不刷新会话（用户可手动点"重登"），其他情况照常刷新。
     const cachedProfile: UserProfile | null = JwApi.USE_MOCK ? null : DataStore.loadCachedProfile();
     if (cachedProfile !== null && cachedProfile.name.length > 0 && cachedProfile.studentId !== 'demo') {
       AppState.profile = cachedProfile;

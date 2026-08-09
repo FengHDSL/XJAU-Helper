@@ -2,7 +2,8 @@
  * 我的：学业概览 + 常用功能 + 设置
  */
 import { promptAction } from '@kit.ArkUI';
-import { storageStatistics } from '@kit.CoreFileKit';
+import { common, contextConstant } from '@kit.AbilityKit';
+import { storageStatistics, fileIo, picker, fileUri } from '@kit.CoreFileKit';
 import { webview } from '@kit.ArkWeb';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
@@ -20,6 +21,10 @@ export struct MineView {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 日志调试开关（AppStorage 响应式）：开启后显示「日志详情」入口 */
+  @StorageProp('logEnabled') logEnabled: boolean = false;
+  /** 日志收集状态（AppStorage 响应式）：收集中=亮绿灯，暂停=灰灯 */
+  @StorageProp('logCollecting') logCollecting: boolean = true;
   @StorageLink('showAvatar') showAvatar: boolean = false;
   @State report: AcademicReport = EMPTY_REPORT;
   @State loaded: boolean = false;
@@ -58,6 +63,185 @@ export struct MineView {
     });
   }
 
+  /** 递归清空目录下全部内容（文件/子目录），用于清理 WebView 磁盘缓存等 */
+  private clearDirRecursive(dir: string): void {
+    let names: string[] = [];
+    try {
+      names = fileIo.listFileSync(dir);
+    } catch (e) {
+      // 目录不存在等情况直接忽略
+      return;
+    }
+    for (const name of names) {
+      const child: string = `${dir}/${name}`;
+      // 跳过 WebView Cookie 目录（教务登录会话依赖，与 DailyNic 不同：本应用必须保留 Cookie）
+      if (name === 'Cookies' && child.indexOf('/web/') >= 0) {
+        continue;
+      }
+      try {
+        const stat: fileIo.Stat = fileIo.statSync(child);
+        if (stat.isDirectory()) {
+          this.clearDirRecursive(child);
+          fileIo.rmdirSync(child);
+        } else {
+          fileIo.unlinkSync(child);
+        }
+      } catch (e) {
+        // 单个文件失败不影响整体（如 WebView 正在占用）
+      }
+    }
+  }
+
+  /** 清除应用全部缓存（模块级 + 应用级，EL1 + EL2 四个缓存目录，官方文档思路） */
+  private clearAllCache(): void {
+    const cacheDirs: string[] = [];
+    try {
+      const curContext: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const originArea: contextConstant.AreaMode = curContext.area;
+
+      // 1. 模块级当前加密级别的缓存目录（默认 EL2）
+      cacheDirs.push(curContext.cacheDir);
+
+      // 2. 切换 area 获取另一个加密级别的模块级缓存目录
+      if (originArea === contextConstant.AreaMode.EL2) {
+        curContext.area = contextConstant.AreaMode.EL1;
+      } else {
+        curContext.area = contextConstant.AreaMode.EL2;
+      }
+      cacheDirs.push(curContext.cacheDir);
+      // 恢复原始加密级别
+      curContext.area = originArea;
+
+      // 3. 获取应用级 Context 的缓存目录
+      const applicationContext: common.ApplicationContext = curContext.getApplicationContext();
+      const originAppArea: contextConstant.AreaMode = applicationContext.area;
+      cacheDirs.push(applicationContext.cacheDir);
+
+      // 4. 切换应用级 area 获取另一个加密级别的缓存目录
+      if (originAppArea === contextConstant.AreaMode.EL2) {
+        applicationContext.area = contextConstant.AreaMode.EL1;
+      } else {
+        applicationContext.area = contextConstant.AreaMode.EL2;
+      }
+      cacheDirs.push(applicationContext.cacheDir);
+      // 恢复原始加密级别
+      applicationContext.area = originAppArea;
+    } catch (e) {
+      // 获取目录失败时退化为仅当前 cacheDir
+      try {
+        const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+        cacheDirs.push(ctx.cacheDir);
+      } catch (e2) {
+        // ignore
+      }
+    }
+
+    // 5. 逐个清除所有缓存目录
+    for (let i = 0; i < cacheDirs.length; i++) {
+      this.clearDirRecursive(cacheDirs[i]);
+    }
+  }
+
+  /** 释放 WebView 内存（参考 DailyNic_HMOS：trimMemoryByPressureLevel） */
+  private trimWebMemory(): void {
+    try {
+      webview.WebviewController.trimMemoryByPressureLevel(webview.PressureLevel.MEMORY_PRESSURE_LEVEL_MODERATE);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  /** 导出备份：课表内容 + 课程表设置项 + 主题颜色 → 打包 txt */
+  private exportBackup(): void {
+    try {
+      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const d: Date = new Date();
+      const stamp: string = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}_${d.getHours().toString().padStart(2, '0')}${d.getMinutes().toString().padStart(2, '0')}`;
+      const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
+      options.newFileNames = [`xjau-helper_backup_${stamp}.txt`];
+      options.fileSuffixChoices = ['.txt'];
+      // 打包备份数据（课程表内容 / 课程表设置项 / 主题颜色）
+      const data: Record<string, string> = {
+        'app': 'xjau-helper',
+        'type': 'schedule-backup',
+        'version': '1',
+        'themeColor': Theme.current(),
+        'courses': DataStore.get(DataStore.KEY_COURSES),
+        'scheduleCfg': DataStore.get(DataStore.KEY_SCHEDULE_CFG),
+        'scheduleBg': DataStore.getScheduleBg(),
+        'scheduleDashed': DataStore.get(DataStore.KEY_SCHEDULE_DASHED),
+        'courseColorMap': DataStore.get(DataStore.KEY_COURSE_COLOR_MAP),
+        'courseCustomColor': DataStore.getCourseCustomColors()
+      };
+      const content: string = JSON.stringify(data);
+      const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
+      docPicker.save(options).then((uris: string[]) => {
+        if (uris.length === 0) {
+          promptAction.showToast({ message: '已取消导出' });
+          return;
+        }
+        try {
+          const file: fileIo.File = fileIo.openSync(uris[0], fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+          fileIo.writeSync(file.fd, content);
+          fileIo.closeSync(file);
+          promptAction.showToast({ message: '备份已导出' });
+        } catch (e) {
+          promptAction.showToast({ message: '导出失败' });
+        }
+      }).catch(() => {
+        promptAction.showToast({ message: '导出失败' });
+      });
+    } catch (e) {
+      promptAction.showToast({ message: '导出失败' });
+    }
+  }
+
+  /** 导入备份：选择 txt → 解析 → 恢复课表内容/课程表设置项/主题颜色 */
+  private importBackup(): void {
+    try {
+      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const options: picker.DocumentSelectOptions = new picker.DocumentSelectOptions();
+      options.maxSelectNumber = 1;
+      options.fileSuffixFilters = ['txt'];
+      const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
+      docPicker.select(options).then((uris: string[]) => {
+        if (uris.length === 0) {
+          promptAction.showToast({ message: '已取消导入' });
+          return;
+        }
+        try {
+          const content: string = fileIo.readTextSync(new fileUri.FileUri(uris[0]).path);
+          const obj: Record<string, string> = JSON.parse(content) as Record<string, string>;
+          // 校验备份格式
+          if (obj['app'] !== 'xjau-helper' || obj['type'] !== 'schedule-backup') {
+            promptAction.showToast({ message: '不是有效的备份文件' });
+            return;
+          }
+          // 恢复课程表内容
+          DataStore.put(DataStore.KEY_COURSES, obj['courses'] ?? '');
+          // 恢复课程表设置项
+          DataStore.setScheduleCfg(obj['scheduleCfg'] ?? '');
+          DataStore.setScheduleBg(obj['scheduleBg'] ?? '');
+          DataStore.put(DataStore.KEY_SCHEDULE_DASHED, obj['scheduleDashed'] ?? '');
+          DataStore.put(DataStore.KEY_COURSE_COLOR_MAP, obj['courseColorMap'] ?? '');
+          DataStore.setCourseCustomColors(obj['courseCustomColor'] ?? '');
+          // 恢复主题颜色（写入 AppStorage + 持久化）
+          const theme: string = obj['themeColor'] ?? '';
+          if (theme === 'red' || theme === 'blue' || theme === 'green') {
+            Theme.apply(theme);
+          }
+          promptAction.showToast({ message: '恢复成功，重新进入课程表查看' });
+        } catch (e) {
+          promptAction.showToast({ message: '导入失败，文件格式不正确' });
+        }
+      }).catch(() => {
+        promptAction.showToast({ message: '导入失败' });
+      });
+    } catch (e) {
+      promptAction.showToast({ message: '导入失败' });
+    }
+  }
+
   /** 最近同步时间文案 */
   private lastSyncText(): string {
     if (this.syncing) {
@@ -92,8 +276,8 @@ export struct MineView {
 
   /** 在应用内打开网页（注入会话 Cookie 保持登录态），通过底部全屏弹层展示 */
   private openWeb(url: string, title: string): void {
-    if (JwApi.USE_MOCK) {
-      promptAction.showToast({ message: '当前模式暂不支持' });
+    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+      promptAction.showToast({ message: '当前模式禁止使用' });
       return;
     }
     AppState.webUrl = url;
@@ -156,8 +340,16 @@ export struct MineView {
     });
   }
 
-  /** 长按退出按钮：提示当前登录方式（密码登录 / 网页登录） */
+  /** 长按退出按钮：功能浏览模式提示模式名称（调试模式提示调试模式），真实登录提示登录方式 / 日志调试 */
   private showLoginMethod(): void {
+    if (JwApi.USE_MOCK) {
+      promptAction.showToast({ message: AppState.debugNetwork ? '调试模式' : '功能浏览模式', duration: 2000 });
+      return;
+    }
+    if (AppState.logEnabled) {
+      promptAction.showToast({ message: 'log 调试', duration: 2000 });
+      return;
+    }
     const method: string = DataStore.getLoginMethod();
     const text: string = method === 'web' ? '当前为网页登录' : (method === 'pwd' ? '当前为密码登录' : '当前登录方式未知');
     promptAction.showToast({ message: text, duration: 2000 });
@@ -165,8 +357,8 @@ export struct MineView {
 
   /** 打开网页端教务系统（在"外部链接"页面中访问，自动注入会话 Cookie 保持登录态） */
   private openWebPortal(): void {
-    if (JwApi.USE_MOCK) {
-      promptAction.showToast({ message: '当前模式暂不支持' });
+    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+      promptAction.showToast({ message: '当前模式禁止使用' });
       return;
     }
     AppState.webUrl = Const.WEB_PORTAL_URL;
@@ -369,7 +561,7 @@ export struct MineView {
           .borderRadius(18)
           .margin({ top: 14 })
 
-          // 设置（顺序：网页版教务系统 → 数据同步 → 头像显示 → 清除缓存 → 隐私协议 → 清空数据 → 关于）
+          // 设置（顺序：网页版教务系统 → 数据同步 → 头像显示 → 清除缓存 → 恢复备份 → 清空数据 → 隐私协议 → 关于）
           Column() {
             // 1. 网页端教务系统（最顶上）
             SettingRow({
@@ -381,8 +573,8 @@ export struct MineView {
             // 1.1 学校官网（外部链接页打开）
             SettingRow({
               icon: '', title: '学校官网', value: '', onTap: () => {
-                if (JwApi.USE_MOCK) {
-                  promptAction.showToast({ message: '当前模式暂不支持' });
+                if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+                  promptAction.showToast({ message: '当前模式禁止使用' });
                   return;
                 }
                 AppState.webUrl = 'https://www.xjau.edu.cn/';
@@ -438,7 +630,7 @@ export struct MineView {
               icon: '', title: '清除缓存', value: this.cacheSizeText, onTap: () => {
                 promptAction.showDialog({
                   title: '清除缓存',
-                  message: '将删除课表、成绩、考试、通知、校历、头像等数据缓存，\n保留登录信息、登录 Cookie 与您的个性化设置。确认继续？',
+                  message: '将删除课表、成绩、考试、通知、校历、头像等数据缓存，\n并释放网页内存与磁盘缓存，\n保留登录信息、登录 Cookie 与您的个性化设置。确认继续？',
                   buttons: [
                     { text: '取消', color: '#666666' },
                     { text: '确认清除', color: '#DB5252', primary: true }
@@ -457,20 +649,43 @@ export struct MineView {
                     DataStore.remove(DataStore.KEY_JWC_CAL);
                     DataStore.remove(DataStore.KEY_PHOTO);
                     DataStore.remove(DataStore.KEY_CACHE_TIME);
-                    // 只清 WebView DOM 存储（新闻等网页缓存），保留 Cookie（教务登录会话）
+                    // 清 WebView DOM 存储（新闻等网页缓存），保留 Cookie（教务登录会话）
                     try {
                       webview.WebStorage.deleteAllData();
                     } catch (e) {
                       // ignore
                     }
-                    promptAction.showToast({ message: '已清除数据缓存（保留登录信息与设置）' });
+                    // 释放 WebView 内存（参考 DailyNic_HMOS trimMemoryByPressureLevel）
+                    this.trimWebMemory();
+                    // 清空应用磁盘缓存（模块级+应用级，EL1+EL2 四个目录：WebView HTTP 缓存、导出临时文件等）
+                    this.clearAllCache();
+                    promptAction.showToast({ message: '已清除缓存（保留登录信息与设置）' });
                     this.refreshCacheSize(500);
                   }
                 });
               }
             })
             Divider().color($r('app.color.divider'))
-            // 6. 清空数据（确认后提示手动重启）
+            // 6. 恢复备份（导出/导入：课表内容 + 课程表设置项 + 主题颜色，打包为 txt）
+            SettingRow({
+              icon: '', title: '恢复备份', value: '', onTap: () => {
+                promptAction.showActionMenu({
+                  title: '恢复备份',
+                  buttons: [
+                    { text: '导出备份', color: '#1B7F5F' },
+                    { text: '导入备份', color: '#3B82F6' }
+                  ]
+                }).then((res) => {
+                  if (res.index === 0) {
+                    this.exportBackup();
+                  } else if (res.index === 1) {
+                    this.importBackup();
+                  }
+                });
+              }
+            })
+            Divider().color($r('app.color.divider'))
+            // 7. 清空数据（确认后提示手动重启）
             SettingRow({
               icon: '', title: '清空数据', value: '', onTap: () => {
                 promptAction.showDialog({
@@ -494,19 +709,33 @@ export struct MineView {
               }
             })
             Divider().color($r('app.color.divider'))
-            // 7. 隐私协议（打开独立页面）
+            // 8. 隐私协议（打开独立页面）
             SettingRow({
               icon: '', title: '隐私协议', value: '', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_PRIVACY });
               }
             })
             Divider().color($r('app.color.divider'))
-            // 8. 关于（打开独立页面）
+            // 9. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于', value: 'v1.2.0', onTap: () => {
+              icon: '', title: '关于', value: 'v1.2.1', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
+            // 10. 日志详情（仅登录账号且开启日志调试时显示，分隔线一并条件渲染；
+            //     收集中=亮绿灯，暂停=灰色灭灯）
+            if (this.logEnabled && AppState.profile !== null) {
+              Divider().color($r('app.color.divider'))
+              SettingRow({
+                icon: '',
+                title: '日志详情',
+                value: this.logCollecting ? '● 收集中' : '○ 已暂停',
+                valueColor: this.logCollecting ? $r('app.color.brand') : $r('app.color.text_tertiary'),
+                onTap: () => {
+                  AppState.stack.pushPath({ name: Const.ROUTE_LOG });
+                }
+              })
+            }
           }
           .width('100%')
           .padding({ left: 16, right: 16 })

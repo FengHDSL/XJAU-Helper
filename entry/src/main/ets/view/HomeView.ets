@@ -9,6 +9,7 @@ import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
+import { LogStore } from '../common/LogStore';
 import { Theme } from '../common/ThemeUtil';
 import { CourseItem, ExamItem, NoticeItem, QuickEntry, TermInfo, TodayCourse } from '../model/Models';
 import { TeachingCalendar } from '../model/TeachingCalendar';
@@ -113,6 +114,9 @@ export struct HomeView {
     if (cachedPhoto.length > 0) {
       this.photo = cachedPhoto;
     }
+    // 日志调试：记录本地操作（先用缓存秒开）与实际反馈（网络刷新结果）
+    LogStore.log('首页', '消息加载', '开始',
+      `缓存课表${cachedCourses.length}节 考试${this.exams.length}门 通知${this.notices.length}条`);
     try {
       const courses: CourseItem[] = await JwApi.getCourses(AppState.term.id);
       this.todayCourses = this.pickToday(courses);
@@ -130,8 +134,11 @@ export struct HomeView {
       if (jn.length > 0) {
         this.jwcNotices = jn;
       }
+      LogStore.log('首页', '消息加载', '完成',
+        `网络课表${courses.length}节 考试${exams.length}门 通知${notices.length}条 校历${cal !== null ? '有' : '无'} 官网通知${jn.length}条`);
     } catch (e) {
       // 网络异常时保持缓存数据
+      LogStore.log('首页', '消息加载', '网络异常', LogStore.errorOf(e as Object));
     }
     // 独立拉取头像（真实模式，不与上面共用一个 try）
     if (!JwApi.USE_MOCK) {
@@ -341,7 +348,7 @@ export struct HomeView {
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .fontColor(Color.White)
-      // 旧版本登录模式 + 校历为空：标题右侧显示"重登"胶囊（点击执行自动重新登录）
+      // 手动重登模式 + 校历为空：标题右侧显示"重登"胶囊（点击执行自动重新登录）
       if (this.shouldShowRelogin()) {
         Text('重登')
           .fontSize(11)
@@ -940,9 +947,9 @@ export struct HomeView {
             .width('100%')
             .onClick(() => {
               if (item.url.length > 0) {
-                // 功能浏览模式不允许打开网页
-                if (JwApi.USE_MOCK) {
-                  promptAction.showToast({ message: '当前模式暂不支持' });
+                // 功能浏览模式默认禁止打开网页；调试模式开启后允许
+                if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+                  promptAction.showToast({ message: '当前模式禁止使用' });
                   return;
                 }
                 // 有文章链接：在"外部链接"页面打开教务处官网文章页
@@ -1042,7 +1049,7 @@ export struct HomeView {
 
   /**
    * 是否在顶栏显示"重登"胶囊。
-   * 条件：旧版本登录模式 + 首页底部校历为空 + 数据已加载完 + 真实登录（非功能浏览）。
+   * 条件：手动重登模式 + 首页底部校历为空 + 数据已加载完 + 真实登录（非功能浏览）。
    */
   private shouldShowRelogin(): boolean {
     if (JwApi.USE_MOCK) {

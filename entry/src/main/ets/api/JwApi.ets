@@ -29,6 +29,7 @@ import { EMPTY_REPORT } from '../model/Empty';
 import { Const } from '../common/Constants';
 import { HttpClient, HttpResult, BinaryResult } from './HttpClient';
 import { RsaUtil } from '../common/RsaUtil';
+import { LogStore } from '../common/LogStore';
 import zlib from '@ohos.zlib';
 import { fileIo } from '@kit.CoreFileKit';
 
@@ -362,11 +363,13 @@ export class JwApi {
     const needCaptcha: boolean = body.indexOf('验证码') >= 0 || body.indexOf('校验码') >= 0;
 
     if (body.indexOf('账号被锁定') >= 0 || body.indexOf('账号被冻结') >= 0) {
+      LogStore.logNet('登录', '登录', '失败', { method: 'POST', url: '/jwglxt/xtgl/login_slogin.html', status: `${res.code}`, detail: '账号被锁定/冻结' });
       return { success: false, message: '账号已被锁定/冻结，请稍后再试', profile: null, needCaptcha: false };
     }
 
     // 明确的密码错误且未要求验证码：直接返回失败，避免多余请求
     if (failByPwd && !needCaptcha) {
+      LogStore.logNet('登录', '登录', '失败', { method: 'POST', url: '/jwglxt/xtgl/login_slogin.html', status: `${res.code}`, detail: '服务端返回密码错误' });
       return { success: false, message: '学号或密码错误', profile: null, needCaptcha: false };
     }
 
@@ -377,12 +380,23 @@ export class JwApi {
         if (profile.name.length > 0) {
           // 登录成功：记录账号 + 缓存资料
           DataStore.cacheProfile(profile);
+          LogStore.logNet('登录', '登录', '成功',
+            { method: 'POST', url: '/jwglxt/xtgl/login_slogin.html', status: `${res.code}`, detail: `enteredHome=${enteredHome} hasJsession=${hasJsession}` });
           return { success: true, message: '登录成功', profile: profile, needCaptcha: false };
         }
       } catch (e) {
+        LogStore.log('登录', '登录', '资料获取异常', LogStore.errorOf(e as Object));
         // 忽略，走下面的失败分支
       }
     }
+    LogStore.logNet('登录', '登录', '失败',
+      {
+        method: 'POST',
+        url: '/jwglxt/xtgl/login_slogin.html',
+        status: `${res.code}`,
+        body: body,
+        detail: `needCaptcha=${needCaptcha} enteredHome=${enteredHome} hasJsession=${hasJsession} failByPwd=${failByPwd}`
+      });
     return {
       success: false,
       message: needCaptcha ? '请输入验证码后重试' : '登录失败，请检查学号密码',
@@ -598,13 +612,22 @@ export class JwApi {
     const xnm: string = parts[0];
     const xqm: string = JwApi.xqmOf(termId);
     const res: HttpResult = await HttpClient.postForm('/jwglxt/kbcx/xskbcx_cxXsgrkb.html', { 'xnm': xnm, 'xqm': xqm });
-    const root: ESObject = JSON.parse(res.body);
+    let root: ESObject;
+    try {
+      root = JSON.parse(res.body);
+    } catch (e) {
+      LogStore.logNet('课表', '解析', '异常',
+        { url: '/jwglxt/kbcx/xskbcx_cxXsgrkb.html', status: `${res.code}`, error: LogStore.errorOf(e as Object), body: res.body, detail: `xnm=${xnm} xqm=${xqm}` });
+      throw e as Error;
+    }
     const kbList: ESObject[] = (root['kbList'] as ESObject[]) ?? [];
     const list: CourseItem[] = [];
     for (let i = 0; i < kbList.length; i++) {
       list.push(JwApi.mapCourse(kbList[i]));
     }
     DataStore.cacheJSON(DataStore.KEY_COURSES, JSON.stringify(list));
+    LogStore.logNet('课表', '获取', '成功',
+      { url: '/jwglxt/kbcx/xskbcx_cxXsgrkb.html', status: `${res.code}`, detail: `${list.length}节 xnm=${xnm} xqm=${xqm}` });
     return list;
   }
 
@@ -620,13 +643,22 @@ export class JwApi {
     const xqm: string = JwApi.xqmOf(termId);
     const res: HttpResult = await HttpClient.postForm('/jwglxt/kwgl/kscx_cxXsksxxIndex.html',
       { 'doType': 'query', 'xnm': xnm, 'xqm': xqm });
-    const root: ESObject = JSON.parse(res.body);
+    let root: ESObject;
+    try {
+      root = JSON.parse(res.body);
+    } catch (e) {
+      LogStore.logNet('考试', '解析', '异常',
+        { url: '/jwglxt/kwgl/kscx_cxXsksxxIndex.html', status: `${res.code}`, error: LogStore.errorOf(e as Object), body: res.body, detail: `xnm=${xnm} xqm=${xqm}` });
+      throw e as Error;
+    }
     const items: ESObject[] = (root['items'] as ESObject[]) ?? [];
     const list: ExamItem[] = [];
     for (let i = 0; i < items.length; i++) {
       list.push(JwApi.mapExam(items[i]));
     }
     DataStore.cacheJSON(DataStore.KEY_EXAMS, JSON.stringify(list));
+    LogStore.logNet('考试', '获取', '成功',
+      { url: '/jwglxt/kwgl/kscx_cxXsksxxIndex.html', status: `${res.code}`, detail: `${list.length}条 xnm=${xnm} xqm=${xqm}` });
     return list;
   }
 
@@ -685,6 +717,9 @@ export class JwApi {
     if (realTermId === JwApi.term.id) {
       DataStore.cacheJSON(DataStore.KEY_TERM_SCORES, JSON.stringify(result));
     }
+    LogStore.logNet('成绩', '获取', '成功',
+      { method: 'POST', url: '/jwglxt/cjcx/cjcx_cxDgXscj.html', status: `${res.code}`,
+        detail: `${scores.length}条 GPA=${ts.gpa.toFixed(2)} ${termLabel}` });
     return result;
   }
 
@@ -699,7 +734,9 @@ export class JwApi {
     const cached: string = DataStore.loadJSON(DataStore.KEY_NOTICES);
     if (cached.length > 0) {
       try {
-        return JSON.parse(cached) as NoticeItem[];
+        const cl: NoticeItem[] = JSON.parse(cached) as NoticeItem[];
+        LogStore.log('通知', '读取', '缓存命中', `${cl.length}条`);
+        return cl;
       } catch (e) {
         // ignore
       }
@@ -737,8 +774,11 @@ export class JwApi {
         });
       }
       DataStore.cacheJSON(DataStore.KEY_NOTICES, JSON.stringify(list));
+      LogStore.logNet('通知', '加载', '成功',
+        { method: 'GET', url: '/jwglxt/xtgl/index_cxDbsy.html', status: `${res.code}`, detail: `${list.length}条` });
       return list;
     } catch (e) {
+      LogStore.log('通知', '加载', '失败', LogStore.errorOf(e as Object));
       return [];
     }
   }
@@ -754,7 +794,9 @@ export class JwApi {
     const cached: string = DataStore.loadJSON(DataStore.KEY_NOTICES_JWC);
     if (cached.length > 0) {
       try {
-        return JSON.parse(cached) as NoticeItem[];
+        const cl: NoticeItem[] = JSON.parse(cached) as NoticeItem[];
+        LogStore.log('通知', '官网读取', '缓存命中', `${cl.length}条`);
+        return cl;
       } catch (e) {
         // ignore
       }
@@ -765,8 +807,11 @@ export class JwApi {
       if (list.length > 0) {
         DataStore.cacheJSON(DataStore.KEY_NOTICES_JWC, JSON.stringify(list));
       }
+      LogStore.logNet('通知', '官网列表', '成功',
+        { method: 'GET', url: Const.JWC_LIST_URL, status: `${res.code}`, detail: `${list.length}条` });
       return list;
     } catch (e) {
+      LogStore.log('通知', '官网列表', '失败', LogStore.errorOf(e as Object));
       return [];
     }
   }
@@ -892,12 +937,16 @@ export class JwApi {
     try {
       // 2) 拉列表，取最新校历文章 URL
       const res: HttpResult = await HttpClient.get(Const.JWC_LIST_URL);
+      LogStore.logNet('校历', '拉取', '成功',
+        { method: 'GET', url: Const.JWC_LIST_URL, status: `${res.code}`, detail: `本地缓存=${cached !== null ? '有' : '无'}` });
       const article: string = JwApi.firstCalendarArticle(res.body);
       if (article.length === 0) {
+        LogStore.log('校历', '解析', '无文章', '列表页未匹配到校历文章');
         return cached;
       }
       // 3) 来源无变化 → 直接返回缓存（不更新）
       if (cached !== null && article === cachedSrc) {
+        LogStore.log('校历', '更新', '来源未变', article);
         return cached;
       }
       // 4) 来源有变化 → 找 PDF、更新来源标记；转换结果以缓存/预置兜底
@@ -911,8 +960,10 @@ export class JwApi {
         };
         DataStore.cacheJSON(DataStore.KEY_JWC_CAL, JSON.stringify(store));
       }
+      LogStore.log('校历', '更新', '成功', `新来源 ${article}`);
       return cal;
     } catch (e) {
+      LogStore.log('校历', '拉取', '失败', LogStore.errorOf(e as Object));
       return cached;
     }
   }
@@ -953,6 +1004,7 @@ export class JwApi {
     if (JwApi.USE_MOCK) {
       return;
     }
+    LogStore.log('首页', '刷新', '开始', '并行拉取课表/成绩/考试/学业/通知');
     const term: TermInfo = JwApi.term;
     const parts: string[] = term.id.split('-');
     const xnm: string = parts[0];
@@ -996,6 +1048,8 @@ export class JwApi {
     } catch (e) {
       // ignore
     }
+    LogStore.log('首页', '刷新', '成功',
+      `课表${courses.length}节 成绩${scores.length}学期 考试${exams.length}门 学业GPA=${academic.gpa} 通知${notices.length}条`);
     // 记录更新时间
     DataStore.put(DataStore.KEY_CACHE_TIME, `${Date.now()}`);
   }
@@ -1109,7 +1163,9 @@ export class JwApi {
     const cached: string = DataStore.loadJSON(DataStore.KEY_ACADEMIC);
     if (cached.length > 0) {
       try {
-        return JSON.parse(cached) as AcademicReport;
+        const r: AcademicReport = JSON.parse(cached) as AcademicReport;
+        LogStore.log('学业', '读取', '缓存命中', `GPA=${r.gpa} 分类${r.categories.length}门`);
+        return r;
       } catch (e) {
         // ignore
       }
@@ -1120,8 +1176,12 @@ export class JwApi {
         '/jwglxt/xsxy/xsxyqk_cxXsxyqkIndex.html?gnmkdm=N105515&layout=default');
       const report: AcademicReport = JwApi.parseAcademicText(res.body);
       DataStore.cacheJSON(DataStore.KEY_ACADEMIC, JSON.stringify(report));
+      LogStore.logNet('学业', '加载', '成功',
+        { method: 'GET', url: '/jwglxt/xsxy/xsxyqk_cxXsxyqkIndex.html', status: `${res.code}`,
+          detail: `GPA=${report.gpa} 分类${report.categories.length}门 警告${report.warnings.length}条` });
       return report;
     } catch (e) {
+      LogStore.log('学业', '加载', '失败', LogStore.errorOf(e as Object));
       return EMPTY_REPORT;
     }
   }

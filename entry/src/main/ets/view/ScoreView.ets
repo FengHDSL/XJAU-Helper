@@ -90,8 +90,8 @@ export struct ScoreView {
 
   /** 打开绩点计算方法网页（教务处官网 kcjxf，在"外部链接"页面中访问） */
   private openCalcWeb(): void {
-    if (JwApi.USE_MOCK) {
-      promptAction.showToast({ message: '当前模式暂不支持' });
+    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+      promptAction.showToast({ message: '当前模式禁止使用' });
       return;
     }
     AppState.webUrl = Const.JWC_KJXF_URL;
