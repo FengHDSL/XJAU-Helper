@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "version": 2,
+  "updatedAt": "2026-08-10",
+  "baseUrl": "https://jwxt.xjau.edu.cn",
+  "endpoints": {
+    "loginPage": "/jwglxt/xtgl/login_slogin.html",
+    "loginPublicKey": "/jwglxt/xtgl/login_getPublicKey.html",
+    "captcha": "/jwglxt/kaptcha",
+    "portalHome": "/jwglxt/xtgl/index_initMenu.html",
+    "course": "/jwglxt/kbcx/xskbcx_cxXsgrkb.html",
+    "score": "/jwglxt/cjcx/cjcx_cxDgXscj.html",
+    "exam": "/jwglxt/kwgl/kscx_cxXsksxxIndex.html",
+    "notice": "/jwglxt/xtgl/index_cxDbsy.html",
+    "academic": "/jwglxt/xsxy/xsxyqk_cxXsxyqkIndex.html",
+    "profileDetail": "/jwglxt/xsxxxggl/xsgrxxwh_cxXsgrxx.html",
+    "photo": "/jwglxt/xtgl/photo_cxXszp4.html",
+    "emptyRoomPage": "/jwglxt/cdjy/cdjy_cxKxcdlb.html",
+    "subRoomType": "/jwglxt/query/query_cxEjjxcdlbList.html",
+    "exportInit": "/jwglxt/zftal/drdc/export_exportInitDcpz.html",
+    "exportData": "/jwglxt/cdjy/cdjy_cxDcKxcdlb.html"
+  },
+  "jwcListUrl": "https://jwc.xjau.edu.cn/jxrl_3318/list.htm"
+}
