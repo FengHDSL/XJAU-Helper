@@ -1,0 +1,140 @@
+{
+  "color": [
+    {
+      "name": "start_window_background",
+      "value": "#000000"
+    },
+    {
+      "name": "brand",
+      "value": "#3FBF92"
+    },
+    {
+      "name": "brand_deep",
+      "value": "#2AA079"
+    },
+    {
+      "name": "brand_light",
+      "value": "#153029"
+    },
+    {
+      "name": "brand_on",
+      "value": "#08130F"
+    },
+    {
+      "name": "bg_page",
+      "value": "#0C0F0E"
+    },
+    {
+      "name": "bg_card",
+      "value": "#191D1C"
+    },
+    {
+      "name": "bg_chip",
+      "value": "#222726"
+    },
+    {
+      "name": "text_primary",
+      "value": "#E9EBEA"
+    },
+    {
+      "name": "text_secondary",
+      "value": "#9BA5A2"
+    },
+    {
+      "name": "text_tertiary",
+      "value": "#6E7876"
+    },
+    {
+      "name": "divider",
+      "value": "#2A2F2E"
+    },
+    {
+      "name": "accent_orange",
+      "value": "#F0A45C"
+    },
+    {
+      "name": "accent_blue",
+      "value": "#7098F2"
+    },
+    {
+      "name": "accent_purple",
+      "value": "#A98BE8"
+    },
+    {
+      "name": "state_danger",
+      "value": "#EE7B7B"
+    },
+    {
+      "name": "state_success",
+      "value": "#4FBE86"
+    },
+    {
+      "name": "state_warn",
+      "value": "#E9B25C"
+    },
+    {
+      "name": "course_bg_1",
+      "value": "#152439"
+    },
+    {
+      "name": "course_bg_2",
+      "value": "#122A20"
+    },
+    {
+      "name": "course_bg_3",
+      "value": "#30220F"
+    },
+    {
+      "name": "course_bg_4",
+      "value": "#231A36"
+    },
+    {
+      "name": "course_bg_5",
+      "value": "#32161C"
+    },
+    {
+      "name": "course_bg_6",
+      "value": "#0F2A2C"
+    },
+    {
+      "name": "course_bg_7",
+      "value": "#2B2510"
+    },
+    {
+      "name": "course_bg_8",
+      "value": "#1E2229"
+    },
+    {
+      "name": "course_fg_1",
+      "value": "#84B3F5"
+    },
+    {
+      "name": "course_fg_2",
+      "value": "#5FCF9A"
+    },
+    {
+      "name": "course_fg_3",
+      "value": "#F0A65C"
+    },
+    {
+      "name": "course_fg_4",
+      "value": "#B694F5"
+    },
+    {
+      "name": "course_fg_5",
+      "value": "#F08698"
+    },
+    {
+      "name": "course_fg_6",
+      "value": "#5FD0D6"
+    },
+    {
+      "name": "course_fg_7",
+      "value": "#E3C264"
+    },
+    {
+      "name": "course_fg_8",
+      "value": "#A8B3C2"
+    }
+  ]
+}

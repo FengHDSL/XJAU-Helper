@@ -1,0 +1,48 @@
+# 构建产物
+build/
+entry/build/
+node_modules/
+**/node_modules/
+**/oh_modules/
+**/libs/
+
+# 鸿蒙 IDE
+.idea/
+*.iml
+.huawei/
+hvigor/
+.codegenie/
+
+# 工具缓存
+.workbuddy/
+*.log
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 临时
+*.tmp
+*.bak
+_build.sh
+.hvigor/
+local.properties
+*.hap
+
+# 签名材料（含私钥，禁止提交）
+*.p12
+*.cer
+*.p7b
+.csr/
+.csr
+
+# 本地 git 备份/损坏仓库（非项目源码）
+git.bak/
+git_backup_*/
+git_fresh_empty_*/
+git_corrupt_*/
+.git_backup_*/
+.git_fresh_empty_*/
+.git_corrupt_*/
+material/
+

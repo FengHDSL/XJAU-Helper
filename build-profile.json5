@@ -1,0 +1,67 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\panda\\.ohos\\config\\default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B9191054AC0B023DD44D1770E183D3EFACB1AC7858B052ACA957B58FED48B2EC02A09CCDAE4BF48",
+          "profile": "C:\\Users\\panda\\.ohos\\config\\default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\panda\\.ohos\\config\\default_xjau_3RkVRoCy9RnQoxeJQ4lKUccPkWlS0RHqbZtCCNZTLp0=.p12",
+          "storePassword": "0000001BBA9EB291EA2DBE89E7C11091DBCD49D87CB012E827C846301148BAB238013D717CFD5F561C12F2"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "26.0.0",
+        "compatibleSdkVersion": "6.1.1(24)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ],
+    "capabilities": [
+      {
+        "bundleName": "com.xndhelper.lzb",
+        "config": [
+          {
+            "capability": "com.huawei.service.liveView.entry",
+            "name": "Live View Kit"
+          }
+        ]
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}
