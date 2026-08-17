@@ -2,6 +2,7 @@
  * 首页：学期概览 + 今日课程 + 快捷入口 + 近期考试
  * 头部：简约白卡头像（真实证件照）+ 学号/学院/班级
  */
+import { SheetUtil } from '../common/SheetUtil';
 import { promptAction } from '@kit.ArkUI';
 import { mediaquery } from '@kit.ArkUI';
 import { JwApi } from '../api/JwApi';
@@ -46,8 +47,6 @@ export struct HomeView {
   @State showNoticeSheet: boolean = false;
   @State sheetNotice: NoticeItem | null = null;
   @State showWebSheet: boolean = false;
-  /** 用户手动设置的开学日（yyyy-MM-dd，空=自动识别） */
-  @State semesterStart: string = '';
   // 学期选择（首页顶栏 + 全局设置）
   @State terms: TermInfo[] = [];
   @State selectedTermIndex: number = 0;
@@ -57,14 +56,13 @@ export struct HomeView {
   // 课程无课时：随机鼓励文案 + 下次课预告
   @State randomRestText: string = '';
   @State nextFutureCourse: NextFutureCourse | null = null;
+  @State refreshing: boolean = false;
   onSwitchTab: (index: number) => void = () => {
   };
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
 
   /** 页面出现：加载数据并监听横竖屏 */
   aboutToAppear(): void {
-    // 加载用户手动设置的开学日（空=自动识别）
-    this.semesterStart = DataStore.getSemesterStart();
     // 功能浏览模式优先用 AppState.mockCurrentWeek > 0 指定的周次，确保所有功能有数据
     if (AppState.mockCurrentWeek > 0) {
       this.currentWeek = AppState.mockCurrentWeek;
@@ -156,6 +154,12 @@ export struct HomeView {
       }
     }
     this.loading = false;
+  }
+
+  /** 下拉刷新：重新加载首页全部数据 */
+  private async onRefresh(): Promise<void> {
+    await this.loadData();
+    this.refreshing = false;
   }
 
   /** 今日所在自然月（yyyymm，用于日历默认展示） */
@@ -467,7 +471,7 @@ export struct HomeView {
             .backgroundColor($r('app.color.bg_chip'))
         } else if (JwApi.USE_MOCK) {
           // 功能浏览模式：默认头像使用内置资源
-          Image($r('app.media.meta_default_avatar'))
+          Image($r('app.media.default_avatar'))
             .width(52)
             .height(52)
             .borderRadius(26)
@@ -1026,44 +1030,8 @@ export struct HomeView {
     .padding(16)
   }
 
-  /** 日历卡片开学日期显示值：用户手动设置优先，否则用校历开学日 */
-  private calendarStartShow(): string {
-    if (DateUtil.customStartDate.length > 0) {
-      return DateUtil.customStartDate;
-    }
-    const cal: TeachingCalendar | null = this.teachingCal;
-    return cal !== null && cal.startDate.length > 0 ? cal.startDate : '';
-  }
-
-  /** 弹开学日期选择器（首页日历卡片入口，手动调节开学时间） */
-  private openSemesterStartPicker(): void {
-    let selected: Date = new Date();
-    if (this.semesterStart.length > 0) {
-      selected = DateUtil.parse(this.semesterStart);
-    }
-    DatePickerDialog.show({
-      start: new Date(2024, 0, 1),
-      end: new Date(2032, 11, 31),
-      selected: selected,
-      onDateAccept: (value: Date) => {
-        const s: string = DateUtil.format(value);
-        DataStore.setSemesterStart(s);
-        DateUtil.customStartDate = s;
-        this.semesterStart = s;
-        // 立即重算首页周次
-        this.currentWeek = DateUtil.weekOfTerm(AppState.term, new Date());
-        promptAction.showToast({ message: `开学时间已设为 ${s}` });
-      }
-    });
-  }
-
-  /** 今日所属教学周次（开学后返回对应周次；未开学返回 0）。
-   *  2026-08-13 修复：用户手动设置开学日时优先用 DateUtil（effectiveStartDate 覆盖），
-   *  否则回退校历数据计算。 */
+  /** 今日所属教学周次（开学后返回对应周次；未开学返回 0） */
   private todayTeachingWeek(): number {
-    if (DateUtil.customStartDate.length > 0) {
-      return DateUtil.weekOfTerm(AppState.term, new Date());
-    }
     const cal: TeachingCalendar | null = this.teachingCal;
     if (cal === null || cal.todayDate.length === 0) {
       return 0;
@@ -1079,11 +1047,8 @@ export struct HomeView {
     return 0;
   }
 
-  /** 是否已开学（今日 >= 开学日）：用户手动设置的开学日优先，否则用校历开学日 */
+  /** 是否已开学（今日 >= 校历开学日） */
   private isTermStarted(): boolean {
-    if (DateUtil.customStartDate.length > 0) {
-      return DateUtil.weekOfTerm(AppState.term, new Date()) > 0;
-    }
     const cal: TeachingCalendar | null = this.teachingCal;
     if (cal === null || cal.startDate.length === 0) {
       return false;
@@ -1214,42 +1179,6 @@ export struct HomeView {
     Column() {
       SectionHeader({ title: '日历', action: '', onAction: () => {} })
 
-      // 开学时间（手动调节：自动识别开学日不准时使用；影响首页/课表周次计算）
-      Row() {
-        Text('开学时间')
-          .fontSize(13)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.text_primary'))
-        Blank()
-        Text(this.semesterStart.length > 0 ? this.semesterStart : '自动识别')
-          .fontSize(12)
-          .fontColor($r('app.color.brand'))
-        if (this.semesterStart.length > 0) {
-          Text('恢复自动')
-            .fontSize(11)
-            .fontColor('#F0524D')
-            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-            .margin({ left: 6 })
-            .backgroundColor('rgba(240,82,77,0.10)')
-            .borderRadius(4)
-            .onClick(() => {
-              DataStore.setSemesterStart('');
-              DateUtil.customStartDate = '';
-              this.semesterStart = '';
-              promptAction.showToast({ message: '已恢复自动识别开学时间' });
-            })
-        }
-        Text('›')
-          .fontSize(14)
-          .fontColor($r('app.color.text_tertiary'))
-          .margin({ left: 6 })
-      }
-      .width('100%')
-      .padding({ top: 2, bottom: 10 })
-      .onClick(() => {
-        this.openSemesterStartPicker();
-      })
-
       if (this.teachingCal === null) {
         LoadingTip({ text: '加载日历…' })
           .width('100%')
@@ -1271,9 +1200,8 @@ export struct HomeView {
           } else {
             this.infoChip('未开学', $r('app.color.accent_orange'))
           }
-          // 开学日期：用户手动设置时优先显示用户设置值，否则校历值
-          if (this.calendarStartShow().length > 0) {
-            this.infoChip(`开学 ${this.calendarStartShow().slice(5)}`, $r('app.color.accent_blue'))
+          if (this.teachingCal!.startDate.length > 0) {
+            this.infoChip(`开学 ${this.teachingCal!.startDate.slice(5)}`, $r('app.color.accent_blue'))
           }
           if (this.teachingCal!.endDate.length > 0) {
             this.infoChip(`结束 ${this.teachingCal!.endDate.slice(5)}`, $r('app.color.accent_orange'))
@@ -1379,9 +1307,13 @@ export struct HomeView {
 
   build() {
     Column() {
-      this.titleBar()
-      // 中间内容：可滚动；横屏/平板下内容限宽 720vp 并居中（一多适配）
-      Row() {
+    this.titleBar()
+    if (this.isLandscape) {
+      this.homeLandscape()
+    } else {
+    // 中间内容：可滚动；横屏/平板下内容限宽 720vp 并居中（一多适配）
+    Row() {
+      Refresh({ refreshing: $$this.refreshing }) {
         Scroll() {
           Column() {
             // 头像卡片（始终显示；圆形头像由 showAvatar 开关控制）
@@ -1402,7 +1334,7 @@ export struct HomeView {
             this.messageSection()
             this.noticeSection()
             Column() {
-              Text('数据来源：新疆农业大学教务系统').fontSize(11)
+              Text('数据来源: 新疆农业大学教务系统').fontSize(11)
                 .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
               Text('新疆农业大学教务处').fontSize(11)
                 .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
@@ -1418,38 +1350,133 @@ export struct HomeView {
           .padding({ left: 16, right: 16, top: 12, bottom: 100 }) // 底部预留悬浮底栏高度，避免内容被遮挡
           // 学期选择弹层（与根 Column 的通知弹层/Scroll 的网页弹层分置不同组件，避免同组件多 bindSheet 冲突）
           .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
+            width: SheetUtil.sheetWidth(),
+            preferType: SheetType.BOTTOM,
             height: SheetSize.FIT_CONTENT,
             dragBar: true,
             backgroundColor: $r('app.color.bg_card'),
             title: { title: '选择学年-学期' }
           })
         }
-        .width(720)
-        .constraintSize({ maxWidth: '100%' })
+        .width('100%')
         .height('100%')
         .scrollBar(BarState.Off)
         .align(Alignment.Top)
         .edgeEffect(EdgeEffect.Spring)
         // 通知文章页（教务处官网）挂在内层 Scroll，与根组件的通知弹层分离（同组件多 bindSheet 仅最后一个生效）
         .bindSheet($$this.showWebSheet, this.webSheet(), {
+          width: SheetUtil.sheetWidth(),
+          preferType: SheetType.BOTTOM,
           height: SheetSize.LARGE,
           dragBar: false,
           backgroundColor: $r('app.color.bg_page'),
           title: { title: AppState.webTitle }
         })
       }
-      .width('100%')
+      .onRefreshing(() => { this.onRefresh(); })
+      }
+      .width(720)
+      .constraintSize({ maxWidth: '100%' })
+      .height('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center) // 横屏/平板下 Scroll 水平居中
+    }
     }
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.bg_page'))
     .bindSheet($$this.showNoticeSheet, this.noticeSheet(), {
+      width: SheetUtil.sheetWidth(),
+      preferType: SheetType.BOTTOM,
       height: SheetSize.LARGE,
       dragBar: true,
       backgroundColor: $r('app.color.bg_card')
     })
+  }
+
+  @Builder
+  homeLandscape() {
+    Row() {
+      // 左列：头像 / 今日课程 / 校历 / 快捷入口
+      Refresh({ refreshing: $$this.refreshing }) {
+        Scroll() {
+          Column() {
+            this.avatarCard()
+            Column() {
+              this.todayCard()
+            }
+            .margin({ top: 12 })
+            Column() {
+              this.quickEntries()
+            }
+            .margin({ top: 12 })
+            this.calendar()
+          }
+          .width('100%')
+          .padding({ left: 16, right: 8, top: 12, bottom: 100 })
+        }
+        .layoutWeight(1)
+        .height('100%')
+        .scrollBar(BarState.Off)
+        .align(Alignment.Top)
+        .edgeEffect(EdgeEffect.Spring)
+        .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
+          width: SheetUtil.sheetWidth(),
+          preferType: SheetType.BOTTOM,
+          height: SheetSize.FIT_CONTENT,
+          dragBar: true,
+          backgroundColor: $r('app.color.bg_card'),
+          title: { title: '选择学年-学期' }
+        })
+      }
+      .layoutWeight(1)
+      .height('100%')
+      .onRefreshing(() => { this.onRefresh(); })
+
+      // 右列：考试 / 消息 / 通知
+      Refresh({ refreshing: $$this.refreshing }) {
+        Scroll() {
+          Column() {
+            this.examSection()
+            this.messageSection()
+            this.noticeSection()
+            Column() {
+              Text('数据来源: 新疆农业大学教务系统').fontSize(11)
+                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+              Text('新疆农业大学教务处').fontSize(11)
+                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .margin({ top: 3 })
+              Text('"功能浏览"模式为本地模拟数据').fontSize(11)
+                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .margin({ top: 3 })
+            }
+            .width('100%')
+            .margin({ top: 20, bottom: 24 })
+          }
+          .width('100%')
+          .padding({ left: 8, right: 16, top: 12, bottom: 100 })
+        }
+        .layoutWeight(1)
+        .height('100%')
+        .scrollBar(BarState.Off)
+        .align(Alignment.Top)
+        .edgeEffect(EdgeEffect.Spring)
+        .bindSheet($$this.showWebSheet, this.webSheet(), {
+          width: SheetUtil.sheetWidth(),
+          preferType: SheetType.BOTTOM,
+          height: SheetSize.LARGE,
+          dragBar: false,
+          backgroundColor: $r('app.color.bg_page'),
+          title: { title: AppState.webTitle }
+        })
+      }
+      .layoutWeight(1)
+      .height('100%')
+      .onRefreshing(() => { this.onRefresh(); })
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .align(Alignment.Top)
   }
 
   @Builder
