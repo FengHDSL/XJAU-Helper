@@ -2,9 +2,10 @@
  * 农大新闻 — 四大板块新闻列表（各自独立懒加载）
  * 点击 → NavPathStack 跳转 NewsDetailPage
  */
+import { SheetUtil } from '../common/SheetUtil';
 import { image } from '@kit.ImageKit';
 import { webview } from '@kit.ArkWeb';
-import { promptAction } from '@kit.ArkUI';
+import { promptAction, mediaquery } from '@kit.ArkUI';
 import { Theme } from '../common/ThemeUtil';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
@@ -84,8 +85,28 @@ export struct NewsPage {
   private loadedTabs: boolean[] = [false, false, false, false];
   private tabs: string[] = ['农大要闻', '综合新闻', '教学科研', '媒体农大'];
   controller: webview.WebviewController = new webview.WebviewController();
+  /** 横屏标记（平板横屏下每个板块新闻分两列显示） */
+  @State isLandscape: boolean = false;
+  private landscapeListener: mediaquery.MediaQueryListener | null = null;
 
-  aboutToAppear(): void { this.ensureLoaded(0); }
+  aboutToAppear(): void {
+    this.listenLandscape();
+    this.ensureLoaded(0);
+  }
+
+  /** 页面消失：注销横竖屏监听 */
+  aboutToDisappear(): void {
+    this.landscapeListener = null;
+  }
+
+  /** 监听屏幕方向变化（横屏时新闻分两列） */
+  private listenLandscape(): void {
+    this.isLandscape = mediaquery.matchMediaSync('(orientation: landscape)').matches;
+    this.landscapeListener = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.isLandscape = res.matches;
+    });
+  }
 
   /** 调试模式状态变化：功能浏览模式下开启调试 → 强制重新加载当前板块（清列表 + 加载态） */
   private onDebugNetworkChanged(): void {
@@ -244,21 +265,52 @@ export struct NewsPage {
     } else {
       Refresh({ refreshing: $$this.refreshing }) {
         List() {
-          ForEach(this.lists[index], (item: NewsItem, i: number) => {
-            ListItem() {
-              Column() {
-                // 媒体农大（index=3）不显示缩略图
-                NewsRow({
-                  item: item,
-                  showThumb: index !== 3,
-                  onTap: () => { this.openDetail(item); }
-                })
-                if (i < this.lists[index].length - 1) {
-                  Divider().color($r('app.color.divider')).margin({ left: 16, right: 16 })
+          // 横屏：每 ListItem 一行两列新闻；竖屏：单列
+          if (this.isLandscape) {
+            ForEach(this.newsRowStarts(index), (start: number) => {
+              ListItem() {
+                Row() {
+                  Column() {
+                    NewsRow({
+                      item: this.lists[index][start],
+                      showThumb: index !== 3,
+                      onTap: () => { this.openDetail(this.lists[index][start]); }
+                    })
+                  }
+                  .layoutWeight(1)
+                  if (start + 1 < this.lists[index].length) {
+                    Column() {
+                      NewsRow({
+                        item: this.lists[index][start + 1],
+                        showThumb: index !== 3,
+                        onTap: () => { this.openDetail(this.lists[index][start + 1]); }
+                      })
+                    }
+                    .layoutWeight(1)
+                  } else {
+                    Blank().layoutWeight(1)
+                  }
+                }
+                .width('100%')
+              }
+            }, (start: number) => `row-${start}`)
+          } else {
+            ForEach(this.lists[index], (item: NewsItem, i: number) => {
+              ListItem() {
+                Column() {
+                  // 媒体农大（index=3）不显示缩略图
+                  NewsRow({
+                    item: item,
+                    showThumb: index !== 3,
+                    onTap: () => { this.openDetail(item); }
+                  })
+                  if (i < this.lists[index].length - 1) {
+                    Divider().color($r('app.color.divider')).margin({ left: 16, right: 16 })
+                  }
                 }
               }
-            }
-          }, (item: NewsItem) => item.url)
+            }, (item: NewsItem) => item.url)
+          }
           // 尾部：加载状态 + 数据来源标注 + 空隙（保证最后一条能滚到悬浮底栏上方）
           ListItem() {
             Column() {
@@ -270,7 +322,7 @@ export struct NewsPage {
               } else {
                 Text('上拉加载更多').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 14 })
               }
-              Text('数据来源：新疆农业大学新闻网')
+              Text('数据来源: 新疆农业大学新闻网')
                 .fontSize(11).fontColor($r('app.color.text_tertiary'))
                 .margin({ top: 16 })
               Column().height(120)
@@ -285,6 +337,16 @@ export struct NewsPage {
       .width('100%').height('100%')
       .onRefreshing(() => { this.refreshCurrent(); })
     }
+  }
+
+  /** 横屏两列：返回每行的起始下标（0,2,4,...） */
+  private newsRowStarts(index: number): number[] {
+    const arr: NewsItem[] = this.lists[index];
+    const res: number[] = [];
+    for (let i = 0; i < arr.length; i += 2) {
+      res.push(i);
+    }
+    return res;
   }
 
   build() {
@@ -348,6 +410,8 @@ export struct NewsPage {
     }
     .width('100%').height('100%').backgroundColor($r('app.color.bg_page'))
     .bindSheet($$this.showWeb, this.webSheet(), {
+      width: SheetUtil.sheetWidth(),
+      preferType: SheetType.BOTTOM,
       height: SheetSize.LARGE, dragBar: true,
       backgroundColor: $r('app.color.bg_page'), title: { title: '农大新闻 · 网页端' }
     })
