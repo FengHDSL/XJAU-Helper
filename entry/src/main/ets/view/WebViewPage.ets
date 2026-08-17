@@ -4,10 +4,11 @@
  * 标题栏右上角提供"更多"功能菜单（复刻 DailyNic_HMOS）：
  *  复制链接 / 后退 / 前进 / 刷新 / 更改浏览器标识（桌面·手机·平板）/ 历史记录 / 释放内存
  */
+import { SheetUtil } from '../common/SheetUtil';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { promptAction } from '@kit.ArkUI';
 import { systemShare } from '@kit.ShareKit';
-import { common } from '@kit.AbilityKit';
+import { common, Want } from '@kit.AbilityKit';
 import { webview } from '@kit.ArkWeb';
 import { WebSurface } from './WebSurface';
 import { AppState, SharedHistoryItem } from '../common/AppState';
@@ -85,6 +86,25 @@ export struct WebViewPage {
     } catch (e) {
       // 设备不支持分享面板时退回复制
       this.copyLink();
+    }
+  }
+
+  /** 用系统浏览器打开当前链接（外部浏览器） */
+  private openInBrowser(): void {
+    const url: string = AppState.webUrl;
+    if (url.length === 0) {
+      promptAction.showToast({ message: '链接为空' });
+      return;
+    }
+    try {
+      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const want: Want = {
+        action: 'ohos.want.action.viewData',
+        uri: url
+      };
+      ctx.startAbility(want);
+    } catch (e) {
+      promptAction.showToast({ message: '打开浏览器失败' });
     }
   }
 
@@ -186,6 +206,10 @@ export struct WebViewPage {
       MenuItem({ content: '复制链接' })
         .onClick(() => {
           this.copyLink();
+        })
+      MenuItem({ content: '跳转浏览器' })
+        .onClick(() => {
+          this.openInBrowser();
         })
       MenuItem({ content: '后退' })
         .onClick(() => {
@@ -359,6 +383,8 @@ export struct WebViewPage {
       .width('100%').height('100%')
       .backgroundColor($r('app.color.bg_page'))
       .bindSheet($$this.showHistory, this.historySheet(), {
+        width: SheetUtil.sheetWidth(),
+        preferType: SheetType.BOTTOM,
         height: SheetSize.MEDIUM,
         dragBar: false,
         showClose: true,
