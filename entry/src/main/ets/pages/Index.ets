@@ -186,26 +186,6 @@ struct Index {
           }
         })
       }
-      // "重登" 全局遮罩：叠加在主页之上，居中提示正在重新登录
-      if (this.forceReloginLoading) {
-        Column() {
-          LoadingProgress()
-            .width(42)
-            .height(42)
-            .color($r('app.color.brand_on'))
-          Text('正在重新登录…')
-            .fontSize(14)
-            .fontColor($r('app.color.brand_on'))
-            .margin({ top: 14 })
-        }
-        .width('100%')
-        .height('100%')
-        .justifyContent(FlexAlign.Center)
-        .backgroundColor('#CC079841')
-        .onClick(() => {
-          // 拦截点击
-        })
-      }
       // 功能浏览模式：全屏淡水印（进入功能浏览模式 5 秒后强制显示；每字单独旋转保证平铺铺满无死角；不拦截触摸）
       if (this.mockWatermark) {
         Stack() {
@@ -232,6 +212,26 @@ struct Index {
         .width('100%')
         .height('100%')
         .hitTestBehavior(HitTestMode.None)
+      }
+      // "重登" 全局遮罩：叠加在主页之上，居中提示正在重新登录
+      if (this.forceReloginLoading) {
+        Column() {
+          LoadingProgress()
+            .width(42)
+            .height(42)
+            .color($r('app.color.brand_on'))
+          Text('正在重新登录…')
+            .fontSize(14)
+            .fontColor($r('app.color.brand_on'))
+            .margin({ top: 14 })
+        }
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .backgroundColor('#CC079841')
+        .onClick(() => {
+          // 拦截点击
+        })
       }
     }
     .width('100%')
