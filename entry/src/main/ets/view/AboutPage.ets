@@ -4,6 +4,7 @@
  *  - 功能浏览模式（USE_MOCK）：开启/关闭调试联网（debugNetwork）
  *  - 真实登录模式：开启/关闭日志调试（logEnabled）
  */
+import { SheetUtil } from '../common/SheetUtil';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { promptAction } from '@kit.ArkUI';
 import { AppState } from '../common/AppState';
@@ -157,7 +158,7 @@ export struct AboutPage {
       this.linkRow('HiXD（参考）', 'https://github.com/PollenWang6/HiXD')
       this.linkRow('Traintime PDA（参考）', 'https://github.com/BenderBlog/traintime_pda')
 
-      Text('开源等级：MIT License')
+      Text('开源等级: MIT License')
         .fontSize(12)
         .fontColor($r('app.color.text_tertiary'))
         .width('100%')
@@ -232,7 +233,7 @@ export struct AboutPage {
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('app.color.text_primary'))
                 .margin({ top: 12 })
-              Text('版本 1.2.3')
+              Text('版本 1.2.4')
                 .fontSize(12)
                 .fontColor($r('app.color.text_tertiary'))
                 .margin({ top: 4 })
@@ -247,7 +248,7 @@ export struct AboutPage {
 
             // 应用简介（用户可快速了解功能）
             Column() {
-              Text('新农助手是一款专为新疆农业大学学生打造的鸿蒙原生校园工具，集课表、成绩、考试、学业情况、校历、通知公告、空闲教室查询、农大新闻于一体。数据来自学校服务网页，不经过第三方服务器，不上传、不存储任何个人信息，完全开源。让校园学习更高效！')
+              Text('XJAU-Helper（新农大助手）是一款专为新疆农业大学学生打造的鸿蒙原生校园工具，集课表、成绩、考试、学业情况、校历、通知公告、空闲教室查询、农大新闻于一体。数据来自学校服务网页，不经过第三方服务器，不上传、不存储任何个人信息，完全开源。让校园学习更高效！')
                 .fontSize(12)
                 .lineHeight(20)
                 .fontColor($r('app.color.text_secondary'))
@@ -257,13 +258,25 @@ export struct AboutPage {
             .width('100%')
             .padding({ left: 20, right: 20, bottom: 20 })
 
+            this.changelog('1.2.4', '2026-08-17', [
+              '更多页面适配平板',
+              '课程表周次选择现在可以显示点阵图了',
+              '多个地方文本和UI微调',
+              '@新增@平板大屏竖屏状态下，课程表底部显示点阵周次选择器，与课程表一体滑动',
+              '@修复@课程表横屏右列滚动受限、底部被导航栏遮挡的问题',
+              '@修复@课程表横屏无法左右滑动切换周次',
+              '@修复@课程表与点阵周次之间间隙过大的问题',
+              '课程表滚动内容底部预留可调（横屏/竖屏分别控制），底部内容能完整滚出',
+              '成绩查询横屏平均分栏宽度收窄并与顶栏留出间距，避免满屏贴边贴顶',
+            ])
+
             this.changelog('1.2.3', '2026-08-16', [
-              '兼容API24，现在鸿蒙6.1的设备也可以安装了',
+              '兼容 API 24（鸿蒙 6.1），现在鸿蒙 6.1 的设备也可以安装了',
               '适配平板端，课程表界面初步对大屏进行适配'
             ])
 
-            this.changelog('1.2.2', '2026-08-13', [
-              '修复了一些已知问题'
+            this.changelog('1.2.2', '2026-08-12', [
+              '一些功能完善与问题修复'
             ])
 
             this.changelog('1.2.1', '2026-08-09', [
@@ -320,6 +333,8 @@ export struct AboutPage {
     .height('100%')
     // 调试模式密码输入弹窗（连点图标 5 次触发）
     .bindSheet($$this.showDebugSheet, this.debugSheet(), {
+      width: SheetUtil.sheetWidth(),
+      preferType: SheetType.BOTTOM,
       height: SheetSize.FIT_CONTENT,
       dragBar: false,
       showClose: true,
