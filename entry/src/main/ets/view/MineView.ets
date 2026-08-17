@@ -1,7 +1,8 @@
 /**
  * 我的：学业概览 + 常用功能 + 设置
  */
-import { promptAction } from '@kit.ArkUI';
+import { SheetUtil } from '../common/SheetUtil';
+import { promptAction, mediaquery } from '@kit.ArkUI';
 import { common, contextConstant } from '@kit.AbilityKit';
 import { storageStatistics, fileIo, picker, fileUri } from '@kit.CoreFileKit';
 import { webview } from '@kit.ArkWeb';
@@ -32,6 +33,8 @@ export struct MineView {
   @State syncing: boolean = false;
   @State photo: string = '';
   @State cacheSizeText: string = '计算中…';
+  @State isLandscape: boolean = false;
+  private landscapeListener: mediaquery.MediaQueryListener | null = null;
   onLogout: () => void = () => {
   };
   /** 前往登录页（不退出登录，从"我的"页退出弹窗第二项触发） */
@@ -42,6 +45,21 @@ export struct MineView {
   aboutToAppear(): void {
     this.load();
     this.refreshCacheSize();
+    this.listenLandscape();
+  }
+
+  aboutToDisappear(): void {
+    this.landscapeListener = null;
+  }
+
+  /** 监听屏幕方向变化（横屏时拆分为两列铺满屏幕） */
+  private listenLandscape(): void {
+    const mq: mediaquery.MediaQueryResult = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.isLandscape = mq.matches;
+    this.landscapeListener = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.isLandscape = res.matches;
+    });
   }
 
   /** 异步刷新缓存大小（MB）
@@ -398,7 +416,7 @@ export struct MineView {
             .backgroundColor($r('app.color.bg_chip'))
         } else if (JwApi.USE_MOCK) {
           // 功能浏览模式：使用默认占位头像
-          Image($r('app.media.meta_default_avatar'))
+          Image($r('app.media.default_avatar'))
             .width(52)
             .height(52)
             .borderRadius(26)
@@ -523,6 +541,9 @@ export struct MineView {
   build() {
     Column() {
       this.titleBar()
+      if (this.isLandscape) {
+        this.mineLandscape()
+      } else {
       // 中间内容：可滚动；横屏/平板下内容限宽 720vp 并居中（一多适配）
       Row() {
         Scroll() {
@@ -534,6 +555,47 @@ export struct MineView {
           .margin({ bottom: 14 })
 
           this.academicCard()
+
+          // 主题颜色 + 头像显示（上移到个人卡片区，学业情况下方）
+          Column() {
+            SettingRow({
+              icon: '', title: '主题颜色', value: this.themeColor === 'red' ? '中国红' : (this.themeColor === 'blue' ? '天空蓝' : '农大绿'), onTap: () => {
+                promptAction.showActionMenu({
+                  title: '顶栏主题色',
+                  buttons: [
+                    { text: '中国红', color: '#C3272B' },
+                    { text: '天空蓝', color: '#3B82F6' },
+                    { text: '农大绿', color: '#079841' }
+                  ]
+                }).then((res) => {
+                  const themes: string[] = ['red', 'blue', 'green'];
+                  if (res.index >= 0 && res.index < themes.length) {
+                    Theme.apply(themes[res.index]);
+                  }
+                });
+              }
+            })
+            Divider().color($r('app.color.divider'))
+            Row() {
+              Text('头像显示')
+                .fontSize(15)
+                .fontColor($r('app.color.text_primary'))
+              Blank()
+              Toggle({ type: ToggleType.Switch, isOn: this.showAvatar })
+                .selectedColor($r('app.color.brand'))
+                .onChange((isOn: boolean) => {
+                  this.showAvatar = isOn;
+                  DataStore.put(DataStore.KEY_SHOW_AVATAR, isOn ? '1' : '0');
+                })
+            }
+            .width('100%')
+            .height(52)
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16 })
+          .backgroundColor($r('app.color.bg_card'))
+          .borderRadius(18)
+          .margin({ top: 14 })
 
           // 常用功能：空闲教室查询 / 考试查询 / 学业情况
           Column() {
@@ -589,41 +651,6 @@ export struct MineView {
                 this.syncNow();
               }
             })
-            Divider().color($r('app.color.divider'))
-            // 3. 主题颜色（顶栏颜色：中国红/天空蓝/农大绿）
-            SettingRow({
-              icon: '', title: '主题颜色', value: this.themeColor === 'red' ? '中国红' : (this.themeColor === 'blue' ? '天空蓝' : '农大绿'), onTap: () => {
-                promptAction.showActionMenu({
-                  title: '顶栏主题色',
-                  buttons: [
-                    { text: '中国红', color: '#C3272B' },
-                    { text: '天空蓝', color: '#3B82F6' },
-                    { text: '农大绿', color: '#079841' }
-                  ]
-                }).then((res) => {
-                  const themes: string[] = ['red', 'blue', 'green'];
-                  if (res.index >= 0 && res.index < themes.length) {
-                    Theme.apply(themes[res.index]);
-                  }
-                });
-              }
-            })
-            Divider().color($r('app.color.divider'))
-            // 4. 头像显示开关（不显示开启/关闭文本，仅开关）
-            Row() {
-              Text('头像显示')
-                .fontSize(15)
-                .fontColor($r('app.color.text_primary'))
-              Blank()
-              Toggle({ type: ToggleType.Switch, isOn: this.showAvatar })
-                .selectedColor($r('app.color.brand'))
-                .onChange((isOn: boolean) => {
-                  this.showAvatar = isOn;
-                  DataStore.put(DataStore.KEY_SHOW_AVATAR, isOn ? '1' : '0');
-                })
-            }
-            .width('100%')
-            .height(52)
             Divider().color($r('app.color.divider'))
             // 5. 清除缓存（低配版清除数据：保留登录信息/登录 Cookie/用户设置，只删数据缓存）
             SettingRow({
@@ -718,7 +745,7 @@ export struct MineView {
             Divider().color($r('app.color.divider'))
             // 9. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于', value: 'v1.2.3', onTap: () => {
+              icon: '', title: '关于', value: 'v1.2.4', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
@@ -745,7 +772,7 @@ export struct MineView {
 
         // 数据来源（Scroll 大 Column 内部）
         Column() {
-          Text('数据来源：新疆农业大学教务系统').fontSize(11)
+          Text('数据来源: 新疆农业大学教务系统').fontSize(11)
             .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
           Text('新疆农业大学新闻网').fontSize(11)
             .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
@@ -771,15 +798,277 @@ export struct MineView {
     .layoutWeight(1)
     .justifyContent(FlexAlign.Center) // 横屏/平板下 Scroll 水平居中
     }
+    }
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.bg_page'))
     .bindSheet($$this.showWeb, this.webSheet, {
+      width: SheetUtil.sheetWidth(),
+      preferType: SheetType.BOTTOM,
       height: SheetSize.LARGE,
       dragBar: false,
       backgroundColor: $r('app.color.bg_page'),
       title: { title: AppState.webTitle }
     })
+  }
+
+  @Builder
+  mineLandscape() {
+    Row() {
+      // 左列：个人信息 + 常用功能
+      Scroll() {
+        Column() {
+          this.minePersonalSection()
+        }
+        .width('100%')
+        .padding({ left: 16, right: 8, top: 12, bottom: 100 })
+      }
+      .layoutWeight(1)
+      .height('100%')
+      .scrollBar(BarState.Off)
+      .align(Alignment.Top)
+      .edgeEffect(EdgeEffect.Spring)
+
+      // 右列：设置
+      Scroll() {
+        Column() {
+          this.mineSettingsSection()
+        }
+        .width('100%')
+        .padding({ left: 8, right: 16, top: 12, bottom: 100 })
+      }
+      .layoutWeight(1)
+      .height('100%')
+      .scrollBar(BarState.Off)
+      .align(Alignment.Top)
+      .edgeEffect(EdgeEffect.Spring)
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .align(Alignment.Top)
+  }
+
+  @Builder
+  minePersonalSection() {
+    // 头像卡片（始终显示；圆形头像由 showAvatar 开关控制）
+    Row() {
+      this.avatarCard()
+    }
+    .margin({ bottom: 14 })
+
+    this.academicCard()
+
+    // 主题颜色 + 头像显示（上移到个人卡片区，学业情况下方）
+    Column() {
+      SettingRow({
+        icon: '', title: '主题颜色', value: this.themeColor === 'red' ? '中国红' : (this.themeColor === 'blue' ? '天空蓝' : '农大绿'), onTap: () => {
+          promptAction.showActionMenu({
+            title: '顶栏主题色',
+            buttons: [
+              { text: '中国红', color: '#C3272B' },
+              { text: '天空蓝', color: '#3B82F6' },
+              { text: '农大绿', color: '#079841' }
+            ]
+          }).then((res) => {
+            const themes: string[] = ['red', 'blue', 'green'];
+            if (res.index >= 0 && res.index < themes.length) {
+              Theme.apply(themes[res.index]);
+            }
+          });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      Row() {
+        Text('头像显示')
+          .fontSize(15)
+          .fontColor($r('app.color.text_primary'))
+        Blank()
+        Toggle({ type: ToggleType.Switch, isOn: this.showAvatar })
+          .selectedColor($r('app.color.brand'))
+          .onChange((isOn: boolean) => {
+            this.showAvatar = isOn;
+            DataStore.put(DataStore.KEY_SHOW_AVATAR, isOn ? '1' : '0');
+          })
+      }
+      .width('100%')
+      .height(52)
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16 })
+    .backgroundColor($r('app.color.bg_card'))
+    .borderRadius(18)
+    .margin({ top: 14 })
+
+    // 常用功能：空闲教室查询 / 考试查询 / 学业情况
+    Column() {
+      SettingRow({
+        icon: '', title: '空闲教室查询', onTap: () => {
+          AppState.stack.pushPath({ name: Const.ROUTE_EMPTY_ROOM });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      SettingRow({
+        icon: '', title: '考试查询', onTap: () => {
+          AppState.stack.pushPath({ name: Const.ROUTE_EXAM });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      SettingRow({
+        icon: '', title: '学业情况', onTap: () => {
+          AppState.stack.pushPath({ name: Const.ROUTE_ACADEMIC });
+        }
+      })
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16 })
+    .backgroundColor($r('app.color.bg_card'))
+    .borderRadius(18)
+    .margin({ top: 14 })
+  }
+
+  @Builder
+  mineSettingsSection() {
+    Column() {
+      // 1. 网页端教务系统（最顶上）
+      SettingRow({
+        icon: '', title: '网页端教务系统', value: '', onTap: () => {
+          this.openWebPortal();
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      // 1.1 学校官网（外部链接页打开）
+      SettingRow({
+        icon: '', title: '学校官网', value: '', onTap: () => {
+          if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+            promptAction.showToast({ message: '当前模式禁止使用' });
+            return;
+          }
+          AppState.webUrl = 'https://www.xjau.edu.cn/';
+          AppState.webTitle = '学校官网';
+          AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      // 2. 数据同步
+      SettingRow({
+        icon: '', title: '数据同步', value: this.lastSyncText(), onTap: () => {
+          this.syncNow();
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      // 5. 清除缓存（低配版清除数据：保留登录信息/登录 Cookie/用户设置，只删数据缓存）
+      SettingRow({
+        icon: '', title: '清除缓存', value: this.cacheSizeText, onTap: () => {
+          promptAction.showDialog({
+            title: '清除缓存',
+            message: '将删除课表、成绩、考试、通知、校历、头像等数据缓存，\n并释放网页内存与磁盘缓存，\n保留登录信息、登录 Cookie 与您的个性化设置。确认继续？',
+            buttons: [
+              { text: '取消', color: '#666666' },
+              { text: '确认清除', color: '#DB5252', primary: true }
+            ]
+          }).then((res) => {
+            if (res.index === 1) {
+              DataStore.remove(DataStore.KEY_PROFILE);
+              DataStore.remove(DataStore.KEY_COURSES);
+              DataStore.remove(DataStore.KEY_TERM_SCORES);
+              DataStore.remove(DataStore.KEY_EXAMS);
+              DataStore.remove(DataStore.KEY_ACADEMIC);
+              DataStore.remove(DataStore.KEY_NOTICES);
+              DataStore.remove(DataStore.KEY_NOTICES_JWC);
+              DataStore.remove(DataStore.KEY_TEACHING_CAL);
+              DataStore.remove(DataStore.KEY_JWC_CAL);
+              DataStore.remove(DataStore.KEY_PHOTO);
+              DataStore.remove(DataStore.KEY_CACHE_TIME);
+              try {
+                webview.WebStorage.deleteAllData();
+              } catch (e) {
+                // ignore
+              }
+              this.trimWebMemory();
+              this.clearAllCache();
+              promptAction.showToast({ message: '已清除缓存（保留登录信息与设置）' });
+              this.refreshCacheSize(500);
+            }
+          });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      // 6. 恢复备份（导出/导入：课表内容 + 课程表设置项 + 主题颜色，打包为 txt）
+      SettingRow({
+        icon: '', title: '恢复备份', value: '', onTap: () => {
+          promptAction.showActionMenu({
+            title: '恢复备份',
+            buttons: [
+              { text: '导出备份', color: '#1B7F5F' },
+              { text: '导入备份', color: '#3B82F6' }
+            ]
+          }).then((res) => {
+            if (res.index === 0) {
+              this.exportBackup();
+            } else if (res.index === 1) {
+              this.importBackup();
+            }
+          });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      // 7. 清空数据（确认后提示手动重启）
+      SettingRow({
+        icon: '', title: '清空数据', value: '', onTap: () => {
+          promptAction.showDialog({
+            title: '清空数据',
+            message: '将清除全部使用记录（历史账号、缓存、个人信息等），此操作不可恢复，确认继续？',
+            buttons: [
+              { text: '取消', color: '#666666' },
+              { text: '确认清空', color: '#DB5252', primary: true }
+            ]
+          }).then((res) => {
+            if (res.index === 1) {
+              DataStore.clearAll();
+              AppState.profile = null;
+              promptAction.showDialog({
+                title: '清空完成',
+                message: '全部数据已清空，请手动重启应用以刷新界面',
+                buttons: [{ text: '知道了', color: '#1B7F5F' }]
+              });
+            }
+          });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      // 8. 隐私协议（打开独立页面）
+      SettingRow({
+        icon: '', title: '隐私协议', value: '', onTap: () => {
+          AppState.stack.pushPath({ name: Const.ROUTE_PRIVACY });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      // 9. 关于（打开独立页面）
+      SettingRow({
+        icon: '', title: '关于', value: 'v1.2.4', onTap: () => {
+          AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
+        }
+      })
+      // 10. 日志详情（仅登录账号且开启日志调试时显示，分隔线一并条件渲染；
+      //     收集中=亮绿灯，暂停=灰色灭灯）
+      if (this.logEnabled && AppState.profile !== null) {
+        Divider().color($r('app.color.divider'))
+        SettingRow({
+          icon: '',
+          title: '日志详情',
+          value: this.logCollecting ? '● 收集中' : '○ 已暂停',
+          valueColor: this.logCollecting ? $r('app.color.brand') : $r('app.color.text_tertiary'),
+          onTap: () => {
+            AppState.stack.pushPath({ name: Const.ROUTE_LOG });
+          }
+        })
+      }
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16 })
+    .backgroundColor($r('app.color.bg_card'))
+    .borderRadius(18)
+    .margin({ top: 14 })
   }
 
   @Builder
