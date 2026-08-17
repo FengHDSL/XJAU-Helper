@@ -6,7 +6,6 @@
 import { promptAction } from '@kit.ArkUI';
 import { ScheduleConfig } from '../common/ScheduleConfig';
 import { DateUtil } from '../common/DateUtil';
-import { DataStore } from '../common/DataStore';
 
 const BG_PALETTE: string[] = [
   '#FFFFFF', '#FAF9F6', '#F0F0F0', '#F5F0E1', '#E8F0FE', '#E3F9E5',
@@ -86,6 +85,10 @@ export struct ScheduleSettingsPanel {
   onClearBg: () => void = () => {};
   onClose: () => void = () => {};
   onCfgChange: (c: ScheduleConfig) => void = () => {};
+  // 自定义开学时间：当前学期 id / 当前开学日（含已自定义值）/ 变更回调（空串=恢复默认）
+  currentTermId: string = '';
+  currentTermStart: string = '';
+  onTermStartChange: (date: string) => void = () => {};
 
   @State bgColor: string = '';
   @State hdrColor: string = '';
@@ -116,11 +119,8 @@ export struct ScheduleSettingsPanel {
 
   @State lineStyle: number = 1;
   @State hAlign: number = 0;
-  /** 用户手动设置的开学日（yyyy-MM-dd，空=自动识别） */
-  @State semesterStart: string = '';
 
   aboutToAppear(): void {
-    this.semesterStart = DataStore.getSemesterStart();
     const c = this.cfg;
     this.bgColor = c.bgColor;
     this.hdrColor = c.headerColor;
@@ -148,34 +148,6 @@ export struct ScheduleSettingsPanel {
     this.textSz = c.textSize;
     this.lineStyle = c.gridDashed ? 1 : 0;
     this.hAlign = c.textHCenter ? 0 : (c.textLeft ? 1 : 2);
-  }
-
-  /** 开学时间展示文案：有手动设置显示日期，无则"自动识别" */
-  private semesterStartText(): string {
-    if (this.semesterStart.length > 0) {
-      return this.semesterStart;
-    }
-    return '自动识别';
-  }
-
-  /** 弹开学日期选择器（手动调节开学时间） */
-  private openSemesterStartPicker(): void {
-    let selected: Date = new Date();
-    if (this.semesterStart.length > 0) {
-      selected = DateUtil.parse(this.semesterStart);
-    }
-    DatePickerDialog.show({
-      start: new Date(2024, 0, 1),
-      end: new Date(2032, 11, 31),
-      selected: selected,
-      onDateAccept: (value: Date) => {
-        const s: string = DateUtil.format(value);
-        DataStore.setSemesterStart(s);
-        DateUtil.customStartDate = s;
-        this.semesterStart = s;
-        promptAction.showToast({ message: `开学时间已设为 ${s}` });
-      }
-    });
   }
 
   private apply(): void {
@@ -213,6 +185,25 @@ export struct ScheduleSettingsPanel {
     this.onCfgChange(c);
   }
 
+  /** 打开日期选择器，修改当前学期的开学日 */
+  private openTermStartPicker(): void {
+    const base: string = this.currentTermStart.length > 0
+      ? this.currentTermStart
+      : DateUtil.defaultTermStart(this.currentTermId);
+    const sel: Date = DateUtil.parse(base);
+    DatePickerDialog.show({
+      start: new Date(2000, 0, 1),
+      end: new Date(2035, 11, 31),
+      selected: sel,
+      onAccept: (value: DatePickerResult) => {
+        const y: number = value.year ?? 2000;
+        const m: number = value.month ?? 0;
+        const d: number = value.day ?? 1;
+        this.onTermStartChange(DateUtil.format(new Date(y, m, d)));
+      }
+    });
+  }
+
   build() {
     Scroll() {
       Column() {
@@ -220,31 +211,25 @@ export struct ScheduleSettingsPanel {
         Text('整体').fontSize(17).fontWeight(FontWeight.Bold).fontColor($r('app.color.brand'))
           .width('100%').textAlign(TextAlign.Start).margin({ top: 16, bottom: 8 })
 
-        // 开学时间（手动调节：自动识别开学日不准时使用；课表周次/首页校历生效）
-        Divider().color($r('app.color.divider')).margin({ top: 4, bottom: 10 })
+        // 自定义开学时间（覆盖默认 9-01/3-01 推算，用于修正周次）
+        Divider().color($r('app.color.divider')).margin({ top: 12, bottom: 12 })
         Row() {
-          Text('开学时间').fontSize(14).fontWeight(FontWeight.Medium)
+          Text('自定义开学时间').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
-          Text(this.semesterStartText())
-            .fontSize(12).fontColor($r('app.color.brand'))
-          if (this.semesterStart.length > 0) {
-            Text('恢复自动').fontSize(12).fontColor('#F0524D')
-              .padding({ left: 6, right: 6, top: 3, bottom: 3 })
-              .margin({ left: 6 })
+          if (this.currentTermStart.length > 0 && this.currentTermStart !== DateUtil.defaultTermStart(this.currentTermId)) {
+            Text('恢复默认')
+              .fontSize(12).fontColor('#F0524D')
+              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
               .backgroundColor('rgba(240,82,77,0.10)').borderRadius(4)
-              .onClick(() => {
-                DataStore.setSemesterStart('');
-                DateUtil.customStartDate = '';
-                this.semesterStart = '';
-                promptAction.showToast({ message: '已恢复自动识别开学时间' });
-              })
+              .onClick(() => { this.onTermStartChange(''); })
           }
-          Text('›').fontSize(16).fontColor($r('app.color.text_tertiary')).margin({ left: 6 })
-        }
-        .width('100%').margin({ top: 2, bottom: 6 })
-        .onClick(() => {
-          this.openSemesterStartPicker();
-        })
+        }.width('100%').margin({ top: 4, bottom: 6 })
+        Row() {
+          Text(this.currentTermStart.length > 0 ? this.currentTermStart : DateUtil.defaultTermStart(this.currentTermId))
+            .fontSize(15).fontColor($r('app.color.text_primary')).layoutWeight(1)
+          Text('›').fontSize(20).fontColor($r('app.color.text_tertiary'))
+        }.width('100%')
+        .onClick(() => { this.openTermStartPicker(); })
 
         // 背景图（第一位）
         Divider().color($r('app.color.divider')).margin({ top: 12, bottom: 12 })
