@@ -202,7 +202,7 @@ export struct NewsDetailPage {
                     }
                   }.width('100%')
                   if (this.detail.source.length > 0) {
-                    Text(`来源：${this.detail.source}`)
+                    Text(`来源: ${this.detail.source}`)
                       .fontSize(12).fontColor($r('app.color.text_tertiary'))
                       .width('100%').margin({ top: 4 })
                   }
@@ -210,7 +210,7 @@ export struct NewsDetailPage {
                 .width('100%').margin({ bottom: 10 })
 
                 if (this.detail.author.length > 0) {
-                  Text(`作者：${this.detail.author}`).fontSize(12)
+                  Text(`作者: ${this.detail.author}`).fontSize(12)
                     .fontColor($r('app.color.text_tertiary')).width('100%').margin({ bottom: 16 })
                 }
 
