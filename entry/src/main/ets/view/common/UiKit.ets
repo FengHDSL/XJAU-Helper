@@ -233,6 +233,8 @@ export struct PageHeader {
   @Prop showActionToggle: boolean = false;
   /** 收集开关状态 */
   @Prop actionToggleOn: boolean = false;
+  /** 开关标签文字（空 = 沿用默认「收集中 / 已暂停」，可用于「深色 / 浅色」等通用开关） */
+  @Prop actionToggleLabel: string = '';
   onBack: () => void = () => {
   };
   onAction: () => void = () => {
@@ -272,7 +274,7 @@ export struct PageHeader {
       // 右侧操作区：文字按钮（红底白字）与收集开关可并存（如日志页：清空 + 开关）
       if (this.showActionToggle) {
         Row() {
-          Text(this.actionToggleOn ? '收集中' : '已暂停')
+          Text(this.actionToggleLabel.length > 0 ? this.actionToggleLabel : (this.actionToggleOn ? '收集中' : '已暂停'))
             .fontSize(11)
             .fontColor(Color.White)
             .margin({ right: 8 })
