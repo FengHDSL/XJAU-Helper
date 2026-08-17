@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>「新农助手」用户协议及隐私政策</title>
+  <style>
+    :root {
+      --bg-body: #f8f9fa;
+      --bg-container: #ffffff;
+      --text-primary: #333333;
+      --text-secondary: #4a5568;
+      --text-tertiary: #718096;
+      --text-heading: #2d3748;
+      --border-color: #eeeeee;
+      --border-heading: #e2e8f0;
+      --link-color: #3182ce;
+      --link-border: rgba(49, 130, 206, 0.4);
+      --license-bg: #f0f8fb;
+      --license-border: #4299e1;
+      --contact-bg: #f5fafe;
+      --shadow: rgba(0, 0, 0, 0.05);
+      --chip-bg: #f2f4f6;
+    }
+
+    /* 深色模式（系统自动）：WebView 在 WebDarkMode.Auto 下会把系统 prefers-color-scheme 透传给页面，
+       此处用 CSS 媒体查询直接套深色变量——首屏即生效、不依赖任何 JS 桥接，避免首启白底闪屏 */
+    @media (prefers-color-scheme: dark) {
+      :root:not(.app-light) {
+        --bg-body: #121212;
+        --bg-container: #1e1e1e;
+        --text-primary: #e6e6e6;
+        --text-secondary: #b0b0b0;
+        --text-tertiary: #888888;
+        --text-heading: #ffffff;
+        --border-color: #2a2a2a;
+        --border-heading: #333333;
+        --link-color: #5aa9ff;
+        --link-border: rgba(90, 169, 255, 0.4);
+        --license-bg: #16222e;
+        --license-border: #4299e1;
+        --contact-bg: #16222e;
+        --shadow: rgba(0, 0, 0, 0.5);
+        --chip-bg: #2a2a2a;
+      }
+    }
+
+    /* 深色模式（手动覆盖）：由 ArkTS 切换 documentElement 的 app-dark / app-light 类（覆盖系统自动判断） */
+    :root.app-dark {
+      --bg-body: #121212;
+      --bg-container: #1e1e1e;
+      --text-primary: #e6e6e6;
+      --text-secondary: #b0b0b0;
+      --text-tertiary: #888888;
+      --text-heading: #ffffff;
+      --border-color: #2a2a2a;
+      --border-heading: #333333;
+      --link-color: #5aa9ff;
+      --link-border: rgba(90, 169, 255, 0.4);
+      --license-bg: #16222e;
+      --license-border: #4299e1;
+      --contact-bg: #16222e;
+      --shadow: rgba(0, 0, 0, 0.5);
+      --chip-bg: #2a2a2a;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    }
+    body {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        line-height: 1.8;
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    .container {
+        background: var(--bg-container);
+        border-radius: 12px;
+        box-shadow: 0 2px 15px var(--shadow);
+        padding: 40px;
+        margin-bottom: 30px;
+        transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    header {
+        text-align: center;
+        margin-bottom: 40px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--border-color);
+        transition: border-color 0.3s ease;
+    }
+    h1 {
+        font-size: 26px;
+        color: var(--text-heading);
+        margin-bottom: 15px;
+        transition: color 0.3s ease;
+    }
+    .date-info {
+        color: var(--text-tertiary);
+        font-size: 15px;
+        margin: 0 10px;
+        transition: color 0.3s ease;
+    }
+    .intro {
+        font-size: 16px;
+        color: var(--text-secondary);
+        margin-bottom: 30px;
+        line-height: 1.8;
+        transition: color 0.3s ease;
+    }
+    h2 {
+        font-size: 22px;
+        color: var(--text-heading);
+        margin: 35px 0 15px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border-heading);
+        transition: color 0.3s ease, border-color 0.3s ease;
+    }
+    h3 {
+        font-size: 18px;
+        color: var(--text-heading);
+        margin: 25px 0 12px;
+        transition: color 0.3s ease;
+    }
+    p {
+        font-size: 16px;
+        color: var(--text-secondary);
+        margin-bottom: 15px;
+        text-align: justify;
+        transition: color 0.3s ease;
+    }
+    ul {
+        font-size: 16px;
+        margin-bottom: 15px;
+        margin-left: 30px;
+        color: var(--text-secondary);
+        text-align: justify;
+        transition: color 0.3s ease;
+    }
+    li {
+        font-size: 16px;
+        margin-bottom: 10px;
+        color: var(--text-secondary);
+        text-align: justify;
+        transition: color 0.3s ease;
+    }
+    strong {
+        color: var(--text-heading);
+        transition: color 0.3s ease;
+    }
+    a {
+        color: var(--link-color);
+        text-decoration: none;
+        border-bottom: 1px solid var(--link-border);
+        transition: color 0.3s ease, border-color 0.3s ease;
+    }
+    a:active {
+        opacity: 0.7;
+    }
+    .license-note {
+        background-color: var(--license-bg);
+        border-left: 4px solid var(--license-border);
+        padding: 15px 20px;
+        margin: 20px 0;
+        border-radius: 4px;
+        transition: background-color 0.3s ease;
+    }
+    .contact-section {
+        background-color: var(--contact-bg);
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 30px;
+        transition: background-color 0.3s ease;
+    }
+    .contact-item {
+        margin-bottom: 10px;
+    }
+    footer {
+        text-align: center;
+        color: var(--text-tertiary);
+        font-size: 14px;
+        margin-top: 50px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-color);
+        transition: color 0.3s ease, border-color 0.3s ease;
+    }
+    @media (max-width: 768px) {
+        .container {
+            padding: 25px 20px;
+        }
+        h1 {
+            font-size: 22px;
+        }
+        h2 {
+            font-size: 20px;
+        }
+        h3 {
+            font-size: 17px;
+        }
+        p {
+            font-size: 15px;
+        }
+        .date-info {
+            display: block;
+            margin: 8px 0;
+        }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>「新农助手」用户协议及隐私政策</h1>
+    <span class="date-info"><strong>适用软件版本</strong>：1.2.4</span>
+    <span class="date-info"><strong>更新日期</strong>：2026/08/17</span>
+  </header>
+
+  <p class="intro">
+    欢迎使用<strong>新农助手</strong>（以下简称"本应用"）！本应用是由新疆农业大学学生独立开发的开源校园工具，致力于为新疆农业大学学生提供教务信息查询服务。为明确你与我们之间的权利义务关系、保护你的个人信息与隐私安全，特制定本《用户协议及隐私政策》（以下简称"本协议"）。请你在使用本应用前仔细阅读并充分理解本协议的全部内容，尤其是加粗标识的条款。你一旦下载、安装、使用本应用，即视为你已充分理解并同意接受本协议的约束。若你不同意本协议的任何内容，请立即停止使用本应用。
+  </p>
+
+  <h2>一、引言</h2>
+  <p>本协议及隐私政策（以下简称"本协议"）适用于新农助手（以下简称"本应用"）。本应用是一款由新疆农业大学学生独立开发的开源工具，旨在为新疆农业大学学生提供教务信息查询服务。我们深知个人信息对你的重要性，并承诺以合法、正当、必要的方式处理你的个人信息，充分保障你的知情权与自主选择权。请你在使用本应用前仔细阅读本协议。你一旦下载、安装、使用本应用，即视为你已充分理解并同意接受本协议的全部内容。若你不同意本协议的任何内容，请停止使用本应用。</p>
+
+  <h2>二、软件基本信息与使用许可</h2>
+  <p>2.1 本应用的源代码可通过开源仓库（<a href="https://github.com/FengHDSL/XJAU-Helper">GitHub：FengHDSL/XJAU-Helper</a>）获取。</p>
+  <p>2.2 本应用授予你一项非独占、不可转让、免费的许可，允许你在遵守本协议的前提下，下载、安装、使用本应用用于个人学习与生活用途。</p>
+  <p>2.3 你在使用本应用时，不得违反任何适用的法律法规，不得利用本应用从事任何违法犯罪活动，也不得损害学校或第三方的合法权益。</p>
+  <p>2.4 你不得滥用本应用功能（如频繁刷新教务系统接口、恶意提交数据），避免对校园服务器及第三方服务造成压力。</p>
+
+  <h2>三、免责声明</h2>
+  <p>3.1 本应用为开源项目，以"现状"和"可用"的方式提供，我们不对本应用的准确性、完整性、可靠性、适用性作出任何明示或暗示的保证。</p>
+  <p>3.2 本应用的数据来源于学校官方服务网页（教务系统、教务处官网、新闻网等），展示内容以学校官方数据为准。</p>
+  <p>3.3 因下列情况导致你遭受损失的，我们不承担任何责任：</p>
+  <ul>
+    <li>你违反本协议约定或相关法律法规使用本应用；</li>
+    <li>你的设备故障、网络问题、第三方软件干扰等非因我们原因导致的问题；</li>
+    <li>不可抗力、意外事件等超出我们控制范围的因素。</li>
+  </ul>
+  <p>3.4 本应用由新疆农业大学学生独立开发，与学校官方无任何合作关系；应用内的教务系统、官网等均为官方平台快捷跳转入口。</p>
+
+  <h2>四、信息的收集</h2>
+  <p>4.1 账号信息：当你使用学号密码登录时，你输入的学号与密码将被用于向学校教务系统发起身份验证请求。你的密码在本地使用教务系统提供的 RSA 公钥加密后，仅随本次登录请求提交至学校服务器，<strong>本应用不会存储你的明文密码</strong>。</p>
+  <p>4.2 设备网络信息：为保障网络连接与教务数据请求的正常进行，本应用会获取设备当前网络状态（如是否联网）。</p>
+  <p>4.3 我们不会主动收集你的姓名、手机号、位置、相册、通讯录等与本应用功能无关的个人信息。</p>
+  <p>4.4 本应用<strong>不包含任何追踪器或第三方分析 SDK</strong>，不收集任何使用情况数据或分析数据。</p>
+
+  <h2>五、信息的使用与存储</h2>
+  <p>5.1 我们仅将收集的信息用于以下目的：</p>
+  <ul>
+    <li>验证你的登录身份并为你展示教务系统内的个人教学数据；</li>
+    <li>为你提供课表、成绩、考试、学业情况、校历、空闲教室查询及农大新闻浏览等核心功能；</li>
+    <li>在你主动将考试安排写入系统日历提醒时使用日历权限。</li>
+  </ul>
+  <p>5.2 我们不会将你的信息用于上述目的之外的任何用途，也不会将其出售、出租或提供给任何第三方。</p>
+  <p>5.3 传输安全：你的密码在提交至教务系统前，使用教务系统提供的 RSA 公钥进行非对称加密传输，传输链路为 HTTPS 加密通道。</p>
+  <p>5.4 本地存储：课表、成绩、考试、头像等数据仅缓存于你设备的应用私有目录中，不上传至任何第三方服务器。本应用不存储你的明文密码，仅保存登录状态标识（会话 Cookie）用于后续接口调用。</p>
+  <p>5.5 存储期限：本地缓存仅在本应用运行期间持续有效；你卸载本应用时，系统将自动清除应用的全部本地数据。</p>
+  <p>5.6 <strong>本应用不存在由开发者运营的后端服务器</strong>。所有教务数据请求均直接发送至学校官方服务器，我们无法访问、也无法收集你提交给学校服务器的任何数据。</p>
+
+  <h2>六、权限说明</h2>
+  <p>本应用仅申请以下权限，且仅在对应功能使用时调用：</p>
+  <ul>
+    <li>ohos.permission.INTERNET（网络访问）：用于访问教务系统与学校官网，获取教学数据与新闻内容；</li>
+    <li>ohos.permission.GET_NETWORK_INFO（获取网络信息）：用于检测设备当前网络连接状态，保障教务数据请求的正常进行；</li>
+    <li>ohos.permission.READ_CALENDAR（读取日历）：用于检测考试提醒是否已写入系统日历，仅读取由本应用创建的日程；</li>
+    <li>ohos.permission.WRITE_CALENDAR（写入日历）：用于在主动将考试安排写入系统日历提醒时使用。</li>
+  </ul>
+  <p>本应用不申请位置、相册、通讯录、麦克风、摄像头等与核心功能无关的权限。你可在系统设置中随时关闭相关授权。</p>
+
+  <h2>七、第三方服务与外部链接</h2>
+  <p>本应用的数据来源于学校官方服务网页（教务系统、教务处官网、新闻网等），不经过任何第三方数据服务商。应用中"校历信息""查看参考""网页端"等入口可能跳转至学校官网页面，跳转后你在该等页面上的操作与信息处理受相应网站自身服务条款与隐私政策约束，与本应用无关，请你在访问时自行留意。</p>
+
+  <h2>八、你的权利与数据删除</h2>
+  <p>8.1 查看与更正：你可在应用内直接查看你的课表、成绩等个人教学数据。</p>
+  <p>8.2 清除缓存：你可在"我的-清除缓存"中一键删除应用内全部本地缓存数据（登录信息与设置保留）。</p>
+  <p>8.3 退出登录：你可在"我的"页面退出登录，退出后本地保存的会话凭据将被清除。</p>
+  <p>8.4 删除账号数据：你卸载本应用即可删除应用内存储的全部数据；如需删除教务系统中的个人数据，请通过学校教务系统官方渠道处理。</p>
+
+  <h2>九、未成年人保护</h2>
+  <p>本应用面向高校学生用户。如你是未成年人，请在法定监护人陪同下阅读本协议，并在监护人同意后使用本应用。我们不会向未成年人收集超出其使用本应用所需范围之外的个人信息。</p>
+
+  <h2>十、协议更新与联系我们</h2>
+  <p>10.1 我们可能适时对本协议进行修订。协议更新后，我们将在应用内显著位置（如"关于"页面）提示你查看最新版本；如修订内容涉及你的重大权益，我们将在更新前以显著方式通知你并重新征得你的同意。</p>
+  <p>10.2 本应用为开源项目（<a href="https://github.com/FengHDSL/XJAU-Helper">GitHub：FengHDSL/XJAU-Helper</a>）。如你对本协议或个人信息处理有任何疑问、意见或建议，欢迎通过项目 Issues 渠道与我们联系，我们将在合理期限内予以回复。</p>
+
+  <h2>十一、功能浏览</h2>
+  <p>未同意本协议时，你仍可使用"功能浏览"模式查看应用界面布局，但该模式不连接任何服务器，使用本地虚拟数据，不读取、存储任何真实个人信息。</p>
+
+  <div class="license-note">
+    <strong>重要提示</strong>：本应用为开源学习项目，源代码完全公开（<a href="https://github.com/FengHDSL/XJAU-Helper">GitHub：FengHDSL/XJAU-Helper</a>），欢迎审阅、参与改进与反馈。应用内涉及的新疆农业大学相关网站资源、视觉素材、标识等内容的著作权、所有权均归属新疆农业大学。
+  </div>
+
+  <div class="contact-section">
+    <p>若你对本《用户协议及隐私政策》有任何疑问、意见或建议，或需要投诉、反馈问题，可通过以下方式与我们联系：</p>
+    <p class="contact-item"><strong>开源社区链接</strong>：可通过应用"关于"页面的项目链接访问本应用开源仓库（<a href="https://github.com/FengHDSL/XJAU-Helper">GitHub：FengHDSL/XJAU-Helper</a>）。</p>
+  </div>
+</div>
+
+<footer>
+  <p>Copyright © 2026 新农助手 Developer</p>
+</footer>
+
+<script>
+  // 由 ArkTS 在 onPageEnd / 深色开关变化时调用：on=true 强制深色，false 强制浅色（覆盖系统自动判断）
+  window.applyAppDark = function (on) {
+    try {
+      var root = document.documentElement;
+      if (on) {
+        root.classList.add('app-dark');
+        root.classList.remove('app-light');
+      } else {
+        root.classList.add('app-light');
+        root.classList.remove('app-dark');
+      }
+    } catch (e) {}
+  };
+  // 首屏自动跟随系统深色模式（不依赖 ArkTS 桥接，首次启动即可生效，避免白底闪屏）；
+  // 同时监听系统配色变化，确保 WebView 稍晚才上报深色时也能即时跟上
+  try {
+    if (window.matchMedia) {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      if (mq && mq.matches) {
+        document.documentElement.classList.add('app-dark');
+      }
+      if (mq && mq.addEventListener) {
+        mq.addEventListener('change', function (e) {
+          document.documentElement.classList.toggle('app-dark', e.matches);
+        });
+      }
+    }
+  } catch (e) {}
+</script>
+
+</body>
+</html>
