@@ -1,37 +1,21 @@
 /**
- * 隐私协议页：以独立页面展示协议全文（正文取自 PrivacyText 单一事实源）
+ * 隐私协议页：Web 组件加载本地 rawfile HTML（参考本地项目 xndcourse 的 privacy.html 写法）
+ * 入口：关于页（MineView/AboutPage）底部「隐私协议」入口
  */
+import { webview } from '@kit.ArkWeb';
 import { AppState } from '../common/AppState';
-import { PRIVACY_SECTIONS, PrivacySection } from '../common/PrivacyText';
+import { Const } from '../common/Constants';
 import { PageHeader } from './common/UiKit';
 
 @Component
 export struct PrivacyPage {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
-
-  @Builder
-  section(title: string, content: string) {
-    Column() {
-      Text(title)
-        .fontSize(16)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.text_primary'))
-        .width('100%')
-        .margin({ bottom: 8 })
-      Text(content)
-        .fontSize(13)
-        .lineHeight(22)
-        .fontColor($r('app.color.text_secondary'))
-        .width('100%')
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
-    .margin({ bottom: 18 })
-  }
+  private controller: webview.WebviewController = new webview.WebviewController();
 
   build() {
     NavDestination() {
       Column() {
+        // 统一头部
         PageHeader({
           title: '隐私协议',
           onBack: () => {
@@ -39,22 +23,24 @@ export struct PrivacyPage {
           }
         })
 
-        Scroll() {
-          Column() {
-            ForEach(PRIVACY_SECTIONS, (sec: PrivacySection) => {
-              this.section(sec.title, sec.content)
-            }, (sec: PrivacySection) => sec.title)
-
-            Column()
-              .height(px2vp(this.bottomInsetPx) + 24)
-          }
+        // 协议正文（本地 rawfile HTML，跟随系统深色）；拦截外链点击：在应用内「外部链接」页（WebViewPage）打开，不跳转系统浏览器
+        Web({ src: $rawfile('privacy.html'), controller: this.controller })
           .width('100%')
-          .padding({ left: 20, right: 20, top: 4 })
-        }
-        .scrollBar(BarState.Off)
-        .layoutWeight(1)
-        .align(Alignment.Top)
-        .edgeEffect(EdgeEffect.Spring)
+          .layoutWeight(1)
+          .backgroundColor(Color.Transparent)
+          .darkMode(WebDarkMode.Auto)
+          .onLoadIntercept((event) => {
+            if (event && event.data) {
+              const url: string = event.data.getRequestUrl();
+              if (url.startsWith('http://') || url.startsWith('https://')) {
+                AppState.webUrl = url;
+                AppState.webTitle = 'GitHub 开源仓库';
+                AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
+                return true;
+              }
+            }
+            return false;
+          })
       }
       .width('100%')
       .height('100%')

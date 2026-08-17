@@ -4,7 +4,6 @@ import { mediaquery, window } from '@kit.ArkUI';
 import { fileIo } from '@kit.CoreFileKit';
 import { AppState } from '../common/AppState';
 import { DataStore } from '../common/DataStore';
-import { DateUtil } from '../common/DateUtil';
 import { Theme } from '../common/ThemeUtil';
 import { NewsApi } from '../api/NewsApi';
 
@@ -25,8 +24,6 @@ export default class EntryAbility extends UIAbility {
     // 头像显示开关（默认关闭，仅影响圆形头像）
     const showAvatar: boolean = DataStore.get(DataStore.KEY_SHOW_AVATAR) === '1';
     AppStorage.setOrCreate('showAvatar', showAvatar);
-    // 恢复用户手动设置的开学日（空=自动识别；课表/首页校历可调节）
-    DateUtil.customStartDate = DataStore.getSemesterStart();
     // 恢复顶栏主题色（中国红/天空蓝/农大绿）
     Theme.restore();
     // 检测系统深色模式，写入 AppStorage（默认 false 即浅色模式）

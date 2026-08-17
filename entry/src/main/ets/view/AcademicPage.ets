@@ -23,6 +23,7 @@ export struct AcademicPage {
   @State courses: CourseItem[] = [];
   @State termScores: TermScore[] = [];
   @State loading: boolean = true;
+  @State refreshing: boolean = false;
 
   /** 页面出现：触发学业数据加载 */
   aboutToAppear(): void {
@@ -59,7 +60,11 @@ export struct AcademicPage {
     this.loading = false;
   }
 
-  /** 当前学期 GPA（直接读教务页算好的，不重新计算） */
+  /** 下拉刷新：重新加载学业情况 */
+  private async onRefresh(): Promise<void> {
+    await this.load();
+    this.refreshing = false;
+  }
   private currentGpa(): number {
     return this.report.gpa;
   }
@@ -88,7 +93,7 @@ export struct AcademicPage {
       .alignItems(VerticalAlign.Bottom)
       .margin({ top: 4 })
 
-      Text(`数据来源：教务系统学业页（统计时间 ${new Date().toLocaleDateString('zh-CN')}）`)
+      Text(`数据来源: 教务系统学业页（统计时间 ${new Date().toLocaleDateString('zh-CN')}）`)
         .fontSize(11)
         .fontColor($r('app.color.text_tertiary'))
         .margin({ top: 4 })
@@ -269,6 +274,7 @@ export struct AcademicPage {
         if (this.loading) {
           LoadingTip()
         } else {
+          Refresh({ refreshing: $$this.refreshing }) {
           Scroll() {
             Column() {
               this.gpaCard()
@@ -285,6 +291,10 @@ export struct AcademicPage {
           .layoutWeight(1)
           .align(Alignment.Top)
           .edgeEffect(EdgeEffect.Spring)
+          }
+          .layoutWeight(1)
+          .height('100%')
+          .onRefreshing(() => { this.onRefresh(); })
         }
       }
       .width('100%')

@@ -8,14 +8,15 @@
  *  - 历史登录账号：本地保存【账号+密码】（密码 XOR 0x5A + base64 编码），点击登录按钮下方的
  *    "历史账号"入口展开，可一键填充账号密码。
  */
-import { KeyboardAvoidMode, promptAction } from '@kit.ArkUI';
+import { KeyboardAvoidMode, promptAction, display } from '@kit.ArkUI';
 import { mediaquery } from '@kit.ArkUI';
+import { webview } from '@kit.ArkWeb';
 import { HttpClient } from '../api/HttpClient';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
-import { PRIVACY_SECTIONS, PRIVACY_EXTRA_SECTIONS, DEVELOPER_DECLARATION, DeclarationSection, PrivacySection } from '../common/PrivacyText';
+import { DEVELOPER_DECLARATION, DeclarationSection } from '../common/PrivacyText';
 import { LoginResult } from '../model/Models';
 import { WebSurface } from './WebSurface';
 
@@ -37,9 +38,12 @@ export struct LoginView {
   @State showPwd: boolean = false; // 密码明文/密文切换
   @State showPrivacy: boolean = false; // 隐私协议弹窗（首次启动未同意时显示）
   @State showDeclaration: boolean = false; // 开发者声明弹窗（同意隐私协议后首次展示）
-  @State showRiskTip: boolean = false; // 账号风控提醒弹窗（开发者声明之后首次展示）
   @State privacyAgreedAt: string = ''; // 隐私协议同意时间（右下角展示用）
+  @State showRiskTip: boolean = false; // 账号风控提醒弹窗（开发者声明之后首次展示）
   @State loginMode: string = 'auto'; // 重登方式（auto=自动重登 / legacy=手动重登），切换后实时刷新显示
+  @State sheetWidth: Dimension = '100%'; // 半模态面板宽度（≥600vp 视为平板，与课程表页面一致）
+
+  private privacyController: webview.WebviewController = new webview.WebviewController();
   private accountController: TextInputController = new TextInputController();
   private passwordController: TextInputController = new TextInputController();
   onSuccess: () => void = () => {
@@ -60,6 +64,14 @@ export struct LoginView {
       this.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
     } catch (e) {
       // ignore
+    }
+    // 半模态面板宽度：平板（≥600vp）取 min(屏宽*0.7, 840)vp 加宽并封顶；手机全宽。与课程表页面一致。
+    try {
+      const d = display.getDefaultDisplaySync();
+      const screenVp: number = px2vp(d.width);
+      this.sheetWidth = screenVp >= 600 ? `${Math.min(Math.round(screenVp * 0.7), 840)}vp` : '100%';
+    } catch (e) {
+      this.sheetWidth = '100%';
     }
     // 隐私协议：未同意时强制弹出（不同意时只能使用"功能浏览"）
     this.privacyAgreedAt = DataStore.getPrivacyAgreedAt();
@@ -592,7 +604,7 @@ export struct LoginView {
 
   build() {
     Column() {
-      // 顶部背景：品牌绿色渐变 + 新农助手 logo
+      // 顶部背景：品牌绿色渐变 + XJAU Helper logo
       Stack({ alignContent: Alignment.Top }) {
         // 顶部背景：品牌农大绿渐变
         Column()
@@ -607,9 +619,9 @@ export struct LoginView {
         // 前往登录页模式：登录按钮左侧显示灰色返回按钮（见登录按钮区域）
         Scroll() {
           Column() {
-            // 顶部 新农助手 圆角 logo
+            // 顶部 XJAU Helper 圆角 logo
             Column() {
-              Image($r('app.media.xjau_logo'))
+              Image($r('app.media.startIcon'))
                 .width(this.isLandscape ? 96 : 120)
                 .height(this.isLandscape ? 96 : 120)
                 .objectFit(ImageFit.Contain)
@@ -854,6 +866,8 @@ export struct LoginView {
       .bindSheet($$this.showWeb, this.webSheet, {
         height: SheetSize.LARGE,
         dragBar: false,
+        preferType: SheetType.BOTTOM,
+        width: this.sheetWidth,
         backgroundColor: $r('app.color.bg_page'),
         title: { title: AppState.webTitle }
       })
@@ -865,6 +879,8 @@ export struct LoginView {
         .bindSheet($$this.showDeclaration, this.declarationSheet(), {
           height: SheetSize.FIT_CONTENT,
           dragBar: false,
+          preferType: SheetType.BOTTOM,
+          width: this.sheetWidth,
           showClose: true,
           backgroundColor: $r('app.color.bg_page')
         })
@@ -876,6 +892,8 @@ export struct LoginView {
         .bindSheet($$this.showRiskTip, this.riskTipSheet(), {
           height: SheetSize.FIT_CONTENT,
           dragBar: false,
+          preferType: SheetType.BOTTOM,
+          width: this.sheetWidth,
           showClose: true,
           backgroundColor: $r('app.color.bg_page')
         })
@@ -903,7 +921,10 @@ export struct LoginView {
       height: SheetSize.LARGE,
       dragBar: true,
       backgroundColor: $r('app.color.bg_page'),
-      showClose: true
+      showClose: false,
+      enableOutsideInteractive: true,
+      preferType: SheetType.BOTTOM,
+      width: this.sheetWidth
     })
   }
 
@@ -925,39 +946,39 @@ export struct LoginView {
   @Builder
   privacySheet() {
     Column() {
-      // 标题
-      Row() {
-        Text('隐私协议')
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.text_primary'))
-        Blank()
-      }
-      .width('100%')
-      .padding({ left: 20, right: 20, top: 16, bottom: 12 })
-
-      // 协议正文（可滚动；正文取自 PrivacyText 单一事实源，追加"功能浏览"补充节）
-      Scroll() {
-        Column() {
-          ForEach(PRIVACY_SECTIONS, (sec: PrivacySection) => {
-            this.privacySection(sec.title, sec.content)
-          }, (sec: PrivacySection) => sec.title)
-          ForEach(PRIVACY_EXTRA_SECTIONS, (sec: PrivacySection) => {
-            this.privacySection(sec.title, sec.content)
-          }, (sec: PrivacySection) => sec.title)
-        }
+      Text('隐私协议')
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.text_primary'))
         .width('100%')
-        .padding({ left: 20, right: 20, top: 4, bottom: 16 })
-      }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
+        .padding({ left: 20, right: 20, top: 16, bottom: 12 })
+
+      // 协议正文（可滚动；正文取自 rawfile/privacy.html 单一事实源，跟随系统深色）；拦截外链点击：在应用内 WebView 打开，不跳转系统浏览器
+      Web({ src: $rawfile('privacy.html'), controller: this.privacyController })
+        .width('100%')
+        .layoutWeight(1)
+        .backgroundColor(Color.Transparent)
+        .darkMode(WebDarkMode.Auto)
+        .onLoadIntercept((event) => {
+          if (event && event.data) {
+            const url: string = event.data.getRequestUrl();
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+              AppState.webUrl = url;
+              AppState.webTitle = 'GitHub 开源仓库';
+              AppState.webLoginMode = false;
+              AppState.onWebLogin = null;
+              this.showWeb = true;
+              return true;
+            }
+          }
+          return false;
+        })
 
       // 底部操作行：左侧"暂不同意" + 右侧"同意并继续"；左下角显示已同意时间
       Column() {
         // 已同意时间（未同意时显示提示）
         if (this.privacyAgreedAt.length > 0) {
-          Text('已签订时间：' + this.privacyAgreedAt)
+          Text('已签订时间: ' + this.privacyAgreedAt)
             .fontSize(11)
             .fontColor($r('app.color.text_tertiary'))
             .width('100%')
@@ -1046,7 +1067,6 @@ export struct LoginView {
         .width('100%')
         .padding({ left: 20, right: 20, top: 4, bottom: 16 })
       }
-      .layoutWeight(1)
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
 
@@ -1072,7 +1092,6 @@ export struct LoginView {
         })
     }
     .width('100%')
-    .height('100%')
     .backgroundColor($r('app.color.bg_page'))
     .alignItems(HorizontalAlign.Center)
   }
@@ -1124,25 +1143,5 @@ export struct LoginView {
     .width('100%')
     .backgroundColor($r('app.color.bg_page'))
     .alignItems(HorizontalAlign.Center)
-  }
-
-  @Builder
-  privacySection(title: string, content: string) {
-    Column() {
-      Text(title)
-        .fontSize(15)
-        .fontWeight(FontWeight.Bold)
-        .fontColor($r('app.color.text_primary'))
-        .width('100%')
-        .margin({ bottom: 6 })
-      Text(content)
-        .fontSize(13)
-        .lineHeight(22)
-        .fontColor($r('app.color.text_secondary'))
-        .width('100%')
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
-    .margin({ bottom: 16 })
   }
 }

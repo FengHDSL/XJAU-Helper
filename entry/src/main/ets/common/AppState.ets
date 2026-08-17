@@ -15,6 +15,17 @@ export class SharedHistoryItem {
 export class AppState {
   /** 全局 Ability Context（EntryAbility 注入，供文件缓存等使用） */
   static context: common.Context | null = null;
+  /** 在系统浏览器中打开外部链接（隐私协议等 Web 内点击外链时使用） */
+  static openExternalLink(url: string): void {
+    if (AppState.context === null) {
+      return;
+    }
+    try {
+      (AppState.context as common.UIAbilityContext).openLink(url);
+    } catch (e) {
+      // 忽略：无可用浏览器时静默失败
+    }
+  }
   /** 全局路由栈，二级页面统一从这里 push/pop */
   static stack: NavPathStack = new NavPathStack();
   /** 当前学期（默认最新学年第一学期，首页/课程表/考试/成绩一致） */

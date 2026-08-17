@@ -28,3 +28,32 @@ _build.sh
 .hvigor/
 local.properties
 *.hap
+# 签名配置(含私钥, 禁止提交)
+build-profile.json5
+entry/build-profile.json5
+
+# 签名证书/私钥(禁止提交)
+*.p12
+*.cer
+*.p7b
+*.csr
+material/
+
+# 本地 git 冗余备份(禁止提交)
+.git.bak/
+.git_backup_*/
+.git_fresh_empty_*/
+git_corrupt_*/
+
+# 签名证书/私钥(禁止提交)
+*.p12
+*.cer
+*.p7b
+*.csr
+material/
+
+# 本地 git 冗余备份(禁止提交)
+.git.bak/
+.git_backup_*/
+.git_fresh_empty_*/
+git_corrupt_*/

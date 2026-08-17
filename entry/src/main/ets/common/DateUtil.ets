@@ -8,17 +8,6 @@ import { TermInfo } from '../model/Models';
 const DAY_MS: number = 24 * 60 * 60 * 1000;
 
 export class DateUtil {
-  /** 用户手动设置的开学日（yyyy-MM-dd，空串=自动识别学期 startDate）。
-   *  2026-08-13 新增：自动识别开学日不准确时，可手动调节（课表设置/首页校历入口）。 */
-  static customStartDate: string = '';
-
-  /** 当前生效的开学日：优先用户手动设置，否则用学期默认 startDate */
-  static effectiveStartDate(term: TermInfo): string {
-    if (DateUtil.customStartDate.length > 0) {
-      return DateUtil.customStartDate;
-    }
-    return term.startDate;
-  }
   /** 数字补零（1 -> 01） */
   static pad(n: number): string {
     return n < 10 ? `0${n}` : `${n}`;
@@ -104,13 +93,21 @@ export class DateUtil {
     };
   }
 
+  /** 学期 id（如 2025-2026-1）-> 默认开学日（第一学期 9-01、第二学期次年 3-01） */
+  static defaultTermStart(termId: string): string {
+    const parts: string[] = termId.split('-');
+    const s: string = parts[parts.length - 1];
+    const y: number = Number.parseInt(parts[0], 10);
+    return s === '2' ? `${y + 1}-03-01` : `${y}-09-01`;
+  }
+
   /** 根据学期算出某天是第几周（1 起，未开学返回 0）
    * 以"含 startDate 的那个自然周（Mon-Sun）为第 1 周"为基准，
    * 即使 startDate 不是周一也能正确对应。
    */
   /** 计算某天在学期中的第几周（1 起，未开学返回 0） */
   static weekOfTerm(term: TermInfo, date: Date): number {
-    const start: Date = DateUtil.parse(DateUtil.effectiveStartDate(term));
+    const start: Date = DateUtil.parse(term.startDate);
     const startWeekday: number = DateUtil.weekdayOf(start); // 1=周一 ... 7=周日
     const monday: Date = DateUtil.addDays(start, 1 - startWeekday);
     const days: number = DateUtil.diffDays(monday, date);
@@ -125,7 +122,7 @@ export class DateUtil {
    */
   /** 计算第 N 周星期几对应的日期（周一为一周首日） */
   static dateOfWeekDay(term: TermInfo, week: number, weekday: number): Date {
-    const start: Date = DateUtil.parse(DateUtil.effectiveStartDate(term));
+    const start: Date = DateUtil.parse(term.startDate);
     const w0: number = DateUtil.weekdayOf(start); // 1=周一 ... 7=周日
     // 把 startDate 拉回到它所在周的周一，再按周次/星期推算
     const monday: Date = DateUtil.addDays(start, 1 - w0);

@@ -470,9 +470,21 @@ export class JwApi {
    * 切换学期（全局设置）。同步更新 JwApi.term 与 AppState.term，
    * 持久化到 DataStore.KEY_DS_TERM 供启动恢复。各页（首页/课表/成绩/考试）依赖 term 重新计算周次/拉数据。
    */
+  /**
+   * 应用「自定义开学时间」覆盖：若该学期存在用户自定义的开学日，则返回覆盖后的副本，
+   * 否则原样返回。集中在此处理，保证首页/课程表/桌面卡片等所有周次推算一致。
+   */
+  static applyCustomStart(term: TermInfo): TermInfo {
+    const custom: string = DataStore.getCustomTermStart(term.id);
+    return custom.length > 0
+      ? { id: term.id, label: term.label, startDate: custom, totalWeeks: term.totalWeeks }
+      : term;
+  }
+
   static setTerm(term: TermInfo): void {
-    JwApi.term = term;
-    AppState.term = term;
+    const t: TermInfo = JwApi.applyCustomStart(term);
+    JwApi.term = t;
+    AppState.term = t;
     DataStore.put(DataStore.KEY_DS_TERM, term.id);
     // 广播学期变化，供各页（课程表等）@StorageProp @Watch 监听同步切换
     AppStorage.setOrCreate('currentTermId', term.id);

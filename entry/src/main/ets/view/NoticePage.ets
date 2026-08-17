@@ -147,7 +147,7 @@ export struct NoticePage {
           Scroll() {
             Column() {
               EmptyTip({ text: '暂无消息' })
-              Text('消息来源：教务系统 /jwglxt/xtgl/index_cxDbsy.html?flag=1')
+              Text('消息来源: 教务系统 /jwglxt/xtgl/index_cxDbsy.html?flag=1')
                 .fontSize(11)
                 .fontColor($r('app.color.text_tertiary'))
                 .margin({ top: 16, bottom: 24 })

@@ -1,6 +1,7 @@
 /**
  * 考试安排（二级页）：学年/学期选择 + 考试列表 + 点开查看详情 + 导入日历
  */
+import { SheetUtil } from '../common/SheetUtil';
 import { common } from '@kit.AbilityKit';
 import { promptAction } from '@kit.ArkUI';
 import { JwApi } from '../api/JwApi';
@@ -30,6 +31,7 @@ export struct ExamPage {
   @State showPickExam: boolean = false;
   /** 当前用作桌面卡片倒计时的考试 id（空=用最近一场） */
   @State pickedExamId: string = '';
+  @State refreshing: boolean = false;
   /** 进入方式：是否由桌面卡片点过来 */
   private enterFromCard: boolean = false;
 
@@ -99,6 +101,12 @@ export struct ExamPage {
       // 网络异常保持缓存
     }
     this.afterLoaded();
+  }
+
+  /** 下拉刷新：重新加载考试安排 */
+  private async onRefresh(): Promise<void> {
+    await this.load();
+    this.refreshing = false;
   }
 
   private async fetchSelectedTerm(): Promise<void> {
@@ -434,7 +442,7 @@ export struct ExamPage {
 
       // 当前选择状态
       Row() {
-        Text(this.pickedExamId.length === 0 ? '当前：最近一场考试自动倒计时' : `当前：${this.pickedExamName()}`)
+        Text(this.pickedExamId.length === 0 ? '当前: 最近一场考试自动倒计时' : `当前: ${this.pickedExamName()}`)
           .fontSize(12)
           .fontColor($r('app.color.text_secondary'))
           .maxLines(1)
@@ -614,6 +622,7 @@ Row() {
           if (this.loading) {
             LoadingTip()
           } else {
+            Refresh({ refreshing: $$this.refreshing }) {
             Scroll() {
               Column() {
                 Row() {
@@ -653,11 +662,17 @@ Row() {
             .scrollBar(BarState.Off)
             .layoutWeight(1)
             .align(Alignment.Top)
+            }
+            .layoutWeight(1)
+            .height('100%')
+            .onRefreshing(() => { this.onRefresh(); })
           }
         }
         .width('100%')
         .layoutWeight(1)
         .bindSheet($$this.showDetail, this.detailSheet(), {
+          width: SheetUtil.sheetWidth(),
+          preferType: SheetType.BOTTOM,
           height: SheetSize.FIT_CONTENT,
           dragBar: true,
           backgroundColor: $r('app.color.bg_card'),
@@ -668,6 +683,8 @@ Row() {
       .height('100%')
       .backgroundColor($r('app.color.bg_page'))
       .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
+        width: SheetUtil.sheetWidth(),
+        preferType: SheetType.BOTTOM,
         height: SheetSize.FIT_CONTENT,
         dragBar: true,
         backgroundColor: $r('app.color.bg_card'),
@@ -678,6 +695,8 @@ Row() {
       .width('100%')
       .height('100%')
       .bindSheet($$this.showPickExam, this.pickExamSheet(), {
+        width: SheetUtil.sheetWidth(),
+        preferType: SheetType.BOTTOM,
         height: SheetSize.LARGE,
         dragBar: true,
         backgroundColor: $r('app.color.bg_card'),
