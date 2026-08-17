@@ -5,6 +5,7 @@
  * 说明：两个 bindSheet（成绩详情 / 选择学期）分别挂在不同的内层容器上，
  * 因为 ArkUI 同一组件上多次 .bindSheet 只有最后一个生效。
  */
+import { SheetUtil } from '../common/SheetUtil';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
@@ -12,7 +13,7 @@ import { Theme } from '../common/ThemeUtil';
 import { ScoreItem, TermInfo, TermScore } from '../model/Models';
 import { EmptyTip, LoadingTip, TagChip } from './common/UiKit';
 import { WebSurface } from './WebSurface';
-import { promptAction } from '@kit.ArkUI';
+import { promptAction, mediaquery } from '@kit.ArkUI';
 
 @Component
 export struct ScoreView {
@@ -29,6 +30,9 @@ export struct ScoreView {
   @State selectedItem: ScoreItem | null = null;
   @State showTermSheet: boolean = false;
   @State showWeb: boolean = false;
+  @State isLandscape: boolean = false;
+  @State refreshing: boolean = false;
+  private landscapeListener: mediaquery.MediaQueryListener | null = null;
 
   /**
    * 学分绩点换算（依据教务处官网「课程及学分」kcjxf/list.htm）：
@@ -188,6 +192,21 @@ export struct ScoreView {
       this.onTermSwitched();
     });
     this.load();
+    this.listenLandscape();
+  }
+
+  aboutToDisappear(): void {
+    this.landscapeListener = null;
+  }
+
+  /** 监听屏幕方向变化（横屏时拆分为两列铺满屏幕） */
+  private listenLandscape(): void {
+    const mq: mediaquery.MediaQueryResult = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.isLandscape = mq.matches;
+    this.landscapeListener = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.isLandscape = res.matches;
+    });
   }
 
   /** 首页顶栏切换学期后：同步选中学期并重新加载成绩 */
@@ -235,7 +254,12 @@ export struct ScoreView {
     this.loading = false;
   }
 
-  /** 拉取当前选中学期的成绩（并追加到 termScores，避免重复请求） */
+  /** 下拉刷新：重新加载成绩（保留学期选择，清空已加载成绩后重新拉取） */
+  private async onRefresh(): Promise<void> {
+    this.termScores = [];
+    await this.load();
+    this.refreshing = false;
+  }
   private async fetchSelectedTerm(): Promise<void> {
     if (this.selectedTermIndex < 0 || this.selectedTermIndex >= this.terms.length) {
       return;
@@ -571,6 +595,13 @@ export struct ScoreView {
   build() {
     Column() {
       this.topBar()
+      if (this.isLandscape) {
+        if (this.loading) {
+          LoadingTip()
+        } else {
+          this.scoreLandscape()
+        }
+      } else {
       // 成绩详情弹层挂在内层容器，与外层"选择学期"弹层分离（ArkUI 同组件多 bindSheet 只有最后一个生效）
       // 横屏/平板下内容限宽 720vp 并居中（一多适配）
       Column() {
@@ -578,6 +609,7 @@ export struct ScoreView {
           LoadingTip()
         } else {
           Row() {
+            Refresh({ refreshing: $$this.refreshing }) {
             Scroll() {
               Column() {
                 if (this.currentTermScore() === null || this.currentTermScore()!.items.length === 0) {
@@ -639,11 +671,18 @@ export struct ScoreView {
             .backgroundColor($r('app.color.bg_page'))
             // 绩点计算方法网页挂在内层 Scroll（同组件多 bindSheet 仅最后一个生效，故与其他弹层分离）
             .bindSheet($$this.showWeb, this.webSheet(), {
+              width: SheetUtil.sheetWidth(),
+              preferType: SheetType.BOTTOM,
               height: SheetSize.LARGE,
               dragBar: false,
               backgroundColor: $r('app.color.bg_page'),
               title: { title: AppState.webTitle }
             })
+            }
+            .width(720)
+            .constraintSize({ maxWidth: '100%' })
+            .height('100%')
+            .onRefreshing(() => { this.onRefresh(); })
           }
           .width('100%')
           .height('100%')
@@ -654,21 +693,109 @@ export struct ScoreView {
       .layoutWeight(1)
       // 悬浮底栏模式下 Scroll 内容区延伸到屏幕底部，靠内容自身 bottom 预留空间
       .bindSheet($$this.showSheet, this.detailSheet(), {
+        width: SheetUtil.sheetWidth(),
+        preferType: SheetType.BOTTOM,
         height: SheetSize.FIT_CONTENT,
         dragBar: true,
         backgroundColor: $r('app.color.bg_card'),
         title: { title: '成绩详情' }
       })
     }
+    }
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.bg_page'))
     .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
+      width: SheetUtil.sheetWidth(),
+      preferType: SheetType.BOTTOM,
       height: SheetSize.FIT_CONTENT,
       dragBar: true,
       backgroundColor: $r('app.color.bg_card'),
       title: { title: '选择学年-学期' }
     })
+  }
+
+  @Builder
+  scoreLandscape() {
+    Column() {
+      // 横屏：平均分栏宽度收窄 5%（Column 默认水平居中 → 左右各留 2.5%），并给顶栏留一点间距
+      Column() {
+        this.statsCard()
+      }
+      .width('97%')
+      .margin({ top: 20 })
+      Row() {
+          // 左列
+          Refresh({ refreshing: $$this.refreshing }) {
+            Scroll() {
+              Column() {
+                this.scoreListColumn(this.sortedItems().filter((_item: ScoreItem, i: number) => i % 2 === 0))
+              }
+              .width('100%')
+              .padding({ left: 16, right: 8, top: 14, bottom: 100 })
+            }
+            .layoutWeight(1)
+            .height('100%')
+            .scrollBar(BarState.Off)
+            .align(Alignment.Top)
+            .edgeEffect(EdgeEffect.Spring)
+            .bindSheet($$this.showSheet, this.detailSheet(), {
+              width: SheetUtil.sheetWidth(),
+              preferType: SheetType.BOTTOM,
+              height: SheetSize.FIT_CONTENT,
+              dragBar: true,
+              backgroundColor: $r('app.color.bg_card'),
+              title: { title: '成绩详情' }
+            })
+          }
+          .layoutWeight(1)
+          .height('100%')
+          .onRefreshing(() => { this.onRefresh(); })
+
+          // 右列
+          Refresh({ refreshing: $$this.refreshing }) {
+            Scroll() {
+              Column() {
+                this.scoreListColumn(this.sortedItems().filter((_item: ScoreItem, i: number) => i % 2 === 1))
+                this.calcInfoEntry()
+              }
+              .width('100%')
+              .padding({ left: 8, right: 16, top: 14, bottom: 100 })
+            }
+            .layoutWeight(1)
+            .height('100%')
+            .scrollBar(BarState.Off)
+            .align(Alignment.Top)
+            .edgeEffect(EdgeEffect.Spring)
+          }
+          .layoutWeight(1)
+          .height('100%')
+          .onRefreshing(() => { this.onRefresh(); })
+        }
+        .layoutWeight(1)
+        .align(Alignment.Top)
+      }
+        .width('100%')
+        .layoutWeight(1)
+        .align(Alignment.Top)
+  }
+
+  @Builder
+  scoreListColumn(items: ScoreItem[]) {
+    Column() {
+      ForEach(items, (item: ScoreItem, idx: number) => {
+        Column() {
+          this.scoreRow(item)
+          if (idx < items.length - 1) {
+            Divider().color($r('app.color.divider'))
+          }
+        }
+      }, (item: ScoreItem) => item.id)
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16 })
+    .backgroundColor($r('app.color.bg_card'))
+    .borderRadius(18)
   }
 
   @Builder
