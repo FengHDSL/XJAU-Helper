@@ -255,7 +255,7 @@ export struct LogPage {
 
   /** 全部日志 → 文本 */
   private allToText(): string {
-    let out: string = `新农助手 日志导出 ${new Date().toLocaleString()}\n共 ${this.logs.length} 条\n\n`;
+    let out: string = `XJAU-Helper 日志导出 ${new Date().toLocaleString()}\n共 ${this.logs.length} 条\n\n`;
     for (const log of this.logs) {
       out += this.entryToText(log) + '\n';
     }
@@ -264,7 +264,7 @@ export struct LogPage {
 
   /** 选中日志 → 文本 */
   private selectedToText(): string {
-    let out: string = `新农助手 日志导出（选中 ${this.selectedIdx.length} 条）\n\n`;
+    let out: string = `XJAU-Helper 日志导出（选中 ${this.selectedIdx.length} 条）\n\n`;
     const idxs: number[] = this.selectedIdx.slice().sort((a: number, b: number) => a - b);
     for (const i of idxs) {
       if (i >= 0 && i < this.logs.length) {
@@ -349,18 +349,14 @@ export struct LogPage {
                 // 标题行：展开箭头/勾选 + 模块色块 + 结果徽章 + 动作 + 时间
                 Row() {
                   if (this.selecting) {
-                    // 勾选标记：选中显示对勾圆图标（品牌色），未选中显示空圆
-                    if (this.selectedIdx.indexOf(this.getRealIndex(visIdx)) >= 0) {
-                      Image($r('app.media.checkmark_circle'))
-                        .width(20)
-                        .height(20)
-                        .fillColor($r('app.color.brand'))
-                    } else {
-                      Circle()
-                        .width(20)
-                        .height(20)
-                        .fill('#33000000')
-                    }
+                    Text(this.selectedIdx.indexOf(this.getRealIndex(visIdx)) >= 0 ? '✓' : '')
+                      .fontSize(14)
+                      .fontWeight(FontWeight.Bold)
+                      .fontColor(Color.White)
+                      .width(20).height(20)
+                      .textAlign(TextAlign.Center)
+                      .backgroundColor(this.selectedIdx.indexOf(this.getRealIndex(visIdx)) >= 0 ? $r('app.color.brand') : '#33000000')
+                      .borderRadius(10)
                   } else {
                     // 展开箭头：默认朝右，展开后顺时针旋转 90°（朝下）
                     Image($r('app.media.next'))
