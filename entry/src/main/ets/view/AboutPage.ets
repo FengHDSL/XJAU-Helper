@@ -233,7 +233,7 @@ export struct AboutPage {
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('app.color.text_primary'))
                 .margin({ top: 12 })
-              Text('版本 1.2.4')
+              Text('版本 1.2.5')
                 .fontSize(12)
                 .fontColor($r('app.color.text_tertiary'))
                 .margin({ top: 4 })
@@ -258,16 +258,15 @@ export struct AboutPage {
             .width('100%')
             .padding({ left: 20, right: 20, bottom: 20 })
 
+            this.changelog('1.2.5', '2026-08-18', [
+              '修复平板横屏状态下成绩查询页面闪退的问题',
+              '修复空闲教室查询无法使用的问题'
+            ])
+
             this.changelog('1.2.4', '2026-08-17', [
               '更多页面适配平板',
               '课程表周次选择现在可以显示点阵图了',
-              '多个地方文本和UI微调',
-              '@新增@平板大屏竖屏状态下，课程表底部显示点阵周次选择器，与课程表一体滑动',
-              '@修复@课程表横屏右列滚动受限、底部被导航栏遮挡的问题',
-              '@修复@课程表横屏无法左右滑动切换周次',
-              '@修复@课程表与点阵周次之间间隙过大的问题',
-              '课程表滚动内容底部预留可调（横屏/竖屏分别控制），底部内容能完整滚出',
-              '成绩查询横屏平均分栏宽度收窄并与顶栏留出间距，避免满屏贴边贴顶',
+              '多个地方文本和UI微调'
             ])
 
             this.changelog('1.2.3', '2026-08-16', [

@@ -1003,7 +1003,8 @@ export struct ScheduleView {
 
           Stack() {
             Column() {
-              if (this.loading) {
+              // 有缓存课表时直接显示（断网/登录失败也能秒开缓存），仅无数据时显示加载中
+              if (this.loading && this.courses.length === 0) {
                 LoadingTip()
               } else if (this.courses.length === 0) {
                 LoadingTip({ text: '本学期暂无课程，可点击顶部"切换学期"查看其它学期' })

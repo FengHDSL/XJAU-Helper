@@ -319,7 +319,8 @@ export class HttpClient {
         header: HttpClient.buildHeader(header),
         extraData: parts.join('&'),
         connectTimeout: 15000,
-        readTimeout: 30000,
+        // 导出 Excel 等二进制接口可能较慢，放宽读取超时避免大数据量时误判失败
+        readTimeout: 60000,
         expectDataType: http.HttpDataType.ARRAY_BUFFER
       };
       client.on('headersReceive', (h: Object) => {
@@ -333,15 +334,43 @@ export class HttpClient {
           // ignore
         }
       });
+      const t0bin: number = Date.now();
       const response: http.HttpResponse = await client.request(url, options);
       const code: number = response.responseCode as number;
       if (code === 200 && response.result instanceof ArrayBuffer) {
+        // 日志调试：记录二进制请求成功（导出 xlsx 是否真正下载到数据）
+        try {
+          const arr: ArrayBuffer = response.result as ArrayBuffer;
+          LogStore.logNet('网络', '二进制', '成功',
+            {
+              method: 'POST',
+              url: url,
+              status: `${code}`,
+              cost: `${Date.now() - t0bin}ms`,
+              body: `xlsx ${arr.byteLength} bytes`
+            });
+        } catch (e) {
+          // ignore
+        }
         return { data: response.result as ArrayBuffer, code: code, body: '' };
       }
       // 失败：非 200 或 result 不是二进制（如被重定向到登录页返回 HTML）
       let diag: string = '';
       if (typeof response.result === 'string') {
         diag = (response.result as string).substring(0, 600);
+      }
+      // 日志调试：记录二进制请求失败的状态码与响应片段（导出 Excel 失败时用于定位网关/会话问题）
+      try {
+        LogStore.logNet('网络', '二进制', '失败',
+          {
+            method: 'POST',
+            url: url,
+            status: `${code}`,
+            cost: `${Date.now() - t0bin}ms`,
+            body: diag.length > 0 ? diag : '(非文本响应/无响应体)'
+          });
+      } catch (e) {
+        // ignore
       }
       return { data: null, code: code, body: diag };
     } catch (e) {
