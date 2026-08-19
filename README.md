@@ -120,7 +120,7 @@
 
 | 类别 | 技术 |
 |------|------|
-| 平台 | HarmonyOS NEXT（最低要求 API 26，即 HarmonyOS 7） |
+| 平台 | HarmonyOS NEXT（最低要求 API 24，即 HarmonyOS 6.1） |
 | 语言 | ArkTS / ArkUI |
 | 网络 | @ohos.net.http（正方教务系统 + 教务处官网） |
 | 存储 | @ohos.data.preferences（本地缓存）+ AppStorage（学期切换广播） |
