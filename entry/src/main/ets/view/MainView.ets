@@ -1,12 +1,13 @@
 /**
- * 主框架：Navigation（承载二级页面）+ 原生 Tabs 底栏（首页 / 课程表 / 成绩 / 农大新闻 / 我的）
- * HdsTabs（@kit.UIDesignKit Beta）已替换为原生 Tabs：
- *   - barPosition: End + barBackgroundBlurStyle(COMPONENT_THIN) 毛玻璃底栏
- *   - barHeight 含安全区高度，tabItem 内部 padding 避开小白条
- *   - 内容区底部已加 padding，避免底栏遮挡最后一项内容
- * TODO: 悬浮胶囊效果需用 Stack 叠加方案，但当前设备上 Stack+Tabs 渲染异常，暂用全宽底栏
+ * 主框架：Navigation（承载二级页面）+ HdsTabs 底栏（首页 / 课程表 / 成绩 / 农大新闻 / 我的）
+ * 悬浮底栏移植自 HarmonyOS Spatialization 示例
+ * （https://gitcode.com/HarmonyOS_Samples/Spatialization）：
+ *   - HdsTabs.barFloatingStyle：胶囊悬浮栏（两侧留白 + 底部留白 + 左右手自适应）
+ *   - barWidth 与内容卡片宽度对齐（340/420/500），5 个选项间距适中
+ *   - systemMaterialEffect: IMMERSIVE/ADAPTIVE 沉浸毛玻璃光感，自动按深浅色反色
+ *   - 内容区底部已加 padding，避免悬浮栏遮挡最后一项内容
  */
-// HdsTabs（@kit.UIDesignKit，API26 Beta）已替换为原生 Tabs + backgroundBlurStyle 悬浮胶囊栏
+import { HdsTabs, HdsTabsController, hdsMaterial } from '@kit.UIDesignKit';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
@@ -33,7 +34,7 @@ export struct MainView {
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @StorageProp('themeColor') themeColor: string = 'green';
   @State currentIndex: number = 0;
-  private tabsController: TabsController = new TabsController();
+  private tabsController: HdsTabsController = new HdsTabsController();
   onLogout: () => void = () => {
   };
   /** 前往登录页（不退出登录）：由 MineView 退出弹窗触发，向上传给 Index */
@@ -61,36 +62,30 @@ export struct MainView {
     }
   }
 
-  /** Tab 按钮：图标 + 文字，选中品牌色、未选中灰（浅色 #9AA0A6 / 深色 #5F6368，随系统深色模式切换） */
+  /** Tab 按钮：图标 + 文字，选中品牌色、未选中灰 */
   @Builder
   tabItem(title: string, icon: Resource, index: number) {
     Column() {
       Image(icon)
         .width(20)
         .height(20)
-        .fillColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#5F6368' : '#9AA0A6'))
+        .fillColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : '#9AA0A6')
       Text(title)
         .fontSize(10)
         .fontWeight(this.currentIndex === index ? FontWeight.Medium : FontWeight.Normal)
-        .fontColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#5F6368' : '#9AA0A6'))
+        .fontColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : '#9AA0A6')
         .margin({ top: 3 })
     }
-    .layoutWeight(1)
-    .height('100%')
+    .width('100%')
+    .height('46vp')
     .justifyContent(FlexAlign.Center)
-    .padding({ bottom: px2vp(this.bottomInsetPx) })
     .onClick(() => {
+      // 点击立即更新选中态（图标/文字颜色即时变化），再切页（滑动动画照常）
       if (this.currentIndex !== index) {
         this.currentIndex = index;
         this.tabsController.changeIndex(index);
       }
     })
-  }
-
-  /** 空占位 tabBar（Tabs 内置底栏已隐藏，tabBar 仅用于满足 Tabs 结构要求） */
-  @Builder
-  emptyTabBar() {
-    Text('')
   }
 
   @Builder
@@ -124,7 +119,7 @@ export struct MainView {
 
   build() {
     Navigation(AppState.stack) {
-      Tabs({ barPosition: BarPosition.End, index: this.currentIndex, controller: this.tabsController }) {
+      HdsTabs({ barPosition: BarPosition.End, index: this.currentIndex, controller: this.tabsController }) {
         TabContent() {
           HomeView({
             onSwitchTab: (index: number) => {
@@ -133,23 +128,23 @@ export struct MainView {
             }
           })
         }
-        .tabBar(this.tabItem('首页', $r('app.media.house'), 0))
+        .tabBar(this.tabItem('首页', $r('app.media.home_tab'), 0))
 
         TabContent() {
           ScheduleView()
         }
-        .tabBar(this.tabItem('课程表', $r('app.media.calendar'), 1))
+        .tabBar(this.tabItem('课程表', $r('app.media.calendar_tab'), 1))
 
         TabContent() {
           ScoreView()
         }
-        .tabBar(this.tabItem('成绩', $r('app.media.doc_text_badge_magnifyingglass'), 2))
+        .tabBar(this.tabItem('成绩', $r('app.media.search_tab'), 2))
 
         // 农大新闻（占位页）：位于"成绩"和"我的"之间
         TabContent() {
           NewsPage()
         }
-        .tabBar(this.tabItem('农大新闻', $r('app.media.list_square_bill'), 3))
+        .tabBar(this.tabItem('农大新闻', $r('app.media.newspaper'), 3))
 
         TabContent() {
           MineView({
@@ -161,14 +156,28 @@ export struct MainView {
             }
           })
         }
-        .tabBar(this.tabItem('我的', $r('app.media.person'), 4))
+        .tabBar(this.tabItem('我的', $r('app.media.user_tab'), 4))
       }
       .scrollable(false)
       .animationDuration(220) // 页面切换动画
       .barMode(BarMode.Fixed)
-      .barHeight(50 + px2vp(this.bottomInsetPx))
-      .barBackgroundBlurStyle(BlurStyle.COMPONENT_THIN)
-      .barBackgroundColor(this.isDarkMode ? '#801F1F1F' : '#80FFFFFF')
+      // 悬浮底栏（自适应长度 + 紧凑高度 + 沉浸光感）
+      //  - barWidth 与上方内容卡片宽度对齐（手机约 300vp），5 个选项间距适中
+      //  - systemMaterialEffect: IMMERSIVE + ADAPTIVE 沉浸毛玻璃，按系统算力/光感强弱分档适配
+      //  - lightColor 为材质光效着色（深色下用浅色高光，浅色下用品牌色低饱和光效），增强光感层次
+      //  - barBottomMargin 贴近底部，内容区底部已加 padding 防止遮挡
+      .barOverlap(true) // 内容与底栏重叠，由 barFloatingStyle 控制悬浮外观
+      .barFloatingStyle({
+        barWidth: { smallWidth: 340, mediumWidth: 420, largeWidth: 500 },
+        barSideMargin: 12, // 悬浮栏距屏幕左右边缘
+        barBottomMargin: 4 + px2vp(this.bottomInsetPx), // 距屏幕底部尽量小（贴近底部，含小白条安全区）
+        adaptToHandedness: true, // 左右手自适应
+        lightColor: this.isDarkMode ? '#40FFFFFF' : '#20FFFFFF', // 光效颜色：深色半透白高光 / 浅色低饱和
+        systemMaterialEffect: {
+          materialType: hdsMaterial.MaterialType.IMMERSIVE, // 沉浸式系统材质（毛玻璃光感）
+          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE // 随系统沉浸光感强弱自适应
+        }
+      })
       .width('100%')
       .height('100%')
       .onChange((index: number) => {

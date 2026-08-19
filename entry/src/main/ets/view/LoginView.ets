@@ -37,7 +37,6 @@ export struct LoginView {
   @State showPwd: boolean = false; // 密码明文/密文切换
   @State showPrivacy: boolean = false; // 隐私协议弹窗（首次启动未同意时显示）
   @State showDeclaration: boolean = false; // 开发者声明弹窗（同意隐私协议后首次展示）
-  @State showRiskTip: boolean = false; // 账号风控提醒弹窗（开发者声明之后首次展示）
   @State privacyAgreedAt: string = ''; // 隐私协议同意时间（右下角展示用）
   @State loginMode: string = 'auto'; // 重登方式（auto=自动重登 / legacy=手动重登），切换后实时刷新显示
   private accountController: TextInputController = new TextInputController();
@@ -592,7 +591,7 @@ export struct LoginView {
 
   build() {
     Column() {
-      // 顶部背景：品牌绿色渐变 + 新农助手 logo
+      // 顶部背景：品牌绿色渐变 + XJAU Helper logo
       Stack({ alignContent: Alignment.Top }) {
         // 顶部背景：品牌农大绿渐变
         Column()
@@ -607,7 +606,7 @@ export struct LoginView {
         // 前往登录页模式：登录按钮左侧显示灰色返回按钮（见登录按钮区域）
         Scroll() {
           Column() {
-            // 顶部 新农助手 圆角 logo
+            // 顶部 XJAU Helper 圆角 logo
             Column() {
               Image($r('app.media.xjau_logo'))
                 .width(this.isLandscape ? 96 : 120)
@@ -615,7 +614,7 @@ export struct LoginView {
                 .objectFit(ImageFit.Contain)
                 .borderRadius(28)
                 .backgroundColor('#FFFFFF')
-              Text('新农助手')
+              Text('XJAU-Helper')
                 .fontSize(22)
                 .fontWeight(FontWeight.Bold)
                 .fontColor('#FFFFFF')
@@ -726,7 +725,7 @@ export struct LoginView {
                   Text(this.showHistory ? '收起历史账号' : `历史账号（${this.historyList.length}）`)
                     .fontSize(12)
                     .fontColor($r('app.color.brand'))
-                  Image($r('app.media.list_bullet'))
+                  Image($r('app.media.list'))
                     .width(14)
                     .height(14)
                     .fillColor($r('app.color.brand'))
@@ -794,7 +793,7 @@ export struct LoginView {
 
               Button() {
                 Row() {
-                  Text('网页登录')
+                  Text('改用网页版登录')
                     .fontSize(15)
                     .fontWeight(FontWeight.Medium)
                     .fontColor($r('app.color.brand'))
@@ -863,17 +862,6 @@ export struct LoginView {
         .width('100%')
         .height(1)
         .bindSheet($$this.showDeclaration, this.declarationSheet(), {
-          height: SheetSize.FIT_CONTENT,
-          dragBar: false,
-          showClose: true,
-          backgroundColor: $r('app.color.bg_page')
-        })
-
-      // 账号风控提醒弹窗（开发者声明之后首次展示）：另挂独立占位组件，避免同宿主 bindSheet 冲突
-      Column()
-        .width('100%')
-        .height(1)
-        .bindSheet($$this.showRiskTip, this.riskTipSheet(), {
           height: SheetSize.FIT_CONTENT,
           dragBar: false,
           showClose: true,
@@ -1062,66 +1050,10 @@ export struct LoginView {
         .margin({ bottom: 20 })
         .onClick(() => {
           this.showDeclaration = false;
-          // 开发者声明之后（仅首次）：展示账号风控提醒
-          if (!DataStore.isRiskTipShown()) {
-            DataStore.setRiskTipShown();
-            setTimeout(() => {
-              this.showRiskTip = true;
-            }, 300);
-          }
         })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.bg_page'))
-    .alignItems(HorizontalAlign.Center)
-  }
-
-  /** 账号风控提醒弹窗（开发者声明之后首次展示：频繁登录退出的风险提示） */
-  @Builder
-  riskTipSheet() {
-    Column() {
-      // 标题
-      Row() {
-        Text('账号风控提醒')
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.text_primary'))
-        Blank()
-      }
-      .width('100%')
-      .padding({ left: 20, right: 20, top: 18, bottom: 10 })
-
-      // 提醒正文
-      Column() {
-        Text('请勿频繁登录与退出教务系统，以免导致账号风控无法使用！' +
-          '建议将应用锁定在后台，以免被清除。\n\n' +
-          '若账号风控导致应用无法使用，请清除应用数据，等待24小时及以上，风控将自动解除。\n\n' +
-          '若此时应用还是无法登录，则可能是学校服务器更新，应用不一定还能登录，' +
-          '请关注更新动态（没有更新就说明应用已无法使用）。')
-          .fontSize(14)
-          .lineHeight(22)
-          .fontColor($r('app.color.text_primary'))
-      }
-      .width('100%')
-      .padding({ left: 20, right: 20, top: 4, bottom: 16 })
-      .alignItems(HorizontalAlign.Start)
-
-      // 底部按钮
-      Button('我知道了')
-        .fontSize(14)
-        .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.brand_on'))
-        .backgroundColor($r('app.color.brand'))
-        .height(40)
-        .width(160)
-        .borderRadius(20)
-        .margin({ bottom: 20 })
-        .onClick(() => {
-          this.showRiskTip = false;
-        })
-    }
-    .width('100%')
     .backgroundColor($r('app.color.bg_page'))
     .alignItems(HorizontalAlign.Center)
   }

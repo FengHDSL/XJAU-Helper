@@ -971,10 +971,9 @@ export struct KxjsPage {
                 .fontColor(this.singlePickerSelected === index ? $r('app.color.brand_on') : $r('app.color.text_primary'))
                 .layoutWeight(1)
               if (this.singlePickerSelected === index) {
-                Image($r('app.media.checkmark_circle'))
-                  .width(16)
-                  .height(16)
-                  .fillColor($r('app.color.brand_on'))
+                Text('✓')
+                  .fontSize(16)
+                  .fontColor($r('app.color.brand_on'))
               }
             }
             .width('100%')

@@ -388,7 +388,7 @@ export struct ScheduleView {
               .fontColor(Color.White)
             // 设置按钮：紧贴"课程表"标题右侧，圆形半透白底 + 齿轮图标
             Column() {
-              Image($r('app.media.gearshape'))
+              Image($r('app.media.settings'))
                 .width(20)
                 .height(20)
                 .fillColor(Color.White)
@@ -413,7 +413,7 @@ export struct ScheduleView {
               .fontSize(11)
               .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
             // 学期选择箭头：list.png 图标，深色模式用浅色 fillColor 适配
-            Image($r('app.media.list_bullet'))
+            Image($r('app.media.list'))
               .width(14)
               .height(14)
               .fillColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
@@ -507,14 +507,13 @@ export struct ScheduleView {
             .margin({ top: 2 })
         }
         .layoutWeight(1)
-        .margin({ left: 2, right: 2 })
         .padding({ top: 7, bottom: 7 })
         .backgroundColor(this.isToday(wd) ? $r('app.color.brand_light') : Color.Transparent)
         .borderRadius(8)
       }, (wd: number) => `w${wd}`)
     }
     .width('100%')
-    .padding({ top: 4, bottom: 4 })
+    .padding({ left: 6, right: 6, top: 4, bottom: 4 })
     .backgroundColor(this.cfg.headerColor.length > 0 ? this.cfg.headerColor : $r('app.color.bg_card'))
   }
 
@@ -786,10 +785,9 @@ export struct ScheduleView {
               .fontColor(index === this.selectedTermIndex ? $r('app.color.brand_on') : $r('app.color.text_primary'))
               .layoutWeight(1)
             if (index === this.selectedTermIndex) {
-              Image($r('app.media.checkmark_circle'))
-                .width(16)
-                .height(16)
-                .fillColor($r('app.color.brand_on'))
+              Text('✓')
+                .fontSize(16)
+                .fontColor($r('app.color.brand_on'))
             }
           }
           .width('100%')
@@ -827,15 +825,10 @@ export struct ScheduleView {
       Column() {
         this.topBar()
       // 把"选择周次"弹层绑在 weekHeader 自己的容器上（与根 Column 的"选择学期"弹层分开锚点）
-      Row() {
-        Column() {
-          this.weekHeader()
-        }
-        .width(720)
-        .constraintSize({ maxWidth: '100%' })
+      Column() {
+        this.weekHeader()
       }
       .width('100%')
-      .justifyContent(FlexAlign.Center)
       .bindSheet($$this.showWeekSheet, this.weekPickerSheet(), {
         height: SheetSize.FIT_CONTENT,
         dragBar: true,
@@ -889,12 +882,11 @@ export struct ScheduleView {
               .width(720)
               .constraintSize({ maxWidth: '100%' })
               .height('100%')
-              // 内容不足一屏时顶部对齐（align 默认 Center 会导致平板竖屏下格子区垂直居中、顶部留空）
-              .align(Alignment.TopStart)
               .scrollBar(BarState.Off)
               .edgeEffect(EdgeEffect.Spring)
               .backgroundColor(this.scheduleBg.length > 0 ? Color.Transparent :
                 (this.cfg.bgColor.length > 0 ? this.cfg.bgColor : $r('app.color.bg_page')))
+              .align(Alignment.TopStart)
             }
             .width('100%')
             .height('100%')
@@ -905,7 +897,6 @@ export struct ScheduleView {
         .height('100%')
       }
       .width('100%')
-      .alignContent(Alignment.TopStart)
       .layoutWeight(1)
       // 左右滑动切换上一周/下一周（水平滑动手势，不干扰表格内部垂直滚动）
       .gesture(

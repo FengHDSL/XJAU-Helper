@@ -4,15 +4,14 @@
 
 # 新农助手（XJAU-Helper）
 
-**新农大助手 · HarmonyOS 原生应用**
+**新疆农业大学教务助手 · HarmonyOS 原生应用**
 
 一款为新疆农业大学学生打造的鸿蒙原生校园工具，集成登录、课表、成绩、考试、学业情况、校历信息、通知公告、空闲教室查询、农大新闻等常用功能于一体，数据对接学校正方教务系统与教务处官网。
-注：本应用非新疆农业大学官方应用！也不存在合作关系！
 
-[![Version](https://img.shields.io/badge/version-1.2.3-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.2.3)
-[![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT%20(API%2024)-orange)](https://developer.huawei.com/consumer/cn/harmonyos/)
+[![Version](https://img.shields.io/badge/version-1.2.2-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.2.2)
+[![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT%20(API%2026)-orange)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.2.3/XJAU-Helper_v1.2.3.hap)
+[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.2.2/XJAU-Helper_v1.2.2.hap)
 
 </div>
 
@@ -92,7 +91,7 @@
 
 | 类别 | 技术 |
 |------|------|
-| 平台 | HarmonyOS NEXT（最低要求 API 24，即 HarmonyOS 6.1） |
+| 平台 | HarmonyOS NEXT（最低要求 API 26，即 HarmonyOS 7） |
 | 语言 | ArkTS / ArkUI |
 | 网络 | @ohos.net.http（正方教务系统 + 教务处官网） |
 | 存储 | @ohos.data.preferences（本地缓存）+ AppStorage（学期切换广播） |
@@ -112,7 +111,6 @@
 ```
 
 > 💡 内置「功能浏览」模式，未登录时可使用本地模拟数据体验全部界面（带全屏水印提醒）。
-> 💡 v1.2.3 起兼容 API 24（HarmonyOS 6.1），并初步适配平板大屏（课程表界面）。
 
 ---
 

@@ -46,8 +46,6 @@ export struct HomeView {
   @State showNoticeSheet: boolean = false;
   @State sheetNotice: NoticeItem | null = null;
   @State showWebSheet: boolean = false;
-  /** 用户手动设置的开学日（yyyy-MM-dd，空=自动识别） */
-  @State semesterStart: string = '';
   // 学期选择（首页顶栏 + 全局设置）
   @State terms: TermInfo[] = [];
   @State selectedTermIndex: number = 0;
@@ -63,8 +61,6 @@ export struct HomeView {
 
   /** 页面出现：加载数据并监听横竖屏 */
   aboutToAppear(): void {
-    // 加载用户手动设置的开学日（空=自动识别）
-    this.semesterStart = DataStore.getSemesterStart();
     // 功能浏览模式优先用 AppState.mockCurrentWeek > 0 指定的周次，确保所有功能有数据
     if (AppState.mockCurrentWeek > 0) {
       this.currentWeek = AppState.mockCurrentWeek;
@@ -387,7 +383,7 @@ export struct HomeView {
           .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Image($r('app.media.list_bullet'))
+        Image($r('app.media.list'))
           .width(14)
           .height(14)
           .fillColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
@@ -426,10 +422,9 @@ export struct HomeView {
                   .fontColor(this.selectedTermIndex === index ? $r('app.color.brand_on') : $r('app.color.text_primary'))
                   .layoutWeight(1)
                 if (this.selectedTermIndex === index) {
-                  Image($r('app.media.checkmark_circle'))
-                    .width(16)
-                    .height(16)
-                    .fillColor($r('app.color.brand_on'))
+                  Text('✓')
+                    .fontSize(16)
+                    .fontColor($r('app.color.brand_on'))
                 }
               }
               .width('100%')
@@ -467,7 +462,7 @@ export struct HomeView {
             .backgroundColor($r('app.color.bg_chip'))
         } else if (JwApi.USE_MOCK) {
           // 功能浏览模式：默认头像使用内置资源
-          Image($r('app.media.meta_default_avatar'))
+          Image($r('app.media.zhangsan_avatar'))
             .width(52)
             .height(52)
             .borderRadius(26)
@@ -1026,44 +1021,8 @@ export struct HomeView {
     .padding(16)
   }
 
-  /** 日历卡片开学日期显示值：用户手动设置优先，否则用校历开学日 */
-  private calendarStartShow(): string {
-    if (DateUtil.customStartDate.length > 0) {
-      return DateUtil.customStartDate;
-    }
-    const cal: TeachingCalendar | null = this.teachingCal;
-    return cal !== null && cal.startDate.length > 0 ? cal.startDate : '';
-  }
-
-  /** 弹开学日期选择器（首页日历卡片入口，手动调节开学时间） */
-  private openSemesterStartPicker(): void {
-    let selected: Date = new Date();
-    if (this.semesterStart.length > 0) {
-      selected = DateUtil.parse(this.semesterStart);
-    }
-    DatePickerDialog.show({
-      start: new Date(2024, 0, 1),
-      end: new Date(2032, 11, 31),
-      selected: selected,
-      onDateAccept: (value: Date) => {
-        const s: string = DateUtil.format(value);
-        DataStore.setSemesterStart(s);
-        DateUtil.customStartDate = s;
-        this.semesterStart = s;
-        // 立即重算首页周次
-        this.currentWeek = DateUtil.weekOfTerm(AppState.term, new Date());
-        promptAction.showToast({ message: `开学时间已设为 ${s}` });
-      }
-    });
-  }
-
-  /** 今日所属教学周次（开学后返回对应周次；未开学返回 0）。
-   *  2026-08-13 修复：用户手动设置开学日时优先用 DateUtil（effectiveStartDate 覆盖），
-   *  否则回退校历数据计算。 */
+  /** 今日所属教学周次（开学后返回对应周次；未开学返回 0） */
   private todayTeachingWeek(): number {
-    if (DateUtil.customStartDate.length > 0) {
-      return DateUtil.weekOfTerm(AppState.term, new Date());
-    }
     const cal: TeachingCalendar | null = this.teachingCal;
     if (cal === null || cal.todayDate.length === 0) {
       return 0;
@@ -1079,11 +1038,8 @@ export struct HomeView {
     return 0;
   }
 
-  /** 是否已开学（今日 >= 开学日）：用户手动设置的开学日优先，否则用校历开学日 */
+  /** 是否已开学（今日 >= 校历开学日） */
   private isTermStarted(): boolean {
-    if (DateUtil.customStartDate.length > 0) {
-      return DateUtil.weekOfTerm(AppState.term, new Date()) > 0;
-    }
     const cal: TeachingCalendar | null = this.teachingCal;
     if (cal === null || cal.startDate.length === 0) {
       return false;
@@ -1214,42 +1170,6 @@ export struct HomeView {
     Column() {
       SectionHeader({ title: '日历', action: '', onAction: () => {} })
 
-      // 开学时间（手动调节：自动识别开学日不准时使用；影响首页/课表周次计算）
-      Row() {
-        Text('开学时间')
-          .fontSize(13)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.text_primary'))
-        Blank()
-        Text(this.semesterStart.length > 0 ? this.semesterStart : '自动识别')
-          .fontSize(12)
-          .fontColor($r('app.color.brand'))
-        if (this.semesterStart.length > 0) {
-          Text('恢复自动')
-            .fontSize(11)
-            .fontColor('#F0524D')
-            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-            .margin({ left: 6 })
-            .backgroundColor('rgba(240,82,77,0.10)')
-            .borderRadius(4)
-            .onClick(() => {
-              DataStore.setSemesterStart('');
-              DateUtil.customStartDate = '';
-              this.semesterStart = '';
-              promptAction.showToast({ message: '已恢复自动识别开学时间' });
-            })
-        }
-        Text('›')
-          .fontSize(14)
-          .fontColor($r('app.color.text_tertiary'))
-          .margin({ left: 6 })
-      }
-      .width('100%')
-      .padding({ top: 2, bottom: 10 })
-      .onClick(() => {
-        this.openSemesterStartPicker();
-      })
-
       if (this.teachingCal === null) {
         LoadingTip({ text: '加载日历…' })
           .width('100%')
@@ -1271,9 +1191,8 @@ export struct HomeView {
           } else {
             this.infoChip('未开学', $r('app.color.accent_orange'))
           }
-          // 开学日期：用户手动设置时优先显示用户设置值，否则校历值
-          if (this.calendarStartShow().length > 0) {
-            this.infoChip(`开学 ${this.calendarStartShow().slice(5)}`, $r('app.color.accent_blue'))
+          if (this.teachingCal!.startDate.length > 0) {
+            this.infoChip(`开学 ${this.teachingCal!.startDate.slice(5)}`, $r('app.color.accent_blue'))
           }
           if (this.teachingCal!.endDate.length > 0) {
             this.infoChip(`结束 ${this.teachingCal!.endDate.slice(5)}`, $r('app.color.accent_orange'))

@@ -398,7 +398,7 @@ export struct MineView {
             .backgroundColor($r('app.color.bg_chip'))
         } else if (JwApi.USE_MOCK) {
           // 功能浏览模式：使用默认占位头像
-          Image($r('app.media.meta_default_avatar'))
+          Image($r('app.media.zhangsan_avatar'))
             .width(52)
             .height(52)
             .borderRadius(26)
@@ -437,7 +437,7 @@ export struct MineView {
 
       // 右侧：红色圆形退出登录按钮（用 退出.png 图标）
       Button() {
-        Image($r('app.media.power'))
+        Image($r('app.media.sign_out_alt'))
           .width(20)
           .height(20)
           .fillColor('#FFFFFF')

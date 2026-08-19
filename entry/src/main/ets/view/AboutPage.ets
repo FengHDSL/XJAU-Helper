@@ -209,7 +209,7 @@ export struct AboutPage {
       Column() {
         PageHeader({
           title: '关于',
-          subtitle: '新农助手',
+          subtitle: 'XJAU-Helper',
           onBack: () => {
             AppState.stack.pop();
           }
@@ -227,7 +227,7 @@ export struct AboutPage {
                 .onClick(() => {
                   this.onIconTapped();
                 })
-              Text('新农助手')
+              Text('XJAU-Helper')
                 .fontSize(20)
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('app.color.text_primary'))
@@ -247,7 +247,7 @@ export struct AboutPage {
 
             // 应用简介（用户可快速了解功能）
             Column() {
-              Text('新农助手是一款专为新疆农业大学学生打造的鸿蒙原生校园工具，集课表、成绩、考试、学业情况、校历、通知公告、空闲教室查询、农大新闻于一体。数据来自学校服务网页，不经过第三方服务器，不上传、不存储任何个人信息，完全开源。让校园学习更高效！')
+              Text('XJAU-Helper（新农大助手）是一款专为新疆农业大学学生打造的鸿蒙原生校园工具，集课表、成绩、考试、学业情况、校历、通知公告、空闲教室查询、农大新闻于一体。数据来自学校服务网页，不经过第三方服务器，不上传、不存储任何个人信息，完全开源。让校园学习更高效！')
                 .fontSize(12)
                 .lineHeight(20)
                 .fontColor($r('app.color.text_secondary'))
@@ -258,12 +258,8 @@ export struct AboutPage {
             .padding({ left: 20, right: 20, bottom: 20 })
 
             this.changelog('1.2.3', '2026-08-16', [
-              '兼容API24，现在鸿蒙6.1的设备也可以安装了',
+              '兼容 API 24（鸿蒙 6.1），现在鸿蒙 6.1 的设备也可以安装了',
               '适配平板端，课程表界面初步对大屏进行适配'
-            ])
-
-            this.changelog('1.2.2', '2026-08-13', [
-              '修复了一些已知问题'
             ])
 
             this.changelog('1.2.1', '2026-08-09', [

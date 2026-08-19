@@ -348,7 +348,7 @@ export struct ScoreView {
             Text(this.currentTermLabel())
               .fontSize(11)
               .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
-            Image($r('app.media.list_bullet'))
+            Image($r('app.media.list'))
               .width(14)
               .height(14)
               .fillColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
@@ -541,10 +541,9 @@ export struct ScoreView {
                   .fontColor(this.selectedTermIndex === index ? $r('app.color.brand_on') : $r('app.color.text_primary'))
                   .layoutWeight(1)
                 if (this.selectedTermIndex === index) {
-                  Image($r('app.media.checkmark_circle'))
-                    .width(16)
-                    .height(16)
-                    .fillColor($r('app.color.brand_on'))
+                  Text('✓')
+                    .fontSize(16)
+                    .fontColor($r('app.color.brand_on'))
                 }
               }
               .width('100%')

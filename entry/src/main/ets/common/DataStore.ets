@@ -77,10 +77,6 @@ export class DataStore {
   // 隐私协议：是否已同意 + 同意时间
   static readonly KEY_PRIVACY_AGREED: string = 'privacy_agreed';
   static readonly KEY_PRIVACY_AGREED_AT: string = 'privacy_agreed_at';
-  // 账号风控提醒是否已展示（首次启动，开发者声明之后）
-  static readonly KEY_RISK_TIP_SHOWN: string = 'risk_tip_shown';
-  // 用户手动设置的开学日（yyyy-MM-dd，空=自动识别）；课表/首页校历可调节
-  static readonly KEY_SEMESTER_START: string = 'semester_start';
   // 网页登录会话 Cookie（持久化，下次启动恢复）
   static readonly KEY_SESSION_COOKIE: string = 'session_cookie';
   // 自动重新登录凭据（账号+加密密码，冷启动时静默重登刷新会话）
@@ -181,26 +177,6 @@ export class DataStore {
   /** 读取同意时间（未同意返回空串） */
   static getPrivacyAgreedAt(): string {
     return DataStore.get(DataStore.KEY_PRIVACY_AGREED_AT);
-  }
-
-  /** 账号风控提醒是否已展示过（首次启动，开发者声明之后） */
-  static isRiskTipShown(): boolean {
-    return DataStore.get(DataStore.KEY_RISK_TIP_SHOWN) === '1';
-  }
-
-  /** 标记风控提醒已展示 */
-  static setRiskTipShown(): void {
-    DataStore.put(DataStore.KEY_RISK_TIP_SHOWN, '1');
-  }
-
-  /** 读取用户手动设置的开学日（空串=自动识别） */
-  static getSemesterStart(): string {
-    return DataStore.get(DataStore.KEY_SEMESTER_START);
-  }
-
-  /** 保存用户手动设置的开学日（空串=恢复自动识别） */
-  static setSemesterStart(dateText: string): void {
-    DataStore.put(DataStore.KEY_SEMESTER_START, dateText);
   }
 
   /** 记录一次成功登录的账号（去重、置顶、最多保留 8 个，密码 base64+XOR 编码存储） */
