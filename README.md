@@ -8,10 +8,10 @@
 
 一款为新疆农业大学学生打造的鸿蒙原生校园工具，集成登录、课表、成绩、考试、学业情况、校历信息、通知公告、空闲教室查询、农大新闻等常用功能于一体，数据对接学校正方教务系统与教务处官网。
 
-[![Version](https://img.shields.io/badge/version-1.2.5-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.2.5)
+[![Version](https://img.shields.io/badge/version-1.2.6-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.2.6)
 [![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT%20(API%2026)-orange)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.2.5/XJAU-Helper_v1.2.5_GitHub.hap)
+[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.2.6/XJAU-Helper_v1.2.6_GitHub.hap)
 
 </div>
 
