@@ -1549,12 +1549,16 @@ export class JwApi {
       }
       if (sheetXml.length === 0 || sharedXml.length === 0) {
         JwApi.lastXlsxError = '导出文件解压失败（未找到工作表数据），请稍后重试';
+        LogStore.logNet('空教室', '解析', '失败',
+          { method: 'POST', url: '/jwglxt/cdjy/cdjy_cxDcKxcdlb.html', status: '200', detail: `解压失败 sheet=${sheetXml.length} shared=${sharedXml.length}` });
         return out;
       }
       const shared: string[] = JwApi.parseSharedStrings(sharedXml);
       const rows: string[][] = JwApi.parseSheetRows(sheetXml, shared);
       if (rows.length < 2) {
         JwApi.lastXlsxError = '导出文件内容为空，该条件下暂无教室数据';
+        LogStore.logNet('空教室', '解析', '失败',
+          { method: 'POST', url: '/jwglxt/cdjy/cdjy_cxDcKxcdlb.html', status: '200', detail: `行数=${rows.length}（仅表头或无数据）` });
         return out;
       }
       // 4. 表头 → 列索引，按表头名映射字段（鲁棒，列序变化不影响）
@@ -1580,6 +1584,14 @@ export class JwApi {
       const iCdejlb: number = pick('场地二级类别');
       const iSfkjy: number = pick('是否可借用');
       const timeText: string = JwApi.buildEmptyRoomTimeText(p);
+      // 日志调试：记录实际表头与关键列映射结果，用于排查"导出成功但解析无数据"（表头名不匹配时所有索引为 -1）
+      LogStore.logNet('空教室', '解析', '诊断',
+        { method: 'POST', url: '/jwglxt/cdjy/cdjy_cxDcKxcdlb.html', status: '200',
+          detail: `行数=${rows.length} 表头=${header.join('|')} 首行=${rows.length > 1 ? rows[1].join('|') : ''} shared=${shared.length} 场地编号=${iCdbh} 场地名称=${iCdmc} 校区=${iXqmc} 类别=${iCdlbmc} 座位数=${iZws} 楼号=${iJxlmc}` });
+      // 日志调试：输出 sheet1.xml 与 sharedStrings.xml 片段（确诊 V9.0 单元格格式：<v> 共享字符串 还是 <is><t> 内联字符串）
+      LogStore.logNet('空教室', '解析', 'XML',
+        { method: 'POST', url: '/jwglxt/cdjy/cdjy_cxDcKxcdlb.html', status: '200',
+          detail: `sheet前400=${sheetXml.substring(0, 400)} shared前200=${sharedXml.substring(0, 200)}` });
       for (let r = 1; r < rows.length; r++) {
         const row: string[] = rows[r];
         const cell = (idx: number): string => (idx >= 0 && idx < row.length ? row[idx] : '');
@@ -1653,23 +1665,42 @@ export class JwApi {
     return out;
   }
 
-  /** 解析 sheet1.xml → 行二维数组（含表头行），单元格按 t 属性还原 sharedString/数字 */
+  /** 解析 sheet1.xml → 行二维数组（含表头行），兼容 <v> 共享字符串/数值 与 <is><t> 内联字符串（V9.0 两种格式都存在） */
   private static parseSheetRows(xml: string, shared: string[]): string[][] {
     const rows: string[][] = [];
     const rowRegex = /<row[^>]*>([\s\S]*?)<\/row>/gi;
+    // 先按 <c ...>...</c> 块整体匹配，再在块内分别提取 <v> 或 <t>：
+    //   <c r="A1" t="s"><v>0</v></c>             → 共享字符串（查 shared 表）
+    //   <c r="B2" t="inlineStr"><is><t>文本</t></is></c>  → 内联字符串
+    //   <c r="C3"><v>42</v></c>                  → 数字/日期
+    //   <c r="D4"/>                              → 空单元格
+    const cellRegex = /<c([^>]*)>([\s\S]*?)<\/c>|<c([^>]*)\/>/gi;
+    // t 属性正则含双引号，用字符串构造规避 ArkTS 正则字面量坑（00305015）
+    const tAttrRe = new RegExp('t="([^"]*)"', 'i');
+    const vRe = /<v>([\s\S]*?)<\/v>/i;
+    const tRe = /<t[^>]*>([\s\S]*?)<\/t>/i;
     let rm: RegExpExecArray | null;
     while ((rm = rowRegex.exec(xml)) !== null) {
       const cells: string[] = [];
-      const cellRegex = /<c([^>]*)>(?:<v>([\s\S]*?)<\/v>)?\s*<\/c>|<c([^>]*)\/>/gi;
       let cm: RegExpExecArray | null;
       while ((cm = cellRegex.exec(rm[1])) !== null) {
         const attrs: string = cm[1] !== undefined ? cm[1] : (cm[3] !== undefined ? cm[3] : '');
-        let val: string = cm[2] !== undefined ? cm[2] : '';
-        const tMatch = /t="([^"]*)"/i.exec(attrs);
-        const t: string = tMatch !== null ? tMatch[1] : '';
+        const inner: string = cm[2] !== undefined ? cm[2] : '';
+        const tAttrM: RegExpExecArray | null = tAttrRe.exec(attrs);
+        const t: string = tAttrM !== null ? tAttrM[1] : '';
+        const vM: RegExpExecArray | null = vRe.exec(inner);
+        const tM: RegExpExecArray | null = tRe.exec(inner);
+        let val: string = '';
         if (t === 's') {
-          const idx: number = parseInt(val, 10);
+          // 共享字符串：<v> 是 shared 表索引
+          const idx: number = parseInt(vM !== null ? vM[1] : '', 10);
           val = !isNaN(idx) && idx >= 0 && idx < shared.length ? shared[idx] : '';
+        } else if (t === 'inlineStr' || t.length === 0) {
+          // 内联字符串 <is><t>…</t></is>（优先），无则回退 <v>
+          val = tM !== null ? tM[1] : (vM !== null ? vM[1] : '');
+        } else {
+          // 数字/日期/布尔等：直接取 <v>
+          val = vM !== null ? vM[1] : '';
         }
         cells.push(JwApi.xmlUnescape(val));
       }
@@ -1678,10 +1709,20 @@ export class JwApi {
     return rows;
   }
 
-  /** XML 实体反转义 */
+  /** XML 实体反转义：命名实体（&amp; 等）+ 数字实体（&#NNN; 十进制 / &#xHH; 十六进制，V9.0 内联字符串中文均用数字实体） */
   private static xmlUnescape(s: string): string {
-    return s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    let r: string = s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#10;/g, ' ');
+    // XML 数字实体（先十进制后十六进制；&#10; 已在上面转为空格，避免再被转回换行符）
+    r = r.replace(/&#(\d+);/g, (m: string, d: string) => {
+      const n: number = parseInt(d, 10);
+      return !isNaN(n) && n > 0 ? String.fromCharCode(n) : m;
+    });
+    r = r.replace(/&#x([0-9a-fA-F]+);/g, (m: string, h: string) => {
+      const n: number = parseInt(h, 16);
+      return !isNaN(n) && n > 0 ? String.fromCharCode(n) : m;
+    });
+    return r;
   }
 
 

@@ -745,7 +745,7 @@ export struct MineView {
             Divider().color($r('app.color.divider'))
             // 9. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于', value: 'v1.2.4', onTap: () => {
+              icon: '', title: '关于', value: 'v1.2.5', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
@@ -1045,7 +1045,7 @@ export struct MineView {
       Divider().color($r('app.color.divider'))
       // 9. 关于（打开独立页面）
       SettingRow({
-        icon: '', title: '关于', value: 'v1.2.4', onTap: () => {
+        icon: '', title: '关于', value: 'v1.2.5', onTap: () => {
           AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
         }
       })

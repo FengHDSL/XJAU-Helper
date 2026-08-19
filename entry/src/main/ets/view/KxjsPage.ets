@@ -836,11 +836,10 @@ export struct KxjsPage {
    * 横屏布局：左列查询选项 + 右列查询结果（与竖屏渲染逻辑一致）。
    * 关键：loading / rooms / resultMessage / 周次星期节次标签 作为入参传入，
    * 使 build() 在调用本 Builder 时直接读取这些 @State，从而在数据变化（含 loading 翻转）时可靠重渲染。
-   * （@Builder 内部直接读 this.xxx 在历史上出现过「loading 翻转后不刷新」的响应式失效，故改为入参。）
+   * （@Builder 传值参数为快照依赖：rooms/loading 变化时内部不刷新，竖屏内联读 this.xxx 正常即为此因；改为无参直接读 this。）
    */
   @Builder
-  kxjsLandscape(loading: boolean, rooms: EmptyRoomItem[], resultMessage: string,
-                weekLabel: string, weekdayLabel: string, sectionLabel: string) {
+  kxjsLandscape() {
     Row() {
       // 左列：查询选项
       Scroll() {
@@ -855,68 +854,73 @@ export struct KxjsPage {
       .scrollBar(BarState.Off)
       .align(Alignment.Top)
 
-      // 右列：查询结果（与竖屏同渲染）
-      Scroll() {
-        Column() {
-          Row() {
-            Text('查询结果')
-              .fontSize(14)
-              .fontWeight(FontWeight.Bold)
-              .fontColor($r('app.color.text_primary'))
-            Blank()
-            Text(rooms.length > 0 ? `共 ${rooms.length} 间空闲教室` : '')
-              .fontSize(11)
-              .fontColor($r('app.color.text_tertiary'))
-          }
-          .width('100%')
-          .margin({ bottom: 10 })
-
-          if (loading) {
-            LoadingTip({ text: '正在查询空闲教室…' })
-              .width('100%')
-              .height(140)
-              .backgroundColor($r('app.color.bg_card'))
-              .borderRadius(18)
-          } else if (rooms.length > 0) {
-            ForEach(this.pagedRooms(), (item: EmptyRoomItem) => {
-              Column() {
-                this.roomCard(item)
-              }
-              .margin({ bottom: 10 })
-            }, (item: EmptyRoomItem) => `${item.cdbh}-${item.cdmc}-${item.time}`)
-            this.pageControl()
-          } else {
-            Column() {
-              EmptyTip({ text: resultMessage.length > 0 ? resultMessage : '点击左侧"查询"获取空闲教室情况' })
-              Text(`当前条件: ${weekLabel} ${weekdayLabel} ${sectionLabel}`)
+      // 右列：查询结果（与竖屏同渲染）；横屏右列同样支持下拉刷新重新导出
+      Refresh({ refreshing: $$this.refreshing }) {
+        Scroll() {
+          Column() {
+            Row() {
+              Text('查询结果')
+                .fontSize(14)
+                .fontWeight(FontWeight.Bold)
+                .fontColor($r('app.color.text_primary'))
+              Blank()
+              Text(this.rooms.length > 0 ? `共 ${this.rooms.length} 间空闲教室` : '')
                 .fontSize(11)
                 .fontColor($r('app.color.text_tertiary'))
-                .margin({ top: 8 })
             }
             .width('100%')
-            .padding(20)
-            .backgroundColor($r('app.color.bg_card'))
-            .borderRadius(18)
+            .margin({ bottom: 10 })
+
+            if (this.loading) {
+              LoadingTip({ text: '正在查询空闲教室…' })
+                .width('100%')
+                .height(140)
+                .backgroundColor($r('app.color.bg_card'))
+                .borderRadius(18)
+            } else if (this.rooms.length > 0) {
+              ForEach(this.pagedRooms(), (item: EmptyRoomItem) => {
+                Column() {
+                  this.roomCard(item)
+                }
+                .margin({ bottom: 10 })
+              }, (item: EmptyRoomItem) => `${item.cdbh}-${item.cdmc}-${item.time}`)
+              this.pageControl()
+            } else {
+              Column() {
+                EmptyTip({ text: this.resultMessage.length > 0 ? this.resultMessage : '点击左侧"查询"获取空闲教室情况' })
+                Text(`当前条件: ${this.weekLabel} ${this.weekdayLabel} ${this.sectionLabel}`)
+                  .fontSize(11)
+                  .fontColor($r('app.color.text_tertiary'))
+                  .margin({ top: 8 })
+              }
+              .width('100%')
+              .padding(20)
+              .backgroundColor($r('app.color.bg_card'))
+              .borderRadius(18)
+            }
+            Column()
+              .height(px2vp(this.bottomInsetPx) + 100)
           }
-          Column()
-            .height(px2vp(this.bottomInsetPx) + 24)
+          .width('100%')
+          .padding({ left: 8, right: 16, top: 14, bottom: 120 })
         }
-        .width('100%')
-        .padding({ left: 8, right: 16, top: 14, bottom: 120 })
+        .layoutWeight(1)
+        .height('100%')
+        .scrollBar(BarState.Off)
+        .align(Alignment.Top)
+        // 网页版查询弹层（挂右列 Scroll，与顶栏详情/单选/多选弹窗分离）
+        .bindSheet($$this.showWeb, this.webSheet(), {
+          width: SheetUtil.sheetWidth(),
+          preferType: SheetType.BOTTOM,
+          height: SheetSize.LARGE,
+          dragBar: false,
+          backgroundColor: $r('app.color.bg_page'),
+          title: { title: AppState.webTitle }
+        })
       }
       .layoutWeight(1)
       .height('100%')
-      .scrollBar(BarState.Off)
-      .align(Alignment.Top)
-      // 网页版查询弹层（挂右列 Scroll，与顶栏详情/单选/多选弹窗分离）
-      .bindSheet($$this.showWeb, this.webSheet(), {
-        width: SheetUtil.sheetWidth(),
-        preferType: SheetType.BOTTOM,
-        height: SheetSize.LARGE,
-        dragBar: false,
-        backgroundColor: $r('app.color.bg_page'),
-        title: { title: AppState.webTitle }
-      })
+      .onRefreshing(() => { this.onRefresh(); })
     }
     .width('100%')
     .layoutWeight(1)
@@ -980,7 +984,7 @@ export struct KxjsPage {
         // 内容区：整页可滚动（条件卡 + 结果列表 + 底部翻页），下拉刷新重新导出数据
         // 外层常驻 Column 承载"单选弹窗"bindSheet，确保横屏下单选/场地类别等弹窗也能弹出
         if (this.isLandscape) {
-          this.kxjsLandscape(this.loading, this.rooms, this.resultMessage, this.weekLabel, this.weekdayLabel, this.sectionLabel)
+          this.kxjsLandscape()
         } else {
           Refresh({ refreshing: $$this.refreshing }) {
             Scroll() {
@@ -1031,9 +1035,9 @@ export struct KxjsPage {
                   .backgroundColor($r('app.color.bg_card'))
                   .borderRadius(18)
                 }
-                // 底部抬高（参考学业情况页，避免内容贴底）
+                // 底部抬高（参考学业情况页，避免内容贴底；+100 保证翻页控件滚到底可见）
                 Column()
-                  .height(px2vp(this.bottomInsetPx) + 24)
+                  .height(px2vp(this.bottomInsetPx) + 100)
               }
               .width('100%')
               .padding({ left: 16, right: 16, top: 14 })

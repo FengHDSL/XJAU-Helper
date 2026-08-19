@@ -144,7 +144,7 @@ export struct ScoreView {
         .backgroundColor($r('app.color.divider'))
 
       Column() {
-        Text(`${this.currentTermScore()!.items.length}`)
+        Text(`${this.currentTermScore()?.items.length ?? 0}`)
           .fontSize(28)
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.accent_orange'))
@@ -472,18 +472,35 @@ export struct ScoreView {
         .width('100%')
         .margin({ bottom: 14 })
 
-        if (this.selectedItem.examType !== '正常考试') {
-          TagChip({
-            text: this.selectedItem.examType,
-            color: this.examTypeColor(this.selectedItem),
-            bg: $r('app.color.bg_chip')
-          })
-            .margin({ bottom: 14 })
-        }
-
         this.detailRow('课程名称', this.selectedItem.courseName, this.courseAttrColor(this.selectedItem.courseType))
-        this.detailRow('课程属性', `${this.selectedItem.courseType} · ${this.selectedItem.credit} 学分`,
-          this.courseAttrColor(this.selectedItem.courseType))
+        // 课程属性：显示为符号标签（必修=绿色、选修=蓝色，与成绩卡片一致）+ 学分
+        Row() {
+          Column()
+            .width(6)
+            .height(6)
+            .borderRadius(3)
+            .backgroundColor(this.courseAttrColor(this.selectedItem.courseType))
+            .margin({ right: 10 })
+          Text('课程属性')
+            .fontSize(13)
+            .fontColor($r('app.color.text_tertiary'))
+            .width(72)
+          Row() {
+            TagChip({
+              text: this.selectedItem.courseType,
+              color: this.selectedItem.courseType === '必修' ? $r('app.color.brand') : $r('app.color.accent_blue'),
+              bg: $r('app.color.bg_chip')
+            })
+            Text(`${this.selectedItem.credit} 学分`)
+              .fontSize(13)
+              .fontColor($r('app.color.text_primary'))
+              .margin({ left: 8 })
+          }
+          .layoutWeight(1)
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+        .padding({ top: 7, bottom: 7 })
         this.detailRow('任课教师', this.selectedItem.teacher.length > 0 ? this.selectedItem.teacher : '暂未公布',
           this.courseAttrColor(this.selectedItem.courseType))
         this.detailRow('成绩', `${this.selectedItem.scoreText}（绩点 ${this.selectedItem.gradePoint.toFixed(1)}）`,
@@ -598,6 +615,16 @@ export struct ScoreView {
       if (this.isLandscape) {
         if (this.loading) {
           LoadingTip()
+        } else if (this.currentTermScore() === null || this.currentTermScore()!.items.length === 0) {
+          // 横屏直接打开且数据未就绪/为空时必须兜底，否则 scoreLandscape→statsCard 的
+          // currentTermScore()! 非空断言会空指针闪退（竖屏转横屏时数据已加载所以正常）
+          Column() {
+            EmptyTip({ text: '本学期成绩尚未发布\n期末考试结束两周后可查询' })
+          }
+          .width('100%')
+          .layoutWeight(1)
+          .backgroundColor($r('app.color.bg_card'))
+          .borderRadius(18)
         } else {
           this.scoreLandscape()
         }
