@@ -43,23 +43,21 @@ export struct AboutPage {
     if (active) {
       // 已开启：询问是否退出（按当前生效的模式提示）
       const isLog: boolean = AppState.logEnabled;
+      const isNet: boolean = AppState.debugNetwork;
       promptAction.showDialog({
         title: isLog ? '日志调试已开启' : '调试模式已开启',
-        message: isLog ? '当前正在收集功能使用日志。是否退出日志调试？' : '当前功能浏览模式允许联网。是否退出调试模式？',
+        message: isLog && isNet ? '当前正在收集使用日志，且功能浏览模式允许联网。是否退出调试模式？' :
+          (isLog ? '当前正在收集功能使用日志。是否退出日志调试？' : '当前功能浏览模式允许联网。是否退出调试模式？'),
         buttons: [
           { text: '取消', color: '#888888' },
-          { text: isLog ? '退出日志调试' : '退出调试模式', color: '#DB5252', primary: true }
+          { text: '退出调试模式', color: '#DB5252', primary: true }
         ]
       }).then((res) => {
         if (res.index === 1) {
-          if (isLog) {
-            AppState.logEnabled = false;
-            LogStore.clear(); // 退出日志调试：自动删除已收集日志
-            promptAction.showToast({ message: '已退出日志调试，日志已清除' });
-          } else {
-            AppState.debugNetwork = false;
-            promptAction.showToast({ message: '已退出调试模式，功能浏览模式恢复断网' });
-          }
+          AppState.logEnabled = false;
+          AppState.debugNetwork = false;
+          LogStore.clearAll(); // 退出调试：自动删除已收集日志与附件
+          promptAction.showToast({ message: '已退出调试模式，日志已清除' });
         }
       });
     } else {
@@ -70,7 +68,7 @@ export struct AboutPage {
   }
 
   /** 提交调试模式密码：admin——
-   *  功能浏览模式（USE_MOCK）开启调试联网；真实登录模式开启日志调试 */
+   *  功能浏览模式（USE_MOCK）开启调试联网 + 日志收集；真实登录模式开启日志调试 */
   private submitDebugPwd(): void {
     if (this.debugPwd !== 'admin') {
       promptAction.showToast({ message: '密码错误' });
@@ -83,9 +81,11 @@ export struct AboutPage {
       return;
     }
     if (JwApi.USE_MOCK) {
-      // 功能浏览模式：开启调试联网
+      // 功能浏览模式：开启调试联网 + 日志收集（联网请求与使用日志一并收集）
       AppState.debugNetwork = true;
-      promptAction.showToast({ message: '调试模式已开启，功能浏览模式允许联网' });
+      AppState.logEnabled = true;
+      LogStore.log('日志调试', '开启', '成功', '功能浏览模式调试开启（联网 + 日志收集）');
+      promptAction.showToast({ message: '调试模式已开启：功能浏览允许联网并收集日志' });
     } else {
       // 真实登录：开启日志调试
       AppState.logEnabled = true;
@@ -233,7 +233,7 @@ export struct AboutPage {
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('app.color.text_primary'))
                 .margin({ top: 12 })
-              Text('版本 1.2.5')
+              Text('版本 1.2.6')
                 .fontSize(12)
                 .fontColor($r('app.color.text_tertiary'))
                 .margin({ top: 4 })
@@ -257,6 +257,11 @@ export struct AboutPage {
             }
             .width('100%')
             .padding({ left: 20, right: 20, bottom: 20 })
+
+            this.changelog('1.2.6', '2026-08-19', [
+              '修改登录方式，默认使用服务大厅登录',
+              '「我的」页面添加「服务大厅」和「智慧学工」网页快捷入口'
+            ])
 
             this.changelog('1.2.5', '2026-08-18', [
               '修复平板横屏状态下成绩查询页面闪退的问题',

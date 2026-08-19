@@ -11,13 +11,19 @@
 import { KeyboardAvoidMode, promptAction, display } from '@kit.ArkUI';
 import { mediaquery } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
+import { common } from '@kit.AbilityKit';
+import { fileIo } from '@kit.CoreFileKit';
+import { util } from '@kit.ArkTS';
 import { HttpClient } from '../api/HttpClient';
 import { JwApi } from '../api/JwApi';
+import { CasCaptchaRequiredError } from '../api/CasApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
+import { LogStore } from '../common/LogStore';
 import { DEVELOPER_DECLARATION, DeclarationSection } from '../common/PrivacyText';
 import { LoginResult } from '../model/Models';
+import { LogPage } from './LogPage';
 import { WebSurface } from './WebSurface';
 
 @Component
@@ -30,8 +36,14 @@ export struct LoginView {
   @State captchaImage: string = '';
   @State showCaptcha: boolean = false;
   @State remember: boolean = false; // 默认不勾选（用户隐私优先，每次启动重新输入密码）
+  /** 7天免登录：勾选后网页版/服务大厅登录成功会持久化教务系统会话 Cookie，便于下次自动重登 */
+  @State remember7d: boolean = AppState.remember7d;
   @State loading: boolean = false;
   @State showWeb: boolean = false;
+  /** 网页版登录目标（jw=教务系统直登 / hall=服务大厅），标题栏切换用 */
+  @State webLoginTarget: string = AppState.webLoginTarget;
+  /** 网页版登录 WebView 控制器（标题栏切换网址时重新加载用） */
+  private webCtrl: webview.WebviewController | null = null;
   @State showHistory: boolean = false;
   @State historyList: Record<string, string>[] = [];
   @State isLandscape: boolean = false;
@@ -41,7 +53,24 @@ export struct LoginView {
   @State privacyAgreedAt: string = ''; // 隐私协议同意时间（右下角展示用）
   @State showRiskTip: boolean = false; // 账号风控提醒弹窗（开发者声明之后首次展示）
   @State loginMode: string = 'auto'; // 重登方式（auto=自动重登 / legacy=手动重登），切换后实时刷新显示
+  @State loginSystem: string = 'service'; // 登录系统（service=服务大厅登录（新版）CAS / original=教务登录（原版）RSA 直登），默认服务大厅登录
   @State sheetWidth: Dimension = '100%'; // 半模态面板宽度（≥600vp 视为平板，与课程表页面一致）
+  /** 日志调试模式（AppStorage 响应式）：登录页连点图标 5 次 + 密码可开启；功能浏览模式同样生效 */
+  @StorageProp('logEnabled') logEnabled: boolean = false;
+  @StorageProp('logCollecting') logCollecting: boolean = true;
+  /** 应用图标连点计数（5 次内有效） */
+  @State logTapCount: number = 0;
+  /** 日志调试密码输入弹窗开关 */
+  @State showLogSheet: boolean = false;
+  @State logPwd: string = '';
+  /** 连点计时器（超时重置计数） */
+  private logTapTimer: number = -1;
+  /** 登录是否已取消（侧滑返回 / 20s 超时自动取消） */
+  private loginCancelled: boolean = false;
+  /** 登录超时计时器（20s 无响应自动取消，便于日志收集） */
+  private loginTimer: number = -1;
+  /** 是否内嵌展示日志详情页（登录页不在 Navigation 栈，不能 pushPath，改用内嵌切换） */
+  @State showLogPage: boolean = false;
 
   private privacyController: webview.WebviewController = new webview.WebviewController();
   private accountController: TextInputController = new TextInputController();
@@ -80,6 +109,11 @@ export struct LoginView {
     }
     // 重登方式：读取本地配置（未设置默认自动重登）
     this.loginMode = DataStore.getLoginMode().length > 0 ? DataStore.getLoginMode() : 'auto';
+    // 登录系统：恢复上次登录方式（"重新登录"时沿用教务登录/服务大厅登录，避免用错方式）
+    const savedSystem: string = DataStore.get(DataStore.KEY_LOGIN_SYSTEM);
+    if (savedSystem === 'service' || savedSystem === 'original') {
+      this.loginSystem = savedSystem;
+    }
     // 自动重登模式：用保存的凭据静默登录（显示加载、禁用交互），不再让用户手动输入
     if (this.autoRelogin) {
       const autoAcct: string = DataStore.get(DataStore.KEY_AUTO_ACCOUNT);
@@ -114,9 +148,23 @@ export struct LoginView {
     });
   }
 
-  /** 页面消失：注销监听 */
+  /** 页面消失（侧滑返回 / 路由离开）：若登录进行中则取消登录（方便收集日志，避免后台残留请求） */
   aboutToDisappear(): void {
     this.landscapeListener = null;
+    if (this.loading) {
+      this.cancelLogin('页面返回取消登录');
+    }
+  }
+
+  /** 取消登录：置取消标志、停止 loading、清除超时计时器、记录日志 */
+  private cancelLogin(reason: string): void {
+    this.loginCancelled = true;
+    this.loading = false;
+    if (this.loginTimer >= 0) {
+      clearTimeout(this.loginTimer);
+      this.loginTimer = -1;
+    }
+    LogStore.log('登录', '登录', '取消', reason);
   }
 
   /** 生成随机 4 位验证码字符（mock 模式） */
@@ -129,7 +177,8 @@ export struct LoginView {
     return out;
   }
 
-  /** 加载/刷新验证码：mock 用本地随机码占位；真实模式从服务端拉取验证码图片。 */
+  /** 加载/刷新验证码：mock 用本地随机码占位；真实模式从服务端拉取验证码图片。
+   *  日志调试开启时把验证码图片保存为附件（供日志导出 zip 收集，辅助定位登录失败原因）。 */
   private loadCaptcha(): void {
     if (JwApi.USE_MOCK) {
       this.captcha = this.randomCode();
@@ -139,9 +188,39 @@ export struct LoginView {
     this.captchaInput = '';
     JwApi.getCaptcha().then((b64: string) => {
       this.captchaImage = b64;
+      this.saveCaptchaAttachment(b64);
     }).catch(() => {
       this.captchaImage = '';
     });
+  }
+
+  /** 验证码 base64 存为附件文件（仅日志调试开启时；供日志导出打包 zip） */
+  private saveCaptchaAttachment(b64: string): void {
+    if (!LogStore.enabled() || b64.length === 0) {
+      return;
+    }
+    try {
+      const ctx: common.Context | null = AppState.context;
+      if (ctx === null) {
+        return;
+      }
+      const dir: string = `${ctx.cacheDir}/${LogStore.ATTACH_DIR}`;
+      try {
+        fileIo.mkdirSync(dir);
+      } catch (e) {
+        // 目录已存在，忽略
+      }
+      const b64Helper: util.Base64Helper = new util.Base64Helper();
+      const bytes: Uint8Array = b64Helper.decodeSync(b64);
+      const path: string = `${dir}/captcha_${new Date().getTime()}.jpg`;
+      const file = fileIo.openSync(path,
+        fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC);
+      fileIo.writeSync(file.fd, bytes.buffer);
+      fileIo.closeSync(file);
+      LogStore.addAttachment(path);
+    } catch (e) {
+      // ignore（附件保存失败不影响登录）
+    }
   }
 
   /**
@@ -154,7 +233,7 @@ export struct LoginView {
       this.showPrivacy = true;
       return;
     }
-    // 首次登录：未设置重登方式时默认使用"自动重登"（用户可在「改用网页版登录」上方的固定入口随时更改）
+    // 首次登录：未设置重登方式时默认使用"自动重登"（用户可在登录卡片下方的固定入口随时更改）
     if (DataStore.getLoginMode().length === 0) {
       DataStore.setLoginMode('auto');
       this.loginMode = 'auto';
@@ -171,8 +250,48 @@ export struct LoginView {
     JwApi.USE_MOCK = false;
     HttpClient.setOfflineMode(false);
     this.loading = true;
+    this.loginCancelled = false;
+    // 登录 20s 无响应自动取消（便于收集日志定位原因；超时后按取消处理，不再继续等待）
+    if (this.loginTimer >= 0) {
+      clearTimeout(this.loginTimer);
+    }
+    this.loginTimer = setTimeout(() => {
+      if (this.loading) {
+        this.cancelLogin('登录等待超时（20s），已自动取消');
+        promptAction.showToast({ message: '登录超时，已自动取消' });
+      }
+    }, 20000);
     const captchaVal: string = this.showCaptcha ? this.captchaInput.trim() : '';
-    const result: LoginResult = await JwApi.login(this.account.trim(), this.password, captchaVal);
+    let result: LoginResult;
+    try {
+      result = await JwApi.login(this.account.trim(), this.password, captchaVal, this.loginSystem);
+    } catch (e) {
+      if (this.loginTimer >= 0) {
+        clearTimeout(this.loginTimer);
+        this.loginTimer = -1;
+      }
+      if (this.loginCancelled) {
+        return;
+      }
+      this.loading = false;
+      // 该账号被要求图形验证码：原生登录无法处理，自动打开网页版（WebView）CAS 页兜底，
+      // 不作为可选登录模式暴露给用户（用户明确要求不要「网页登录」选项）。
+      if (e instanceof CasCaptchaRequiredError) {
+        promptAction.showToast({ message: '该账号需要验证码，正在打开网页版登录…', duration: 2000 });
+        this.openWebLogin();
+      } else {
+        promptAction.showToast({ message: '登录失败，请检查账号密码或网络', duration: 2500 });
+      }
+      return;
+    }
+    if (this.loginTimer >= 0) {
+      clearTimeout(this.loginTimer);
+      this.loginTimer = -1;
+    }
+    // 已被侧滑返回/超时取消：不再处理结果（防止返回后仍弹 Toast / 跳转）
+    if (this.loginCancelled) {
+      return;
+    }
     this.loading = false;
 
     if (result.success && result.profile !== null) {
@@ -186,7 +305,10 @@ export struct LoginView {
       // 保存自动重登凭据（冷启动时静默重新登录刷新会话，否则服务端会话过期后功能不可用）
       DataStore.put(DataStore.KEY_AUTO_ACCOUNT, this.account.trim());
       DataStore.put(DataStore.KEY_AUTO_PWD, DataStore.encodePwd(this.password));
-      DataStore.setLoginMethod('pwd');
+      // 登录方式：教务登录→pwd；服务大厅登录（CAS）已在 loginViaCas 内写 cas，勿覆盖
+      if (this.loginSystem === 'original') {
+        DataStore.setLoginMethod('pwd');
+      }
       promptAction.showToast({ message: '登录成功' });
       this.onSuccess();
     } else {
@@ -201,7 +323,8 @@ export struct LoginView {
     }
   }
 
-  /** 在应用内 WebView 打开教务系统登录页，用于"网页版直接登录"的兜底方案。 */
+  /** 打开网页版登录（WebView）：标题栏可切换"教务系统 / 服务大厅"两个登录网址，
+   *  登录成功后按目标类型取 Cookie 并自动登录教务系统（服务大厅模式由 WebSurface 桥接 jwglxt）。 */
   private openWebLogin(): void {
     if (JwApi.USE_MOCK && !AppState.debugNetwork) {
       promptAction.showToast({ message: '当前模式禁止使用' });
@@ -212,14 +335,44 @@ export struct LoginView {
       this.showWeb = false;
       this.onSuccess();
     };
-    AppState.webUrl = Const.WEB_LOGIN_URL;
+    this.webLoginTarget = AppState.webLoginTarget;
+    // 服务大厅 = authserver CAS 登录页（service=rhmh）；教务系统 = jwxt 登录页
+    AppState.webUrl = this.webLoginTarget === 'hall' ? Const.CAS_LOGIN_URL : Const.WEB_LOGIN_URL;
     AppState.webTitle = '网页版登录';
     this.showWeb = true;
+  }
+
+  /** 网页版登录标题栏切换目标（服务大厅 ↔ 教务系统）：更新目标并让 WebView 重新加载对应网址 */
+  private switchWebTarget(target: string): void {
+    if (this.webLoginTarget === target) {
+      return;
+    }
+    this.webLoginTarget = target;
+    AppState.webLoginTarget = target;
+    AppState.webUrl = target === 'hall' ? Const.CAS_LOGIN_URL : Const.WEB_LOGIN_URL;
+    if (this.webCtrl !== null) {
+      this.webCtrl.loadUrl(AppState.webUrl);
+    }
   }
 
   /** 当前重登方式文案（自动重登 / 手动重登） */
   private loginModeText(): string {
     return this.loginMode === 'auto' ? '自动重登' : '手动重登';
+  }
+
+  /** 切换登录系统（service=服务大厅登录（新版）CAS / original=教务登录（原版）RSA 直登），切换后实时刷新显示
+   *  重登方式联动：教务登录默认自动重登；服务大厅登录为手动重登（教务会话不可持久化，靠 CASTGC 静默桥接）。 */
+  private setLoginSystem(system: string): void {
+    this.loginSystem = system;
+    if (system === 'service') {
+      // 服务大厅登录：手动重登（冷启动用 CASTGC 从服务大厅重新打开教务系统，不依赖账号密码自动重登）
+      DataStore.setLoginMode('legacy');
+      this.loginMode = 'legacy';
+    } else {
+      // 教务登录：自动重登（保存的账号密码自动登录教务系统）
+      DataStore.setLoginMode('auto');
+      this.loginMode = 'auto';
+    }
   }
 
   /** 更改重登方式（固定入口，可随时切换，切换后立即刷新显示） */
@@ -250,7 +403,7 @@ export struct LoginView {
   private showLoginModeInfo(): void {
     promptAction.showDialog({
       title: '重登方式说明',
-      message: '「自动重登」每次重新打开应用，均会重新使用账号密码进行登录，免去你重新点击，该方法可以尽可能避免手动重登出现功能不可用的情况，但会出现加载慢的情况（默认使用自动重登）。\n\n「手动重登」不会自动重新登录，需在首页左上角点击黄色重登按钮进行重新登录，适合会话长期有效的场景。',
+      message: '「教务登录」默认自动重登：每次重新打开应用用保存的账号密码自动登录教务系统，免去手动点击。\n\n「服务大厅登录」为手动重登：教务系统会话不可持久化，重新打开应用会自动从服务大厅重新打开教务系统刷新（无需重新输入密码）；仅当该刷新失败时才需在首页点击「重登」按钮。\n\n重登方式可在下方随时手动更改。',
       buttons: [
         { text: '我知道了', color: '#079841', primary: true }
       ]
@@ -268,6 +421,119 @@ export struct LoginView {
     AppState.webUrl = Const.FORGOT_PASSWORD_URL;
     AppState.webTitle = '找回密码';
     this.showWeb = true;
+  }
+
+  /** 日志调试：应用图标连点 5 次触发开关（已开启 → 退出确认；未开启 → 密码输入）。
+   *  开启后真实登录/功能浏览模式都会正常收集日志，管理在"我的 → 日志详情"。 */
+  private onLogoTapped(): void {
+    this.logTapCount++;
+    if (this.logTapTimer >= 0) {
+      clearTimeout(this.logTapTimer);
+    }
+    // 3 秒内未继续点击则重置计数
+    this.logTapTimer = setTimeout(() => {
+      this.logTapCount = 0;
+    }, 3000);
+    if (this.logTapCount < 5) {
+      return;
+    }
+    this.logTapCount = 0;
+    this.toggleLogDebug();
+  }
+
+  /** 日志调试开关（日志入口点击 / 连点图标满 5 次共用）：
+   *  已开启 → 弹"是否退出"；未开启 → 弹密码输入（admin） */
+  private toggleLogDebug(): void {
+    if (AppState.logEnabled) {
+      // 已开启：询问是否退出（同时关闭功能浏览联网，清除已收集日志与附件）
+      promptAction.showDialog({
+        title: '日志调试已开启',
+        message: '当前正在收集登录与使用日志，且功能浏览模式允许联网。是否退出调试模式？',
+        buttons: [
+          { text: '取消', color: '#888888' },
+          { text: '退出调试模式', color: '#DB5252', primary: true }
+        ]
+      }).then((res) => {
+        if (res.index === 1) {
+          AppState.logEnabled = false;
+          AppState.debugNetwork = false;
+          LogStore.clearAll(); // 退出日志调试：自动删除已收集日志与附件
+          promptAction.showToast({ message: '已退出调试模式，日志已清除' });
+        }
+      });
+    } else {
+      // 未开启：弹密码输入
+      this.logPwd = '';
+      this.showLogSheet = true;
+    }
+  }
+
+  /** 提交日志调试密码：admin（登录页入口——开启日志收集，并同时允许功能浏览模式联网） */
+  private submitLogPwd(): void {
+    if (this.logPwd !== 'admin') {
+      promptAction.showToast({ message: '密码错误' });
+      return;
+    }
+    this.showLogSheet = false;
+    if (AppState.logEnabled) {
+      promptAction.showToast({ message: '日志调试已开启' });
+      return;
+    }
+    AppState.logEnabled = true;
+    // 功能浏览模式允许联网（debugNetwork）：进入功能浏览时网络请求不再被离线模式拦截
+    AppState.debugNetwork = true;
+    LogStore.log('日志调试', '开启', '成功', '登录页入口开启（日志收集 + 功能浏览允许联网）');
+    promptAction.showToast({ message: '日志调试已开启，开始收集登录与使用日志' });
+  }
+
+  /** 日志调试密码输入弹窗 */
+  @Builder
+  logDebugSheet() {
+    Column() {
+      Text('日志调试')
+        .fontSize(17)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.text_primary'))
+        .width('100%')
+        .margin({ top: 16, bottom: 8 })
+
+      Text('输入密码以开启日志调试（收集登录与使用日志，用于定位登录失败等问题的原因）')
+        .fontSize(12)
+        .fontColor($r('app.color.text_tertiary'))
+        .width('100%')
+        .margin({ bottom: 12 })
+
+      TextInput({ text: this.logPwd, placeholder: '请输入密码' })
+        .fontSize(15)
+        .fontColor($r('app.color.text_primary'))
+        .placeholderColor($r('app.color.text_tertiary'))
+        .backgroundColor($r('app.color.bg_chip'))
+        .borderRadius(10)
+        .height(44)
+        .width('100%')
+        .onChange((v: string) => {
+          this.logPwd = v;
+        })
+        .onSubmit(() => {
+          this.submitLogPwd();
+        })
+
+      Button('确认')
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.brand_on'))
+        .backgroundColor($r('app.color.brand'))
+        .height(40)
+        .width('100%')
+        .borderRadius(20)
+        .margin({ top: 12, bottom: 16 })
+        .onClick(() => {
+          this.submitLogPwd();
+        })
+    }
+    .width('100%')
+    .padding({ left: 20, right: 20 })
+    .backgroundColor($r('app.color.bg_page'))
   }
 
   /** 功能浏览（原"游客模式"）：临时切到 mock 数据，用占位账号直接登录（无需真实学号密码）。 */
@@ -603,7 +869,17 @@ export struct LoginView {
   }
 
   build() {
-    Column() {
+    // 日志调试开启后，从登录页内嵌查看日志详情（登录页不在 Navigation 栈，不能 pushPath）
+    Stack() {
+      if (this.showLogPage) {
+        LogPage({
+          embedded: true,
+          onBackCallback: () => {
+            this.showLogPage = false;
+          }
+        })
+      } else {
+      Column() {
       // 顶部背景：品牌绿色渐变 + XJAU Helper logo
       Stack({ alignContent: Alignment.Top }) {
         // 顶部背景：品牌农大绿渐变
@@ -619,7 +895,7 @@ export struct LoginView {
         // 前往登录页模式：登录按钮左侧显示灰色返回按钮（见登录按钮区域）
         Scroll() {
           Column() {
-            // 顶部 XJAU Helper 圆角 logo
+            // 顶部 XJAU Helper 圆角 logo（连点 5 次开启日志调试：登录页亦可收集登录数据定位登录失败）
             Column() {
               Image($r('app.media.startIcon'))
                 .width(this.isLandscape ? 96 : 120)
@@ -627,6 +903,9 @@ export struct LoginView {
                 .objectFit(ImageFit.Contain)
                 .borderRadius(28)
                 .backgroundColor('#FFFFFF')
+                .onClick(() => {
+                  this.onLogoTapped();
+                })
               Text('新农助手')
                 .fontSize(22)
                 .fontWeight(FontWeight.Bold)
@@ -639,13 +918,13 @@ export struct LoginView {
 
             // 登录卡片
             Column() {
-              Text('统一身份认证登录')
+              Text(this.loginSystem === 'service' ? '服务大厅登录' : '教务登录')
                 .fontSize(17)
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('app.color.text_primary'))
                 .width('100%')
                 .margin({ bottom: 4 })
-              Text('使用教务系统学号与密码登录')
+              Text(this.loginSystem === 'service' ? '通过统一身份认证登录，登录后自动打开教务系统' : '使用教务系统学号与密码登录')
                 .fontSize(12)
                 .fontColor($r('app.color.text_tertiary'))
                 .width('100%')
@@ -675,6 +954,23 @@ export struct LoginView {
                   .fontSize(12)
                   .fontColor($r('app.color.text_secondary'))
                   .margin({ left: 4 })
+                // 7天免登录（CASTGC）仅属于新版（服务大厅/CAS）登录系统，原版不显示
+                if (this.loginSystem === 'service') {
+                  Checkbox({ name: 'remember7d' })
+                    .select(this.remember7d)
+                    .selectedColor($r('app.color.brand'))
+                    .width(18)
+                    .height(18)
+                    .margin({ left: 10 })
+                    .onChange((checked: boolean) => {
+                      this.remember7d = checked;
+                      AppState.remember7d = checked;
+                    })
+                  Text('7天免登录')
+                    .fontSize(12)
+                    .fontColor($r('app.color.text_secondary'))
+                    .margin({ left: 4 })
+                }
                 Blank()
                 Text('忘记密码？')
                   .fontSize(12)
@@ -770,7 +1066,7 @@ export struct LoginView {
             .borderRadius(20)
             .shadow({ radius: 20, color: '#14000000', offsetY: 6 })
 
-            // 底部操作区：网页版登录（默认显示）+ 功能浏览
+            // 底部操作区：重登方式 + 登录系统切换（服务大厅登录 ↔ 教务登录）+ 网页版登录 + 功能浏览
             Column() {
               // 重登方式（固定入口，可随时更改）
               Row() {
@@ -804,9 +1100,29 @@ export struct LoginView {
                 this.changeLoginMode();
               })
 
+              // 登录系统切换按钮：显示要切换到的目标模式（当前服务大厅登录 → 点按切教务登录，反之亦然）
               Button() {
                 Row() {
-                  Text('网页登录')
+                  Text(this.loginSystem === 'service' ? '教务登录' : '服务大厅登录')
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor($r('app.color.brand'))
+                }
+              }
+              .width('72%')
+              .height(44)
+              .backgroundColor($r('app.color.brand_light'))
+              .borderRadius(22)
+              .margin({ bottom: 10 })
+              .enabled(!this.loading)
+              .onClick(() => {
+                this.setLoginSystem(this.loginSystem === 'service' ? 'original' : 'service');
+              })
+
+              // 网页版登录：在 WebView 打开统一身份认证（CAS）登录页（验证码等场景兜底）
+              Button() {
+                Row() {
+                  Text('网页版登录')
                     .fontSize(15)
                     .fontWeight(FontWeight.Medium)
                     .fontColor($r('app.color.brand'))
@@ -840,6 +1156,33 @@ export struct LoginView {
                 this.demoLogin();
               })
 
+              // 日志调试入口（功能浏览按钮下方）：仅日志调试开启后显示；点击进入日志查看页
+              // （开启方式：连点顶部应用图标 5 次 + 密码 admin；真实登录/功能浏览模式均收集日志）
+              if (this.logEnabled) {
+                Row() {
+                  Text('日志调试')
+                    .fontSize(13)
+                    .fontColor($r('app.color.text_secondary'))
+                  Blank()
+                  Text(this.logCollecting ? '● 收集中' : '○ 已暂停')
+                    .fontSize(12)
+                    .fontColor(this.logCollecting ? $r('app.color.brand') : $r('app.color.text_tertiary'))
+                  Text('›')
+                    .fontSize(13)
+                    .fontColor($r('app.color.text_tertiary'))
+                    .margin({ left: 2 })
+                }
+                .width('72%')
+                .padding({ left: 18, right: 14, top: 10, bottom: 10 })
+                .backgroundColor($r('app.color.bg_chip'))
+                .borderRadius(22)
+                .margin({ bottom: 10 })
+                .onClick(() => {
+                  // 登录页不在 Navigation 栈：内嵌展示日志详情（embedded 模式），不走 pushPath
+                  this.showLogPage = true;
+                })
+              }
+
               Text('"功能浏览"使用虚拟数据，用以展示相关功能效果。\n若多次登录失败，可尝试使用网页教务系统进行登录。')
                 .fontSize(11)
                 .lineHeight(18)
@@ -868,8 +1211,11 @@ export struct LoginView {
         dragBar: false,
         preferType: SheetType.BOTTOM,
         width: this.sheetWidth,
+        showClose: true,
         backgroundColor: $r('app.color.bg_page'),
-        title: { title: AppState.webTitle }
+        title: () => {
+          this.webSheetTitle();
+        }
       })
 
       // 开发者声明弹窗（同意隐私协议后首次展示）：挂独立占位组件，避免与其它弹窗同宿主冲突
@@ -890,6 +1236,19 @@ export struct LoginView {
         .width('100%')
         .height(1)
         .bindSheet($$this.showRiskTip, this.riskTipSheet(), {
+          height: SheetSize.FIT_CONTENT,
+          dragBar: false,
+          preferType: SheetType.BOTTOM,
+          width: this.sheetWidth,
+          showClose: true,
+          backgroundColor: $r('app.color.bg_page')
+        })
+
+      // 日志调试密码弹窗（连点图标 5 次 / 点日志调试入口触发）：另挂独立占位组件，避免同宿主 bindSheet 冲突
+      Column()
+        .width('100%')
+        .height(1)
+        .bindSheet($$this.showLogSheet, this.logDebugSheet(), {
           height: SheetSize.FIT_CONTENT,
           dragBar: false,
           preferType: SheetType.BOTTOM,
@@ -926,6 +1285,10 @@ export struct LoginView {
       preferType: SheetType.BOTTOM,
       width: this.sheetWidth
     })
+      }
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
@@ -939,7 +1302,50 @@ export struct LoginView {
 
   @Builder
   webSheet() {
-    WebSurface()
+    WebSurface({
+      onControllerReady: (ctrl: webview.WebviewController) => {
+        this.webCtrl = ctrl;
+      }
+    })
+  }
+
+  /** 网页版登录弹窗标题栏：标题 + 右侧"教务系统 / 服务大厅"切换（仅网页版登录模式显示，找回密码不显示） */
+  @Builder
+  webSheetTitle() {
+    Row() {
+      Text(AppState.webTitle)
+        .fontSize(18)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.text_primary'))
+      Blank()
+      if (AppState.webLoginMode) {
+        Row() {
+          Text('服务大厅')
+            .fontSize(13)
+            .fontColor(this.webLoginTarget === 'hall' ? $r('app.color.brand_on') : $r('app.color.text_secondary'))
+            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+            .backgroundColor(this.webLoginTarget === 'hall' ? $r('app.color.brand') : Color.Transparent)
+            .borderRadius(13)
+            .onClick(() => {
+              this.switchWebTarget('hall');
+            })
+          Text('教务系统')
+            .fontSize(13)
+            .fontColor(this.webLoginTarget === 'jw' ? $r('app.color.brand_on') : $r('app.color.text_secondary'))
+            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+            .backgroundColor(this.webLoginTarget === 'jw' ? $r('app.color.brand') : Color.Transparent)
+            .borderRadius(13)
+            .onClick(() => {
+              this.switchWebTarget('jw');
+            })
+        }
+        .backgroundColor($r('app.color.bg_chip'))
+        .borderRadius(16)
+        .padding(3)
+      }
+    }
+    .width('100%')
+    .padding({ left: 16, right: 16 })
   }
 
   /** 隐私协议全屏弹窗：协议正文 + 底部"同意"按钮 + 右下角已同意时间 */

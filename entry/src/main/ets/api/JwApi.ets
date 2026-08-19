@@ -28,6 +28,7 @@ import { DateUtil } from '../common/DateUtil';
 import { EMPTY_REPORT } from '../model/Empty';
 import { Const } from '../common/Constants';
 import { HttpClient, HttpResult, BinaryResult } from './HttpClient';
+import { CasApi, CasCaptchaRequiredError, CasLoginResult } from './CasApi';
 import { RsaUtil } from '../common/RsaUtil';
 import { LogStore } from '../common/LogStore';
 import zlib from '@ohos.zlib';
@@ -316,7 +317,14 @@ export class JwApi {
   }
 
   /** 登录教务系统 */
-  static async login(account: string, password: string, captcha: string = ''): Promise<LoginResult> {
+  /**
+   * 登录入口（2026-08 学校改版：统一身份认证 CAS 单点登录）。
+   * @param mode 登录系统：
+   *   'original'=原版（教务系统 RSA 直登，与原版 App 行为一致）；
+   *   'service'=新版（服务大厅/CAS 登录，登录后后台自动打开教务系统；7天免登录仅在此时生效）；
+   *   'auto'=自动（CAS 优先→RSA 兜底，冷启动自动重登用）。
+   */
+  static async login(account: string, password: string, captcha: string = '', mode: string = 'auto'): Promise<LoginResult> {
     if (JwApi.USE_MOCK) {
       const ok: boolean = account.length >= 6 && password.length >= 6;
       const result: LoginResult = {
@@ -325,21 +333,157 @@ export class JwApi {
         profile: ok ? MockData.PROFILE : null,
         needCaptcha: false
       };
+      // 功能浏览模式同样记录登录日志（日志调试开启后收集，便于排查登录问题）
+      LogStore.log('登录', '登录', ok ? '成功' : '失败',
+        ok ? '功能浏览模式登录成功' : '功能浏览模式登录失败（学号/密码长度不足）');
       return JwApi.delay(result, 900);
     }
-    // ── 真实教务登录链路 ──
-    // 1) GET 登录页，提取隐藏域（csrftoken 等）；
-    // 2) GET 公钥（/xtgl/login_getPublicKey.html 返回 {modulus, exponent} base64）；
-    // 3) RSA(PKCS#1 v1.5) 加密密码；
-    // 4) POST 登录表单（yhm / mm密文 / csrftoken / mmsfjm / yzm），HttpClient 自动保存会话 Cookie；
-    // 5) 用 getProfile() 验证会话是否真正建立（避免被登录页 HTML 误导）。
+    // 原版登录：教务系统 RSA 直登（与原版一致，不经过 CAS）
+    if (mode === 'original') {
+      AppState.account = account;
+      try {
+        const result: LoginResult = await JwApi.loginReal(account, password, captcha);
+        if (result.success) {
+          DataStore.put(DataStore.KEY_LOGIN_SYSTEM, 'original'); // 教务登录
+        }
+        return result;
+      } catch (e) {
+        // 登录链路任一步异常（网络失败/解析失败/RSA 异常）：记录完整诊断，便于定位登录失败根因
+        const errText: string = LogStore.errorOf(e as Object);
+        LogStore.logNet('登录', '原版', '异常',
+          {
+            method: 'POST',
+            url: '/jwglxt/xtgl/login_slogin.html',
+            status: '',
+            error: errText,
+            detail: `原版登录链路异常（${JwApi.loginStage}），请检查网络与教务系统可用性`
+          });
+        throw e as Error;
+      }
+    }
+    // 新版登录：服务大厅（CAS）登录，失败不自动回退 RSA，交由 UI 提示（验证码异常直接抛给 UI）
+    if (mode === 'service') {
+      AppState.account = account;
+      const casResult: LoginResult | null = await JwApi.loginViaCas(account, password);
+      if (casResult !== null) {
+        DataStore.put(DataStore.KEY_LOGIN_SYSTEM, 'service'); // 服务大厅登录
+        return casResult;
+      }
+      return {
+        success: false,
+        message: '服务大厅登录失败，请检查账号密码或稍后重试',
+        profile: null,
+        needCaptcha: false
+      };
+    }
+    // 自动（默认）：CAS 优先 → 教务系统 RSA 直登兜底
     AppState.account = account;
+    const casResult: LoginResult | null = await JwApi.loginViaCas(account, password);
+    if (casResult !== null) {
+      DataStore.put(DataStore.KEY_LOGIN_SYSTEM, 'service'); // 服务大厅登录
+      return casResult;
+    }
+    try {
+      const result: LoginResult = await JwApi.loginReal(account, password, captcha);
+      if (result.success) {
+        DataStore.put(DataStore.KEY_LOGIN_SYSTEM, 'original'); // 教务登录
+      }
+      return result;
+    } catch (e) {
+      // 登录链路任一步异常（网络失败/解析失败/RSA 异常）：记录完整诊断，便于定位登录失败根因
+      const errText: string = LogStore.errorOf(e as Object);
+      LogStore.logNet('登录', '登录', '异常',
+        {
+          method: 'POST',
+          url: '/jwglxt/xtgl/login_slogin.html',
+          status: '',
+          error: errText,
+          detail: `登录链路异常（${JwApi.loginStage}），请检查网络与教务系统可用性`
+        });
+      throw e as Error;
+    }
+  }
+
+  /** 当前登录阶段（日志诊断用）：getPage=取登录页 / getKey=取公钥 / encrypt=RSA加密 / submit=提交表单 / profile=验证资料 */
+  private static loginStage: string = 'init';
+
+  /**
+   * 统一身份认证（CAS）原生登录主链路。
+   * - 成功：建立 jwglxt 会话、缓存资料、按需持久化 CASTGC（7天免登录），返回 LoginResult。
+   * - 需要验证码：抛出 CasCaptchaRequiredError（由 UI 转"网页版登录"兜底）。
+   * - 其它网络/解析失败：返回 null，交由下方旧的 RSA 直登兜底。
+   */
+  private static async loginViaCas(account: string, password: string): Promise<LoginResult | null> {
+    const remember7d: boolean = AppState.remember7d;
+    JwApi.loginStage = 'cas';
+    try {
+      const res: CasLoginResult = await CasApi.nativeCasLogin(account, password, remember7d);
+      if (res.cookie.length === 0) {
+        return null; // 无会话 Cookie，回退 RSA
+      }
+      // 注入教务系统会话给全站接口
+      HttpClient.setCookie(res.cookie);
+      DataStore.put(DataStore.KEY_SESSION_COOKIE, res.cookie);
+      // 服务大厅登录：始终持久化 CASTGC（冷启动从服务大厅重新桥接"新教务系统"刷新用）。
+      // rememberMe（7天免登录）只影响服务端 TGT 有效期；本地持久化不依赖勾选。
+      if (res.castgc.length > 0) {
+        DataStore.put(DataStore.KEY_CAS_TGC, res.castgc);
+      }
+      DataStore.put(DataStore.KEY_LOGIN_METHOD, 'cas');
+      // 验证会话是否真正建立（避免被登录页 HTML 误导）
+      const profile: UserProfile = await JwApi.getProfile();
+      if (profile.name.length > 0) {
+        DataStore.cacheProfile(profile);
+        LogStore.logNet('登录', 'CAS', '成功',
+          { method: 'POST', url: '/authserver/login', status: '200', detail: '已建立教务系统会话' });
+        return { success: true, message: '登录成功', profile: profile, needCaptcha: false };
+      }
+      // 会话 Cookie 有但资料取不到：视为失败，回退
+      return null;
+    } catch (e) {
+      if (e instanceof CasCaptchaRequiredError) {
+        throw e; // 直接抛出，UI 引导网页版登录
+      }
+      // 网络/解析等其它异常：CAS 不可用，回退 RSA
+      LogStore.logNet('登录', 'CAS', '异常',
+        { method: 'POST', url: '/authserver/login', status: '', error: LogStore.errorOf(e as Object),
+          detail: 'CAS 登录失败，将回退旧版 RSA 直登' });
+      return null;
+    }
+  }
+
+  /** 冷启动静默重登：用持久化 CASTGC 重新桥接 jwxt 会话（无需重新输入密码）。成功返回 true。 */
+  static async silentCasRelogin(): Promise<boolean> {
+    const tgc: string = DataStore.get(DataStore.KEY_CAS_TGC);
+    if (tgc.length === 0) {
+      return false;
+    }
+    try {
+      const cookie: string = await CasApi.silentRelogin(tgc);
+      if (cookie.length === 0) {
+        return false;
+      }
+      HttpClient.setCookie(cookie);
+      DataStore.put(DataStore.KEY_SESSION_COOKIE, cookie);
+      LogStore.log('登录', 'CAS', '自动重登', '使用 CASTGC 静默恢复教务系统会话');
+      return true;
+    } catch (e) {
+      LogStore.log('登录', 'CAS', '自动重登', '失败：' + LogStore.errorOf(e as Object));
+      return false;
+    }
+  }
+
+  /** 真实登录主流程（被 login 包装，带阶段跟踪与异常日志） */
+  private static async loginReal(account: string, password: string, captcha: string): Promise<LoginResult> {
+    JwApi.loginStage = 'getPage';
     const pageRes: HttpResult = await HttpClient.get('/jwglxt/xtgl/login_slogin.html');
     // 提取登录页【全部】隐藏域（csrftoken、xxdm、yzcskz、mmsfjm 等约 18 个）。
     // 只提交部分字段会导致服务端退回登录页 / 误判"验证码错误"，必须整表单提交。
     const hidden: Record<string, string> = JwApi.extractAllHidden(pageRes.body);
     const csrf: string = hidden['csrftoken'] ?? '';
+    JwApi.loginStage = 'getKey';
     const pub: RsaPublicKey = await JwApi.fetchPublicKey();
+    JwApi.loginStage = 'encrypt';
     const encPwd: string = await RsaUtil.encryptPassword(password, pub.modulus, pub.exponent);
 
     const form: Record<string, string> = hidden; // 已包含全部隐藏域
@@ -351,6 +495,7 @@ export class JwApi {
       form['yzm'] = captcha; // 服务端要求验证码时携带
     }
 
+    JwApi.loginStage = 'submit';
     const res: HttpResult = await HttpClient.postForm('/jwglxt/xtgl/login_slogin.html', form);
     const body: string = res.body;
     // ── 模仿 HiXD CasLoginService：先按 HTML 具体关键词提取错误 ──
@@ -363,13 +508,27 @@ export class JwApi {
     const needCaptcha: boolean = body.indexOf('验证码') >= 0 || body.indexOf('校验码') >= 0;
 
     if (body.indexOf('账号被锁定') >= 0 || body.indexOf('账号被冻结') >= 0) {
-      LogStore.logNet('登录', '登录', '失败', { method: 'POST', url: '/jwglxt/xtgl/login_slogin.html', status: `${res.code}`, detail: '账号被锁定/冻结' });
+      LogStore.logNet('登录', '登录', '失败',
+        {
+          method: 'POST',
+          url: '/jwglxt/xtgl/login_slogin.html',
+          status: `${res.code}`,
+          body: body,
+          detail: `账号被锁定/冻结；hasJsession=${hasJsession} enteredHome=${enteredHome}；错误提示：${JwApi.extractLoginError(body)}`
+        });
       return { success: false, message: '账号已被锁定/冻结，请稍后再试', profile: null, needCaptcha: false };
     }
 
     // 明确的密码错误且未要求验证码：直接返回失败，避免多余请求
     if (failByPwd && !needCaptcha) {
-      LogStore.logNet('登录', '登录', '失败', { method: 'POST', url: '/jwglxt/xtgl/login_slogin.html', status: `${res.code}`, detail: '服务端返回密码错误' });
+      LogStore.logNet('登录', '登录', '失败',
+        {
+          method: 'POST',
+          url: '/jwglxt/xtgl/login_slogin.html',
+          status: `${res.code}`,
+          body: body,
+          detail: `服务端返回密码错误；hasJsession=${hasJsession} enteredHome=${enteredHome}；错误提示：${JwApi.extractLoginError(body)}`
+        });
       return { success: false, message: '学号或密码错误', profile: null, needCaptcha: false };
     }
 
@@ -407,6 +566,31 @@ export class JwApi {
 
   /** 验证码图片地址（与服务端会话绑定）。正方 zftal-ui v5 实际端点为 /kaptcha（带 time 防缓存）。 */
   static CAPTCHA_URL: string = '/jwglxt/kaptcha';
+
+  /** 从登录失败响应 HTML 中提取具体错误提示（用于日志诊断）：
+   *  依次匹配常见提示关键词，命中即返回；无命中则截取响应体中可读文本片段。 */
+  private static extractLoginError(body: string): string {
+    const hints: string[] = [
+      '账号被锁定', '账号被冻结', '用户名或密码错误', '密码错误', '账号错误',
+      '验证码错误', '验证码不正确', '校验码', '请输入验证码', '该账号已过期',
+      '登录已过期', '系统繁忙', '网络异常', '服务器错误'
+    ];
+    for (let i = 0; i < hints.length; i++) {
+      const idx: number = body.indexOf(hints[i]);
+      if (idx >= 0) {
+        // 取关键词前后各 40 字符作为上下文
+        const start: number = Math.max(0, idx - 40);
+        const end: number = Math.min(body.length, idx + hints[i].length + 40);
+        return body.substring(start, end).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      }
+    }
+    // 无关键词命中：尝试取提示 div（正方登录页常见 .tip / .alert）
+    const tipIdx: number = body.indexOf('提示');
+    if (tipIdx >= 0) {
+      return body.substring(Math.max(0, tipIdx - 30), tipIdx + 60).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    return '未提取到具体提示（响应体已记录，可在日志详情查看完整内容）';
+  }
 
   /** 拉取验证码图片，返回 base64（无 data: 前缀）；mock 模式或无图时返回空串。 */
   static async getCaptcha(): Promise<string> {
@@ -458,6 +642,8 @@ export class JwApi {
     DataStore.put(DataStore.KEY_SESSION_COOKIE, '');
     DataStore.put(DataStore.KEY_AUTO_ACCOUNT, '');
     DataStore.put(DataStore.KEY_AUTO_PWD, '');
+    DataStore.put(DataStore.KEY_CAS_TGC, ''); // 清除 7天免登录的 CASTGC
+    DataStore.put(DataStore.KEY_SSO_COOKIES, ''); // 清除统一认证/服务大厅 SSO 会话
     // 清除缓存的登录资料，确保下次打开回到登录页而不是直接进主页
     DataStore.cacheProfile(null);
     AppState.clear();

@@ -10,12 +10,18 @@
 import { fileIo, picker } from '@kit.CoreFileKit';
 import { promptAction } from '@kit.ArkUI';
 import { common } from '@kit.AbilityKit';
+import zlib from '@ohos.zlib';
 import { AppState } from '../common/AppState';
 import { LogStore, LogEntry } from '../common/LogStore';
 import { PageHeader } from './common/UiKit';
 
 @Component
 export struct LogPage {
+  /** 内嵌模式（登录页直接展示，不依赖 Navigation 栈）：为 true 时用普通容器包裹、返回走回调 */
+  @Prop embedded: boolean = false;
+  /** 内嵌模式下的返回回调（embedded=true 时使用；Navigation 模式忽略） */
+  onBackCallback: () => void = () => {
+  };
   /** 日志列表（全量） */
   @State logs: LogEntry[] = [];
   /** 收集开关状态（@StorageProp 同步 LogStore.collecting 对应 UI） */
@@ -129,7 +135,7 @@ export struct LogPage {
       ]
     }).then((res) => {
       if (res.index === 1) {
-        LogStore.clear();
+        LogStore.clearAll(); // 清空日志与附件（图片等文件）
         this.refresh();
         promptAction.showToast({ message: '日志已清空' });
       }
@@ -274,6 +280,82 @@ export struct LogPage {
     return out;
   }
 
+  /** 导出：有附件文件（图片等）时打包 zip（日志 txt + 附件），否则导出纯 txt */
+  private exportContent(content: string, name: string): void {
+    const attachments: string[] = LogStore.attachmentsAll();
+    if (attachments.length === 0) {
+      this.exportText(content, name);
+      return;
+    }
+    this.exportZip(content, attachments, name);
+  }
+
+  /** 导出 zip：日志 txt + 附件文件打包（zlib.zipFile 压缩目录），保存到用户选择的位置。
+   *  打包失败时降级为纯 txt 导出，保证日志不丢。 */
+  private exportZip(content: string, files: string[], name: string): void {
+    try {
+      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const tmpDir: string = `${ctx.cacheDir}/log_export_${new Date().getTime()}`;
+      fileIo.mkdirSync(tmpDir);
+      // 1) 写日志 txt
+      const txtPath: string = `${tmpDir}/logs.txt`;
+      const tf = fileIo.openSync(txtPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC);
+      fileIo.writeSync(tf.fd, content);
+      fileIo.closeSync(tf);
+      // 2) 复制附件文件到临时目录
+      for (const src of files) {
+        try {
+          const idx: number = src.lastIndexOf('/');
+          const fname: string = idx >= 0 ? src.substring(idx + 1) : src;
+          if (fname.length === 0) {
+            continue;
+          }
+          fileIo.copyFileSync(src, `${tmpDir}/${fname}`);
+        } catch (e) {
+          // 单个附件复制失败跳过
+        }
+      }
+      // 3) zip 打包整个目录
+      const zipPath: string = `${tmpDir}.zip`;
+      zlib.zipFile(tmpDir, zipPath, {}).then(() => {
+        this.saveZipToPicker(zipPath, name);
+      }).catch(() => {
+        // 打包失败：降级为纯 txt 导出
+        this.exportText(content, name);
+      });
+    } catch (e) {
+      this.exportText(content, name);
+    }
+  }
+
+  /** 让用户选择保存位置并写入 zip 文件 */
+  private saveZipToPicker(zipPath: string, name: string): void {
+    try {
+      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
+      const base: string = name.replace(/\.txt$/i, '');
+      options.newFileNames = [`${base}.zip`];
+      options.fileSuffixChoices = ['.zip'];
+      const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
+      docPicker.save(options).then((uris: string[]) => {
+        if (uris.length === 0) {
+          promptAction.showToast({ message: '已取消导出' });
+          return;
+        }
+        try {
+          fileIo.copyFileSync(zipPath, uris[0]);
+          promptAction.showToast({ message: '日志与附件已导出（zip）' });
+        } catch (e) {
+          promptAction.showToast({ message: '导出失败' });
+        }
+      }).catch(() => {
+        promptAction.showToast({ message: '导出失败' });
+      });
+    } catch (e) {
+      promptAction.showToast({ message: '导出失败' });
+    }
+  }
+
   /** 导出文本到用户选择的文件（txt） */
   private exportText(content: string, name: string): void {
     try {
@@ -310,7 +392,7 @@ export struct LogPage {
       return;
     }
     const stamp: string = `${new Date().getHours()}_${new Date().getMinutes()}`;
-    this.exportText(this.allToText(), `xjau-helper_logs_${stamp}.txt`);
+    this.exportContent(this.allToText(), `xjau-helper_logs_${stamp}.txt`);
   }
 
   /** 导出选中（无选中提示） */
@@ -320,7 +402,7 @@ export struct LogPage {
       return;
     }
     const stamp: string = `${new Date().getHours()}_${new Date().getMinutes()}`;
-    this.exportText(this.selectedToText(), `xjau-helper_logs_${stamp}.txt`);
+    this.exportContent(this.selectedToText(), `xjau-helper_logs_${stamp}.txt`);
   }
 
   /** 单个分类的日志列表（TabContent 内容） */
@@ -566,27 +648,41 @@ export struct LogPage {
   }
 
   build() {
-    NavDestination() {
-      Column() {
-        PageHeader({
-          title: '日志详情',
-          subtitle: LogStore.enabled() ? (this.collecting ? '正在收集' : '已暂停') : '日志调试未开启',
-          actionText: '清空',
-          showActionToggle: true,
-          actionToggleOn: this.collecting,
-          onBack: () => {
-            AppState.stack.pop();
-          },
-          onAction: () => {
-            this.clearLogs();
-          },
-          onActionToggle: (on: boolean) => {
-            this.toggleCollecting(on);
-          }
+    // 内嵌模式（登录页展示）：普通容器包裹，返回走回调；Navigation 模式：NavDestination
+    if (this.embedded) {
+      this.logContent(this.onBackCallback)
+    } else {
+      NavDestination() {
+        this.logContent(() => {
+          AppState.stack.pop();
         })
+      }
+      .hideTitleBar(true)
+      .width('100%').height('100%')
+    }
+  }
 
-        // 操作栏（标题栏下方常驻：排序 + 全部导出/多选导出；不跑到底部）
-        this.exportBar()
+  /** 日志页主体内容（Navigation / 内嵌共用，返回动作由参数注入） */
+  @Builder
+  logContent(onBack: () => void) {
+    Column() {
+      PageHeader({
+        title: '日志详情',
+        subtitle: LogStore.enabled() ? (this.collecting ? '正在收集' : '已暂停') : '日志调试未开启',
+        actionText: '清空',
+        showActionToggle: true,
+        actionToggleOn: this.collecting,
+        onBack: onBack,
+        onAction: () => {
+          this.clearLogs();
+        },
+        onActionToggle: (on: boolean) => {
+          this.toggleCollecting(on);
+        }
+      })
+
+      // 操作栏（标题栏下方常驻：排序 + 全部导出/多选导出；不跑到底部）
+      this.exportBar()
 
         // 分类 Tabs：左右滑动切换分类，分类条全宽延伸屏幕（无黑区）
         Tabs({ barPosition: BarPosition.Start, index: this.filterIdx }) {
@@ -612,7 +708,4 @@ export struct LogPage {
       .width('100%').height('100%')
       .backgroundColor($r('app.color.bg_page'))
     }
-    .hideTitleBar(true)
-    .width('100%').height('100%')
   }
-}

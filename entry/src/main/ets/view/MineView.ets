@@ -1,7 +1,6 @@
 /**
  * 我的：学业概览 + 常用功能 + 设置
  */
-import { SheetUtil } from '../common/SheetUtil';
 import { promptAction, mediaquery } from '@kit.ArkUI';
 import { common, contextConstant } from '@kit.AbilityKit';
 import { storageStatistics, fileIo, picker, fileUri } from '@kit.CoreFileKit';
@@ -14,7 +13,6 @@ import { Theme } from '../common/ThemeUtil';
 import { AcademicReport, UserProfile } from '../model/Models';
 import { EMPTY_REPORT } from '../model/Empty';
 import { SettingRow } from './common/UiKit';
-import { WebSurface } from './WebSurface';
 
 @Component
 export struct MineView {
@@ -29,7 +27,6 @@ export struct MineView {
   @StorageLink('showAvatar') showAvatar: boolean = false;
   @State report: AcademicReport = EMPTY_REPORT;
   @State loaded: boolean = false;
-  @State showWeb: boolean = false;
   @State syncing: boolean = false;
   @State photo: string = '';
   @State cacheSizeText: string = '计算中…';
@@ -292,17 +289,7 @@ export struct MineView {
     }
   }
 
-  /** 在应用内打开网页（注入会话 Cookie 保持登录态），通过底部全屏弹层展示 */
-  private openWeb(url: string, title: string): void {
-    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
-      promptAction.showToast({ message: '当前模式禁止使用' });
-      return;
-    }
-    AppState.webUrl = url;
-    AppState.webTitle = title;
-    this.showWeb = true;
-  }
-
+  /** 加载我的页数据（成绩报告/头像等，先用缓存秒开再刷新） */
   private async load(): Promise<void> {
     // 先用缓存秒开
     const cached: AcademicReport = JwApi.loadCachedAcademic();
@@ -623,16 +610,42 @@ export struct MineView {
           .borderRadius(18)
           .margin({ top: 14 })
 
-          // 设置（顺序：网页版教务系统 → 数据同步 → 头像显示 → 清除缓存 → 恢复备份 → 清空数据 → 隐私协议 → 关于）
+          // 校园服务（网页端教务系统 / 服务大厅 / 智慧学工 / 学校官网，独立卡片避免设置区臃肿）
           Column() {
-            // 1. 网页端教务系统（最顶上）
+            // 1. 网页端教务系统
             SettingRow({
               icon: '', title: '网页端教务系统', value: '', onTap: () => {
                 this.openWebPortal();
               }
             })
             Divider().color($r('app.color.divider'))
-            // 1.1 学校官网（外部链接页打开）
+            // 2. 服务大厅（外部链接页打开，注入 SSO 会话保持登录态）
+            SettingRow({
+              icon: '', title: '服务大厅', value: '', onTap: () => {
+                if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+                  promptAction.showToast({ message: '当前模式禁止使用' });
+                  return;
+                }
+                AppState.webUrl = Const.CAS_LOGIN_URL;
+                AppState.webTitle = '服务大厅';
+                AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
+              }
+            })
+            Divider().color($r('app.color.divider'))
+            // 3. 智慧学工（外部链接页打开，注入 SSO 会话保持登录态）
+            SettingRow({
+              icon: '', title: '智慧学工', value: '', onTap: () => {
+                if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+                  promptAction.showToast({ message: '当前模式禁止使用' });
+                  return;
+                }
+                AppState.webUrl = Const.ZHIHUI_XUEGONG_URL;
+                AppState.webTitle = '智慧学工';
+                AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
+              }
+            })
+            Divider().color($r('app.color.divider'))
+            // 4. 学校官网（外部链接页打开）
             SettingRow({
               icon: '', title: '学校官网', value: '', onTap: () => {
                 if (JwApi.USE_MOCK && !AppState.debugNetwork) {
@@ -644,8 +657,16 @@ export struct MineView {
                 AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
               }
             })
-            Divider().color($r('app.color.divider'))
-            // 2. 数据同步
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16 })
+          .backgroundColor($r('app.color.bg_card'))
+          .borderRadius(18)
+          .margin({ top: 14 })
+
+          // 设置（数据同步 → 头像显示 → 清除缓存 → 恢复备份 → 清空数据 → 隐私协议 → 关于）
+          Column() {
+            // 1. 数据同步
             SettingRow({
               icon: '', title: '数据同步', value: this.lastSyncText(), onTap: () => {
                 this.syncNow();
@@ -745,7 +766,7 @@ export struct MineView {
             Divider().color($r('app.color.divider'))
             // 9. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于', value: 'v1.2.5', onTap: () => {
+              icon: '', title: '关于', value: 'v1.2.6', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
@@ -802,14 +823,6 @@ export struct MineView {
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.bg_page'))
-    .bindSheet($$this.showWeb, this.webSheet, {
-      width: SheetUtil.sheetWidth(),
-      preferType: SheetType.BOTTOM,
-      height: SheetSize.LARGE,
-      dragBar: false,
-      backgroundColor: $r('app.color.bg_page'),
-      title: { title: AppState.webTitle }
-    })
   }
 
   @Builder
@@ -936,7 +949,33 @@ export struct MineView {
         }
       })
       Divider().color($r('app.color.divider'))
-      // 1.1 学校官网（外部链接页打开）
+      // 1.1 服务大厅（外部链接页打开，注入 SSO 会话保持登录态）
+      SettingRow({
+        icon: '', title: '服务大厅', value: '', onTap: () => {
+          if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+            promptAction.showToast({ message: '当前模式禁止使用' });
+            return;
+          }
+          AppState.webUrl = Const.CAS_LOGIN_URL;
+          AppState.webTitle = '服务大厅';
+          AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      // 1.2 智慧学工（外部链接页打开，注入 SSO 会话保持登录态）
+      SettingRow({
+        icon: '', title: '智慧学工', value: '', onTap: () => {
+          if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+            promptAction.showToast({ message: '当前模式禁止使用' });
+            return;
+          }
+          AppState.webUrl = Const.ZHIHUI_XUEGONG_URL;
+          AppState.webTitle = '智慧学工';
+          AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      // 1.3 学校官网（外部链接页打开）
       SettingRow({
         icon: '', title: '学校官网', value: '', onTap: () => {
           if (JwApi.USE_MOCK && !AppState.debugNetwork) {
@@ -1045,7 +1084,7 @@ export struct MineView {
       Divider().color($r('app.color.divider'))
       // 9. 关于（打开独立页面）
       SettingRow({
-        icon: '', title: '关于', value: 'v1.2.5', onTap: () => {
+        icon: '', title: '关于', value: 'v1.2.6', onTap: () => {
           AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
         }
       })
@@ -1069,10 +1108,5 @@ export struct MineView {
     .backgroundColor($r('app.color.bg_card'))
     .borderRadius(18)
     .margin({ top: 14 })
-  }
-
-  @Builder
-  webSheet() {
-    WebSurface()
   }
 }

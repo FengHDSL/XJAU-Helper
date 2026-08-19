@@ -371,7 +371,8 @@ export struct WebViewPage {
             .bindMenu(this.moreMenu())
         }
         .width('100%').alignItems(VerticalAlign.Center)
-        .padding({ left: 10, right: 16, bottom: 14, top: px2vp(this.topInsetPx) + 10 })
+        .height(px2vp(this.topInsetPx) + 60)
+        .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
         .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
 
         WebSurface({

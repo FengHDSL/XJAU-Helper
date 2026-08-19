@@ -72,8 +72,29 @@ export class Const {
 
   /** 教务系统网址（应用内 WebView 打开） */
   static readonly WEB_PORTAL_URL: string = 'https://jwxt.xjau.edu.cn/jwglxt/xtgl/index_initMenu.html';
-  /** 教务系统登录页（应用内 WebView 打开，用于"网页版直接登录"的兜底方案） */
+  /** 教务系统登录页（应用内 WebView 打开，"网页版登录"切换到「教务系统」时使用） */
   static readonly WEB_LOGIN_URL: string = 'https://jwxt.xjau.edu.cn/jwglxt/xtgl/login_slogin.html';
+  /** 服务大厅首页（rhmh）—— WebSurface 捕获 rhmh 会话 Cookie 时使用的查询地址 */
+  static readonly SERVICE_HALL_URL: string = 'https://rhmh.xjau.edu.cn/default/index.html#/';
+  /**
+   * 智慧学工（我的页入口）：服务大厅「智慧学工系统」应用入口
+   * （ServiceShow?wid=1238430490178043904，用户确认），登录后 SSO 到 xgxt 智慧学工系统。
+   */
+  static readonly ZHIHUI_XUEGONG_URL: string =
+    'https://rhmh.xjau.edu.cn/index.html#/ServiceShow?isMobile=2&wid=1238430490178043904';
+  /** 服务大厅→新教务系统 跳转地址（authserver CAS，service=jziotlogin?gid_=...；用户 2026-08-19 提供，服务大厅点开新教务系统的真实地址） */
+  static readonly JW_BRIDGE_FROM_HALL_URL: string =
+    'https://authserver.xjau.edu.cn/authserver/login?service=http%3A%2F%2Fjwxt.xjau.edu.cn%2Fsso%2Fjziotlogin%3Fgid_%3DTWdOQ25Nbm5POW9pQ0NQQzVUZ3kzc2hxRlNHSFhrY3dvRnZqQ3liMVc0eEJjRERUWk84Sy9wS0ZZYTRwVUZxVkxKSGZEVTlHZ2xOak9veERKQktmSUE9PQ%26amp_sec_version_%3D1%26EMAP_LANG%3Dzh%26THEME%3D';
+  /** 服务大厅→教务系统桥接地址：网页版登录"服务大厅"模式登录成功后跳转，换取 jwglxt 会话 */
+  static readonly JW_SSO_BRIDGE_URL: string = 'https://jwxt.xjau.edu.cn/sso/jziotlogin';
+  /**
+   * 服务大厅登录入口（authserver CAS 登录页，service 指向 rhmh）——
+   *  "网页版登录"切换到「服务大厅」的目标 URL + 我的页"服务大厅"入口 URL。
+   *  登录成功后由 authserver 302 跳到 rhmh.xjau.edu.cn 服务大厅，
+   *  再由 WebSurface 自动跳 /sso/jziotlogin 桥接出 jwglxt 会话。
+   */
+  static readonly CAS_LOGIN_URL: string =
+    'https://authserver.xjau.edu.cn/authserver/login?service=https%3A%2F%2Frhmh.xjau.edu.cn%2Flogin';
   /** 找回密码页（学校统一身份认证平台，应用内 WebView 打开） */
   static readonly FORGOT_PASSWORD_URL: string = 'https://authserver.xjau.edu.cn/retrieve-password/retrievePassword/index.html#/';
   /**

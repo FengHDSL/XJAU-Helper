@@ -146,8 +146,16 @@ export class AppState {
   }
   /** 是否以"网页版登录"方式打开 WebView（登录成功需自动进入主页） */
   static webLoginMode: boolean = false;
+  /** 网页版登录目标：'hall'=服务大厅（authserver CAS 登录，登录后后台自动打开教务系统）
+   *                  / 'jw'=教务系统直登（jwxt login_slogin）。默认服务大厅（用户 2026-08-19 明确要求）。 */
+  static webLoginTarget: string = 'hall';
   /** 网页版登录成功后的回调（由 LoginView 注入） */
   static onWebLogin: (() => void) | null = null;
+  /** 冷启动会话就绪标记：首页数据加载前必须为 true（false = 正在从服务大厅重新桥接新教务系统）。
+   *  由 Index 冷启动流程置 false/true，HomeView.loadData 等待其就绪后再取数。 */
+  static sessionReady: boolean = true;
+  /** 7天免登录：网页版/服务大厅登录成功后是否持久化教务系统会话 Cookie 以便自动重登（默认开启） */
+  static remember7d: boolean = true;
   /** 隐藏调试模式：功能浏览（USE_MOCK）下允许联网（关于页连点图标 5 次 + 密码 admin 开启）。
    *  用 AppStorage 存储，页面通过 @StorageProp('debugNetwork') 响应式监听（如 NewsPage 开调试后自动加载）。 */
   static get debugNetwork(): boolean {

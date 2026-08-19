@@ -179,18 +179,44 @@ export class HttpClient {
       return { code: response.responseCode as number, body: text, cookie: HttpClient.cookie };
     } catch (e) {
       const cost: number = Date.now() - t0;
+      // 日志调试：增强网络异常诊断——区分超时类型、记录网络模式与超时配置，便于定位"无法登录/无数据"根因
+      const errCode: string = String((e as Record<string, Object>)['code'] ?? '');
+      const errMsg: string = String((e as Record<string, Object>)['message'] ?? '');
+      // 2300028=Operation timeout（连接/读取超时）；2300006/2300007=网络不可达；2300041=DNS 解析失败
+      let errKind: string = '网络异常';
+      if (errCode === '2300028') {
+        errKind = '请求超时（连接或读取超时，20s）——多为网络不通/网关拦截/服务器慢';
+      } else if (errCode === '2300006' || errCode === '2300007') {
+        errKind = '网络不可达（无网络/网络被禁用）';
+      } else if (errCode === '2300041') {
+        errKind = 'DNS 解析失败（域名无法解析）';
+      }
+      const netMode: string = HttpClient.offlineMode ?
+        (AppState.debugNetwork ? '功能浏览-调试联网' : '功能浏览-断网') : '真实联网';
       LogStore.logNet('网络', '请求', '异常',
         {
           method: HttpClient.methodName(method),
           url: url,
           status: '',
           cost: `${cost}ms`,
-          error: LogStore.errorOf(e as Object)
+          error: `${errKind}（${errCode} ${errMsg}）`,
+          detail: `网络模式=${netMode} 超时配置=connect 15s/read 20s 服务器=${url.indexOf('://') >= 0 ? HttpClient.hostOf(url) : '同域'}`
         });
       throw e as Error;
     } finally {
       client.destroy();
     }
+  }
+
+  /** 提取 URL 的 host（日志诊断用） */
+  static hostOf(url: string): string {
+    const idx: number = url.indexOf('://');
+    if (idx < 0) {
+      return url;
+    }
+    const rest: string = url.substring(idx + 3);
+    const slash: number = rest.indexOf('/');
+    return slash >= 0 ? rest.substring(0, slash) : rest;
   }
 
   /** RequestMethod → 名称（日志用） */

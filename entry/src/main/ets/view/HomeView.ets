@@ -90,7 +90,32 @@ export struct HomeView {
     });
   }
 
+  /** 等待冷启动会话恢复完成（AppState.sessionReady；服务大厅登录时 Index 先桥接新教务系统再置 true） */
+  private waitSessionReady(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (AppState.sessionReady) {
+        resolve();
+        return;
+      }
+      let waited: number = 0;
+      const check: () => void = () => {
+        waited += 200;
+        if (AppState.sessionReady || waited > 15000) {
+          resolve();
+          return;
+        }
+        setTimeout(() => {
+          check();
+        }, 200);
+      };
+      check();
+    });
+  }
+
   private async loadData(): Promise<void> {
+    // 冷启动会话恢复中（服务大厅登录：Index 正在用 CASTGC 重新桥接"新教务系统"）：
+    // 等待就绪后再取数，避免用旧教务会话导致数据拉取失败（最多等 15s 兜底）
+    await this.waitSessionReady();
     // 学期列表（顶栏选择用）
     this.terms = await JwApi.getTerms();
     for (let i: number = 0; i < this.terms.length; i++) {
@@ -373,7 +398,7 @@ export struct HomeView {
           })
       }
       Blank()
-      // 右侧：当前教学周（未开学显示"未开学"），模仿课程表右上角样式（不可点、无左右箭头）
+      // 右侧：当前教学周（未开学显示"未开学"）
       Text(this.isTermStarted() ? `第 ${this.todayTeachingWeek()} 周` : '未开学')
         .fontSize(12)
         .fontWeight(FontWeight.Medium)

@@ -127,6 +127,14 @@ export class DataStore {
   static readonly KEY_AUTO_PWD: string = 'auto_relogin_pwd';
   // 当前登录方式：'pwd'=账号密码登录，'web'=网页登录（我的页退出按钮长按提示用）
   static readonly KEY_LOGIN_METHOD: string = 'login_method';
+  // 当前登录系统：'original'=教务登录（教务系统 RSA 直登）/ 'service'=服务大厅登录（统一身份认证 CAS）
+  // 冷启动按此决定刷新方式（服务大厅登录：教务会话不可持久化，须用 CASTGC 重新桥接；教务登录：按重登方式）
+  static readonly KEY_LOGIN_SYSTEM: string = 'login_system';
+  // 统一身份认证 TGC（CASTGC）：开启"7天免登录"时持久化，冷启动静默重登教务系统会话用
+  static readonly KEY_CAS_TGC: string = 'cas_tgc';
+  // SSO 会话 Cookie（网页版"服务大厅"登录后捕获，host\ncookie 成对存储）：
+  // 我的页「服务大厅/第二课堂」等 SSO 页面打开时按域名注入，保持登录态
+  static readonly KEY_SSO_COOKIES: string = 'sso_cookies';
 
   // 用户在桌面卡片主动选择的"要倒计时的考试"id（持久化，供 EntryFormAbility 读取）
   static readonly KEY_PICKED_EXAM: string = 'picked_exam_id';

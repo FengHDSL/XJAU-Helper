@@ -49,6 +49,10 @@ export class LogStore {
   static readonly FULL_BODY_LEN: number = 20000;
   /** 日志列表（最新的在末尾） */
   private static logs: LogEntry[] = [];
+  /** 附件文件列表（日志收集期间保存的图片等文件路径，如验证码截图；导出时有附件则打包 zip） */
+  private static attachments: string[] = [];
+  /** 附件目录名（缓存目录下） */
+  static readonly ATTACH_DIR: string = 'log_attachments';
   /** 是否继续收集（日志页右上角开关控制：关 = 暂停收集但保留已有日志）
    *  响应式（AppStorage 'logCollecting'）：我的页"日志详情"入口状态灯跟随 */
   static get collecting(): boolean {
@@ -244,6 +248,36 @@ export class LogStore {
   /** 清空日志 */
   static clear(): void {
     LogStore.logs = [];
+  }
+
+  /** 附件文件路径列表（导出 zip 用） */
+  static attachmentsAll(): string[] {
+    return LogStore.attachments;
+  }
+
+  /** 记录一个附件文件（图片等）：仅日志开启时收集；去重；上限 20 个防内存膨胀 */
+  static addAttachment(path: string): void {
+    if (!LogStore.enabled() || path.length === 0) {
+      return;
+    }
+    if (LogStore.attachments.indexOf(path) >= 0) {
+      return;
+    }
+    LogStore.attachments.push(path);
+    if (LogStore.attachments.length > 20) {
+      LogStore.attachments.splice(0, LogStore.attachments.length - 20);
+    }
+  }
+
+  /** 清空附件（退出日志调试 / 清空日志时调用） */
+  static clearAttachments(): void {
+    LogStore.attachments = [];
+  }
+
+  /** 清空日志与附件（退出日志调试时调用） */
+  static clearAll(): void {
+    LogStore.clear();
+    LogStore.clearAttachments();
   }
 }
 

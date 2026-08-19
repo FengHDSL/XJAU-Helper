@@ -55,12 +55,81 @@ struct Index {
         }
       }
     }
-    // 自动重登凭据存在：进入 LoginView 自动重登模式（遮罩+加载符号+静默登录）。
-    // 10 秒超时兜底：自动登录失败/无网时仍进入主页（用缓存数据），避免用户卡在登录页。
-    // 「手动重登模式」用户选择不自动重新登录：跳过自动重登，直接用缓存进主页。
+
+    // ── 冷启动会话恢复策略（核心：服务大厅登录态在 → 必须先"从服务大厅重新打开新教务系统"再取数据）──
+    //  有 CASTGC（服务大厅登录成功且保持登录态）：教务系统会话不可持久化 →
+    //    冷启动第一步总是用 CASTGC 桥接（GET /sso/jziotlogin）重新打开"新教务系统"换取全新 jwglxt 会话，
+    //    第二步才取数据（refreshAll）。TGC 过期时仅自动重登模式用账号密码走服务大厅补登；手动重登则保留缓存等"重登"。
+    //  无 CASTGC（教务登录 RSA）：按重登方式 → 自动重登用账号密码 RSA 直登刷新；手动重登不自动刷新。
     const autoAcct: string = DataStore.get(DataStore.KEY_AUTO_ACCOUNT);
     const autoPwd: string = DataStore.get(DataStore.KEY_AUTO_PWD);
     const loginMode: string = DataStore.getLoginMode();
+    const casTgc: string = DataStore.get(DataStore.KEY_CAS_TGC);
+    const sessionCookie: string = DataStore.get(DataStore.KEY_SESSION_COOKIE);
+    const cachedProfile: UserProfile | null = JwApi.USE_MOCK ? null : DataStore.loadCachedProfile();
+    const hasCache: boolean = cachedProfile !== null && cachedProfile.name.length > 0 && cachedProfile.studentId !== 'demo';
+
+    // 已登录过（有缓存资料）：直接进主页（秒开，无闪登录页），后台静默恢复会话并刷新。
+    if (hasCache && !JwApi.USE_MOCK) {
+      AppState.profile = cachedProfile;
+      AppState.account = cachedProfile!.studentId;
+      this.logged = true;
+      JwApi.USE_MOCK = false;
+      HttpClient.setOfflineMode(false);
+      // 注册主页"重登"按钮回调（HomeView 在 aboutToAppear 触发）
+      AppState.onForceRelogin = () => {
+        this.forceRelogin();
+      };
+      // 会话恢复中：首页数据加载须等待（防止用旧教务会话取数失败）
+      AppState.sessionReady = false;
+      if (casTgc.length > 0) {
+        // 服务大厅登录态在 → 第一步：从服务大厅重新打开"新教务系统"（CASTGC 桥接），第二步：取数据
+        JwApi.silentCasRelogin()
+          .then((ok: boolean) => {
+            if (ok) {
+              JwApi.refreshAll().catch(() => {});
+            } else if (loginMode !== 'legacy' && autoAcct.length > 0 && autoPwd.length > 0) {
+              // 桥接失败（TGC 过期）：仅自动重登模式用账号密码走服务大厅登录补登
+              JwApi.login(autoAcct, DataStore.decodePwd(autoPwd), '', 'service')
+                .then(() => JwApi.refreshAll().catch(() => {}))
+                .catch(() => {});
+            }
+            // 桥接失败 + 手动重登：保留缓存，等用户点"重登"
+            AppState.sessionReady = true;
+          })
+          .catch(() => {
+            JwApi.refreshAll().catch(() => {});
+            AppState.sessionReady = true;
+          });
+      } else {
+        // 教务登录（无 TGC）：按重登方式（自动=账号密码 RSA 直登刷新；手动=不自动刷新）
+        if (loginMode !== 'legacy') {
+          if (autoAcct.length > 0 && autoPwd.length > 0) {
+            JwApi.login(autoAcct, DataStore.decodePwd(autoPwd), '', 'original')
+              .then(() => {
+                JwApi.refreshAll().catch(() => {});
+                AppState.sessionReady = true;
+              })
+              .catch(() => {
+                AppState.sessionReady = true;
+              });
+          } else if (sessionCookie.length > 0) {
+            // 无自动凭据时用本地会话 Cookie 恢复
+            HttpClient.setCookie(sessionCookie);
+            JwApi.refreshAll().catch(() => {});
+            AppState.sessionReady = true;
+          } else {
+            AppState.sessionReady = true;
+          }
+        } else {
+          // 手动重登：不自动刷新，直接放行（首页用缓存展示）
+          AppState.sessionReady = true;
+        }
+      }
+      return;
+    }
+
+    // 无缓存资料：走账号+密码自动重登（弹登录页遮罩）或手动登录。
     if (autoAcct.length > 0 && autoPwd.length > 0 && loginMode !== 'legacy') {
       this.autoRelogin = true;
       setTimeout(() => {
@@ -69,27 +138,12 @@ struct Index {
           this.logged = true; // 进入主页，使用本地缓存数据
         }
       }, 10000);
+      AppState.onForceRelogin = () => {
+        this.forceRelogin();
+      };
       return;
     }
-    // 恢复网页登录的会话 Cookie（如果有缓存资料但没有 HttpClient cookie，从 DataStore 加载）
-    const sessionCookie: string = DataStore.get(DataStore.KEY_SESSION_COOKIE);
-    if (sessionCookie.length > 0 && HttpClient.getCookie().length === 0) {
-      HttpClient.setCookie(sessionCookie);
-    }
-    // 启动时如果有缓存资料，先恢复登录态（手动重登模式 / 无自动凭据 / 凭据已用）：
-    // 手动重登模式不刷新会话（用户可手动点"重登"），其他情况照常刷新。
-    const cachedProfile: UserProfile | null = JwApi.USE_MOCK ? null : DataStore.loadCachedProfile();
-    if (cachedProfile !== null && cachedProfile.name.length > 0 && cachedProfile.studentId !== 'demo') {
-      AppState.profile = cachedProfile;
-      AppState.account = cachedProfile.studentId;
-      this.logged = true;
-      JwApi.USE_MOCK = false;
-      HttpClient.setOfflineMode(false);
-      if (loginMode !== 'legacy') {
-        JwApi.refreshAll().catch(() => {});
-      }
-    }
-    // 注册主页"重登"按钮回调（HomeView 在 aboutToAppear 触发）
+    // 无任何凭据：手动登录页（注册重登回调即可）
     AppState.onForceRelogin = () => {
       this.forceRelogin();
     };
@@ -101,9 +155,14 @@ struct Index {
    * 登录成功回到主页 + 刷新数据；登录失败/超时兜底回主页用缓存。
    */
   private forceRelogin(): void {
+    // 识别当前登录系统：服务大厅登录 → 重新从服务大厅登录并自动打开教务系统；教务登录 → 账号密码重登
+    const sys: string = DataStore.get(DataStore.KEY_LOGIN_SYSTEM);
+    const reloginMsg: string = sys === 'service'
+      ? '当前为「服务大厅登录」。将重新从服务大厅登录，并自动打开教务系统刷新数据；登录期间不允许操作其他功能。'
+      : '当前为「教务登录」。将使用保存的账号密码重新登录教务系统；登录期间不允许操作其他功能。';
     promptAction.showDialog({
       title: '真正重新登录',
-      message: '将使用保存的账号密码重新登录教务系统，登录期间不允许操作其他功能。',
+      message: reloginMsg,
       buttons: [
         { text: '取消', color: '#888888' },
         { text: '重新登录', color: '#FF9800' }
