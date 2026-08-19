@@ -8,7 +8,7 @@
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { image } from '@kit.ImageKit';
 import { fileIo } from '@kit.CoreFileKit';
-import { promptAction } from '@kit.ArkUI';
+import { promptAction, display, mediaquery } from '@kit.ArkUI';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const, SectionTime } from '../common/Constants';
@@ -37,15 +37,22 @@ export struct ScheduleView {
   @State showWeekSheet: boolean = false;
   @State showTermSheet: boolean = false;
   @State showSettingsSheet: boolean = false;
+  @State sheetWidth: Dimension = '100%'; // 平板加宽半模态面板（≥600vp 视为平板）
   @State selected: CourseItem = EMPTY_COURSE;
   // 课程表设置
   @State scheduleBg: string = ''; // base64 图片数据，空=无背景
   @State cfg: ScheduleConfig = new ScheduleConfig(); // 完整自定义配置
+  @State customTermStart: string = ''; // 当前学期开学日（含自定义覆盖），用于设置面板回显
   /** 课程独立颜色（课程名 → 自定义 hex），空=按课程名 hash 默认 */
   @State customColors: Record<string, string> = {};
   private currentWeek: number = 1;
   /** 全局学期广播（首页顶栏切换学期时同步本页） */
   @StorageProp('currentTermId') @Watch('onGlobalTermChanged') currentTermId: string = '';
+  /** 横屏标记（平板横屏下左列周数选择 + 右列课程表） */
+  @State isLandscape: boolean = false;
+  /** 平板（大屏）标记：屏幕宽度 ≥600vp；竖屏时课程表底部显示点阵周次（手机不显示） */
+  @State isTablet: boolean = false;
+  private landscapeListener: mediaquery.MediaQueryListener | null = null;
 
   /** 页面出现：计算当前周次并加载课表 + 恢复设置 */
   aboutToAppear(): void {
@@ -60,11 +67,22 @@ export struct ScheduleView {
       this.currentWeek = week < 1 ? 1 : week;
     }
     this.viewWeek = this.currentWeek;
+    this.customTermStart = AppState.term.startDate;
     // 注册全局学期切换监听（首页顶栏切换后立即同步本页）
     AppState.registerTermListener('schedule', () => {
       this.onGlobalTermChanged();
     });
     this.load();
+    // 平板适配：半模态面板宽度（≥600vp 视为平板，加宽并水平居中；手机保持全宽）
+    try {
+      const d = display.getDefaultDisplaySync();
+      const screenVp: number = px2vp(d.width);
+      this.isTablet = screenVp >= 600;
+      this.sheetWidth = screenVp >= 600 ? `${Math.min(Math.round(screenVp * 0.7), 840)}vp` : '100%';
+    } catch (e) {
+      this.isTablet = false;
+      this.sheetWidth = '100%';
+    }
     // 首页"下次课"点击跳转：自动打开对应课程详情
     const pc: CourseItem | null = AppState.pendingCourse;
     if (pc !== null && pc.id.length > 0) {
@@ -72,6 +90,7 @@ export struct ScheduleView {
       this.selected = pc;
       this.showSheet = true;
     }
+    this.listenLandscape();
   }
 
   /** 首页顶栏切换学期（JwApi.setTerm 广播 currentTermId）后同步本页课表：直接用新学期重载课表 */
@@ -84,6 +103,11 @@ export struct ScheduleView {
         break;
       }
     }
+    // 应用「自定义开学时间」覆盖到当前选中项（影响日期标签/周次映射）
+    if (this.terms[this.selectedTermIndex]) {
+      this.terms[this.selectedTermIndex] = JwApi.applyCustomStart(this.terms[this.selectedTermIndex]);
+    }
+    this.customTermStart = this.terms[this.selectedTermIndex]?.startDate ?? AppState.term.startDate;
     // 清空旧课表 + 强制按 AppState.term 重载（不依赖缓存，避免与新学期混淆）
     this.courses = [];
     this.loading = true;
@@ -100,6 +124,25 @@ export struct ScheduleView {
     }
   }
 
+  /** 设置面板修改/清除自定义开学时间：持久化 + 实时刷新周次映射 */
+  private onTermStartChanged(date: string): void {
+    const id: string = AppState.term.id;
+    DataStore.setCustomTermStart(id, date);
+    const start: string = date.length > 0 ? date : DateUtil.defaultTermStart(id);
+    const cur: TermInfo = AppState.term;
+    const term: TermInfo = { id: cur.id, label: cur.label, startDate: start, totalWeeks: cur.totalWeeks };
+    if (this.terms[this.selectedTermIndex]) {
+      const t: TermInfo = this.terms[this.selectedTermIndex];
+      this.terms[this.selectedTermIndex] = { id: t.id, label: t.label, startDate: start, totalWeeks: t.totalWeeks };
+    }
+    AppState.term = term;
+    this.customTermStart = start;
+    // 开学日变化影响周次映射，重新计算当前周
+    const week: number = DateUtil.weekOfTerm(term, new Date());
+    this.currentWeek = week < 1 ? 1 : week;
+    this.viewWeek = this.currentWeek;
+  }
+
   private async load(): Promise<void> {
     this.loading = true;
     try {
@@ -113,6 +156,11 @@ export struct ScheduleView {
             break;
           }
         }
+        // 应用「自定义开学时间」覆盖到当前选中项（影响日期标签/周次映射）
+        if (this.terms[this.selectedTermIndex]) {
+          this.terms[this.selectedTermIndex] = JwApi.applyCustomStart(this.terms[this.selectedTermIndex]);
+        }
+        this.customTermStart = this.terms[this.selectedTermIndex]?.startDate ?? AppState.term.startDate;
       }
       const term: TermInfo = this.terms[this.selectedTermIndex] ?? AppState.term;
       // 先用缓存（仅当前学期有缓存）
@@ -350,14 +398,32 @@ export struct ScheduleView {
     return list;
   }
 
+  /** 点阵周次：行对应节段（0→1-2节，1→3-4节，依此类推） */
+  private dotRows(): number[] { return [0, 1, 2, 3, 4]; }
+  private dotDays(): number[] { return [1, 2, 3, 4, 5, 6, 7]; }
+
+  /** 某周某天某节段是否有课 */
+  private isDotFilled(week: number, day: number, row: number): boolean {
+    const startSec: number = row * 2 + 1;
+    const endSec: number = row * 2 + 2;
+    for (const c of this.courses) {
+      if (c.weekday === day && c.weeks.includes(week) && c.startSection <= endSec && c.endSection >= startSec) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private async selectTerm(index: number): Promise<void> {
     this.selectedTermIndex = index;
     this.showTermSheet = false;
     this.loading = true;
     try {
-      const term: TermInfo = this.currentTerm();
-      // 切换学期时同步更新当前学期（影响 AppState 内的学期）
+      const term: TermInfo = JwApi.applyCustomStart(this.currentTerm());
+      // 切换学期时同步更新当前学期（应用自定义开学时间覆盖，影响 AppState 内的学期）
+      this.terms[this.selectedTermIndex] = term;
       AppState.term = term;
+      this.customTermStart = term.startDate;
       const list: CourseItem[] = await JwApi.getCourses(term.id);
       this.courses = list;
       const week: number = DateUtil.weekOfTerm(term, new Date());
@@ -388,7 +454,7 @@ export struct ScheduleView {
               .fontColor(Color.White)
             // 设置按钮：紧贴"课程表"标题右侧，圆形半透白底 + 齿轮图标
             Column() {
-              Image($r('app.media.settings'))
+              Image($r('app.media.gearshape'))
                 .width(20)
                 .height(20)
                 .fillColor(Color.White)
@@ -413,7 +479,7 @@ export struct ScheduleView {
               .fontSize(11)
               .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
             // 学期选择箭头：list.png 图标，深色模式用浅色 fillColor 适配
-            Image($r('app.media.list'))
+            Image($r('app.media.list_bullet'))
               .width(14)
               .height(14)
               .fillColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
@@ -507,19 +573,129 @@ export struct ScheduleView {
             .margin({ top: 2 })
         }
         .layoutWeight(1)
+        .margin({ left: 2, right: 2 })
         .padding({ top: 7, bottom: 7 })
         .backgroundColor(this.isToday(wd) ? $r('app.color.brand_light') : Color.Transparent)
         .borderRadius(8)
       }, (wd: number) => `w${wd}`)
     }
     .width('100%')
-    .padding({ left: 6, right: 6, top: 4, bottom: 4 })
+    .padding({ top: 4, bottom: 4 })
     .backgroundColor(this.cfg.headerColor.length > 0 ? this.cfg.headerColor : $r('app.color.bg_card'))
   }
 
   /** 判断某星期几是否今天（同周同星期才高亮） */
   private isToday(weekday: number): boolean {
     return this.viewWeek === this.currentWeek && DateUtil.weekdayOf(new Date()) === weekday;
+  }
+
+  /** 点阵周次缩略图：7 列（天）× 5 行（节段） */
+  @Builder
+  weekDotMatrix(week: number) {
+    Column() {
+      ForEach(this.dotRows(), (row: number) => {
+        Row() {
+          ForEach(this.dotDays(), (day: number) => {
+            Circle()
+              .width(4)
+              .height(4)
+              .fill(this.isDotFilled(week, day, row) ?
+                (week === this.viewWeek ? $r('app.color.brand_on') :
+                  (week === this.currentWeek ? $r('app.color.brand') : $r('app.color.text_secondary'))) :
+                (week === this.viewWeek ? 'rgba(255,255,255,0.3)' : $r('app.color.divider')))
+              .margin(2)
+          }, (day: number) => `d${day}`)
+        }
+      }, (row: number) => `r${row}`)
+    }
+  }
+
+  /** 周次卡片：标题/当前标签 + 点阵（左右排列，与参考图一致） */
+  @Builder
+  weekItemCard(week: number, onClick: () => void) {
+    Row() {
+      Column() {
+        Text(`第${week}周`)
+          .fontSize(13)
+          .fontWeight(week === this.viewWeek ? FontWeight.Bold : FontWeight.Normal)
+          .fontColor(week === this.viewWeek ? $r('app.color.brand_on') :
+            (week === this.currentWeek ? $r('app.color.brand') : $r('app.color.text_primary')))
+        if (week === this.currentWeek) {
+          Text('当前')
+            .fontSize(9)
+            .fontColor($r('app.color.brand'))
+            .padding({ left: 4, right: 4, top: 1, bottom: 1 })
+            .backgroundColor($r('app.color.brand_light'))
+            .borderRadius(4)
+            .margin({ top: 6 })
+        }
+      }
+      .alignItems(HorizontalAlign.Start)
+
+      Blank()
+
+      this.weekDotMatrix(week)
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor(week === this.viewWeek ? $r('app.color.brand') :
+      (week === this.currentWeek ? $r('app.color.brand_light') : $r('app.color.bg_chip')))
+    .borderRadius(10)
+    .onClick(onClick)
+  }
+
+  /** 周次卡片（4 列网格版）：标题在上、点阵在下并居中，避免窄格横向溢出 */
+  @Builder
+  weekItemCardGrid(week: number, onClick: () => void) {
+    Column() {
+      Row() {
+        Text(`第${week}周`)
+          .fontSize(13)
+          .fontWeight(week === this.viewWeek ? FontWeight.Bold : FontWeight.Normal)
+          .fontColor(week === this.viewWeek ? $r('app.color.brand_on') :
+            (week === this.currentWeek ? $r('app.color.brand') : $r('app.color.text_primary')))
+        if (week === this.currentWeek) {
+          Text('当前')
+            .fontSize(9)
+            .fontColor($r('app.color.brand'))
+            .padding({ left: 4, right: 4, top: 1, bottom: 1 })
+            .backgroundColor($r('app.color.brand_light'))
+            .borderRadius(4)
+            .margin({ left: 4 })
+        }
+      }
+      .margin({ bottom: 8 })
+
+      this.weekDotMatrix(week)
+    }
+    .width('100%')
+    .padding(10)
+    .backgroundColor(week === this.viewWeek ? $r('app.color.brand') :
+      (week === this.currentWeek ? $r('app.color.brand_light') : $r('app.color.bg_chip')))
+    .borderRadius(10)
+    .onClick(onClick)
+  }
+
+  /** 日期栏容器：居中 720 宽、与课程表主体同宽，并挂载周次选择弹层 */
+  @Builder
+  weekHeaderBar() {
+    Row() {
+      Column() {
+        this.weekHeader()
+      }
+      .width(720)
+      .constraintSize({ maxWidth: '100%' })
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+    .bindSheet($$this.showWeekSheet, this.weekPickerSheet(), {
+      height: SheetSize.MEDIUM,
+      preferType: SheetType.BOTTOM,
+      width: this.sheetWidth,
+      dragBar: true,
+      backgroundColor: $r('app.color.bg_card'),
+      title: { title: '点阵周次' }
+    })
   }
 
   @Builder
@@ -738,33 +914,23 @@ export struct ScheduleView {
   @Builder
   weekPickerSheet() {
     Column() {
-      // 标题由 bindSheet title 显示（左上角），此处不再重复
-      Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
+      List({ space: 10 }) {
         ForEach(this.weekList(), (w: number) => {
-          Column() {
-            Text(`第${w}周`)
-              .fontSize(13)
-              .fontWeight(w === this.viewWeek ? FontWeight.Bold : FontWeight.Normal)
-              .fontColor(w === this.viewWeek ? $r('app.color.brand_on') :
-                (w === this.currentWeek ? $r('app.color.brand') : $r('app.color.text_primary')))
+          ListItem() {
+            this.weekItemCard(w, () => {
+              this.viewWeek = w;
+              this.showWeekSheet = false;
+            })
           }
-          .width('18%')
-          .height(42)
-          .justifyContent(FlexAlign.Center)
-          .backgroundColor(w === this.viewWeek ? $r('app.color.brand') :
-            (w === this.currentWeek ? $r('app.color.brand_light') : $r('app.color.bg_chip')))
-          .borderRadius(10)
-          .margin({ bottom: 10 })
-          .onClick(() => {
-            this.viewWeek = w;
-            this.showWeekSheet = false;
-          })
         }, (w: number) => `pick${w}`)
       }
       .width('100%')
+      .padding({ left: 16, right: 16 })
+      .scrollBar(BarState.Off)
     }
     .width('100%')
-    .padding({ left: 20, right: 20, top: 8, bottom: 24 })
+    .height('100%')
+    .padding({ top: 8, bottom: 24 })
   }
 
   @Builder
@@ -785,9 +951,10 @@ export struct ScheduleView {
               .fontColor(index === this.selectedTermIndex ? $r('app.color.brand_on') : $r('app.color.text_primary'))
               .layoutWeight(1)
             if (index === this.selectedTermIndex) {
-              Text('✓')
-                .fontSize(16)
-                .fontColor($r('app.color.brand_on'))
+              Image($r('app.media.checkmark_circle'))
+                .width(16)
+                .height(16)
+                .fillColor($r('app.color.brand_on'))
             }
           }
           .width('100%')
@@ -815,94 +982,260 @@ export struct ScheduleView {
       onPickBg: () => { this.pickBackgroundImage(); },
       onClearBg: () => { this.clearBackgroundImage(); },
       onClose: () => { this.showSettingsSheet = false; },
-      onCfgChange: (c: ScheduleConfig) => { this.cfg = c; }
+      onCfgChange: (c: ScheduleConfig) => { this.cfg = c; },
+      currentTermId: AppState.term.id,
+      currentTermStart: this.customTermStart,
+      onTermStartChange: (d: string) => { this.onTermStartChanged(d); }
     })
   }
 
-  /** 分组标题 */
+  /** 课程表主体布局 */
   build() {
     Column() {
       Column() {
         this.topBar()
-      // 把"选择周次"弹层绑在 weekHeader 自己的容器上（与根 Column 的"选择学期"弹层分开锚点）
-      Column() {
-        this.weekHeader()
-      }
-      .width('100%')
-      .bindSheet($$this.showWeekSheet, this.weekPickerSheet(), {
-        height: SheetSize.FIT_CONTENT,
-        dragBar: true,
-        backgroundColor: $r('app.color.bg_card'),
-        title: { title: '选择周次' }
-      })
-      // 横屏/平板下内容限宽 720vp 并居中（一多适配），单一 Scroll 占满剩余空间
-      Stack() {
-        Column() {
-          if (this.loading) {
-            LoadingTip()
-          } else if (this.courses.length === 0) {
-            LoadingTip({ text: '本学期暂无课程，可点击顶部"切换学期"查看其它学期' })
-          } else {
-            // 背景：纯色优先（可配置），背景图叠加在上层（可配置）
-            if (this.scheduleBg.length > 0) {
-              Image(`data:image/jpeg;base64,${this.scheduleBg}`)
-                .width('100%')
-                .height('100%')
-                .objectFit(ImageFit.Cover)
-                .position({ x: 0, y: 0 })
-                .opacity(0.85)
-                .zIndex(0)
-            }
-            Row() {
-              Scroll() {
-                Column() {
-                  Row() {
-                    this.sectionColumn()
-                    ForEach(this.weekdays(), (wd: number) => {
-                      this.dayColumn(wd)
-                    }, (wd: number) => `day${wd}`)
-                  }
-                  .width('100%')
-                  .alignItems(VerticalAlign.Top)
 
-                  Row() {
-                    Text(`本周共 ${this.weekCourseCount()} 节课`)
-                      .fontSize(11)
-                      .fontColor(this.scheduleBg.length > 0 ? '#FFFFFF' : $r('app.color.text_tertiary'))
-                    Blank()
-                    Text('点击课程查看详情')
-                      .fontSize(11)
-                      .fontColor(this.scheduleBg.length > 0 ? '#FFFFFF' : $r('app.color.text_tertiary'))
-                  }
-                  .width('100%')
-                  .padding({ left: 16, right: 16, top: 14, bottom: 100 })
+        // 横屏：左列点阵周次 + 右列（日期栏+课程表）；竖屏：日期栏 + 原 Stack 课程表
+        if (this.isLandscape) {
+          this.scheduleLandscape()
+        } else {
+          this.weekHeaderBar()
+
+          Stack() {
+            Column() {
+              if (this.loading) {
+                LoadingTip()
+              } else if (this.courses.length === 0) {
+                LoadingTip({ text: '本学期暂无课程，可点击顶部"切换学期"查看其它学期' })
+              } else {
+                if (this.scheduleBg.length > 0) {
+                  Image(`data:image/jpeg;base64,${this.scheduleBg}`)
+                    .width('100%')
+                    .height('100%')
+                    .objectFit(ImageFit.Cover)
+                    .position({ x: 0, y: 0 })
+                    .opacity(0.85)
+                    .zIndex(0)
                 }
-                .width('100%')
+                this.scheduleTable()
               }
-              .width(720)
-              .constraintSize({ maxWidth: '100%' })
-              .height('100%')
-              .scrollBar(BarState.Off)
-              .edgeEffect(EdgeEffect.Spring)
-              .backgroundColor(this.scheduleBg.length > 0 ? Color.Transparent :
-                (this.cfg.bgColor.length > 0 ? this.cfg.bgColor : $r('app.color.bg_page')))
-              .align(Alignment.TopStart)
             }
             .width('100%')
             .height('100%')
-            .justifyContent(FlexAlign.Center)
+          }
+          .width('100%')
+          .layoutWeight(1)
+          // 左右滑动切换上一周/下一周（水平滑动手势，不干扰表格内部垂直滚动）
+          .gesture(
+            SwipeGesture({ direction: SwipeDirection.Horizontal })
+              .onAction((event: SwipeGestureEvent) => {
+                if (event.angle > 90 || event.angle < -90) {
+                  this.changeWeek(1); // 向左滑，下一周
+                } else {
+                  this.changeWeek(-1); // 向右滑，上一周
+                }
+              })
+          )
+          // 课程详情弹层（bindSheet 半屏，内容组件本地镜像+回调实时刷新）
+          .bindSheet($$this.showSheet, this.courseSheet(), {
+            height: SheetSize.MEDIUM,
+            preferType: SheetType.BOTTOM,
+            width: this.sheetWidth,
+            dragBar: true,
+            backgroundColor: $r('app.color.bg_card'),
+            title: { title: '课程详情' }
+          })
+        }
+      }
+      .width('100%')
+      .height('100%')
+      .backgroundColor($r('app.color.bg_page'))
+      .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
+        height: SheetSize.FIT_CONTENT,
+        preferType: SheetType.BOTTOM,
+        width: this.sheetWidth,
+        dragBar: false,
+        backgroundColor: $r('app.color.bg_card'),
+        title: { title: '选择学年-学期' }
+      })
+    }
+    .width('100%')
+    .height('100%')
+    .bindSheet($$this.showSettingsSheet, this.settingsSheet(), {
+      height: SheetSize.MEDIUM,
+      preferType: SheetType.BOTTOM,
+      width: this.sheetWidth,
+      dragBar: true,
+      backgroundColor: $r('app.color.bg_card'),
+      title: { title: '课程表设置' }
+    })
+  }
+
+  /** 页面消失：注销横竖屏监听 */
+  aboutToDisappear(): void {
+    this.landscapeListener = null;
+  }
+
+  /** 监听屏幕方向变化（横屏时左列周数选择 + 右列课程表） */
+  private listenLandscape(): void {
+    this.isLandscape = mediaquery.matchMediaSync('(orientation: landscape)').matches;
+    this.landscapeListener = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.isLandscape = res.matches;
+    });
+  }
+
+  /** 课程表主体（竖屏/横屏右列共用，保证渲染完全一致、区域大小不变） */
+  @Builder
+  scheduleTable() {
+    Row() {
+      Scroll() {
+        Column() {
+          Row() {
+            this.sectionColumn()
+            ForEach(this.weekdays(), (wd: number) => {
+              this.dayColumn(wd)
+            }, (wd: number) => `day${wd}`)
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Top)
+
+          Row() {
+            Text(`本周共 ${this.weekCourseCount()} 节课`)
+              .fontSize(11)
+              .fontColor(this.scheduleBg.length > 0 ? '#FFFFFF' : $r('app.color.text_tertiary'))
+            Blank()
+            Text('点击课程查看详情')
+              .fontSize(11)
+              .fontColor(this.scheduleBg.length > 0 ? '#FFFFFF' : $r('app.color.text_tertiary'))
+          }
+          .width('100%')
+          // bottom 100 是"悬浮底栏"预留（课程表页无悬浮底栏），正是课程表与点阵之间大间隙的来源；
+          // 改小后（8vp）课程表与点阵间隙 = 8 + 点阵 margin 8 ≈ 16vp
+          .padding({ left: 16, right: 16, top: 14, bottom: 8 })
+          // 平板（大屏）竖屏：点阵周次与课程表在同一滚动区域内一体滑动（手机竖屏不显示；横屏走左列）
+          if (this.isTablet && !this.isLandscape) {
+            Column() {
+              this.weekDotsPanel()
+            }
+            .width('100%')
+            // 底部预留 = 安全区 + 180：提高滚动到底部的余量，点阵最后一行不被导航栏/手势条遮挡
+            .padding({ left: 16, right: 16, bottom: px2vp(this.bottomInsetPx) + 0 })
+            .margin({ top: 8 })
           }
         }
         .width('100%')
-        .height('100%')
+        // 滚动内容底部预留：横屏 200vp（用户设定）/ 竖屏 48vp，让课程表（第九节等）能滚动更多、底部不被遮挡
+        .padding({ bottom: this.isLandscape ? 200 : 85 })
+      }
+      .width(720)
+      .constraintSize({ maxWidth: '100%' })
+      .height('100%')
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
+      .backgroundColor(this.scheduleBg.length > 0 ? Color.Transparent :
+        (this.cfg.bgColor.length > 0 ? this.cfg.bgColor : $r('app.color.bg_page')))
+      .align(Alignment.TopStart)
+    }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  /** 点阵周次选择面板（标题 + 4 列周数网格）：横屏左列与平板竖屏底部共用 */
+  @Builder
+  weekDotsPanel() {
+    Column() {
+      Row() {
+        Text('点阵周次')
+          .fontSize(15)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+        Blank()
       }
       .width('100%')
+      .padding({ left: 4, right: 4, bottom: 12 })
+
+      Grid() {
+        ForEach(this.weekList(), (w: number) => {
+          GridItem() {
+            this.weekItemCardGrid(w, () => {
+              this.viewWeek = w;
+            })
+          }
+        }, (w: number) => `wk${w}`)
+      }
+      .columnsTemplate('1fr 1fr 1fr 1fr')
+      .columnsGap(10)
+      .rowsGap(12)
+      .width('100%')
+    }
+    .width('100%')
+  }
+
+  /** 平板横屏布局：左列点阵周次 + 右列（日期栏+课程表，大小不变） */
+  @Builder
+  scheduleLandscape() {
+    Row() {
+      // 左列：点阵周次选择
+      Scroll() {
+        Column() {
+          Row() {
+            Text('点阵周次')
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.text_primary'))
+            Blank()
+          }
+          .width('100%')
+          .padding({ left: 4, right: 4, bottom: 12 })
+
+          Grid() {
+            ForEach(this.weekList(), (w: number) => {
+              GridItem() {
+                this.weekItemCardGrid(w, () => {
+                  this.viewWeek = w;
+                })
+              }
+            }, (w: number) => `landwk${w}`)
+          }
+          .columnsTemplate('1fr 1fr 1fr 1fr')
+          .columnsGap(10)
+          .rowsGap(12)
+          .width('100%')
+        }
+        .width('100%')
+        .padding({ left: 16, right: 8, top: 12, bottom: 100 })
+      }
       .layoutWeight(1)
-      // 左右滑动切换上一周/下一周（水平滑动手势，不干扰表格内部垂直滚动）
+      .height('100%')
+      // 显式交叉轴拉伸：横屏 Row 里 height('100%') 可能不生效，导致该列高度塌缩、滚动受限
+      .alignSelf(ItemAlign.Stretch)
+      .scrollBar(BarState.Off)
+      .align(Alignment.Top)
+
+      // 右列：日期栏 + 课程表（与竖屏同一渲染，大小不变）
+      Column() {
+        this.weekHeaderBar()
+
+        Stack() {
+        if (this.scheduleBg.length > 0) {
+          Image(`data:image/jpeg;base64,${this.scheduleBg}`)
+            .width('100%')
+            .height('100%')
+            .objectFit(ImageFit.Cover)
+            .position({ x: 0, y: 0 })
+            .opacity(0.85)
+            .zIndex(0)
+        }
+        this.scheduleTable()
+      }
+      .layoutWeight(1)
+      .height('100%')
+      // 左右滑动切换上一周/下一周（与竖屏一致）
       .gesture(
         SwipeGesture({ direction: SwipeDirection.Horizontal })
           .onAction((event: SwipeGestureEvent) => {
-            // angle > 90 或 < -90 表示向左滑动，否则为向右滑动
             if (event.angle > 90 || event.angle < -90) {
               this.changeWeek(1); // 向左滑，下一周
             } else {
@@ -910,32 +1243,23 @@ export struct ScheduleView {
             }
           })
       )
-      // 课程详情弹层（bindSheet 半屏，内容组件本地镜像+回调实时刷新）
       .bindSheet($$this.showSheet, this.courseSheet(), {
         height: SheetSize.MEDIUM,
+        preferType: SheetType.BOTTOM,
+        width: this.sheetWidth,
         dragBar: true,
         backgroundColor: $r('app.color.bg_card'),
         title: { title: '课程详情' }
       })
     }
-    .width('100%')
+    .layoutWeight(1)
     .height('100%')
-    .backgroundColor($r('app.color.bg_page'))
-    .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
-      height: SheetSize.FIT_CONTENT,
-      dragBar: false,
-      backgroundColor: $r('app.color.bg_card'),
-      title: { title: '选择学年-学期' }
-    })
-    }
+    // 显式交叉轴拉伸：修复横屏右列高度塌缩（课程表 Scroll 视口过矮，节数多时底部"第九节"滚不上来）
+    .alignSelf(ItemAlign.Stretch)
+
     .width('100%')
-    .height('100%')
-    // 设置弹层挂在独立外层容器上，与"选择学年-学期"弹层分开锚点（同一组件多个 bindSheet 仅最后一个生效）
-    .bindSheet($$this.showSettingsSheet, this.settingsSheet(), {
-      height: SheetSize.MEDIUM,
-      dragBar: true,
-      backgroundColor: $r('app.color.bg_card'),
-      title: { title: '课程表设置' }
-    })
+    .layoutWeight(1)
+    .align(Alignment.Top)
   }
+}
 }

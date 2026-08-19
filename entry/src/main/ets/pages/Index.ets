@@ -19,6 +19,19 @@ struct Index {
   @State showLoginOnly: boolean = false;
   /** 主页"重登"按钮触发时的全局遮罩（与 LoginView 自动重登共用 loading 效果） */
   @State forceReloginLoading: boolean = false;
+  /** 系统深色模式（功能浏览水印颜色适配） */
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 功能浏览水印（进入功能浏览模式 5 秒后强制显示） */
+  @State mockWatermark: boolean = false;
+
+  /** 进入功能浏览模式后：延迟 5 秒显示全屏水印 */
+  private scheduleMockWatermark(): void {
+    if (JwApi.USE_MOCK) {
+      setTimeout(() => {
+        this.mockWatermark = true;
+      }, 5000);
+    }
+  }
 
   /** 页面出现：初始化 AppStorage 兜底值并加载主界面 */
   aboutToAppear(): void {
@@ -130,6 +143,7 @@ struct Index {
             onSuccess: () => {
               // 在登录页完成登录后返回主页
               this.showLoginOnly = false;
+              this.scheduleMockWatermark();
               if (!JwApi.USE_MOCK) {
                 HttpClient.setOfflineMode(false);
                 JwApi.refreshAll().catch(() => {});
@@ -156,6 +170,7 @@ struct Index {
             this.autoRelogin = false;
             this.forceReloginLoading = false;
             this.showLoginOnly = false;
+            this.scheduleMockWatermark();
             // 登录成功后：如果是真实登录（USE_MOCK=false）才开启网络、刷新数据
             if (!JwApi.USE_MOCK) {
               HttpClient.setOfflineMode(false);
@@ -170,6 +185,33 @@ struct Index {
             }
           }
         })
+      }
+      // 功能浏览模式：全屏淡水印（进入功能浏览模式 5 秒后强制显示；每字单独旋转保证平铺铺满无死角；不拦截触摸）
+      if (this.mockWatermark) {
+        Stack() {
+          // 平铺多行水印：Column/Row 不旋转（正常铺满全屏），每个 Text 自身旋转 -28°，避免整块旋转露白
+          Column() {
+            ForEach([0, 1, 2, 3, 4, 5, 6, 7, 8], (row: number) => {
+              Row() {
+                ForEach([0, 1, 2, 3, 4], (col: number) => {
+                  Text('功能浏览模式，内容非真实信息')
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(this.isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)')
+                    .rotate({ angle: -28 })
+                    .margin({ left: 34, right: 34, top: 30, bottom: 30 })
+                    .hitTestBehavior(HitTestMode.None)
+                }, (col: number) => `${col}`)
+              }
+              .hitTestBehavior(HitTestMode.None)
+            }, (row: number) => `${row}`)
+          }
+          .width('100%')
+          .hitTestBehavior(HitTestMode.None)
+        }
+        .width('100%')
+        .height('100%')
+        .hitTestBehavior(HitTestMode.None)
       }
       // "重登" 全局遮罩：叠加在主页之上，居中提示正在重新登录
       if (this.forceReloginLoading) {

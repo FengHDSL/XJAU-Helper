@@ -93,6 +93,14 @@ export class DateUtil {
     };
   }
 
+  /** 学期 id（如 2025-2026-1）-> 默认开学日（第一学期 9-01、第二学期次年 3-01） */
+  static defaultTermStart(termId: string): string {
+    const parts: string[] = termId.split('-');
+    const s: string = parts[parts.length - 1];
+    const y: number = Number.parseInt(parts[0], 10);
+    return s === '2' ? `${y + 1}-03-01` : `${y}-09-01`;
+  }
+
   /** 根据学期算出某天是第几周（1 起，未开学返回 0）
    * 以"含 startDate 的那个自然周（Mon-Sun）为第 1 周"为基准，
    * 即使 startDate 不是周一也能正确对应。

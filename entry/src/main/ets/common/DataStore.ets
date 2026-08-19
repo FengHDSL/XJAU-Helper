@@ -74,9 +74,52 @@ export class DataStore {
   static readonly KEY_SHOW_AVATAR: string = 'show_avatar';
   // 当前学期 ID（全局设置，启动时优先恢复）
   static readonly KEY_DS_TERM: string = 'current_term_id';
+  // 自定义开学时间：各学期 termId -> 自定义开学日(yyyy-MM-dd)，覆盖默认 9-01/3-01 推算；空串=未自定义
+  static readonly KEY_CUSTOM_TERM_START: string = 'custom_term_start';
+
+  /** 读取某学期的自定义开学日（空串=未自定义，用默认推算） */
+  static getCustomTermStart(termId: string): string {
+    const raw: string = DataStore.get(DataStore.KEY_CUSTOM_TERM_START);
+    if (raw.length === 0) {
+      return '';
+    }
+    try {
+      const map: Record<string, string> = JSON.parse(raw) as Record<string, string>;
+      return map[termId] ?? '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  /** 设置某学期的自定义开学日（date 为空串则清除该学期的自定义） */
+  static setCustomTermStart(termId: string, date: string): void {
+    const raw: string = DataStore.get(DataStore.KEY_CUSTOM_TERM_START);
+    let map: Record<string, string> = {};
+    if (raw.length > 0) {
+      try {
+        map = JSON.parse(raw) as Record<string, string>;
+      } catch (e) {
+        map = {};
+      }
+    }
+    if (date.length === 0) {
+      const rebuilt: Record<string, string> = {};
+      for (const k of Object.keys(map)) {
+        if (k !== termId) {
+          rebuilt[k] = map[k];
+        }
+      }
+      map = rebuilt;
+    } else {
+      map[termId] = date;
+    }
+    DataStore.put(DataStore.KEY_CUSTOM_TERM_START, JSON.stringify(map));
+  }
   // 隐私协议：是否已同意 + 同意时间
   static readonly KEY_PRIVACY_AGREED: string = 'privacy_agreed';
   static readonly KEY_PRIVACY_AGREED_AT: string = 'privacy_agreed_at';
+  // 账号风控提醒是否已展示（首次启动，开发者声明之后）
+  static readonly KEY_RISK_TIP_SHOWN: string = 'risk_tip_shown';
   // 网页登录会话 Cookie（持久化，下次启动恢复）
   static readonly KEY_SESSION_COOKIE: string = 'session_cookie';
   // 自动重新登录凭据（账号+加密密码，冷启动时静默重登刷新会话）
@@ -177,6 +220,16 @@ export class DataStore {
   /** 读取同意时间（未同意返回空串） */
   static getPrivacyAgreedAt(): string {
     return DataStore.get(DataStore.KEY_PRIVACY_AGREED_AT);
+  }
+
+  /** 账号风控提醒是否已展示过（首次启动，开发者声明之后） */
+  static isRiskTipShown(): boolean {
+    return DataStore.get(DataStore.KEY_RISK_TIP_SHOWN) === '1';
+  }
+
+  /** 标记风控提醒已展示 */
+  static setRiskTipShown(): void {
+    DataStore.put(DataStore.KEY_RISK_TIP_SHOWN, '1');
   }
 
   /** 记录一次成功登录的账号（去重、置顶、最多保留 8 个，密码 base64+XOR 编码存储） */

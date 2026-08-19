@@ -2,6 +2,7 @@
  * 首页：学期概览 + 今日课程 + 快捷入口 + 近期考试
  * 头部：简约白卡头像（真实证件照）+ 学号/学院/班级
  */
+import { SheetUtil } from '../common/SheetUtil';
 import { promptAction } from '@kit.ArkUI';
 import { mediaquery } from '@kit.ArkUI';
 import { JwApi } from '../api/JwApi';
@@ -55,6 +56,7 @@ export struct HomeView {
   // 课程无课时：随机鼓励文案 + 下次课预告
   @State randomRestText: string = '';
   @State nextFutureCourse: NextFutureCourse | null = null;
+  @State refreshing: boolean = false;
   onSwitchTab: (index: number) => void = () => {
   };
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
@@ -152,6 +154,12 @@ export struct HomeView {
       }
     }
     this.loading = false;
+  }
+
+  /** 下拉刷新：重新加载首页全部数据 */
+  private async onRefresh(): Promise<void> {
+    await this.loadData();
+    this.refreshing = false;
   }
 
   /** 今日所在自然月（yyyymm，用于日历默认展示） */
@@ -383,7 +391,7 @@ export struct HomeView {
           .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Image($r('app.media.list'))
+        Image($r('app.media.list_bullet'))
           .width(14)
           .height(14)
           .fillColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
@@ -422,9 +430,10 @@ export struct HomeView {
                   .fontColor(this.selectedTermIndex === index ? $r('app.color.brand_on') : $r('app.color.text_primary'))
                   .layoutWeight(1)
                 if (this.selectedTermIndex === index) {
-                  Text('✓')
-                    .fontSize(16)
-                    .fontColor($r('app.color.brand_on'))
+                  Image($r('app.media.checkmark_circle'))
+                    .width(16)
+                    .height(16)
+                    .fillColor($r('app.color.brand_on'))
                 }
               }
               .width('100%')
@@ -462,7 +471,7 @@ export struct HomeView {
             .backgroundColor($r('app.color.bg_chip'))
         } else if (JwApi.USE_MOCK) {
           // 功能浏览模式：默认头像使用内置资源
-          Image($r('app.media.zhangsan_avatar'))
+          Image($r('app.media.default_avatar'))
             .width(52)
             .height(52)
             .borderRadius(26)
@@ -1298,9 +1307,13 @@ export struct HomeView {
 
   build() {
     Column() {
-      this.titleBar()
-      // 中间内容：可滚动；横屏/平板下内容限宽 720vp 并居中（一多适配）
-      Row() {
+    this.titleBar()
+    if (this.isLandscape) {
+      this.homeLandscape()
+    } else {
+    // 中间内容：可滚动；横屏/平板下内容限宽 720vp 并居中（一多适配）
+    Row() {
+      Refresh({ refreshing: $$this.refreshing }) {
         Scroll() {
           Column() {
             // 头像卡片（始终显示；圆形头像由 showAvatar 开关控制）
@@ -1321,7 +1334,7 @@ export struct HomeView {
             this.messageSection()
             this.noticeSection()
             Column() {
-              Text('数据来源：新疆农业大学教务系统').fontSize(11)
+              Text('数据来源: 新疆农业大学教务系统').fontSize(11)
                 .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
               Text('新疆农业大学教务处').fontSize(11)
                 .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
@@ -1337,38 +1350,133 @@ export struct HomeView {
           .padding({ left: 16, right: 16, top: 12, bottom: 100 }) // 底部预留悬浮底栏高度，避免内容被遮挡
           // 学期选择弹层（与根 Column 的通知弹层/Scroll 的网页弹层分置不同组件，避免同组件多 bindSheet 冲突）
           .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
+            width: SheetUtil.sheetWidth(),
+            preferType: SheetType.BOTTOM,
             height: SheetSize.FIT_CONTENT,
             dragBar: true,
             backgroundColor: $r('app.color.bg_card'),
             title: { title: '选择学年-学期' }
           })
         }
-        .width(720)
-        .constraintSize({ maxWidth: '100%' })
+        .width('100%')
         .height('100%')
         .scrollBar(BarState.Off)
         .align(Alignment.Top)
         .edgeEffect(EdgeEffect.Spring)
         // 通知文章页（教务处官网）挂在内层 Scroll，与根组件的通知弹层分离（同组件多 bindSheet 仅最后一个生效）
         .bindSheet($$this.showWebSheet, this.webSheet(), {
+          width: SheetUtil.sheetWidth(),
+          preferType: SheetType.BOTTOM,
           height: SheetSize.LARGE,
           dragBar: false,
           backgroundColor: $r('app.color.bg_page'),
           title: { title: AppState.webTitle }
         })
       }
-      .width('100%')
+      .onRefreshing(() => { this.onRefresh(); })
+      }
+      .width(720)
+      .constraintSize({ maxWidth: '100%' })
+      .height('100%')
       .layoutWeight(1)
       .justifyContent(FlexAlign.Center) // 横屏/平板下 Scroll 水平居中
+    }
     }
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.bg_page'))
     .bindSheet($$this.showNoticeSheet, this.noticeSheet(), {
+      width: SheetUtil.sheetWidth(),
+      preferType: SheetType.BOTTOM,
       height: SheetSize.LARGE,
       dragBar: true,
       backgroundColor: $r('app.color.bg_card')
     })
+  }
+
+  @Builder
+  homeLandscape() {
+    Row() {
+      // 左列：头像 / 今日课程 / 校历 / 快捷入口
+      Refresh({ refreshing: $$this.refreshing }) {
+        Scroll() {
+          Column() {
+            this.avatarCard()
+            Column() {
+              this.todayCard()
+            }
+            .margin({ top: 12 })
+            Column() {
+              this.quickEntries()
+            }
+            .margin({ top: 12 })
+            this.calendar()
+          }
+          .width('100%')
+          .padding({ left: 16, right: 8, top: 12, bottom: 100 })
+        }
+        .layoutWeight(1)
+        .height('100%')
+        .scrollBar(BarState.Off)
+        .align(Alignment.Top)
+        .edgeEffect(EdgeEffect.Spring)
+        .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
+          width: SheetUtil.sheetWidth(),
+          preferType: SheetType.BOTTOM,
+          height: SheetSize.FIT_CONTENT,
+          dragBar: true,
+          backgroundColor: $r('app.color.bg_card'),
+          title: { title: '选择学年-学期' }
+        })
+      }
+      .layoutWeight(1)
+      .height('100%')
+      .onRefreshing(() => { this.onRefresh(); })
+
+      // 右列：考试 / 消息 / 通知
+      Refresh({ refreshing: $$this.refreshing }) {
+        Scroll() {
+          Column() {
+            this.examSection()
+            this.messageSection()
+            this.noticeSection()
+            Column() {
+              Text('数据来源: 新疆农业大学教务系统').fontSize(11)
+                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+              Text('新疆农业大学教务处').fontSize(11)
+                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .margin({ top: 3 })
+              Text('"功能浏览"模式为本地模拟数据').fontSize(11)
+                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .margin({ top: 3 })
+            }
+            .width('100%')
+            .margin({ top: 20, bottom: 24 })
+          }
+          .width('100%')
+          .padding({ left: 8, right: 16, top: 12, bottom: 100 })
+        }
+        .layoutWeight(1)
+        .height('100%')
+        .scrollBar(BarState.Off)
+        .align(Alignment.Top)
+        .edgeEffect(EdgeEffect.Spring)
+        .bindSheet($$this.showWebSheet, this.webSheet(), {
+          width: SheetUtil.sheetWidth(),
+          preferType: SheetType.BOTTOM,
+          height: SheetSize.LARGE,
+          dragBar: false,
+          backgroundColor: $r('app.color.bg_page'),
+          title: { title: AppState.webTitle }
+        })
+      }
+      .layoutWeight(1)
+      .height('100%')
+      .onRefreshing(() => { this.onRefresh(); })
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .align(Alignment.Top)
   }
 
   @Builder

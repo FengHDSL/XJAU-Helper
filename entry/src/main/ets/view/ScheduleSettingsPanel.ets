@@ -5,6 +5,7 @@
  */
 import { promptAction } from '@kit.ArkUI';
 import { ScheduleConfig } from '../common/ScheduleConfig';
+import { DateUtil } from '../common/DateUtil';
 
 const BG_PALETTE: string[] = [
   '#FFFFFF', '#FAF9F6', '#F0F0F0', '#F5F0E1', '#E8F0FE', '#E3F9E5',
@@ -84,6 +85,10 @@ export struct ScheduleSettingsPanel {
   onClearBg: () => void = () => {};
   onClose: () => void = () => {};
   onCfgChange: (c: ScheduleConfig) => void = () => {};
+  // 自定义开学时间：当前学期 id / 当前开学日（含已自定义值）/ 变更回调（空串=恢复默认）
+  currentTermId: string = '';
+  currentTermStart: string = '';
+  onTermStartChange: (date: string) => void = () => {};
 
   @State bgColor: string = '';
   @State hdrColor: string = '';
@@ -180,12 +185,51 @@ export struct ScheduleSettingsPanel {
     this.onCfgChange(c);
   }
 
+  /** 打开日期选择器，修改当前学期的开学日 */
+  private openTermStartPicker(): void {
+    const base: string = this.currentTermStart.length > 0
+      ? this.currentTermStart
+      : DateUtil.defaultTermStart(this.currentTermId);
+    const sel: Date = DateUtil.parse(base);
+    DatePickerDialog.show({
+      start: new Date(2000, 0, 1),
+      end: new Date(2035, 11, 31),
+      selected: sel,
+      onAccept: (value: DatePickerResult) => {
+        const y: number = value.year ?? 2000;
+        const m: number = value.month ?? 0;
+        const d: number = value.day ?? 1;
+        this.onTermStartChange(DateUtil.format(new Date(y, m, d)));
+      }
+    });
+  }
+
   build() {
     Scroll() {
       Column() {
         // ===== 整体 =====
         Text('整体').fontSize(17).fontWeight(FontWeight.Bold).fontColor($r('app.color.brand'))
           .width('100%').textAlign(TextAlign.Start).margin({ top: 16, bottom: 8 })
+
+        // 自定义开学时间（覆盖默认 9-01/3-01 推算，用于修正周次）
+        Divider().color($r('app.color.divider')).margin({ top: 12, bottom: 12 })
+        Row() {
+          Text('自定义开学时间').fontSize(14).fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary')).layoutWeight(1)
+          if (this.currentTermStart.length > 0 && this.currentTermStart !== DateUtil.defaultTermStart(this.currentTermId)) {
+            Text('恢复默认')
+              .fontSize(12).fontColor('#F0524D')
+              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+              .backgroundColor('rgba(240,82,77,0.10)').borderRadius(4)
+              .onClick(() => { this.onTermStartChange(''); })
+          }
+        }.width('100%').margin({ top: 4, bottom: 6 })
+        Row() {
+          Text(this.currentTermStart.length > 0 ? this.currentTermStart : DateUtil.defaultTermStart(this.currentTermId))
+            .fontSize(15).fontColor($r('app.color.text_primary')).layoutWeight(1)
+          Text('›').fontSize(20).fontColor($r('app.color.text_tertiary'))
+        }.width('100%')
+        .onClick(() => { this.openTermStartPicker(); })
 
         // 背景图（第一位）
         Divider().color($r('app.color.divider')).margin({ top: 12, bottom: 12 })

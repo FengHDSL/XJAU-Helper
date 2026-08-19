@@ -69,11 +69,11 @@ export struct MainView {
       Image(icon)
         .width(20)
         .height(20)
-        .fillColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : '#9AA0A6')
+        .fillColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#5F6368' : '#9AA0A6'))
       Text(title)
         .fontSize(10)
         .fontWeight(this.currentIndex === index ? FontWeight.Medium : FontWeight.Normal)
-        .fontColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : '#9AA0A6')
+        .fontColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#5F6368' : '#9AA0A6'))
         .margin({ top: 3 })
     }
     .width('100%')
@@ -128,23 +128,23 @@ export struct MainView {
             }
           })
         }
-        .tabBar(this.tabItem('首页', $r('app.media.home_tab'), 0))
+        .tabBar(this.tabItem('首页', $r('app.media.house'), 0))
 
         TabContent() {
           ScheduleView()
         }
-        .tabBar(this.tabItem('课程表', $r('app.media.calendar_tab'), 1))
+        .tabBar(this.tabItem('课程表', $r('app.media.calendar'), 1))
 
         TabContent() {
           ScoreView()
         }
-        .tabBar(this.tabItem('成绩', $r('app.media.search_tab'), 2))
+        .tabBar(this.tabItem('成绩', $r('app.media.doc_text_badge_magnifyingglass'), 2))
 
         // 农大新闻（占位页）：位于"成绩"和"我的"之间
         TabContent() {
           NewsPage()
         }
-        .tabBar(this.tabItem('农大新闻', $r('app.media.newspaper'), 3))
+        .tabBar(this.tabItem('农大新闻', $r('app.media.list_square_bill'), 3))
 
         TabContent() {
           MineView({
@@ -156,7 +156,7 @@ export struct MainView {
             }
           })
         }
-        .tabBar(this.tabItem('我的', $r('app.media.user_tab'), 4))
+        .tabBar(this.tabItem('我的', $r('app.media.person'), 4))
       }
       .scrollable(false)
       .animationDuration(220) // 页面切换动画

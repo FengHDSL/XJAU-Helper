@@ -8,10 +8,10 @@
 
 一款为新疆农业大学学生打造的鸿蒙原生校园工具，集成登录、课表、成绩、考试、学业情况、校历信息、通知公告、空闲教室查询、农大新闻等常用功能于一体，数据对接学校正方教务系统与教务处官网。
 
-[![Version](https://img.shields.io/badge/version-1.2.2-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.2.2)
+[![Version](https://img.shields.io/badge/version-1.2.4-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.2.4)
 [![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT%20(API%2026)-orange)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.2.2/XJAU-Helper_v1.2.2.hap)
+[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.2.4/XJAU-Helper_v1.2.4_GitHub.hap)
 
 </div>
 
@@ -49,6 +49,35 @@
     <td><img src="docs/screenshots/07-exam.png" width="180" alt="考试查询" /></td>
     <td><img src="docs/screenshots/08-academic.png" width="180" alt="学业情况" /></td>
     <td></td>
+  </tr>
+</table>
+
+### 平板端
+
+<table align="center">
+  <tr>
+    <td align="center" width="320"><b>首页</b></td>
+    <td align="center" width="320"><b>课程表</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/pad/01-home.jpg" width="300" alt="首页（平板）" /></td>
+    <td><img src="docs/screenshots/pad/02-schedule.jpg" width="300" alt="课程表（平板）" /></td>
+  </tr>
+  <tr>
+    <td align="center" width="320"><b>成绩查询</b></td>
+    <td align="center" width="320"><b>农大新闻</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/pad/03-score.jpg" width="300" alt="成绩查询（平板）" /></td>
+    <td><img src="docs/screenshots/pad/04-news.jpg" width="300" alt="农大新闻（平板）" /></td>
+  </tr>
+  <tr>
+    <td align="center" width="320"><b>我的</b></td>
+    <td align="center" width="320"><b>空闲教室查询</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/pad/05-mine.jpg" width="300" alt="我的（平板）" /></td>
+    <td><img src="docs/screenshots/pad/06-kxjs.jpg" width="300" alt="空闲教室查询（平板）" /></td>
   </tr>
 </table>
 

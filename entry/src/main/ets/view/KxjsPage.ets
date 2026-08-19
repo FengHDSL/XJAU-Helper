@@ -11,7 +11,8 @@
  * - 结果卡片：场地名称 / 座位数 / 是否可用；点击弹详情（编号/校区/类别/楼号/楼层/借用类型/备注/使用部门/使用班级）
  * - 不发起任何真实网络请求、不注入 Cookie、无网页版兜底
  */
-import { promptAction } from '@kit.ArkUI';
+import { SheetUtil } from '../common/SheetUtil';
+import { promptAction, mediaquery } from '@kit.ArkUI';
 import { webview } from '@kit.ArkWeb';
 import { JwApi } from '../api/JwApi';
 import { HttpClient } from '../api/HttpClient';
@@ -116,12 +117,30 @@ export struct KxjsPage {
   // 详情弹窗（bindSheet，挂底部安全区）
   @State showDetail: boolean = false;
   @State selectedRoom: EmptyRoomItem | null = null;
+  /** 横屏标记（平板横屏下左列查询选项 + 右列查询结果） */
+  @State isLandscape: boolean = false;
+  private landscapeListener: mediaquery.MediaQueryListener | null = null;
   // 网页版查询（WebView 弹层，共享登录 Cookie）
   @State showWeb: boolean = false;
 
   aboutToAppear(): void {
+    this.listenLandscape();
     this.initLocalData();
     this.loadRemoteConditions();
+  }
+
+  /** 页面消失：注销横竖屏监听 */
+  aboutToDisappear(): void {
+    this.landscapeListener = null;
+  }
+
+  /** 监听屏幕方向变化（横屏时左列查询选项 + 右列查询结果） */
+  private listenLandscape(): void {
+    this.isLandscape = mediaquery.matchMediaSync('(orientation: landscape)').matches;
+    this.landscapeListener = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.isLandscape = res.matches;
+    });
   }
 
   /** 初始化本地数据（无网络，秒开学期与静态条件） */
@@ -706,6 +725,204 @@ export struct KxjsPage {
     })
   }
 
+  /** 查询条件卡（横竖屏共用）：学年学期/校区/楼号/场地类别/二级/周次/星期/节次/座位数/名称 + 查询按钮 */
+  @Builder
+  queryOptionsCard() {
+    Column() {
+      // 单选：学年学期 / 校区 / 楼号 / 场地类别 / 场地二级类别
+      PickRow({ label: '学年学期', value: this.termLabel, placeholder: '请选择', onTap: () => this.openTermPicker() })
+      PickRow({ label: '校区', value: this.campusLabel, placeholder: '请选择', onTap: () => this.openCampusPicker() })
+      PickRow({ label: '楼号', value: this.buildingLabel, placeholder: '全部', onTap: () => this.openBuildingPicker() })
+      PickRow({ label: '场地类别', value: this.roomTypeLabel, placeholder: '请选择', onTap: () => this.openRoomTypePicker() })
+      PickRow({ label: '场地二级类别', value: this.subTypeLabel, placeholder: '请先选场地类别', onTap: () => this.openSubTypePicker() })
+
+      // 多选：周次 / 星期 / 节次（至少选 1 项）
+      PickRow({ label: '周次', value: this.weekLabel, placeholder: '请选择', onTap: () => this.openWeekPicker() })
+      PickRow({ label: '星期', value: this.weekdayLabel, placeholder: '请选择', onTap: () => this.openWeekdayPicker() })
+      PickRow({ label: '节次', value: this.sectionLabel, placeholder: '请选择', onTap: () => this.openSectionPicker() })
+
+      // 座位数范围（从 ~ 至）
+      Row() {
+        Text('座位数')
+          .fontSize(13)
+          .fontColor($r('app.color.text_secondary'))
+          .width(86)
+        Blank()
+        TextInput({ placeholder: '不限', text: this.seatMinText })
+          .type(InputType.Number)
+          .fontSize(13)
+          .placeholderColor($r('app.color.text_tertiary'))
+          .backgroundColor($r('app.color.bg_page'))
+          .borderRadius(8)
+          .height(36)
+          .width(72)
+          .onChange((v: string) => {
+            this.seatMinText = v;
+          })
+        Text('至')
+          .fontSize(13)
+          .fontColor($r('app.color.text_tertiary'))
+          .margin({ left: 6, right: 6 })
+        TextInput({ placeholder: '不限', text: this.seatMaxText })
+          .type(InputType.Number)
+          .fontSize(13)
+          .placeholderColor($r('app.color.text_tertiary'))
+          .backgroundColor($r('app.color.bg_page'))
+          .borderRadius(8)
+          .height(36)
+          .width(72)
+          .onChange((v: string) => {
+            this.seatMaxText = v;
+          })
+        Text('人')
+          .fontSize(13)
+          .fontColor($r('app.color.text_tertiary'))
+          .margin({ left: 6 })
+      }
+      .width('100%')
+      .height(46)
+      .padding({ left: 10, right: 10 })
+      .backgroundColor($r('app.color.bg_chip'))
+      .borderRadius(10)
+      .margin({ bottom: 10 })
+
+      // 场地名称
+      Row() {
+        Text('场地名称')
+          .fontSize(13)
+          .fontColor($r('app.color.text_secondary'))
+          .width(86)
+        Blank()
+        TextInput({ placeholder: '场地名称或编号', text: this.roomName })
+          .fontSize(13)
+          .textAlign(TextAlign.End)
+          .placeholderColor($r('app.color.text_tertiary'))
+          .backgroundColor($r('app.color.bg_page'))
+          .borderRadius(8)
+          .height(36)
+          .layoutWeight(1)
+          .onChange((v: string) => {
+            this.roomName = v;
+          })
+      }
+      .width('100%')
+      .height(46)
+      .padding({ left: 10, right: 10 })
+      .backgroundColor($r('app.color.bg_chip'))
+      .borderRadius(10)
+      .margin({ bottom: 10 })
+
+      Button(this.loading ? '查询中…' : '查询空闲教室')
+        .width('100%')
+        .height(44)
+        .fontSize(15)
+        .fontColor($r('app.color.brand_on'))
+        .backgroundColor($r('app.color.brand'))
+        .borderRadius(12)
+        .margin({ top: 4 })
+        .enabled(!this.loading)
+        .onClick(() => {
+          this.query();
+        })
+    }
+    .width('100%')
+    .padding(16)
+    .backgroundColor($r('app.color.bg_card'))
+    .borderRadius(18)
+    .margin({ bottom: 14 })
+  }
+
+  /**
+   * 横屏布局：左列查询选项 + 右列查询结果（与竖屏渲染逻辑一致）。
+   * 关键：loading / rooms / resultMessage / 周次星期节次标签 作为入参传入，
+   * 使 build() 在调用本 Builder 时直接读取这些 @State，从而在数据变化（含 loading 翻转）时可靠重渲染。
+   * （@Builder 内部直接读 this.xxx 在历史上出现过「loading 翻转后不刷新」的响应式失效，故改为入参。）
+   */
+  @Builder
+  kxjsLandscape(loading: boolean, rooms: EmptyRoomItem[], resultMessage: string,
+                weekLabel: string, weekdayLabel: string, sectionLabel: string) {
+    Row() {
+      // 左列：查询选项
+      Scroll() {
+        Column() {
+          this.queryOptionsCard()
+        }
+        .width('100%')
+        .padding({ left: 16, right: 8, top: 14, bottom: 120 })
+      }
+      .layoutWeight(1)
+      .height('100%')
+      .scrollBar(BarState.Off)
+      .align(Alignment.Top)
+
+      // 右列：查询结果（与竖屏同渲染）
+      Scroll() {
+        Column() {
+          Row() {
+            Text('查询结果')
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.text_primary'))
+            Blank()
+            Text(rooms.length > 0 ? `共 ${rooms.length} 间空闲教室` : '')
+              .fontSize(11)
+              .fontColor($r('app.color.text_tertiary'))
+          }
+          .width('100%')
+          .margin({ bottom: 10 })
+
+          if (loading) {
+            LoadingTip({ text: '正在查询空闲教室…' })
+              .width('100%')
+              .height(140)
+              .backgroundColor($r('app.color.bg_card'))
+              .borderRadius(18)
+          } else if (rooms.length > 0) {
+            ForEach(this.pagedRooms(), (item: EmptyRoomItem) => {
+              Column() {
+                this.roomCard(item)
+              }
+              .margin({ bottom: 10 })
+            }, (item: EmptyRoomItem) => `${item.cdbh}-${item.cdmc}-${item.time}`)
+            this.pageControl()
+          } else {
+            Column() {
+              EmptyTip({ text: resultMessage.length > 0 ? resultMessage : '点击左侧"查询"获取空闲教室情况' })
+              Text(`当前条件: ${weekLabel} ${weekdayLabel} ${sectionLabel}`)
+                .fontSize(11)
+                .fontColor($r('app.color.text_tertiary'))
+                .margin({ top: 8 })
+            }
+            .width('100%')
+            .padding(20)
+            .backgroundColor($r('app.color.bg_card'))
+            .borderRadius(18)
+          }
+          Column()
+            .height(px2vp(this.bottomInsetPx) + 24)
+        }
+        .width('100%')
+        .padding({ left: 8, right: 16, top: 14, bottom: 120 })
+      }
+      .layoutWeight(1)
+      .height('100%')
+      .scrollBar(BarState.Off)
+      .align(Alignment.Top)
+      // 网页版查询弹层（挂右列 Scroll，与顶栏详情/单选/多选弹窗分离）
+      .bindSheet($$this.showWeb, this.webSheet(), {
+        width: SheetUtil.sheetWidth(),
+        preferType: SheetType.BOTTOM,
+        height: SheetSize.LARGE,
+        dragBar: false,
+        backgroundColor: $r('app.color.bg_page'),
+        title: { title: AppState.webTitle }
+      })
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .align(Alignment.Top)
+  }
+
   build() {
     NavDestination() {
       Column() {
@@ -752,6 +969,8 @@ export struct KxjsPage {
         .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
         // 详情弹窗（挂顶栏 Row，与单选/多选弹窗分离避免 bindSheet 相互覆盖）
         .bindSheet($$this.showDetail, this.detailSheet(), {
+          width: SheetUtil.sheetWidth(),
+          preferType: SheetType.BOTTOM,
           height: SheetSize.FIT_CONTENT,
           dragBar: true,
           backgroundColor: $r('app.color.bg_card'),
@@ -759,202 +978,110 @@ export struct KxjsPage {
         })
 
         // 内容区：整页可滚动（条件卡 + 结果列表 + 底部翻页），下拉刷新重新导出数据
-        Column() {
+        // 外层常驻 Column 承载"单选弹窗"bindSheet，确保横屏下单选/场地类别等弹窗也能弹出
+        if (this.isLandscape) {
+          this.kxjsLandscape(this.loading, this.rooms, this.resultMessage, this.weekLabel, this.weekdayLabel, this.sectionLabel)
+        } else {
           Refresh({ refreshing: $$this.refreshing }) {
             Scroll() {
-            Column() {
-              // 查询条件卡
               Column() {
-                // 单选：学年学期 / 校区 / 楼号 / 场地类别 / 场地二级类别（PickRow 为 @Component + @Prop，状态变化实时刷新）
-                PickRow({ label: '学年学期', value: this.termLabel, placeholder: '请选择', onTap: () => this.openTermPicker() })
-                PickRow({ label: '校区', value: this.campusLabel, placeholder: '请选择', onTap: () => this.openCampusPicker() })
-                PickRow({ label: '楼号', value: this.buildingLabel, placeholder: '全部', onTap: () => this.openBuildingPicker() })
-                PickRow({ label: '场地类别', value: this.roomTypeLabel, placeholder: '请选择', onTap: () => this.openRoomTypePicker() })
-                PickRow({ label: '场地二级类别', value: this.subTypeLabel, placeholder: '请先选场地类别', onTap: () => this.openSubTypePicker() })
+                // 查询条件卡
+                this.queryOptionsCard()
 
-                // 多选：周次 / 星期 / 节次（至少选 1 项）
-                PickRow({ label: '周次', value: this.weekLabel, placeholder: '请选择', onTap: () => this.openWeekPicker() })
-                PickRow({ label: '星期', value: this.weekdayLabel, placeholder: '请选择', onTap: () => this.openWeekdayPicker() })
-                PickRow({ label: '节次', value: this.sectionLabel, placeholder: '请选择', onTap: () => this.openSectionPicker() })
-
-                // 座位数范围（从 ~ 至）
+                // 查询结果
                 Row() {
-                  Text('座位数')
-                    .fontSize(13)
-                    .fontColor($r('app.color.text_secondary'))
-                    .width(86)
+                  Text('查询结果')
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Bold)
+                    .fontColor($r('app.color.text_primary'))
                   Blank()
-                  TextInput({ placeholder: '不限', text: this.seatMinText })
-                    .type(InputType.Number)
-                    .fontSize(13)
-                    .placeholderColor($r('app.color.text_tertiary'))
-                    .backgroundColor($r('app.color.bg_page'))
-                    .borderRadius(8)
-                    .height(36)
-                    .width(72)
-                    .onChange((v: string) => {
-                      this.seatMinText = v;
-                    })
-                  Text('至')
-                    .fontSize(13)
-                    .fontColor($r('app.color.text_tertiary'))
-                    .margin({ left: 6, right: 6 })
-                  TextInput({ placeholder: '不限', text: this.seatMaxText })
-                    .type(InputType.Number)
-                    .fontSize(13)
-                    .placeholderColor($r('app.color.text_tertiary'))
-                    .backgroundColor($r('app.color.bg_page'))
-                    .borderRadius(8)
-                    .height(36)
-                    .width(72)
-                    .onChange((v: string) => {
-                      this.seatMaxText = v;
-                    })
-                  Text('人')
-                    .fontSize(13)
-                    .fontColor($r('app.color.text_tertiary'))
-                    .margin({ left: 6 })
-                }
-                .width('100%')
-                .height(46)
-                .padding({ left: 10, right: 10 })
-                .backgroundColor($r('app.color.bg_chip'))
-                .borderRadius(10)
-                .margin({ bottom: 10 })
-
-                // 场地名称
-                Row() {
-                  Text('场地名称')
-                    .fontSize(13)
-                    .fontColor($r('app.color.text_secondary'))
-                    .width(86)
-                  Blank()
-                  TextInput({ placeholder: '场地名称或编号', text: this.roomName })
-                    .fontSize(13)
-                    .textAlign(TextAlign.End)
-                    .placeholderColor($r('app.color.text_tertiary'))
-                    .backgroundColor($r('app.color.bg_page'))
-                    .borderRadius(8)
-                    .height(36)
-                    .layoutWeight(1)
-                    .onChange((v: string) => {
-                      this.roomName = v;
-                    })
-                }
-                .width('100%')
-                .height(46)
-                .padding({ left: 10, right: 10 })
-                .backgroundColor($r('app.color.bg_chip'))
-                .borderRadius(10)
-                .margin({ bottom: 10 })
-
-                Button(this.loading ? '查询中…' : '查询空闲教室')
-                  .width('100%')
-                  .height(44)
-                  .fontSize(15)
-                  .fontColor($r('app.color.brand_on'))
-                  .backgroundColor($r('app.color.brand'))
-                  .borderRadius(12)
-                  .margin({ top: 4 })
-                  .enabled(!this.loading)
-                  .onClick(() => {
-                    this.query();
-                  })
-              }
-              .width('100%')
-              .padding(16)
-              .backgroundColor($r('app.color.bg_card'))
-              .borderRadius(18)
-              .margin({ bottom: 14 })
-
-              // 查询结果
-              Row() {
-                Text('查询结果')
-                  .fontSize(14)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor($r('app.color.text_primary'))
-                Blank()
-                Text(this.rooms.length > 0 ? `共 ${this.rooms.length} 间空闲教室` : '')
-                  .fontSize(11)
-                  .fontColor($r('app.color.text_tertiary'))
-              }
-              .width('100%')
-              .margin({ bottom: 10 })
-
-              if (this.loading) {
-                LoadingTip({ text: '正在查询空闲教室…' })
-                  .width('100%')
-                  .height(140)
-                  .backgroundColor($r('app.color.bg_card'))
-                  .borderRadius(18)
-              } else if (this.rooms.length > 0) {
-                // 当前页卡片
-                ForEach(this.pagedRooms(), (item: EmptyRoomItem) => {
-                  Column() {
-                    this.roomCard(item)
-                  }
-                  .margin({ bottom: 10 })
-                }, (item: EmptyRoomItem) => `${item.cdbh}-${item.cdmc}-${item.time}`)
-                // 底部翻页（左右按钮 + 页数）
-                this.pageControl()
-              } else {
-                Column() {
-                  EmptyTip({ text: this.resultMessage.length > 0 ? this.resultMessage : '点击上方"查询"获取空闲教室情况' })
-                  Text(`当前条件：${this.weekLabel} ${this.weekdayLabel} ${this.sectionLabel}`)
+                  Text(this.rooms.length > 0 ? `共 ${this.rooms.length} 间空闲教室` : '')
                     .fontSize(11)
                     .fontColor($r('app.color.text_tertiary'))
-                    .margin({ top: 8 })
                 }
                 .width('100%')
-                .padding(20)
-                .backgroundColor($r('app.color.bg_card'))
-                .borderRadius(18)
+                .margin({ bottom: 10 })
+
+                if (this.loading) {
+                  LoadingTip({ text: '正在查询空闲教室…' })
+                    .width('100%')
+                    .height(140)
+                    .backgroundColor($r('app.color.bg_card'))
+                    .borderRadius(18)
+                } else if (this.rooms.length > 0) {
+                  // 当前页卡片
+                  ForEach(this.pagedRooms(), (item: EmptyRoomItem) => {
+                    Column() {
+                      this.roomCard(item)
+                    }
+                    .margin({ bottom: 10 })
+                  }, (item: EmptyRoomItem) => `${item.cdbh}-${item.cdmc}-${item.time}`)
+                  // 底部翻页（左右按钮 + 页数）
+                  this.pageControl()
+                } else {
+                  Column() {
+                    EmptyTip({ text: this.resultMessage.length > 0 ? this.resultMessage : '点击上方"查询"获取空闲教室情况' })
+                    Text(`当前条件: ${this.weekLabel} ${this.weekdayLabel} ${this.sectionLabel}`)
+                      .fontSize(11)
+                      .fontColor($r('app.color.text_tertiary'))
+                      .margin({ top: 8 })
+                  }
+                  .width('100%')
+                  .padding(20)
+                  .backgroundColor($r('app.color.bg_card'))
+                  .borderRadius(18)
+                }
+                // 底部抬高（参考学业情况页，避免内容贴底）
+                Column()
+                  .height(px2vp(this.bottomInsetPx) + 24)
               }
-              // 底部抬高（参考学业情况页，避免内容贴底）
-              Column()
-                .height(px2vp(this.bottomInsetPx) + 24)
+              .width('100%')
+              .padding({ left: 16, right: 16, top: 14 })
             }
-            .width('100%')
-            .padding({ left: 16, right: 16, top: 14 })
-          }
-          .scrollBar(BarState.Off)
-          .layoutWeight(1)
-          .align(Alignment.Top)
-          .edgeEffect(EdgeEffect.Spring)
-          // 网页版查询弹层（挂 Scroll，与顶栏详情/单选/多选弹窗分离）
-          .bindSheet($$this.showWeb, this.webSheet(), {
-            height: SheetSize.LARGE,
-            dragBar: false,
-            backgroundColor: $r('app.color.bg_page'),
-            title: { title: AppState.webTitle }
-          })
+            .scrollBar(BarState.Off)
+            .layoutWeight(1)
+            .align(Alignment.Top)
+            .edgeEffect(EdgeEffect.Spring)
+            // 网页版查询弹层（挂 Scroll，与顶栏详情/单选/多选弹窗分离）
+            .bindSheet($$this.showWeb, this.webSheet(), {
+              width: SheetUtil.sheetWidth(),
+              preferType: SheetType.BOTTOM,
+              height: SheetSize.LARGE,
+              dragBar: false,
+              backgroundColor: $r('app.color.bg_page'),
+              title: { title: AppState.webTitle }
+            })
           }
           .width('100%')
           .height('100%')
           .onRefreshing(() => { this.onRefresh(); })
         }
-        .layoutWeight(1)
-        .width('100%')
-        .backgroundColor($r('app.color.bg_page'))
-        // 单选弹窗（挂内层容器，与外层多选弹窗分离避免 bindSheet 相互覆盖）
-        .bindSheet($$this.showSingleSheet, this.singlePickerSheet(), {
-          height: SheetSize.FIT_CONTENT,
-          dragBar: true,
-          backgroundColor: $r('app.color.bg_card'),
-          title: { title: this.singlePickerTitle }
-        })
       }
+      .layoutWeight(1)
       .width('100%')
-      .height('100%')
       .backgroundColor($r('app.color.bg_page'))
-      // 多选弹窗（bindSheet，组件上挂不同 bindSheet 避免冲突）
-      .bindSheet($$this.showMultiPicker, this.multiPickerSheet(), {
+      // 单选弹窗（挂常驻外层容器，横竖屏均可弹出，与外层多选弹窗分离避免 bindSheet 相互覆盖）
+      .bindSheet($$this.showSingleSheet, this.singlePickerSheet(), {
+        width: SheetUtil.sheetWidth(),
+        preferType: SheetType.BOTTOM,
         height: SheetSize.FIT_CONTENT,
         dragBar: true,
         backgroundColor: $r('app.color.bg_card'),
-        title: { title: this.multiPickerTitle }
+        title: { title: this.singlePickerTitle }
       })
     }
+    .width('100%')
+    .height('100%')
+    .backgroundColor($r('app.color.bg_page'))
+    // 多选弹窗（bindSheet，组件上挂不同 bindSheet 避免冲突）
+    .bindSheet($$this.showMultiPicker, this.multiPickerSheet(), {
+      width: SheetUtil.sheetWidth(),
+      preferType: SheetType.BOTTOM,
+      height: SheetSize.FIT_CONTENT,
+      dragBar: true,
+      backgroundColor: $r('app.color.bg_card'),
+      title: { title: this.multiPickerTitle }
+    })
     .hideTitleBar(true)
   }
 
@@ -971,9 +1098,10 @@ export struct KxjsPage {
                 .fontColor(this.singlePickerSelected === index ? $r('app.color.brand_on') : $r('app.color.text_primary'))
                 .layoutWeight(1)
               if (this.singlePickerSelected === index) {
-                Text('✓')
-                  .fontSize(16)
-                  .fontColor($r('app.color.brand_on'))
+                Image($r('app.media.checkmark_circle'))
+                  .width(16)
+                  .height(16)
+                  .fillColor($r('app.color.brand_on'))
               }
             }
             .width('100%')
