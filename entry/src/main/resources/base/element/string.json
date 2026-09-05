@@ -21,6 +21,10 @@
       "value": "用于将考试安排写入系统日历，便于提醒"
     },
     {
+      "name": "reason_anti_peep",
+      "value": "用于在查看成绩、学业情况等敏感信息时检测窥屏并保护隐私"
+    },
+    {
       "name": "EntryFormAbility_label",
       "value": "课程预告"
     },

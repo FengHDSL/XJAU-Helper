@@ -209,7 +209,7 @@ export struct AboutPage {
     NavDestination() {
       Column() {
         PageHeader({
-          title: '关于',
+          title: '关于应用',
           subtitle: '新农助手',
           onBack: () => {
             AppState.stack.pop();
@@ -233,7 +233,7 @@ export struct AboutPage {
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('app.color.text_primary'))
                 .margin({ top: 12 })
-              Text('版本 1.2.6')
+              Text('版本 1.3.1')
                 .fontSize(12)
                 .fontColor($r('app.color.text_tertiary'))
                 .margin({ top: 4 })
@@ -257,6 +257,29 @@ export struct AboutPage {
             }
             .width('100%')
             .padding({ left: 20, right: 20, bottom: 20 })
+
+            this.changelog('1.3.1', '2026-09-03', [
+              '优化部分界面的显示效果'
+            ])
+
+            this.changelog('1.3.0', '2026-09-01', [
+              '修一些已知问题',
+              '优化部分UI效果'
+            ])
+
+            this.changelog('1.2.9', '2026-09-01', [
+              '优化部分功能逻辑'
+            ])
+
+            this.changelog('1.2.8', '2026-08-31', [
+              '修复了一些已知问题'
+            ])
+
+            this.changelog('1.2.7', '2026-08-31', [
+              'API 变更为 API26 正式版',
+              '修复日历显示错误的 bug（绿色圆点未更新到正确日期、周数显示错误）',
+              '部分细节调整，以完成华为审核要求'
+            ])
 
             this.changelog('1.2.6', '2026-08-19', [
               '修改登录方式，默认使用服务大厅登录',
@@ -333,6 +356,7 @@ export struct AboutPage {
       .backgroundColor($r('app.color.bg_page'))
     }
     .hideTitleBar(true)
+    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
     .width('100%')
     .height('100%')
     // 调试模式密码输入弹窗（连点图标 5 次触发）

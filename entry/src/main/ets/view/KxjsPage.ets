@@ -1088,6 +1088,7 @@ export struct KxjsPage {
       title: { title: this.multiPickerTitle }
     })
     .hideTitleBar(true)
+    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
   }
 
   /** 单选弹窗（bindSheet + 自定义 List，点击项直接修改 @State 并关闭） */

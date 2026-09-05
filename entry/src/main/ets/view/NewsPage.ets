@@ -69,6 +69,10 @@ export struct NewsPage {
   @State showWeb: boolean = false;
   @State keyword: string = '';
   @State refreshing: boolean = false;
+  /** 顶栏板块（农大要闻等）是否收起：上滑浏览时隐藏、下滑回顶时展示 */
+  @State tabsBarHidden: boolean = false;
+  /** 各板块列表上次滚动起始下标（用于判断滚动方向） */
+  private lastTabStart: number[] = [0, 0, 0, 0];
   /** 每个板块的新闻列表 */
   @State lists: NewsItem[][] = [[], [], [], []];
   /** 每个板块的加载状态 */
@@ -84,6 +88,8 @@ export struct NewsPage {
   /** 每个板块是否已加载过（懒加载去重） */
   private loadedTabs: boolean[] = [false, false, false, false];
   private tabs: string[] = ['农大要闻', '综合新闻', '教学科研', '媒体农大'];
+  /** 板块切换控制器：自绘板块栏点击 / 列表滑动联动 Tabs 切页 */
+  private tabsController: TabsController = new TabsController();
   controller: webview.WebviewController = new webview.WebviewController();
   /** 横屏标记（平板横屏下每个板块新闻分两列显示） */
   @State isLandscape: boolean = false;
@@ -217,12 +223,26 @@ export struct NewsPage {
     AppState.stack.pushPath({ name: Const.ROUTE_SEARCH });
   }
 
-  @Builder tabBar(index: number, name: string) {
-    Text(name).fontSize(14)
+  /** 自绘板块按钮（视觉同原 Tabs bar：选中胶囊反白/主题色字；点击/滑动共用 TabsController 切换） */
+  @Builder tabPill(index: number, name: string) {
+    Text(name)
+      .fontSize(14)
       .fontWeight(this.currentTab === index ? FontWeight.Bold : FontWeight.Normal)
-      .fontColor(this.currentTab === index ? $r('app.color.brand_on') : $r('app.color.text_primary'))
-      .padding({ left: 16, right: 16, top: 7, bottom: 7 }).borderRadius(16)
-      .backgroundColor(this.currentTab === index ? $r('app.color.brand') : Color.Transparent)
+      .fontColor(this.currentTab === index
+        ? (this.isDarkMode ? Color.White : Theme.colorOf(this.themeColor))
+        : '#E6FFFFFF')
+      .padding({ left: 16, right: 16, top: 7, bottom: 7 })
+      .borderRadius(16)
+      .backgroundColor(this.currentTab === index
+        ? (this.isDarkMode ? '#262626' : Color.White)
+        : Color.Transparent)
+      .onClick(() => {
+        if (this.currentTab !== index) {
+          this.currentTab = index;
+          this.tabsController.changeIndex(index);
+        }
+        this.setTabsHidden(false); // 点击板块：展开板块栏
+      })
   }
 
   @Builder webSheet() {
@@ -333,10 +353,30 @@ export struct NewsPage {
         .width('100%').layoutWeight(1)
         .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
         .onReachEnd(() => { this.loadMore(index); })
+        .onScrollIndex((start: number) => {
+          // 方向判定：start 增大 = 上滑浏览（收起板块栏）；start 减小 = 下滑（立即展示）
+          const prev: number = this.lastTabStart[index];
+          this.lastTabStart[index] = start;
+          if (!this.tabsBarHidden && start > prev && start >= 2) {
+            this.setTabsHidden(true); // 上滑浏览超过阈值：收起板块栏
+          } else if (this.tabsBarHidden && start < prev) {
+            this.setTabsHidden(false); // 下滑即展示板块栏（不必滑回顶部）
+          }
+        })
       }
       .width('100%').height('100%')
       .onRefreshing(() => { this.refreshCurrent(); })
     }
+  }
+
+  /** 收起/展开板块栏（带平滑动画） */
+  private setTabsHidden(hidden: boolean): void {
+    if (this.tabsBarHidden === hidden) {
+      return;
+    }
+    this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
+      this.tabsBarHidden = hidden;
+    });
   }
 
   /** 横屏两列：返回每行的起始下标（0,2,4,...） */
@@ -396,16 +436,38 @@ export struct NewsPage {
       .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
       .alignItems(VerticalAlign.Center)
 
-      Tabs({ barPosition: BarPosition.Start, index: this.currentTab }) {
+      // 板块栏（自绘于 Tabs 外）：收起/展开做「高度折叠 + 淡出」平滑动画；
+      // 系统 Tabs bar 固定隐藏，切页由 TabsController 联动（点板块 / 左右滑动均可）。
+      Column() {
+        Row() {
+          ForEach(this.tabs, (name: string, index: number) => {
+            this.tabPill(index, name)
+          }, (name: string) => name)
+        }
+        .width('100%')
+        .height(52)
+        .alignItems(VerticalAlign.Center)
+        .padding({ left: 8, right: 8 })
+      }
+      .width('100%')
+      .height(this.tabsBarHidden ? 0 : 52)
+      .opacity(this.tabsBarHidden ? 0 : 1)
+      .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
+      .clip(true)
+
+      Tabs({ barPosition: BarPosition.Start, index: this.currentTab, controller: this.tabsController }) {
         ForEach(this.tabs, (name: string, index: number) => {
           TabContent() { this.tabNewsList(index) }
-          .tabBar(this.tabBar(index, name))
-          .onAppear(() => { this.ensureLoaded(index); })
+            .onAppear(() => { this.ensureLoaded(index); })
         }, (name: string) => name)
       }
-      .vertical(false).barMode(BarMode.Fixed).barWidth('100%').barHeight(52)
-      .barBackgroundColor($r('app.color.bg_card')).animationDuration(200)
-      .onChange((index: number) => { this.currentTab = index; })
+      .vertical(false).barMode(BarMode.Fixed).barWidth('100%')
+      .barHeight(0) // 系统 tabBar 已隐藏：板块栏由上方自绘栏承担
+      .animationDuration(200)
+      .onChange((index: number) => {
+        this.currentTab = index;
+        this.setTabsHidden(false); // 切换板块：展开板块栏
+      })
       .layoutWeight(1).width('100%')
     }
     .width('100%').height('100%').backgroundColor($r('app.color.bg_page'))

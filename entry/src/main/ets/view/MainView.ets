@@ -34,6 +34,7 @@ export struct MainView {
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @StorageProp('themeColor') themeColor: string = 'green';
   @State currentIndex: number = 0;
+  @State tabFadeOpacity: number = 1;
   private tabsController: HdsTabsController = new HdsTabsController();
   onLogout: () => void = () => {
   };
@@ -181,8 +182,16 @@ export struct MainView {
       .width('100%')
       .height('100%')
       .onChange((index: number) => {
+        if (index === this.currentIndex) {
+          return;
+        }
         this.currentIndex = index;
+        this.tabFadeOpacity = 0;
+        this.getUIContext().animateTo({ duration: 200, curve: Curve.EaseOut }, () => {
+          this.tabFadeOpacity = 1;
+        });
       })
+      .opacity(this.tabFadeOpacity)
     }
     .hideTitleBar(true)
     .mode(NavigationMode.Stack)

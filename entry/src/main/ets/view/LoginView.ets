@@ -49,7 +49,8 @@ export struct LoginView {
   @State isLandscape: boolean = false;
   @State showPwd: boolean = false; // 密码明文/密文切换
   @State showPrivacy: boolean = false; // 隐私协议弹窗（首次启动未同意时显示）
-  @State showDeclaration: boolean = false; // 开发者声明弹窗（同意隐私协议后首次展示）
+  @State showDeclaration: boolean = false; // 开发者声明弹窗（同意隐私后用户首次任意点击时展示）
+  @State declarationArmed: boolean = false; // 隐私已同意、等待用户首次点击触发开发者声明
   @State privacyAgreedAt: string = ''; // 隐私协议同意时间（右下角展示用）
   @State showRiskTip: boolean = false; // 账号风控提醒弹窗（开发者声明之后首次展示）
   @State loginMode: string = 'auto'; // 重登方式（auto=自动重登 / legacy=手动重登），切换后实时刷新显示
@@ -102,11 +103,8 @@ export struct LoginView {
     } catch (e) {
       this.sheetWidth = '100%';
     }
-    // 隐私协议：未同意时强制弹出（不同意时只能使用"功能浏览"）
+    // 记录隐私同意时间（供 privacySheet 兜底展示；正常首次引导由 Index 的 PrivacyGatePage 完成）
     this.privacyAgreedAt = DataStore.getPrivacyAgreedAt();
-    if (!DataStore.isPrivacyAgreed()) {
-      this.showPrivacy = true;
-    }
     // 重登方式：读取本地配置（未设置默认自动重登）
     this.loginMode = DataStore.getLoginMode().length > 0 ? DataStore.getLoginMode() : 'auto';
     // 登录系统：恢复上次登录方式（"重新登录"时沿用教务登录/服务大厅登录，避免用错方式）
@@ -277,7 +275,7 @@ export struct LoginView {
       // 该账号被要求图形验证码：原生登录无法处理，自动打开网页版（WebView）CAS 页兜底，
       // 不作为可选登录模式暴露给用户（用户明确要求不要「网页登录」选项）。
       if (e instanceof CasCaptchaRequiredError) {
-        promptAction.showToast({ message: '该账号需要验证码，正在打开网页版登录…', duration: 2000 });
+        promptAction.showToast({ message: '该账号需要验证码，正在打开网页登录…', duration: 2000 });
         this.openWebLogin();
       } else {
         promptAction.showToast({ message: '登录失败，请检查账号密码或网络', duration: 2500 });
@@ -338,11 +336,11 @@ export struct LoginView {
     this.webLoginTarget = AppState.webLoginTarget;
     // 服务大厅 = authserver CAS 登录页（service=rhmh）；教务系统 = jwxt 登录页
     AppState.webUrl = this.webLoginTarget === 'hall' ? Const.CAS_LOGIN_URL : Const.WEB_LOGIN_URL;
-    AppState.webTitle = '网页版登录';
+    AppState.webTitle = '网页登录';
     this.showWeb = true;
   }
 
-  /** 网页版登录标题栏切换目标（服务大厅 ↔ 教务系统）：更新目标并让 WebView 重新加载对应网址 */
+  /** 网页登录标题栏切换目标（服务大厅 ↔ 教务系统）：更新目标并让 WebView 重新加载对应网址 */
   private switchWebTarget(target: string): void {
     if (this.webLoginTarget === target) {
       return;
@@ -410,17 +408,13 @@ export struct LoginView {
     });
   }
 
-  /** 打开找回密码网页（学校统一身份认证平台），在应用内 WebView 中展示。 */
+  /** 打开找回密码网页（学校统一身份认证平台），跳转系统浏览器打开。 */
   private openForgotPassword(): void {
     if (JwApi.USE_MOCK && !AppState.debugNetwork) {
       promptAction.showToast({ message: '当前模式禁止使用' });
       return;
     }
-    AppState.webLoginMode = false;
-    AppState.onWebLogin = null;
-    AppState.webUrl = Const.FORGOT_PASSWORD_URL;
-    AppState.webTitle = '找回密码';
-    this.showWeb = true;
+    AppState.openExternalLink(Const.FORGOT_PASSWORD_URL);
   }
 
   /** 日志调试：应用图标连点 5 次触发开关（已开启 → 退出确认；未开启 → 密码输入）。
@@ -553,15 +547,30 @@ export struct LoginView {
     }
   }
 
-  /** 同意隐私协议：记录时间、关闭弹窗，随后展示开发者声明（仅首次） */
+  /** 同意隐私协议：记录时间、关闭弹窗；开发者声明改为用户之后首次任意点击时弹出（armed 等待触发） */
   private agreePrivacy(): void {
     DataStore.setPrivacyAgreed();
     this.privacyAgreedAt = DataStore.getPrivacyAgreedAt();
     this.showPrivacy = false;
-    // 切换展示开发者声明（本应用由新疆农业大学学生独立开发等）
+    // 短延时后进入"待触发"状态：点"同意"本身不算，需等下一次点击
     setTimeout(() => {
-      this.showDeclaration = true;
-    }, 300);
+      this.declarationArmed = true;
+    }, 600);
+  }
+
+  /** 用户任意点击时调用：隐私已同意且开发者声明未展示过 → 弹出开发者声明（仅一次） */
+  private maybeShowDeclaration(): void {
+    if (this.showPrivacy || this.showDeclaration) {
+      return; // 隐私协议/声明弹窗打开中不触发
+    }
+    if (!this.declarationArmed || !DataStore.isPrivacyAgreed()) {
+      return;
+    }
+    if (DataStore.isDeclarationShown()) {
+      return; // 已展示过（本次会话或历史）
+    }
+    DataStore.setDeclarationShown();
+    this.showDeclaration = true;
   }
 
   /** 暂不同意隐私协议：关闭弹窗，未登录账号前仅可使用"功能浏览" */
@@ -1119,10 +1128,10 @@ export struct LoginView {
                 this.setLoginSystem(this.loginSystem === 'service' ? 'original' : 'service');
               })
 
-              // 网页版登录：在 WebView 打开统一身份认证（CAS）登录页（验证码等场景兜底）
+              // 网页登录：在 WebView 打开统一身份认证（CAS）登录页（验证码等场景兜底）
               Button() {
                 Row() {
-                  Text('网页版登录')
+                  Text('网页登录')
                     .fontSize(15)
                     .fontWeight(FontWeight.Medium)
                     .fontColor($r('app.color.brand'))
@@ -1199,6 +1208,7 @@ export struct LoginView {
           .padding({ left: 24, right: 24, bottom: 32 })
         }
         .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
         .width('100%')
         .height('100%')
         .padding({ top: px2vp(this.topInsetPx) })
@@ -1275,6 +1285,10 @@ export struct LoginView {
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.bg_page'))
+    // 开发者声明：同意隐私后不再自动弹出，改为用户任意点击（事件冒泡到根）时首次触发提醒
+    .onClick(() => {
+      this.maybeShowDeclaration();
+    })
     // 隐私协议全屏弹窗（挂外层 Column；网页版登录挂内层 Stack，避免 bindSheet 互相覆盖）
     .bindSheet($$this.showPrivacy, this.privacySheet(), {
       height: SheetSize.LARGE,
@@ -1476,30 +1490,47 @@ export struct LoginView {
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
 
-      // 底部按钮（宽度适配内容，居中）
-      Button('我已知晓')
-        .fontSize(14)
-        .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.brand_on'))
-        .backgroundColor($r('app.color.brand'))
-        .height(40)
-        .width(160)
-        .borderRadius(20)
-        .margin({ bottom: 20 })
-        .onClick(() => {
-          this.showDeclaration = false;
-          // 开发者声明之后（仅首次）：展示账号风控提醒
-          if (!DataStore.isRiskTipShown()) {
-            DataStore.setRiskTipShown();
+      // 底部操作行：上一步（回隐私协议）+ 我已知晓
+      Row() {
+        Button('上一步')
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+          .backgroundColor($r('app.color.bg_chip'))
+          .height(40)
+          .layoutWeight(1)
+          .borderRadius(20)
+          .onClick(() => {
+            this.showDeclaration = false;
+            // 稍作停顿再弹隐私协议，避免两个半模态转场重叠
             setTimeout(() => {
-              this.showRiskTip = true;
+              this.showPrivacy = true;
             }, 300);
-          }
-        })
+          })
+        Button('我已知晓')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.brand_on'))
+          .backgroundColor($r('app.color.brand'))
+          .height(40)
+          .layoutWeight(1)
+          .borderRadius(20)
+          .margin({ left: 12 })
+          .onClick(() => {
+            this.showDeclaration = false;
+            // 开发者声明之后（仅首次）：展示账号风控提醒
+            if (!DataStore.isRiskTipShown()) {
+              DataStore.setRiskTipShown();
+              setTimeout(() => {
+                this.showRiskTip = true;
+              }, 300);
+            }
+          })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 4, bottom: 20 })
     }
     .width('100%')
     .backgroundColor($r('app.color.bg_page'))
-    .alignItems(HorizontalAlign.Center)
   }
 
   /** 账号风控提醒弹窗（开发者声明之后首次展示：频繁登录退出的风险提示） */
@@ -1517,7 +1548,7 @@ export struct LoginView {
       .width('100%')
       .padding({ left: 20, right: 20, top: 18, bottom: 10 })
 
-      // 提醒正文
+      // 提醒正文（居中排版，聚焦提示内容）
       Column() {
         Text('请勿频繁登录与退出教务系统，以免导致账号风控无法使用！' +
           '建议将应用锁定在后台，以免被清除。\n\n' +
@@ -1527,27 +1558,46 @@ export struct LoginView {
           .fontSize(14)
           .lineHeight(22)
           .fontColor($r('app.color.text_primary'))
+          .width('100%')
+          .textAlign(TextAlign.Center)
       }
       .width('100%')
-      .padding({ left: 20, right: 20, top: 4, bottom: 16 })
-      .alignItems(HorizontalAlign.Start)
+      .padding({ left: 28, right: 28, top: 4, bottom: 8 })
+      .alignItems(HorizontalAlign.Center)
 
-      // 底部按钮
-      Button('我知道了')
-        .fontSize(14)
-        .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.brand_on'))
-        .backgroundColor($r('app.color.brand'))
-        .height(40)
-        .width(160)
-        .borderRadius(20)
-        .margin({ bottom: 20 })
-        .onClick(() => {
-          this.showRiskTip = false;
-        })
+      // 底部操作行：上一步（回开发者声明）+ 我知道了
+      Row() {
+        Button('上一步')
+          .fontSize(14)
+          .fontColor($r('app.color.text_secondary'))
+          .backgroundColor($r('app.color.bg_chip'))
+          .height(40)
+          .layoutWeight(1)
+          .borderRadius(20)
+          .onClick(() => {
+            this.showRiskTip = false;
+            // 稍作停顿再弹开发者声明，避免两个半模态转场重叠
+            setTimeout(() => {
+              this.showDeclaration = true;
+            }, 300);
+          })
+        Button('我知道了')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.brand_on'))
+          .backgroundColor($r('app.color.brand'))
+          .height(40)
+          .layoutWeight(1)
+          .borderRadius(20)
+          .margin({ left: 12 })
+          .onClick(() => {
+            this.showRiskTip = false;
+          })
+      }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 12, bottom: 20 })
     }
     .width('100%')
     .backgroundColor($r('app.color.bg_page'))
-    .alignItems(HorizontalAlign.Center)
   }
 }
