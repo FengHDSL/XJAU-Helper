@@ -20,6 +20,7 @@
 ## 📦 下载安装
 
 - **GitHub Release**：[XJAU-Helper_v1.3.1_GitHub.hap](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.1/XJAU-Helper_v1.3.1_GitHub.hap)
+- **Gitee**：[XJAU-Helper](https://gitee.com/pandasoos/XJAU-Helper)
 - **HAP Store资源站**：[https://www.sydxky.cn/detail.php?id=796](https://www.sydxky.cn/detail.php?id=796)
 - **华为应用市场（邀测）**：[https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP](https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP)，邀测邀请码：`7f0Oz56PxoP`
 
