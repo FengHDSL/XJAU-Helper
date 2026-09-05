@@ -201,25 +201,15 @@ export struct HomeView {
 
   /**
    * 寻找今天之后最近的一节课（用于"无课时下次课预告"）。
-   * 1) 当前周 weekday > 今天 weekday（今天的课已全部结束，视为"今天没课了"，从明天起找）
+   * 1) 当前周 weekday > 今天 weekday
    * 2) 否则后续周 weekday 升序
    */
   private findNextFutureCourse(courses: CourseItem[], term: TermInfo): NextFutureCourse | null {
     const todayW: number = DateUtil.weekdayOf(new Date());
     const cw: number = DateUtil.weekOfTerm(term, new Date());
-    const nowMin: number = DateUtil.minutesOfNow();
-    // 1) 当前周，今天及之后
-    for (let w: number = todayW; w <= 7; w++) {
+    for (let w: number = todayW + 1; w <= 7; w++) {
       for (const c of courses) {
         if (c.weekday === w && c.weeks.includes(cw)) {
-          // 今天的课必须还没结束；明天及之后的课直接命中
-          if (w === todayW) {
-            const e: number = Math.max(1, Math.min(Const.SECTION_COUNT, c.endSection));
-            const endMin: number = DateUtil.minutesOf(Const.SECTIONS[e - 1].end);
-            if (nowMin > endMin) {
-              continue;
-            }
-          }
           const dt: Date = DateUtil.dateOfWeekDay(term, cw, w);
           return {
             course: c,
@@ -574,19 +564,13 @@ export struct HomeView {
   todayCard() {
     Column() {
       Row() {
-        Divider()
-          .vertical(true)
-          .strokeWidth(3)
-          .color($r('app.color.brand'))
-          .height(14)
-          .margin({ right: 8 })
         Text('下一节课')
           .fontSize(16)
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.text_primary'))
         Blank()
         if (this.todayCourses.length > 0) {
-          Text(this.nextClass === null ? '今日课程已结束' : `今日 ${this.todayCourses.length} 节`)
+          Text(this.nextClass === null ? '今日已结束' : `今日 ${this.todayCourses.length} 节`)
             .fontSize(12)
             .fontColor($r('app.color.text_tertiary'))
         }
@@ -594,8 +578,6 @@ export struct HomeView {
       .width('100%')
       .margin({ bottom: 12 })
 
-      // 卡片主体（"下一节课"标题单独在卡片外显示）
-      Column() {
       if (this.todayCourses.length === 0) {
         // 无今日课时：当前没课了哦！ + 随机鼓励文案 + 下次课预告（点击跳课程表打开详情）
         Column() {
@@ -666,82 +648,24 @@ export struct HomeView {
         }
         .width('100%')
       } else if (this.nextClass === null) {
-        Column() {
-          Row() {
-            Text('🎉')
-              .fontSize(26)
-              .margin({ right: 12 })
-            Column() {
-              Text('今日课程已全部结束')
-                .fontSize(16)
-                .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.text_primary'))
-              Text(`今天共 ${this.todayCourses.length} 节课，辛苦啦`)
-                .fontSize(12)
-                .fontColor($r('app.color.text_secondary'))
-                .margin({ top: 4 })
-            }
-            .alignItems(HorizontalAlign.Start)
+        Row() {
+          Text('🎉')
+            .fontSize(26)
+            .margin({ right: 12 })
+          Column() {
+            Text('今日课程已全部结束')
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('app.color.text_primary'))
+            Text(`今天共 ${this.todayCourses.length} 节课，辛苦啦`)
+              .fontSize(12)
+              .fontColor($r('app.color.text_secondary'))
+              .margin({ top: 4 })
           }
-          .width('100%')
-          .padding({ top: 8, bottom: 8 })
-          if (this.nextFutureCourse !== null) {
-            Row() {
-              Column() {
-                Text('下').fontSize(13).fontWeight(FontWeight.Medium).fontColor($r('app.color.brand'))
-                Text('次').fontSize(13).fontWeight(FontWeight.Medium).fontColor($r('app.color.brand'))
-                Text('课').fontSize(13).fontWeight(FontWeight.Medium).fontColor($r('app.color.brand'))
-              }
-              .padding(10)
-              .backgroundColor($r('app.color.brand_light'))
-              .justifyContent(FlexAlign.Center)
-              .alignItems(HorizontalAlign.Center)
-              .borderRadius({ topLeft: 16, bottomLeft: 16 })
-
-              Column() {
-                Text(this.nextFutureCourse.course.name)
-                  .fontSize(18)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor($r('app.color.text_primary'))
-                  .maxLines(1)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-                  .textAlign(TextAlign.Center)
-                  .width('100%')
-                Text(this.nextFutureCourse.course.location)
-                  .fontSize(11)
-                  .fontColor($r('app.color.text_secondary'))
-                  .textAlign(TextAlign.Center)
-                  .width('100%')
-                  .margin({ top: 6 })
-              }
-              .layoutWeight(1)
-              .alignItems(HorizontalAlign.Center)
-              .padding({ left: 8, right: 8, top: 12, bottom: 12 })
-              .border({ width: { right: 1 }, color: $r('app.color.divider') })
-
-              Column() {
-                Text(this.nextFutureCourse.dateLabel)
-                  .fontSize(11)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor($r('app.color.brand'))
-                  .textAlign(TextAlign.Center)
-                Text(this.nextFutureCourse.timeRange)
-                  .fontSize(11)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor($r('app.color.text_primary'))
-                  .textAlign(TextAlign.Center)
-                  .margin({ top: 3 })
-              }
-              .padding({ left: 10, right: 12 })
-              .justifyContent(FlexAlign.Center)
-            }
-            .width('100%')
-            .backgroundColor($r('app.color.bg_chip'))
-            .borderRadius(16)
-            .margin({ top: 12 })
-          }
+          .alignItems(HorizontalAlign.Start)
         }
         .width('100%')
+        .padding({ top: 8, bottom: 8 })
       } else {
         Row() {
           Column() {
@@ -788,23 +712,13 @@ export struct HomeView {
             .width('100%')
 
             Row() {
-              // 上课地点：地图定位图标（农大绿）
-              Image($r('app.media.map_badge_local'))
-                .width(13)
-                .height(13)
-              Text(this.nextClass!.course.location)
+              Text(`📍 ${this.nextClass!.course.location}`)
                 .fontSize(12)
                 .fontColor($r('app.color.text_secondary'))
-                .margin({ left: 4 })
-              // 授课教师：人像图标（农大绿）
-              Image($r('app.media.portrait'))
-                .width(13)
-                .height(13)
-                .margin({ left: 12 })
-              Text(this.nextClass!.course.teacher)
+              Text(`👤 ${this.nextClass!.course.teacher}`)
                 .fontSize(12)
                 .fontColor($r('app.color.text_secondary'))
-                .margin({ left: 4 })
+                .margin({ left: 10 })
               Blank()
               Text(`第 ${this.nextClass!.course.startSection}-${this.nextClass!.course.endSection} 节`)
                 .fontSize(11)
@@ -816,24 +730,20 @@ export struct HomeView {
           .layoutWeight(1)
           .padding({ left: 6 })
         }
-          .width('100%')
-          .alignItems(VerticalAlign.Top)
-        }
+        .width('100%')
+        .alignItems(VerticalAlign.Top)
       }
-      .width('100%')
-      .padding(16)
-      .backgroundColor($r('app.color.bg_card'))
-      .borderRadius(18)
-      .shadow({ radius: 16, color: '#0F000000', offsetY: 4 })
     }
     .width('100%')
+    .padding(16)
+    .backgroundColor($r('app.color.bg_card'))
+    .borderRadius(18)
+    .shadow({ radius: 16, color: '#0F000000', offsetY: 4 })
   }
 
   @Builder
   quickEntries() {
-    Column() {
-      SectionHeader({ title: '快捷入口', action: '', onAction: () => {} })
-      Grid() {
+    Grid() {
       ForEach(Const.QUICK_ENTRIES, (item: QuickEntry) => {
         GridItem() {
           Column() {
@@ -860,15 +770,13 @@ export struct HomeView {
         }
       }, (item: QuickEntry) => item.key)
     }
-      .columnsTemplate('1fr 1fr')
-      .rowsTemplate('1fr')
-      .height(64)
-      .width('100%')
-      .padding({ top: 6, bottom: 6 })
-      .backgroundColor($r('app.color.bg_card'))
-      .borderRadius(18)
-    }
+    .columnsTemplate('1fr 1fr')
+    .rowsTemplate('1fr')
+    .height(64)
     .width('100%')
+    .padding({ top: 6, bottom: 6 })
+    .backgroundColor($r('app.color.bg_card'))
+    .borderRadius(18)
   }
 
   @Builder
@@ -1147,22 +1055,16 @@ export struct HomeView {
     .padding(16)
   }
 
-  /** 设备当前日期（yyyy-MM-dd），优先于校历内置 todayDate，避免缓存/预置数据过期 */
-  private effectiveToday(): string {
-    return DateUtil.format(new Date());
-  }
-
   /** 今日所属教学周次（开学后返回对应周次；未开学返回 0） */
   private todayTeachingWeek(): number {
     const cal: TeachingCalendar | null = this.teachingCal;
-    if (cal === null) {
+    if (cal === null || cal.todayDate.length === 0) {
       return 0;
     }
-    const today: string = this.effectiveToday();
     for (let r: number = 0; r < cal.rows.length; r++) {
       const dates: string[] = cal.rows[r].dates;
       for (let c: number = 0; c < dates.length; c++) {
-        if (dates[c] === today) {
+        if (dates[c] === cal.todayDate) {
           return cal.weekNumbers[c] !== undefined ? cal.weekNumbers[c] : 0;
         }
       }
@@ -1302,8 +1204,6 @@ export struct HomeView {
     Column() {
       SectionHeader({ title: '日历', action: '', onAction: () => {} })
 
-      // 卡片主体（标题"日历"单独在卡片外，样式对齐"近期考试"）
-      Column() {
       if (this.teachingCal === null) {
         LoadingTip({ text: '加载日历…' })
           .width('100%')
@@ -1367,18 +1267,18 @@ export struct HomeView {
                           .fontSize(11)
                           .textAlign(TextAlign.Center)
                           .fontColor(
-                            day === this.effectiveToday()
+                            day === this.teachingCal!.todayDate
                               ? Color.White
                               : (this.isCalHoliday(day)
                                 ? $r('app.color.accent_orange')
                                 : (this.isInTerm(day) ? $r('app.color.text_primary') : $r('app.color.text_tertiary')))
                           )
-                          .fontWeight(day === this.effectiveToday() ? FontWeight.Bold : FontWeight.Normal)
+                          .fontWeight(day === this.teachingCal!.todayDate ? FontWeight.Bold : FontWeight.Normal)
                           .width(30)
                           .height(28)
                           .borderRadius(14)
                           .backgroundColor(
-                            day === this.effectiveToday()
+                            day === this.teachingCal!.todayDate
                               ? Theme.colorOf(this.themeColor)
                               : Color.Transparent
                           )
@@ -1418,17 +1318,15 @@ export struct HomeView {
         }
         .width('100%')
         .padding(12)
-          .backgroundColor($r('app.color.bg_chip'))
-          .borderRadius(12)
-          .margin({ top: 6 })
-        }
+        .backgroundColor($r('app.color.bg_chip'))
+        .borderRadius(12)
+        .margin({ top: 6 })
       }
-      .width('100%')
-      .padding(16)
-      .backgroundColor($r('app.color.bg_card'))
-      .borderRadius(18)
     }
     .width('100%')
+    .padding(16)
+    .backgroundColor($r('app.color.bg_card'))
+    .borderRadius(18)
     .margin({ top: 18 })
   }
 

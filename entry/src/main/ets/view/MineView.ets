@@ -2,7 +2,7 @@
  * 我的：学业概览 + 常用功能 + 设置
  */
 import { promptAction, mediaquery } from '@kit.ArkUI';
-import { common, contextConstant, Want } from '@kit.AbilityKit';
+import { common, contextConstant } from '@kit.AbilityKit';
 import { storageStatistics, fileIo, picker, fileUri } from '@kit.CoreFileKit';
 import { webview } from '@kit.ArkWeb';
 import { JwApi } from '../api/JwApi';
@@ -587,7 +587,7 @@ export struct MineView {
           // 常用功能：空闲教室查询 / 考试查询 / 学业情况
           Column() {
             SettingRow({
-              icon: '', title: '教室查询', onTap: () => {
+              icon: '', title: '空闲教室查询', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_EMPTY_ROOM });
               }
             })
@@ -614,7 +614,7 @@ export struct MineView {
           Column() {
             // 1. 网页端教务系统
             SettingRow({
-              icon: '', title: '教务系统', value: '', onTap: () => {
+              icon: '', title: '网页端教务系统', value: '', onTap: () => {
                 this.openWebPortal();
               }
             })
@@ -733,7 +733,7 @@ export struct MineView {
               }
             })
             Divider().color($r('app.color.divider'))
-            // 7. 清空数据（确认后自动重启应用）
+            // 7. 清空数据（确认后提示手动重启）
             SettingRow({
               icon: '', title: '清空数据', value: '', onTap: () => {
                 promptAction.showDialog({
@@ -747,13 +747,11 @@ export struct MineView {
                   if (res.index === 1) {
                     DataStore.clearAll();
                     AppState.profile = null;
-                    promptAction.showToast({ message: '数据已清空，正在重启…' });
-                    const ctx = getContext(this) as common.UIAbilityContext;
-                    const want: Want = {
-                      bundleName: 'com.xndhelper.lzb',
-                      abilityName: 'EntryAbility'
-                    };
-                    ctx.restartApp(want);
+                    promptAction.showDialog({
+                      title: '清空完成',
+                      message: '全部数据已清空，请手动重启应用以刷新界面',
+                      buttons: [{ text: '知道了', color: '#1B7F5F' }]
+                    });
                   }
                 });
               }
@@ -768,7 +766,7 @@ export struct MineView {
             Divider().color($r('app.color.divider'))
             // 9. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于应用', value: 'v1.3.1', onTap: () => {
+              icon: '', title: '关于', value: 'v1.2.6', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
@@ -917,7 +915,7 @@ export struct MineView {
     // 常用功能：空闲教室查询 / 考试查询 / 学业情况
     Column() {
       SettingRow({
-        icon: '', title: '教室查询', onTap: () => {
+        icon: '', title: '空闲教室查询', onTap: () => {
           AppState.stack.pushPath({ name: Const.ROUTE_EMPTY_ROOM });
         }
       })
@@ -946,7 +944,7 @@ export struct MineView {
     Column() {
       // 1. 网页端教务系统（最顶上）
       SettingRow({
-        icon: '', title: '教务系统', value: '', onTap: () => {
+        icon: '', title: '网页端教务系统', value: '', onTap: () => {
           this.openWebPortal();
         }
       })
@@ -1053,7 +1051,7 @@ export struct MineView {
         }
       })
       Divider().color($r('app.color.divider'))
-      // 7. 清空数据（确认后自动重启应用）
+      // 7. 清空数据（确认后提示手动重启）
       SettingRow({
         icon: '', title: '清空数据', value: '', onTap: () => {
           promptAction.showDialog({
@@ -1067,13 +1065,11 @@ export struct MineView {
             if (res.index === 1) {
               DataStore.clearAll();
               AppState.profile = null;
-              promptAction.showToast({ message: '数据已清空，正在重启…' });
-              const ctx = getContext(this) as common.UIAbilityContext;
-              const want: Want = {
-                bundleName: 'com.xndhelper.lzb',
-                abilityName: 'EntryAbility'
-              };
-              ctx.restartApp(want);
+              promptAction.showDialog({
+                title: '清空完成',
+                message: '全部数据已清空，请手动重启应用以刷新界面',
+                buttons: [{ text: '知道了', color: '#1B7F5F' }]
+              });
             }
           });
         }
@@ -1088,7 +1084,7 @@ export struct MineView {
       Divider().color($r('app.color.divider'))
       // 9. 关于（打开独立页面）
       SettingRow({
-        icon: '', title: '关于应用', value: 'v1.3.1', onTap: () => {
+        icon: '', title: '关于', value: 'v1.2.6', onTap: () => {
           AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
         }
       })

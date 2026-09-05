@@ -178,7 +178,6 @@ export struct NoticePage {
       .backgroundColor($r('app.color.bg_page'))
     }
     .hideTitleBar(true)
-    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
   }
 }
 
@@ -287,6 +286,5 @@ export struct NoticeDetailPage {
       .backgroundColor($r('app.color.bg_card'))
     }
     .hideTitleBar(true)
-    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
   }
 }

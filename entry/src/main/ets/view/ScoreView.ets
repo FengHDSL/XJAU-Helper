@@ -12,8 +12,6 @@ import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
 import { ScoreItem, TermInfo, TermScore } from '../model/Models';
 import { EmptyTip, LoadingTip, TagChip } from './common/UiKit';
-import { AntiPeepOverlay } from './common/AntiPeepOverlay';
-import { AntiPeepManager } from '../common/AntiPeepManager';
 import { WebSurface } from './WebSurface';
 import { promptAction, mediaquery } from '@kit.ArkUI';
 
@@ -34,9 +32,7 @@ export struct ScoreView {
   @State showWeb: boolean = false;
   @State isLandscape: boolean = false;
   @State refreshing: boolean = false;
-  @State isPeeped: boolean = false;
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
-  private peepMgr: AntiPeepManager = new AntiPeepManager();
 
   /**
    * 学分绩点换算（依据教务处官网「课程及学分」kcjxf/list.htm）：
@@ -197,13 +193,10 @@ export struct ScoreView {
     });
     this.load();
     this.listenLandscape();
-    // 启动防窥保护监听
-    this.peepMgr.start((hidden: boolean) => { this.isPeeped = hidden; });
   }
 
   aboutToDisappear(): void {
     this.landscapeListener = null;
-    this.peepMgr.stop();
   }
 
   /** 监听屏幕方向变化（横屏时拆分为两列铺满屏幕） */
@@ -617,8 +610,7 @@ export struct ScoreView {
   }
 
   build() {
-    Stack() {
-      Column() {
+    Column() {
       this.topBar()
       if (this.isLandscape) {
         if (this.loading) {
@@ -748,11 +740,6 @@ export struct ScoreView {
       backgroundColor: $r('app.color.bg_card'),
       title: { title: '选择学年-学期' }
     })
-
-      AntiPeepOverlay({ isPeeped: this.isPeeped })
-    }
-    .width('100%')
-    .height('100%')
   }
 
   @Builder

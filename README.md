@@ -4,24 +4,16 @@
 
 # 新农助手（XJAU-Helper）
 
-**新农大助手 · HarmonyOS 原生应用**
+**新新农大助手 · HarmonyOS 原生应用**
 
-一款为新疆农业大学学生打造的鸿蒙原生校园工具，集成登录、课表、成绩、考试、学业情况、校历信息、通知公告、空闲教室查询、农大新闻等常用功能于一体。注：非学校官方应用！非学校官方应用！
+一款为新疆农业大学学生打造的鸿蒙原生校园工具，集成登录、课表、成绩、考试、学业情况、校历信息、通知公告、空闲教室查询、农大新闻等常用功能于一体。注：非学校官方应用！非学校官方应用！ 当前已基本完善，待API26正式版发布后，应该就不会再更新了。
 
-[![Version](https://img.shields.io/badge/version-1.3.1-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.3.1)
+[![Version](https://img.shields.io/badge/version-1.2.6-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.2.6)
 [![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT%20(API%2026)-orange)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.1/XJAU-Helper_v1.3.1_GitHub.hap)
+[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.2.6/XJAU-Helper_v1.2.6_GitHub.hap)
 
 </div>
-
----
-
-## 📦 下载安装
-
-- **GitHub Release**：[XJAU-Helper_v1.3.1_GitHub.hap](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.1/XJAU-Helper_v1.3.1_GitHub.hap)
-- **镜像下载站**：[https://www.sydxky.cn/detail.php?id=796](https://www.sydxky.cn/detail.php?id=796)
-- **华为应用市场（邀测）**：[https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP](https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP)，邀测邀请码：`7f0Oz56PxoP`
 
 ---
 
@@ -128,7 +120,7 @@
 
 | 类别 | 技术 |
 |------|------|
-| 平台 | HarmonyOS NEXT（最低要求 API 24，即 HarmonyOS 6.1；已适配 API 26 正式版） |
+| 平台 | HarmonyOS NEXT（最低要求 API 24，即 HarmonyOS 6.1） |
 | 语言 | ArkTS / ArkUI |
 | 网络 | @ohos.net.http（正方教务系统 + 教务处官网） |
 | 存储 | @ohos.data.preferences（本地缓存）+ AppStorage（学期切换广播） |
@@ -174,19 +166,6 @@ XJAU-Helper/
 ├── LICENSE                  # MIT 许可证
 └── README.md                # 本文件
 ```
-
----
-
-## 更新日志
-
-### v1.3.1（2026-09-05）
-
-- API 变更为 API 26 正式版，同时移除 API 26 部分官方阉割的组件
-- 修复日历显示错误
-- 部分细节调整优化，以完成华为审核要求
-- 优化部分界面 UI 效果
-- 优化部分功能逻辑
-- 修复一些已知问题
 
 ---
 

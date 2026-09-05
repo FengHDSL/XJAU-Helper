@@ -386,9 +386,7 @@ export struct ScheduleView {
     if (next < 1 || next > this.currentTerm().totalWeeks) {
       return;
     }
-    this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
-      this.viewWeek = next;
-    });
+    this.viewWeek = next;
   }
 
   /** 全部周次列表（1..totalWeeks），用于快速选择 */
@@ -809,7 +807,6 @@ export struct ScheduleView {
       this.selected = course;
       this.showSheet = true;
     })
-    .transition(TransitionEffect.OPACITY)
   }
 
   /**
@@ -921,9 +918,7 @@ export struct ScheduleView {
         ForEach(this.weekList(), (w: number) => {
           ListItem() {
             this.weekItemCard(w, () => {
-              this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
-                this.viewWeek = w;
-              });
+              this.viewWeek = w;
               this.showWeekSheet = false;
             })
           }
@@ -1166,9 +1161,7 @@ export struct ScheduleView {
         ForEach(this.weekList(), (w: number) => {
           GridItem() {
             this.weekItemCardGrid(w, () => {
-              this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
-                this.viewWeek = w;
-              });
+              this.viewWeek = w;
             })
           }
         }, (w: number) => `wk${w}`)
@@ -1202,9 +1195,7 @@ export struct ScheduleView {
             ForEach(this.weekList(), (w: number) => {
               GridItem() {
                 this.weekItemCardGrid(w, () => {
-                  this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
-                    this.viewWeek = w;
-                  });
+                  this.viewWeek = w;
                 })
               }
             }, (w: number) => `landwk${w}`)

@@ -251,7 +251,6 @@ export struct NewsDetailPage {
       .backgroundColor($r('app.color.bg_page'))
     }
     .hideTitleBar(true)
-    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
     .width('100%').height('100%')
   }
 }

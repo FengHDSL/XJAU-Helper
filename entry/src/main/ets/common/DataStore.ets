@@ -120,8 +120,6 @@ export class DataStore {
   static readonly KEY_PRIVACY_AGREED_AT: string = 'privacy_agreed_at';
   // 账号风控提醒是否已展示（首次启动，开发者声明之后）
   static readonly KEY_RISK_TIP_SHOWN: string = 'risk_tip_shown';
-  // 开发者声明是否已展示（同意隐私后改为"用户首次任意点击"时弹出，仅一次）
-  static readonly KEY_DECLARATION_SHOWN: string = 'declaration_shown';
   // 网页登录会话 Cookie（持久化，下次启动恢复）
   static readonly KEY_SESSION_COOKIE: string = 'session_cookie';
   // 自动重新登录凭据（账号+加密密码，冷启动时静默重登刷新会话）
@@ -240,16 +238,6 @@ export class DataStore {
   /** 标记风控提醒已展示 */
   static setRiskTipShown(): void {
     DataStore.put(DataStore.KEY_RISK_TIP_SHOWN, '1');
-  }
-
-  /** 开发者声明是否已展示过（同意隐私后首次点击弹出，仅一次） */
-  static isDeclarationShown(): boolean {
-    return DataStore.get(DataStore.KEY_DECLARATION_SHOWN) === '1';
-  }
-
-  /** 标记开发者声明已展示 */
-  static setDeclarationShown(): void {
-    DataStore.put(DataStore.KEY_DECLARATION_SHOWN, '1');
   }
 
   /** 记录一次成功登录的账号（去重、置顶、最多保留 8 个，密码 base64+XOR 编码存储） */

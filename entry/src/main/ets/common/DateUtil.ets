@@ -78,14 +78,12 @@ export class DateUtil {
   }
 
 
-  /** 当前学年第一学期（按当前日期判断学年，非盲目取最新） */
+  /** 最新学年第一学期（默认选择的第一个：首页/课程表/考试/成绩一致） */
   static buildLatestTerm(): TermInfo {
     const now: Date = new Date();
     const year: number = now.getFullYear();
     const month: number = now.getMonth() + 1;
-    // 9月及之后：本学年刚开始（如 2026-09 → 2026-2027学年）
-    // 9月之前：上学年仍在进行（如 2026-03 → 2025-2026学年）
-    const beginYear: number = month >= 9 ? year : year - 1;
+    const beginYear: number = month >= 9 ? year + 1 : year;
     const label: string = `${beginYear}-${beginYear + 1}学年 第一学期`;
     return {
       id: `${beginYear}-${beginYear + 1}-1`,

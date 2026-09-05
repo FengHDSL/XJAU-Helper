@@ -12,11 +12,9 @@
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { LogStore } from '../common/LogStore';
-import { AntiPeepManager } from '../common/AntiPeepManager';
 import { CourseItem, AcademicReport, CreditCategory, TermScore } from '../model/Models';
 import { EMPTY_REPORT } from '../model/Empty';
 import { LoadingTip, PageHeader, StatCell } from './common/UiKit';
-import { AntiPeepOverlay } from './common/AntiPeepOverlay';
 
 @Component
 export struct AcademicPage {
@@ -26,18 +24,10 @@ export struct AcademicPage {
   @State termScores: TermScore[] = [];
   @State loading: boolean = true;
   @State refreshing: boolean = false;
-  @State isPeeped: boolean = false;
-  private peepMgr: AntiPeepManager = new AntiPeepManager();
 
   /** 页面出现：触发学业数据加载 */
   aboutToAppear(): void {
     this.load();
-    // 启动防窥保护监听
-    this.peepMgr.start((hidden: boolean) => { this.isPeeped = hidden; });
-  }
-
-  aboutToDisappear(): void {
-    this.peepMgr.stop();
   }
 
   private async load(): Promise<void> {
@@ -272,8 +262,7 @@ export struct AcademicPage {
 
   build() {
     NavDestination() {
-      Stack() {
-        Column() {
+      Column() {
         PageHeader({
           title: '学业情况',
           subtitle: AppState.profile !== null ? `${AppState.profile.major} · ${AppState.profile.grade}` : '',
@@ -311,13 +300,7 @@ export struct AcademicPage {
       .width('100%')
       .height('100%')
       .backgroundColor($r('app.color.bg_page'))
-
-        AntiPeepOverlay({ isPeeped: this.isPeeped })
-      }
-      .width('100%')
-      .height('100%')
     }
     .hideTitleBar(true)
-    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
   }
 }

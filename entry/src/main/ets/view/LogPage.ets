@@ -658,7 +658,6 @@ export struct LogPage {
         })
       }
       .hideTitleBar(true)
-      .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
       .width('100%').height('100%')
     }
   }

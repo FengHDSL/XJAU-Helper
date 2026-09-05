@@ -704,6 +704,5 @@ Row() {
       })
     }
     .hideTitleBar(true)
-    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
   }
 }

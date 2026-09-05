@@ -7,7 +7,6 @@ import { DataStore } from '../common/DataStore';
 import { AppState } from '../common/AppState';
 import { LoginView } from '../view/LoginView';
 import { MainView } from '../view/MainView';
-import { PrivacyGatePage } from '../view/PrivacyGatePage';
 import { TermInfo, UserProfile } from '../model/Models';
 import { promptAction } from '@kit.ArkUI';
 
@@ -24,8 +23,6 @@ struct Index {
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 功能浏览水印（进入功能浏览模式 5 秒后强制显示） */
   @State mockWatermark: boolean = false;
-  /** 首启隐私引导页：未同意隐私协议时覆盖全屏，依次展示 隐私协议→开发者声明→账号风控 */
-  @State privacyGate: boolean = false;
 
   /** 进入功能浏览模式后：延迟 5 秒显示全屏水印 */
   private scheduleMockWatermark(): void {
@@ -38,9 +35,6 @@ struct Index {
 
   /** 页面出现：初始化 AppStorage 兜底值并加载主界面 */
   aboutToAppear(): void {
-    // 首次启动隐私引导：未同意隐私协议 → 全屏覆盖引导页（隐私协议→开发者声明），
-    // 同意/暂不同意后才进入下方登录/主界面逻辑（LoginView 不再自动弹隐私弹窗）。
-    this.privacyGate = !DataStore.isPrivacyAgreed();
     // 功能浏览模式（USE_MOCK=true）：学期默认即最新学年第一学期（AppState.term），
     // 这里仅固定展示周次为第二周，确保所有功能都有数据。同时启用 HttpClient 离线模式，
     // 禁止所有真实网络请求，避免意外访问教务系统泄露数据。
@@ -296,18 +290,6 @@ struct Index {
         .backgroundColor('#CC079841')
         .onClick(() => {
           // 拦截点击
-        })
-      }
-      // 首启隐私引导页（覆盖在最顶层；未同意时才会显示，同意后关闭）
-      if (this.privacyGate) {
-        PrivacyGatePage({
-          onDone: (agreed: boolean) => {
-            this.privacyGate = false;
-            // 若此前有自动重登挂起且用户暂不同意：取消自动重登，停留登录页手动操作
-            if (!agreed && this.autoRelogin) {
-              this.autoRelogin = false;
-            }
-          }
         })
       }
     }
