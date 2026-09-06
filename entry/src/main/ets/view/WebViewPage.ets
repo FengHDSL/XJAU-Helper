@@ -13,6 +13,7 @@ import { webview } from '@kit.ArkWeb';
 import { WebSurface } from './WebSurface';
 import { AppState, SharedHistoryItem } from '../common/AppState';
 import { Theme } from '../common/ThemeUtil';
+import { BackButton } from './common/BackButton';
 import { JwApi } from '../api/JwApi';
 
 /** 浏览器标识（UA）常量：桌面 / 手机 / 平板 */
@@ -32,6 +33,7 @@ const UA_TABLET: number = 2;
 export struct WebViewPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 标题栏文字：初始为调用方设置的 webTitle，网页加载完成后自动替换为网页自身标题 */
   @State pageTitle: string = '网页';
@@ -339,13 +341,18 @@ export struct WebViewPage {
   build() {
     NavDestination() {
       Column() {
+        // 顶栏（两层）：内容(底)/主题渐变(顶)；模糊层已取消
+        Stack({ alignContent: Alignment.TopStart }) {
+          Column()
+            .width('100%')
+            .height(px2vp(this.topInsetPx) + 60)
+            .linearGradient({
+              angle: 180,
+              colors: Theme.barGradient(this.themeColor, this.barStyle)
+            })
         Row() {
           // 返回
-          Text('‹')
-            .fontSize(26)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
-            .width(34).height(34).textAlign(TextAlign.Center)
-            .onClick(() => { AppState.stack.pop(); })
+          BackButton({ onBack: () => { AppState.stack.pop(); } })
           Text(this.pageTitle)
             .fontSize(18).fontWeight(FontWeight.Bold)
             .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
@@ -373,13 +380,31 @@ export struct WebViewPage {
         .width('100%').alignItems(VerticalAlign.Center)
         .height(px2vp(this.topInsetPx) + 60)
         .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-        .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
+        }
+        .width('100%')
+        // 顶栏悬浮；网页文档头部注入一段可随滚动移动的留白（网页初始内容位于顶栏下方，上滚时可穿过渐变下层）
+        .position({ x: 0, y: 0 })
+        .zIndex(2)
 
         WebSurface({
           onTitleChange: (t: string) => { this.pageTitle = t; },
-          onControllerReady: (ctrl: webview.WebviewController) => { this.ctrl = ctrl; }
+          onControllerReady: (ctrl: webview.WebviewController) => { this.ctrl = ctrl; },
+          onLoadEnd: () => {
+            // 文档头部注入透明留白段（幂等）：留白是网页内容的一部分，随网页滚动走——不是固定空白
+            const barVp: number = px2vp(this.topInsetPx) + 60;
+            if (this.ctrl !== null) {
+              this.ctrl.runJavaScript(
+                `(function(){var s=document.getElementById('xju_top_spacer');` +
+                `if(!s){s=document.createElement('div');s.id='xju_top_spacer';` +
+                `s.style.width='100%';s.style.height='0px';s.style.flexShrink='0';` +
+                `document.body.insertBefore(s,document.body.firstChild);}` +
+                `s.style.height=${barVp}+'px';})()`, () => {
+                });
+            }
+          }
         })
-          .width('100%').layoutWeight(1)
+          .width('100%')
+          .layoutWeight(1)
       }
       .width('100%').height('100%')
       .backgroundColor($r('app.color.bg_page'))
@@ -394,6 +419,7 @@ export struct WebViewPage {
       })
     }
     .hideTitleBar(true)
+    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
     .width('100%').height('100%')
   }
 }

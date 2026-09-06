@@ -22,7 +22,9 @@ import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
 import { EmptyRoomCondition, EmptyRoomItem, EmptyRoomQueryParams, EmptyRoomResult, TermInfo } from '../model/Models';
 import { EmptyTip, LoadingTip, PickRow } from './common/UiKit';
+import { BackButton } from './common/BackButton';
 import { WebSurface } from './WebSurface';
+import { WallpaperFill } from './common/WallpaperFill';
 
 /** 静态条件数据（模板演示用，后续接真实接口时替换为服务端下发的选项） */
 const STATIC_CAMPUS: EmptyRoomCondition[] = [
@@ -60,6 +62,7 @@ export struct KxjsPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   // 学年学期（本地生成）
   @State terms: TermInfo[] = [];
@@ -609,8 +612,8 @@ export struct KxjsPage {
     return this.isBorrowable(sfkfy) ? '可借用' : '不可借用';
   }
 
-  private borrowableColor(sfkfy: string): Resource {
-    return this.isBorrowable(sfkfy) ? $r('app.color.brand') : $r('app.color.text_tertiary');
+  private borrowableColor(sfkfy: string): ResourceColor {
+    return this.isBorrowable(sfkfy) ? Theme.colorOf(this.themeColor) : $r('app.color.text_tertiary');
   }
 
   private borrowableBg(sfkfy: string): string {
@@ -623,8 +626,8 @@ export struct KxjsPage {
     Row() {
       Button('‹')
         .fontSize(18)
-        .fontColor(this.pageIndex > 1 ? $r('app.color.brand') : $r('app.color.text_tertiary'))
-        .backgroundColor(this.pageIndex > 1 ? $r('app.color.brand_light') : $r('app.color.bg_chip'))
+        .fontColor(this.pageIndex > 1 ? Theme.colorOf(this.themeColor) : $r('app.color.text_tertiary'))
+        .backgroundColor(this.pageIndex > 1 ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : $r('app.color.bg_chip'))
         .borderRadius(8)
         .width(40)
         .height(34)
@@ -645,8 +648,8 @@ export struct KxjsPage {
       Blank()
       Button('›')
         .fontSize(18)
-        .fontColor(this.pageIndex < this.pageCount() ? $r('app.color.brand') : $r('app.color.text_tertiary'))
-        .backgroundColor(this.pageIndex < this.pageCount() ? $r('app.color.brand_light') : $r('app.color.bg_chip'))
+        .fontColor(this.pageIndex < this.pageCount() ? Theme.colorOf(this.themeColor) : $r('app.color.text_tertiary'))
+        .backgroundColor(this.pageIndex < this.pageCount() ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : $r('app.color.bg_chip'))
         .borderRadius(8)
         .width(40)
         .height(34)
@@ -690,13 +693,13 @@ export struct KxjsPage {
           .width(6)
           .height(6)
           .borderRadius(3)
-          .backgroundColor($r('app.color.brand'))
+          .backgroundColor(Theme.colorOf(this.themeColor))
           .margin({ right: 6 })
         Text(`${item.sjzws} 人`)
           .fontSize(12)
-          .fontColor($r('app.color.brand'))
+          .fontColor(Theme.colorOf(this.themeColor))
           .padding({ left: 8, right: 8, top: 2, bottom: 2 })
-          .backgroundColor($r('app.color.brand_light'))
+          .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
           .borderRadius(4)
         Column()
           .width(6)
@@ -817,7 +820,7 @@ export struct KxjsPage {
         .height(44)
         .fontSize(15)
         .fontColor($r('app.color.brand_on'))
-        .backgroundColor($r('app.color.brand'))
+        .backgroundColor(Theme.colorOf(this.themeColor))
         .borderRadius(12)
         .margin({ top: 4 })
         .enabled(!this.loading)
@@ -847,7 +850,7 @@ export struct KxjsPage {
           this.queryOptionsCard()
         }
         .width('100%')
-        .padding({ left: 16, right: 8, top: 14, bottom: 120 })
+        .padding({ left: 16, right: 8, top: px2vp(this.topInsetPx) + 104, bottom: 120 })
       }
       .layoutWeight(1)
       .height('100%')
@@ -858,6 +861,8 @@ export struct KxjsPage {
       Refresh({ refreshing: $$this.refreshing }) {
         Scroll() {
           Column() {
+            // 顶栏让位
+            Column().width('100%').height(px2vp(this.topInsetPx) + 60)
             Row() {
               Text('查询结果')
                 .fontSize(14)
@@ -872,11 +877,11 @@ export struct KxjsPage {
             .margin({ bottom: 10 })
 
             if (this.loading) {
-              LoadingTip({ text: '正在查询空闲教室…' })
-                .width('100%')
-                .height(140)
+                LoadingTip({ text: '正在查询空闲教室…' })
+                  .width('100%')
+                  .height(140)
                 .backgroundColor($r('app.color.bg_card'))
-                .borderRadius(18)
+                  .borderRadius(18)
             } else if (this.rooms.length > 0) {
               ForEach(this.pagedRooms(), (item: EmptyRoomItem) => {
                 Column() {
@@ -930,17 +935,21 @@ export struct KxjsPage {
   build() {
     NavDestination() {
       Column() {
-        // 顶栏：返回 + 标题 + 右上角 网页版 / 清空
-        Row() {
-          Text('‹')
-            .fontSize(26)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
-            .width(34)
-            .height(34)
-            .textAlign(TextAlign.Center)
-            .onClick(() => {
-              AppState.stack.pop();
+        // 壁纸底层：绝对定位全屏，不占布局（无壁纸回 bg_page）
+        WallpaperFill()
+          .position({ x: 0, y: 0 })
+          .zIndex(0)
+        // 顶栏（两层）：内容(底)/主题渐变(顶)；模糊层已取消
+        Stack({ alignContent: Alignment.TopStart }) {
+          Column()
+            .width('100%')
+            .height(px2vp(this.topInsetPx) + 60)
+            .linearGradient({
+              angle: 180,
+              colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
+        Row() {
+          BackButton({ onBack: () => { AppState.stack.pop(); } })
           Text('空闲教室查询')
             .fontSize(18)
             .fontWeight(FontWeight.Bold)
@@ -949,18 +958,18 @@ export struct KxjsPage {
             .layoutWeight(1)
           Text('网页端')
             .fontSize(13)
-            .fontColor(this.isDarkMode ? $r('app.color.text_secondary') : Color.White)
+            .fontColor(this.barStyle === 'legacy' ? Color.White : (this.isDarkMode ? $r('app.color.text_secondary') : Color.White))
             .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-            .backgroundColor(this.isDarkMode ? $r('app.color.bg_chip') : '#26FFFFFF')
+            .backgroundColor(this.barStyle === 'legacy' ? '#33FFFFFF' : (this.isDarkMode ? $r('app.color.bg_chip') : '#26FFFFFF'))
             .borderRadius(14)
             .onClick(() => {
               this.openWebQuery();
             })
           Text('清空')
             .fontSize(13)
-            .fontColor(this.isDarkMode ? $r('app.color.text_secondary') : Color.White)
+            .fontColor(this.barStyle === 'legacy' ? Color.White : (this.isDarkMode ? $r('app.color.text_secondary') : Color.White))
             .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-            .backgroundColor(this.isDarkMode ? $r('app.color.bg_chip') : '#26FFFFFF')
+            .backgroundColor(this.barStyle === 'legacy' ? '#33FFFFFF' : (this.isDarkMode ? $r('app.color.bg_chip') : '#26FFFFFF'))
             .borderRadius(14)
             .margin({ left: 8 })
             .onClick(() => {
@@ -971,7 +980,6 @@ export struct KxjsPage {
         .alignItems(VerticalAlign.Center)
         .height(px2vp(this.topInsetPx) + 60)
         .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-        .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
         // 详情弹窗（挂顶栏 Row，与单选/多选弹窗分离避免 bindSheet 相互覆盖）
         .bindSheet($$this.showDetail, this.detailSheet(), {
           width: SheetUtil.sheetWidth(),
@@ -981,6 +989,11 @@ export struct KxjsPage {
           backgroundColor: $r('app.color.bg_card'),
           title: { title: '场地详情' }
         })
+        }
+        .width('100%')
+        // 顶栏悬浮：正文可滚入其渐变下层透出
+        .position({ x: 0, y: 0 })
+        .zIndex(2)
 
         // 内容区：整页可滚动（条件卡 + 结果列表 + 底部翻页），下拉刷新重新导出数据
         // 外层常驻 Column 承载"单选弹窗"bindSheet，确保横屏下单选/场地类别等弹窗也能弹出
@@ -990,6 +1003,8 @@ export struct KxjsPage {
           Refresh({ refreshing: $$this.refreshing }) {
             Scroll() {
               Column() {
+                // 顶栏悬浮让位（正文默认从顶栏下方开始，上滑才滚入渐变下层）
+                Column().width('100%').height(px2vp(this.topInsetPx) + 60)
                 // 查询条件卡
                 this.queryOptionsCard()
 
@@ -1008,11 +1023,11 @@ export struct KxjsPage {
                 .margin({ bottom: 10 })
 
                 if (this.loading) {
-                  LoadingTip({ text: '正在查询空闲教室…' })
-                    .width('100%')
-                    .height(140)
-                    .backgroundColor($r('app.color.bg_card'))
-                    .borderRadius(18)
+                    LoadingTip({ text: '正在查询空闲教室…' })
+                      .width('100%')
+                      .height(140)
+                  .backgroundColor($r('app.color.bg_card'))
+                      .borderRadius(18)
                 } else if (this.rooms.length > 0) {
                   // 当前页卡片
                   ForEach(this.pagedRooms(), (item: EmptyRoomItem) => {
@@ -1033,7 +1048,7 @@ export struct KxjsPage {
                   }
                   .width('100%')
                   .padding(20)
-                  .backgroundColor($r('app.color.bg_card'))
+                .backgroundColor($r('app.color.bg_card'))
                   .borderRadius(18)
                 }
                 // 底部抬高（参考学业情况页，避免内容贴底；+100 保证翻页控件滚到底可见）
@@ -1064,7 +1079,8 @@ export struct KxjsPage {
       }
       .layoutWeight(1)
       .width('100%')
-      .backgroundColor($r('app.color.bg_page'))
+      // 全局壁纸：内容容器背景透明，透出主框架底层壁纸
+      .backgroundColor(Color.Transparent)
       // 单选弹窗（挂常驻外层容器，横竖屏均可弹出，与外层多选弹窗分离避免 bindSheet 相互覆盖）
       .bindSheet($$this.showSingleSheet, this.singlePickerSheet(), {
         width: SheetUtil.sheetWidth(),
@@ -1077,7 +1093,8 @@ export struct KxjsPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.bg_page'))
+    // 全局壁纸：页面根背景透明，透出主框架底层壁纸
+    .backgroundColor(Color.Transparent)
     // 多选弹窗（bindSheet，组件上挂不同 bindSheet 避免冲突）
     .bindSheet($$this.showMultiPicker, this.multiPickerSheet(), {
       width: SheetUtil.sheetWidth(),
@@ -1087,7 +1104,9 @@ export struct KxjsPage {
       backgroundColor: $r('app.color.bg_card'),
       title: { title: this.multiPickerTitle }
     })
+    .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)
+    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
   }
 
   /** 单选弹窗（bindSheet + 自定义 List，点击项直接修改 @State 并关闭） */
@@ -1112,7 +1131,7 @@ export struct KxjsPage {
             .width('100%')
             .height(46)
             .padding({ left: 16, right: 16 })
-            .backgroundColor(this.singlePickerSelected === index ? $r('app.color.brand') : $r('app.color.bg_chip'))
+            .backgroundColor(this.singlePickerSelected === index ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
             .borderRadius(10)
             .margin({ bottom: 8 })
             .onClick(() => {
@@ -1149,7 +1168,7 @@ export struct KxjsPage {
               .height(34)
               .justifyContent(FlexAlign.Center)
               .backgroundColor(this.multiPickerTempSet.indexOf(this.multiPickerAllValues[index]) >= 0
-                ? $r('app.color.brand')
+                ? Theme.colorOf(this.themeColor)
                 : $r('app.color.bg_chip'))
               .borderRadius(17)
               .margin({ bottom: 10 })
@@ -1173,9 +1192,9 @@ export struct KxjsPage {
         Blank()
         Text(this.multiPickerTempSet.length === this.multiPickerAllValues.length ? '全清' : '全选')
           .fontSize(13)
-          .fontColor($r('app.color.brand'))
+          .fontColor(Theme.colorOf(this.themeColor))
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-          .backgroundColor($r('app.color.brand_light'))
+          .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
           .borderRadius(16)
           .onClick(() => {
             this.togglePickAll();
@@ -1183,7 +1202,7 @@ export struct KxjsPage {
         Button('确定')
           .fontSize(14)
           .fontColor($r('app.color.brand_on'))
-          .backgroundColor($r('app.color.brand'))
+          .backgroundColor(Theme.colorOf(this.themeColor))
           .borderRadius(18)
           .height(36)
           .padding({ left: 20, right: 20 })
@@ -1219,7 +1238,7 @@ export struct KxjsPage {
             .width(4)
             .height(20)
             .borderRadius(2)
-            .backgroundColor($r('app.color.brand'))
+            .backgroundColor(Theme.colorOf(this.themeColor))
           Text(this.selectedRoom.cdmc)
             .fontSize(18)
             .fontWeight(FontWeight.Bold)

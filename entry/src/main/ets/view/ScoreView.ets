@@ -12,6 +12,8 @@ import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
 import { ScoreItem, TermInfo, TermScore } from '../model/Models';
 import { EmptyTip, LoadingTip, TagChip } from './common/UiKit';
+import { AntiPeepOverlay } from './common/AntiPeepOverlay';
+import { AntiPeepManager } from '../common/AntiPeepManager';
 import { WebSurface } from './WebSurface';
 import { promptAction, mediaquery } from '@kit.ArkUI';
 
@@ -20,6 +22,7 @@ export struct ScoreView {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @State terms: TermInfo[] = [];
   @State selectedTermIndex: number = 0;
@@ -32,7 +35,9 @@ export struct ScoreView {
   @State showWeb: boolean = false;
   @State isLandscape: boolean = false;
   @State refreshing: boolean = false;
+  @State isPeeped: boolean = false;
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
+  private peepMgr: AntiPeepManager = new AntiPeepManager();
 
   /**
    * 学分绩点换算（依据教务处官网「课程及学分」kcjxf/list.htm）：
@@ -173,7 +178,7 @@ export struct ScoreView {
         .layoutWeight(1)
       Text('查看 ›')
         .fontSize(12)
-        .fontColor($r('app.color.brand'))
+        .fontColor(Theme.colorOf(this.themeColor))
     }
     .width('100%')
     .padding(14)
@@ -193,10 +198,13 @@ export struct ScoreView {
     });
     this.load();
     this.listenLandscape();
+    // 启动防窥保护监听
+    this.peepMgr.start((hidden: boolean) => { this.isPeeped = hidden; });
   }
 
   aboutToDisappear(): void {
     this.landscapeListener = null;
+    this.peepMgr.stop();
   }
 
   /** 监听屏幕方向变化（横屏时拆分为两列铺满屏幕） */
@@ -256,9 +264,13 @@ export struct ScoreView {
 
   /** 下拉刷新：重新加载成绩（保留学期选择，清空已加载成绩后重新拉取） */
   private async onRefresh(): Promise<void> {
-    this.termScores = [];
-    await this.load();
-    this.refreshing = false;
+    // 保留旧数据直到新数据就绪；try/finally 兜底复位，避免异常导致刷新态悬挂（黑/白屏）
+    try {
+      await this.load();
+    } catch (e) {
+    } finally {
+      setTimeout(() => { this.refreshing = false; }, 120);
+    }
   }
   private async fetchSelectedTerm(): Promise<void> {
     if (this.selectedTermIndex < 0 || this.selectedTermIndex >= this.terms.length) {
@@ -326,10 +338,10 @@ export struct ScoreView {
     return list;
   }
 
-  /** 成绩文本颜色（及格绿/不及格红） */
-  private scoreColor(item: ScoreItem): Resource {
+  /** 成绩文本颜色（静态语义，不随主题）：<60 红 / 60-69 黄褐 / 70-79 蓝 / 80-89 农大绿 / 90+ 深绿 */
+  private scoreColor(item: ScoreItem): ResourceColor {
     if (item.score < 0) {
-      return $r('app.color.brand');
+      return '#9E9E9E';
     }
     if (item.score < 60) {
       return $r('app.color.state_danger');
@@ -338,7 +350,7 @@ export struct ScoreView {
       return $r('app.color.state_success');
     }
     if (item.score >= 80) {
-      return $r('app.color.brand');
+      return '#079841';
     }
     if (item.score >= 70) {
       return $r('app.color.accent_blue');
@@ -347,20 +359,28 @@ export struct ScoreView {
   }
 
   /** 考试性质标签颜色 */
-  private examTypeColor(item: ScoreItem): Resource {
+  private examTypeColor(item: ScoreItem): ResourceColor {
     if (item.examType.indexOf('重修') >= 0) {
       return $r('app.color.accent_blue');
     }
     if (item.examType.indexOf('补考') >= 0) {
       return $r('app.color.accent_orange');
     }
-    return $r('app.color.brand');
+    return Theme.colorOf(this.themeColor);
   }
 
   @Builder
   topBar() {
-    // 顶部标题栏：浅色=主题色（中国红/天空蓝/农大绿），深色=黑色；文字白色
-    // 高度与其他主题色顶栏统一（topInset + 72vp 外高，内容区 48vp）
+    // 顶部标题栏（三层）：内容(底) / 全透明模糊(中) / 主题渐变(顶)
+    Stack({ alignContent: Alignment.TopStart }) {
+      // 顶：主题色渐变
+      Column()
+        .width('100%')
+        .height(px2vp(this.topInsetPx) + 60)
+        .linearGradient({
+          angle: 180,
+          colors: Theme.barGradient(this.themeColor, this.barStyle)
+        })
     Column() {
       Row() {
         Column() {
@@ -371,19 +391,21 @@ export struct ScoreView {
           Row() {
             Text(this.currentTermLabel())
               .fontSize(11)
-              .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
+              .fontColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
             Image($r('app.media.list_bullet'))
               .width(14)
               .height(14)
-              .fillColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
+              .fillColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
               .margin({ left: 3 })
           }
-          .margin({ top: 4 })
+          .margin({ top: 6 })
           .onClick(() => {
             this.showTermSheet = true;
           })
         }
         .alignItems(HorizontalAlign.Start)
+        // ★ 主标题整组微调：只改这个 offset 的 y（正=下移 / 负=上移）
+        .offset({ y: -5 })
 
         Blank()
       }
@@ -392,9 +414,12 @@ export struct ScoreView {
     }
     .width('100%')
     .height(px2vp(this.topInsetPx) + 60)
-    .justifyContent(FlexAlign.Center)
-    .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-    .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
+    .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 23 })
+    }
+    .width('100%')
+    // 内容穿透：三层顶栏悬浮最上层、不占布局空间，内容可滚入其下层（与首页/我的页一致）
+    .position({ x: 0, y: 0 })
+    .zIndex(2)
   }
 
   @Builder
@@ -411,7 +436,7 @@ export struct ScoreView {
         Row() {
           TagChip({
             text: item.courseType,
-            color: item.courseType === '必修' ? $r('app.color.brand') : $r('app.color.accent_blue'),
+            color: item.courseType === '必修' ? '#079841' : $r('app.color.accent_blue'),
             bg: $r('app.color.bg_chip')
           })
           if (item.examType !== '正常考试') {
@@ -488,7 +513,7 @@ export struct ScoreView {
           Row() {
             TagChip({
               text: this.selectedItem.courseType,
-              color: this.selectedItem.courseType === '必修' ? $r('app.color.brand') : $r('app.color.accent_blue'),
+              color: this.selectedItem.courseType === '必修' ? '#079841' : $r('app.color.accent_blue'),
               bg: $r('app.color.bg_chip')
             })
             Text(`${this.selectedItem.credit} 学分`)
@@ -512,8 +537,8 @@ export struct ScoreView {
           .width('100%')
           .height(44)
           .fontSize(15)
-          .fontColor($r('app.color.brand'))
-          .backgroundColor($r('app.color.brand_light'))
+          .fontColor(Theme.colorOf(this.themeColor))
+          .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
           .borderRadius(12)
           .margin({ top: 18 })
           .onClick(() => {
@@ -591,7 +616,7 @@ export struct ScoreView {
               .width('100%')
               .height(46)
               .padding({ left: 16, right: 16 })
-              .backgroundColor(this.selectedTermIndex === index ? $r('app.color.brand') : $r('app.color.bg_chip'))
+              .backgroundColor(this.selectedTermIndex === index ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
               .borderRadius(10)
               .margin({ bottom: 8 })
               .onClick(() => {
@@ -610,21 +635,49 @@ export struct ScoreView {
   }
 
   build() {
-    Column() {
+    Stack() {
+      Column() {
       this.topBar()
       if (this.isLandscape) {
-        if (this.loading) {
+        if (this.loading && !this.refreshing) {
           LoadingTip()
         } else if (this.currentTermScore() === null || this.currentTermScore()!.items.length === 0) {
-          // 横屏直接打开且数据未就绪/为空时必须兜底，否则 scoreLandscape→statsCard 的
-          // currentTermScore()! 非空断言会空指针闪退（竖屏转横屏时数据已加载所以正常）
-          Column() {
-            EmptyTip({ text: '本学期成绩尚未发布\n期末考试结束两周后可查询' })
+        // 横屏空态：位于顶栏下方（与竖屏一致），可下拉刷新
+        Column() {
+          Refresh({ refreshing: $$this.refreshing }) {
+            Scroll() {
+              Column() {
+                // 顶栏占位（卡片在顶栏下方；想下移卡片就增大此值）
+                Column()
+                  .width('100%')
+                  .height(px2vp(this.topInsetPx) + 1)
+                // 与"平均成绩"卡片同宽同风格：紧凑提示，不撑高
+                Column() {
+                  Text('本学期成绩尚未发布')
+                    .fontSize(14)
+                    .fontColor($r('app.color.text_primary'))
+                  Text('期末考试结束两周后可查询')
+                    .fontSize(11)
+                    .fontColor($r('app.color.text_tertiary'))
+                    .margin({ top: 4 })
+                }
+                .width('97%')
+                .backgroundColor($r('app.color.bg_card'))
+                .borderRadius(18)
+                .padding({ top: 22, bottom: 22 })
+              }
+              .width('100%')
+            }
+            .width('100%')
+            .height('100%')
+            .scrollBar(BarState.Off)
+            .edgeEffect(EdgeEffect.Spring)
+            .align(Alignment.Start)
           }
           .width('100%')
-          .layoutWeight(1)
-          .backgroundColor($r('app.color.bg_card'))
-          .borderRadius(18)
+          .height('100%')
+          .onRefreshing(() => { this.onRefresh(); })
+        }
         } else {
           this.scoreLandscape()
         }
@@ -632,13 +685,17 @@ export struct ScoreView {
       // 成绩详情弹层挂在内层容器，与外层"选择学期"弹层分离（ArkUI 同组件多 bindSheet 只有最后一个生效）
       // 横屏/平板下内容限宽 720vp 并居中（一多适配）
       Column() {
-        if (this.loading) {
+        if (this.loading && !this.refreshing) {
           LoadingTip()
         } else {
           Row() {
             Refresh({ refreshing: $$this.refreshing }) {
             Scroll() {
               Column() {
+                // 顶栏占位（随内容滚走）：内容初始位于悬浮渐变标题栏下方，上滑后进入其下层
+                Column()
+                  .width('100%')
+                  .height(px2vp(this.topInsetPx) + 84)
                 if (this.currentTermScore() === null || this.currentTermScore()!.items.length === 0) {
                   Column() {
                     EmptyTip({ text: '本学期成绩尚未发布\n期末考试结束两周后可查询' })
@@ -656,7 +713,7 @@ export struct ScoreView {
                   Blank()
                   Text(this.sortByScore ? '按绩点排序 ⇅' : '默认排序 ⇅')
                     .fontSize(12)
-                    .fontColor($r('app.color.brand'))
+                    .fontColor(Theme.colorOf(this.themeColor))
                     .onClick(() => {
                       this.sortByScore = !this.sortByScore;
                     })
@@ -693,9 +750,10 @@ export struct ScoreView {
             .constraintSize({ maxWidth: '100%' })
             .height('100%')
             .scrollBar(BarState.Off)
-            .align(Alignment.Top)
+            .align(Alignment.Start)
             .edgeEffect(EdgeEffect.Spring)
-            .backgroundColor($r('app.color.bg_page'))
+            // 壁纸功能：列表滚动层背景透明，透出主框架底层的全局壁纸
+            .backgroundColor(Color.Transparent)
             // 绩点计算方法网页挂在内层 Scroll（同组件多 bindSheet 仅最后一个生效，故与其他弹层分离）
             .bindSheet($$this.showWeb, this.webSheet(), {
               width: SheetUtil.sheetWidth(),
@@ -731,7 +789,8 @@ export struct ScoreView {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.bg_page'))
+    // 壁纸功能：页面根背景透明，让主框架底层的全局壁纸透出（无壁纸时由 MainView 底层 bg_page 兜底）
+    .backgroundColor(Color.Transparent)
     .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
       width: SheetUtil.sheetWidth(),
       preferType: SheetType.BOTTOM,
@@ -740,17 +799,22 @@ export struct ScoreView {
       backgroundColor: $r('app.color.bg_card'),
       title: { title: '选择学年-学期' }
     })
+
+      AntiPeepOverlay({ isPeeped: this.isPeeped })
+    }
+    .width('100%')
+    .height('100%')
   }
 
   @Builder
   scoreLandscape() {
     Column() {
-      // 横屏：平均分栏宽度收窄 5%（Column 默认水平居中 → 左右各留 2.5%），并给顶栏留一点间距
+      // 横屏：平均分栏宽度收窄 5%（Column 默认水平居中 → 左右各留 2.5%），并给顶栏让位
       Column() {
         this.statsCard()
       }
       .width('97%')
-      .margin({ top: 20 })
+      .margin({ top: px2vp(this.topInsetPx) + 84 })
       Row() {
           // 左列
           Refresh({ refreshing: $$this.refreshing }) {
@@ -764,7 +828,7 @@ export struct ScoreView {
             .layoutWeight(1)
             .height('100%')
             .scrollBar(BarState.Off)
-            .align(Alignment.Top)
+            .align(Alignment.Start)
             .edgeEffect(EdgeEffect.Spring)
             .bindSheet($$this.showSheet, this.detailSheet(), {
               width: SheetUtil.sheetWidth(),
@@ -792,7 +856,7 @@ export struct ScoreView {
             .layoutWeight(1)
             .height('100%')
             .scrollBar(BarState.Off)
-            .align(Alignment.Top)
+            .align(Alignment.Start)
             .edgeEffect(EdgeEffect.Spring)
           }
           .layoutWeight(1)
@@ -800,11 +864,11 @@ export struct ScoreView {
           .onRefreshing(() => { this.onRefresh(); })
         }
         .layoutWeight(1)
-        .align(Alignment.Top)
+        .align(Alignment.Start)
       }
         .width('100%')
         .layoutWeight(1)
-        .align(Alignment.Top)
+        .align(Alignment.Start)
   }
 
   @Builder
@@ -819,10 +883,10 @@ export struct ScoreView {
         }
       }, (item: ScoreItem) => item.id)
     }
-    .width('100%')
-    .padding({ left: 16, right: 16 })
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
+      .width('100%')
+      .padding({ left: 16, right: 16 })
+      .backgroundColor($r('app.color.bg_card'))
+      .borderRadius(18)
   }
 
   @Builder

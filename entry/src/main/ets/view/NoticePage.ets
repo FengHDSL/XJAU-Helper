@@ -8,12 +8,15 @@ import { Theme } from '../common/ThemeUtil';
 import { NoticeItem } from '../model/Models';
 import { EMPTY_NOTICE } from '../model/Empty';
 import { EmptyTip, LoadingTip, TagChip } from './common/UiKit';
+import { BackButton } from './common/BackButton';
+import { WallpaperFill } from './common/WallpaperFill';
 
 @Component
 export struct NoticePage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @State notices: NoticeItem[] = [];
   @State loading: boolean = true;
@@ -108,17 +111,21 @@ export struct NoticePage {
 
   build() {
     NavDestination() {
+      // 二级页壁纸底层（无壁纸回 bg_page，不透下层）
+      Stack({ alignContent: Alignment.TopStart }) {
+        WallpaperFill()
       Column() {
-        Row() {
-          Text('‹')
-            .fontSize(26)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
-            .width(34)
-            .height(34)
-            .textAlign(TextAlign.Center)
-            .onClick(() => {
-              AppState.stack.pop();
+        // 顶栏（两层）：内容(底)/主题渐变(顶)；模糊层已取消
+        Stack({ alignContent: Alignment.TopStart }) {
+          Column()
+            .width('100%')
+            .height(px2vp(this.topInsetPx) + 60)
+            .linearGradient({
+              angle: 180,
+              colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
+        Row() {
+          BackButton({ onBack: () => { AppState.stack.pop(); } })
 
           Column() {
             Text('消息')
@@ -127,7 +134,7 @@ export struct NoticePage {
               .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
             Text(`教务通知汇总 · 共 ${this.notices.length} 条 · ${this.unreadCount()} 条未读`)
               .fontSize(11)
-              .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
+              .fontColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
               .margin({ top: 3 })
           }
           .alignItems(HorizontalAlign.Start)
@@ -140,7 +147,11 @@ export struct NoticePage {
         .alignItems(VerticalAlign.Center)
         .height(px2vp(this.topInsetPx) + 60)
         .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-        .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
+        }
+        .width('100%')
+        // 顶栏悬浮：正文可滚入其渐变下层透出
+        .position({ x: 0, y: 0 })
+        .zIndex(2)
 
         if (this.loading) {
           LoadingTip()
@@ -154,7 +165,7 @@ export struct NoticePage {
                 .margin({ top: 16, bottom: 24 })
             }
             .width('100%')
-            .padding({ top: 14, left: 16, right: 16 })
+            .padding({ top: px2vp(this.topInsetPx) + 68, left: 16, right: 16 })
           }
         } else {
           Scroll() {
@@ -166,18 +177,25 @@ export struct NoticePage {
                 .height(px2vp(this.bottomInsetPx) + 16)
             }
             .width('100%')
-            .padding({ left: 16, right: 16, top: 14 })
+            .padding({ left: 16, right: 16, top: px2vp(this.topInsetPx) + 68 })
           }
           .scrollBar(BarState.Off)
+          .edgeEffect(EdgeEffect.Spring)
           .layoutWeight(1)
           .align(Alignment.Top)
         }
       }
       .width('100%')
       .height('100%')
-      .backgroundColor($r('app.color.bg_page'))
+      // 全局壁纸：二级页根背景透明，透出主框架底层壁纸（无壁纸时由 MainView 底层纯色兜底）
+      .backgroundColor(Color.Transparent)
+      }
+      .width('100%')
+      .height('100%')
     }
+    .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)
+    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
   }
 }
 
@@ -187,22 +205,27 @@ export struct NoticeDetailPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @State notice: NoticeItem = AppState.currentNotice !== null ? AppState.currentNotice : EMPTY_NOTICE;
 
   build() {
     NavDestination() {
+      // 二级页壁纸底层（无壁纸回 bg_page，不透下层）
+      Stack({ alignContent: Alignment.TopStart }) {
+        WallpaperFill()
       Column() {
-        Row() {
-          Text('‹')
-            .fontSize(26)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
-            .width(34)
-            .height(34)
-            .textAlign(TextAlign.Center)
-            .onClick(() => {
-              AppState.stack.pop();
+        // 顶栏（两层）：内容(底)/主题渐变(顶)；模糊层已取消
+        Stack({ alignContent: Alignment.TopStart }) {
+          Column()
+            .width('100%')
+            .height(px2vp(this.topInsetPx) + 60)
+            .linearGradient({
+              angle: 180,
+              colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
+        Row() {
+          BackButton({ onBack: () => { AppState.stack.pop(); } })
 
           Column() {
             Text('消息详情')
@@ -220,7 +243,11 @@ export struct NoticeDetailPage {
         .alignItems(VerticalAlign.Center)
         .height(px2vp(this.topInsetPx) + 60)
         .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-        .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
+        }
+        .width('100%')
+        // 顶栏悬浮：正文可滚入其渐变下层透出
+        .position({ x: 0, y: 0 })
+        .zIndex(2)
 
         Scroll() {
           Column() {
@@ -274,17 +301,25 @@ export struct NoticeDetailPage {
               .height(px2vp(this.bottomInsetPx) + 24)
           }
           .width('100%')
-          .padding({ left: 18, right: 18, top: 18 })
+          .padding({ left: 18, right: 18, top: px2vp(this.topInsetPx) + 68 })
         }
         .scrollBar(BarState.Off)
+          .edgeEffect(EdgeEffect.Spring)
         .layoutWeight(1)
         .align(Alignment.Top)
-        .backgroundColor($r('app.color.bg_card'))
+        // 全局壁纸：正文滚动层透明，透出主框架底层壁纸
+        .backgroundColor(Color.Transparent)
       }
       .width('100%')
       .height('100%')
-      .backgroundColor($r('app.color.bg_card'))
+      // 全局壁纸：详情页根背景透明，透出主框架底层壁纸
+      .backgroundColor(Color.Transparent)
+      }
+      .width('100%')
+      .height('100%')
     }
+    .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)
+    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
   }
 }

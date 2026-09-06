@@ -2,10 +2,13 @@
  * 通用小组件：卡片标题、标签、空状态、加载中、统计格
  */
 import { Theme } from '../../common/ThemeUtil';
+import { BackButton } from './BackButton';
 
 /** 区块标题：左侧竖条 + 标题 + 右侧操作 */
 @Component
 export struct SectionHeader {
+  @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @Prop title: string = '';
   @Prop action: string = '';
   onAction: () => void = () => {
@@ -17,7 +20,7 @@ export struct SectionHeader {
         Divider()
           .vertical(true)
           .strokeWidth(3)
-          .color($r('app.color.brand'))
+          .color(Theme.colorOf(this.themeColor))
           .height(14)
           .margin({ right: 8 })
         Text(this.title)
@@ -52,8 +55,8 @@ export struct SectionHeader {
 @Component
 export struct TagChip {
   @Prop text: string = '';
-  color: Resource = $r('app.color.brand');
-  bg: Resource = $r('app.color.brand_light');
+  color: ResourceColor = $r('app.color.brand');
+  bg: ResourceColor = $r('app.color.brand_light');
 
   build() {
     Text(this.text)
@@ -92,6 +95,8 @@ export struct EmptyTip {
 /** 加载中 */
 @Component
 export struct LoadingTip {
+  @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @Prop icon: string = '';
   @Prop text: string = '正在同步教务数据…';
 
@@ -100,7 +105,7 @@ export struct LoadingTip {
       LoadingProgress()
         .width(36)
         .height(36)
-        .color($r('app.color.brand'))
+        .color(Theme.colorOf(this.themeColor))
       Text(this.text)
         .fontSize(12)
         .fontColor($r('app.color.text_tertiary'))
@@ -118,7 +123,7 @@ export struct LoadingTip {
 export struct StatCell {
   @Prop value: string = '';
   @Prop label: string = '';
-  color: Resource = $r('app.color.text_primary');
+  color: ResourceColor = $r('app.color.text_primary');
 
   build() {
     Column() {
@@ -144,7 +149,7 @@ export struct SettingRow {
   @Prop value: string = '';
   @Prop showArrow: boolean = true;
   @Prop titleColor: Resource = $r('app.color.text_primary');
-  @Prop valueColor: Resource = $r('app.color.text_tertiary');
+  @Prop valueColor: ResourceColor = $r('app.color.text_tertiary');
   onTap: () => void = () => {
   };
 
@@ -225,10 +230,13 @@ export struct PageHeader {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @Prop title: string = '';
   @Prop subtitle: string = '';
   /** 右侧按钮文字（空 = 不显示按钮） */
   @Prop actionText: string = '';
+  /** 按钮色调：'red'=警示红（默认，用于清空等）/ 'theme'=主题色（用于刷新等中性操作） */
+  @Prop actionTone: string = 'red';
   /** 右侧是否显示收集开关（Toggle；与 actionText 可并存） */
   @Prop showActionToggle: boolean = false;
   /** 收集开关状态 */
@@ -243,16 +251,23 @@ export struct PageHeader {
   };
 
   build() {
-    Row() {
-      Text('‹')
-        .fontSize(26)
-        .fontColor(Color.White)
-        .width(34)
-        .height(34)
-        .textAlign(TextAlign.Center)
-        .onClick(() => {
-          this.onBack();
+    Stack({ alignContent: Alignment.TopStart }) {
+      // 中：全透明模糊层（已取消：见用户要求）
+      // 顶：主题色渐变（最上层视觉）
+      Column()
+        .width('100%')
+        .height(px2vp(this.topInsetPx) + 60)
+        .linearGradient({
+          angle: 180,
+          colors: Theme.barGradient(this.themeColor, this.barStyle)
         })
+      Row() {
+        // 官方风格圆形返回按钮
+        BackButton({
+        onBack: () => {
+          this.onBack();
+        }
+      })
 
       Column() {
         Text(this.title)
@@ -262,7 +277,8 @@ export struct PageHeader {
         if (this.subtitle.length > 0) {
           Text(this.subtitle)
             .fontSize(11)
-            .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
+            .fontColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' :
+              (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
             .margin({ top: 3 })
         }
       }
@@ -279,7 +295,7 @@ export struct PageHeader {
             .fontColor(Color.White)
             .margin({ right: 8 })
           Toggle({ type: ToggleType.Switch, isOn: this.actionToggleOn })
-            .selectedColor('#DB5252')
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => {
               this.onActionToggle(on);
             })
@@ -291,7 +307,8 @@ export struct PageHeader {
           .fontWeight(FontWeight.Medium)
           .fontColor(Color.White)
           .padding({ left: 14, right: 14, top: 5, bottom: 5 })
-          .backgroundColor('#DB5252')
+          .backgroundColor(this.actionTone === 'theme' ? Theme.colorOf(this.themeColor) :
+            (this.actionTone === 'glass' ? '#33FFFFFF' : '#DB5252'))
           .borderRadius(14)
           .margin({ left: 10 })
           .onClick(() => {
@@ -299,10 +316,12 @@ export struct PageHeader {
           })
       }
     }
+      .width('100%')
+      .height(px2vp(this.topInsetPx) + 60)
+      .alignItems(VerticalAlign.Center)
+      .padding({ left: 10, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
+    }
     .width('100%')
     .height(px2vp(this.topInsetPx) + 60)
-    .alignItems(VerticalAlign.Center)
-    .padding({ left: 10, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-    .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
   }
 }

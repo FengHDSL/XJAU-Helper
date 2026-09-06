@@ -11,6 +11,7 @@ import { HdsTabs, HdsTabsController, hdsMaterial } from '@kit.UIDesignKit';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
+import { Wallpaper } from '../common/Wallpaper';
 import { AboutPage } from './AboutPage';
 import { AcademicPage } from './AcademicPage';
 import { ExamPage } from './ExamPage';
@@ -23,6 +24,7 @@ import { NewsPage } from './NewsPage';
 import { LogPage } from './LogPage';
 import { SearchResultPage } from './SearchResultPage';
 import { WebViewPage } from './WebViewPage';
+import { WallpaperPage } from './WallpaperPage';
 import { NoticeDetailPage, NoticePage } from './NoticePage';
 import { PrivacyPage } from './PrivacyPage';
 import { ScheduleView } from './ScheduleView';
@@ -33,6 +35,8 @@ export struct MainView {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @StorageProp('themeColor') themeColor: string = 'green';
+  /** 全局壁纸 id（'b1'..'b6' 预置 / 'c:<path>' 自定义 / 'none'=未启用） */
+  @StorageProp('wallpaperId') wallpaperId: string = 'none';
   @State currentIndex: number = 0;
   private tabsController: HdsTabsController = new HdsTabsController();
   onLogout: () => void = () => {
@@ -69,11 +73,11 @@ export struct MainView {
       Image(icon)
         .width(20)
         .height(20)
-        .fillColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#5F6368' : '#9AA0A6'))
+        .fillColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#FFFFFF' : '#000000'))
       Text(title)
         .fontSize(10)
         .fontWeight(this.currentIndex === index ? FontWeight.Medium : FontWeight.Normal)
-        .fontColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#5F6368' : '#9AA0A6'))
+        .fontColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#FFFFFF' : '#000000'))
         .margin({ top: 3 })
     }
     .width('100%')
@@ -114,79 +118,110 @@ export struct MainView {
       SearchResultPage()
     } else if (name === Const.ROUTE_WEB_PAGE) {
       WebViewPage()
+    } else if (name === Const.ROUTE_WALLPAPER) {
+      WallpaperPage()
     }
   }
 
   build() {
-    Navigation(AppState.stack) {
-      HdsTabs({ barPosition: BarPosition.End, index: this.currentIndex, controller: this.tabsController }) {
-        TabContent() {
-          HomeView({
-            onSwitchTab: (index: number) => {
-              this.currentIndex = index;
-              this.tabsController.changeIndex(index);
-            }
-          })
-        }
-        .tabBar(this.tabItem('首页', $r('app.media.house'), 0))
-
-        TabContent() {
-          ScheduleView()
-        }
-        .tabBar(this.tabItem('课程表', $r('app.media.calendar'), 1))
-
-        TabContent() {
-          ScoreView()
-        }
-        .tabBar(this.tabItem('成绩', $r('app.media.doc_text_badge_magnifyingglass'), 2))
-
-        // 农大新闻（占位页）：位于"成绩"和"我的"之间
-        TabContent() {
-          NewsPage()
-        }
-        .tabBar(this.tabItem('农大新闻', $r('app.media.list_square_bill'), 3))
-
-        TabContent() {
-          MineView({
-            onLogout: () => {
-              this.onLogout();
-            },
-            onGotoLogin: () => {
-              this.onGotoLogin();
-            }
-          })
-        }
-        .tabBar(this.tabItem('我的', $r('app.media.person'), 4))
+    Stack() {
+      // 页面底色：无壁纸时的默认纯色底（五个 Tab 页根背景已透明，由本层兜底）
+      Column()
+        .width('100%')
+        .height('100%')
+        .backgroundColor($r('app.color.bg_page'))
+        .hitTestBehavior(HitTestMode.None)
+      // 全局壁纸（'none'=未启用不渲染）。壁纸始终清晰显示；
+      // 可读性遮罩仅壁纸启用时叠加，避免默认观感变化。
+      if (this.wallpaperId !== 'none') {
+        Image(Wallpaper.src(this.wallpaperId))
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
+          .hitTestBehavior(HitTestMode.None)
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor(this.isDarkMode ? 'rgba(8,10,10,0.38)' : 'rgba(255,255,255,0.18)')
+          .hitTestBehavior(HitTestMode.None)
       }
-      .scrollable(false)
-      .animationDuration(220) // 页面切换动画
-      .barMode(BarMode.Fixed)
-      // 悬浮底栏（自适应长度 + 紧凑高度 + 沉浸光感）
-      //  - barWidth 与上方内容卡片宽度对齐（手机约 300vp），5 个选项间距适中
-      //  - systemMaterialEffect: IMMERSIVE + ADAPTIVE 沉浸毛玻璃，按系统算力/光感强弱分档适配
-      //  - lightColor 为材质光效着色（深色下用浅色高光，浅色下用品牌色低饱和光效），增强光感层次
-      //  - barBottomMargin 贴近底部，内容区底部已加 padding 防止遮挡
-      .barOverlap(true) // 内容与底栏重叠，由 barFloatingStyle 控制悬浮外观
-      .barFloatingStyle({
-        barWidth: { smallWidth: 340, mediumWidth: 420, largeWidth: 500 },
-        barSideMargin: 12, // 悬浮栏距屏幕左右边缘
-        barBottomMargin: 4 + px2vp(this.bottomInsetPx), // 距屏幕底部尽量小（贴近底部，含小白条安全区）
-        adaptToHandedness: true, // 左右手自适应
-        lightColor: this.isDarkMode ? '#40FFFFFF' : '#20FFFFFF', // 光效颜色：深色半透白高光 / 浅色低饱和
-        systemMaterialEffect: {
-          materialType: hdsMaterial.MaterialType.IMMERSIVE, // 沉浸式系统材质（毛玻璃光感）
-          materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE // 随系统沉浸光感强弱自适应
+      Navigation(AppState.stack) {
+        HdsTabs({ barPosition: BarPosition.End, index: this.currentIndex, controller: this.tabsController }) {
+          TabContent() {
+            HomeView({
+              onSwitchTab: (index: number) => {
+                this.currentIndex = index;
+                this.tabsController.changeIndex(index);
+              }
+            })
+          }
+          .tabBar(this.tabItem('首页', $r('app.media.house'), 0))
+
+          TabContent() {
+            ScheduleView()
+          }
+          .tabBar(this.tabItem('课程表', $r('app.media.calendar'), 1))
+
+          TabContent() {
+            ScoreView()
+          }
+          .tabBar(this.tabItem('成绩', $r('app.media.doc_text_badge_magnifyingglass'), 2))
+
+          // 农大新闻（占位页）：位于"成绩"和"我的"之间
+          TabContent() {
+            NewsPage()
+          }
+          .tabBar(this.tabItem('农大新闻', $r('app.media.list_square_bill'), 3))
+
+          TabContent() {
+            MineView({
+              onLogout: () => {
+                this.onLogout();
+              },
+              onGotoLogin: () => {
+                this.onGotoLogin();
+              }
+            })
+          }
+          .tabBar(this.tabItem('我的', $r('app.media.person'), 4))
         }
-      })
+        .scrollable(false)
+        .animationDuration(220) // 页面切换动画
+        .barMode(BarMode.Fixed)
+        // 悬浮底栏（自适应长度 + 紧凑高度 + 沉浸光感）
+        //  - barWidth 与上方内容卡片宽度对齐（手机约 300vp），5 个选项间距适中
+        //  - systemMaterialEffect: IMMERSIVE + ADAPTIVE 沉浸毛玻璃，按系统算力/光感强弱分档适配
+        //  - lightColor 为材质光效着色（深色下用浅色高光，浅色下用品牌色低饱和光效），增强光感层次
+        //  - barBottomMargin 贴近底部，内容区底部已加 padding 防止遮挡
+        .barOverlap(true) // 内容与底栏重叠，由 barFloatingStyle 控制悬浮外观
+        .barFloatingStyle({
+          barWidth: { smallWidth: 340, mediumWidth: 420, largeWidth: 500 },
+          barSideMargin: 12, // 悬浮栏距屏幕左右边缘
+          barBottomMargin: 4 + px2vp(this.bottomInsetPx), // 距屏幕底部尽量小（贴近底部，含小白条安全区）
+          adaptToHandedness: true, // 左右手自适应
+          lightColor: this.isDarkMode ? '#40FFFFFF' : '#20FFFFFF', // 光效颜色：深色半透白高光 / 浅色低饱和
+          systemMaterialEffect: {
+            materialType: hdsMaterial.MaterialType.IMMERSIVE, // 沉浸式系统材质（毛玻璃光感）
+            materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE // 随系统沉浸光感强弱自适应
+          }
+        })
+        .width('100%')
+        .height('100%')
+        .onChange((index: number) => {
+          if (index === this.currentIndex) {
+            return;
+          }
+          // 瞬时切换（无淡入淡出）：避免整页透明度 0→1 造成切换闪烁
+          this.currentIndex = index;
+        })
+      }
+      .hideTitleBar(true)
+      .backgroundColor(Color.Transparent)
+      .mode(NavigationMode.Stack)
+      .navDestination(this.pageMap)
       .width('100%')
       .height('100%')
-      .onChange((index: number) => {
-        this.currentIndex = index;
-      })
     }
-    .hideTitleBar(true)
-    .mode(NavigationMode.Stack)
-    .navDestination(this.pageMap)
     .width('100%')
     .height('100%')
   }

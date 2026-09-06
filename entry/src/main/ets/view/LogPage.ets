@@ -657,7 +657,9 @@ export struct LogPage {
           AppState.stack.pop();
         })
       }
+      .backgroundColor($r('app.color.bg_page'))
       .hideTitleBar(true)
+      .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
       .width('100%').height('100%')
     }
   }
@@ -706,6 +708,7 @@ export struct LogPage {
         })
       }
       .width('100%').height('100%')
-      .backgroundColor($r('app.color.bg_page'))
+      // 全局壁纸：二级页根背景透明，透出主框架底层壁纸（无壁纸时由 MainView 底层纯色兜底）
+      .backgroundColor(Color.Transparent)
     }
   }

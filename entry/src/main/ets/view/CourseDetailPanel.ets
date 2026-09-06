@@ -7,6 +7,7 @@
 import { promptAction } from '@kit.ArkUI';
 import { JwApi } from '../api/JwApi';
 import { DataStore } from '../common/DataStore';
+import { Theme } from '../common/ThemeUtil';
 import { COURSE_BG_HEX } from '../common/ScheduleConfig';
 import { CourseItem } from '../model/Models';
 import { EMPTY_COURSE } from '../model/Empty';
@@ -35,6 +36,7 @@ const COURSE_PALETTES: string[][] = [
 
 @Component
 export struct CourseDetailPanel {
+  @StorageProp('themeColor') themeColor: string = 'green';
   /** 当前课程（只读展示 + 颜色选择目标） */
   @Prop selected: CourseItem = EMPTY_COURSE;
   /** 父组件颜色 map（只读输入，初始化镜像用） */
@@ -194,9 +196,9 @@ export struct CourseDetailPanel {
             // 一键为所有课程分配颜色
             Text('一键分配')
               .fontSize(12)
-              .fontColor($r('app.color.brand'))
+              .fontColor(Theme.colorOf(this.themeColor))
               .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-              .backgroundColor($r('app.color.brand_light'))
+              .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
               .borderRadius(4)
               .margin({ right: 8 })
               .onClick(() => {
@@ -232,7 +234,7 @@ export struct CourseDetailPanel {
                 .layoutWeight(1)
                 .height(30)
                 .textAlign(TextAlign.Center)
-                .backgroundColor(this.colorTab === i ? $r('app.color.brand') : $r('app.color.bg_chip'))
+                .backgroundColor(this.colorTab === i ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
                 .borderRadius(8)
                 .margin({ right: i < 2 ? 6 : 0 })
                 .onClick(() => {
@@ -252,7 +254,7 @@ export struct CourseDetailPanel {
                 .backgroundColor(p)
                 .border({
                   width: p === this.disp[this.selected.name] ? 3 : 1,
-                  color: p === this.disp[this.selected.name] ? $r('app.color.brand') : '#CCCCCC'
+                  color: p === this.disp[this.selected.name] ? Theme.colorOf(this.themeColor) : '#CCCCCC'
                 })
                 .margin({ right: 12, top: 10 })
                 .onClick(() => {
@@ -274,8 +276,8 @@ export struct CourseDetailPanel {
             .width('100%')
             .height(44)
             .fontSize(15)
-            .fontColor($r('app.color.brand'))
-            .backgroundColor($r('app.color.brand_light'))
+            .fontColor(Theme.colorOf(this.themeColor))
+            .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
             .borderRadius(12)
             .margin({ top: 12 })
             .onClick(() => {

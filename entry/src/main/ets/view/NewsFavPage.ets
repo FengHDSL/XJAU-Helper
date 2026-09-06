@@ -7,11 +7,14 @@ import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
+import { BackButton } from './common/BackButton';
+import { WallpaperFill } from './common/WallpaperFill';
 
 @Component
 export struct NewsFavPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 收藏列表（NewsItem） */
   @State items: NewsItem[] = [];
@@ -74,13 +77,21 @@ export struct NewsFavPage {
 
   build() {
     NavDestination() {
+      // 二级页壁纸底层（无壁纸回 bg_page，不透下层）
+      Stack({ alignContent: Alignment.TopStart }) {
+        WallpaperFill()
       Column() {
+        // 顶栏（两层）：内容(底)/主题渐变(顶)；模糊层已取消
+        Stack({ alignContent: Alignment.TopStart }) {
+          Column()
+            .width('100%')
+            .height(px2vp(this.topInsetPx) + 60)
+            .linearGradient({
+              angle: 180,
+              colors: Theme.barGradient(this.themeColor, this.barStyle)
+            })
         Row() {
-          Text('‹')
-            .fontSize(26)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
-            .width(34).height(34).textAlign(TextAlign.Center)
-            .onClick(() => { AppState.stack.pop(); })
+          BackButton({ onBack: () => { AppState.stack.pop(); } })
           Text('我的收藏')
             .fontSize(18).fontWeight(FontWeight.Bold)
             .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
@@ -97,7 +108,8 @@ export struct NewsFavPage {
         .width('100%').alignItems(VerticalAlign.Center)
         .height(px2vp(this.topInsetPx) + 60)
         .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-        .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
+        }
+        .width('100%')
 
         if (this.items.length === 0) {
           Column() {
@@ -151,9 +163,15 @@ export struct NewsFavPage {
         }
       }
       .width('100%').height('100%')
-      .backgroundColor($r('app.color.bg_page'))
+      // 全局壁纸：二级页根背景透明，透出主框架底层壁纸（无壁纸时由 MainView 底层纯色兜底）
+      .backgroundColor(Color.Transparent)
+      }
+      .width('100%')
+      .height('100%')
     }
+    .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)
+    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
     .width('100%').height('100%')
   }
 }

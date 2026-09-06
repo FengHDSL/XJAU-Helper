@@ -43,6 +43,7 @@ struct NewsRow {
           }
         }
         Column() {
+          // 标题随深浅主题（text_primary）
           Text(this.item.title).fontSize(15).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
@@ -62,13 +63,17 @@ export struct NewsPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
-  @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  @StorageProp('barStyle') barStyle: string = 'new';
   /** 调试模式（AppStorage 响应式）：开启后功能浏览模式允许加载新闻 */
   @StorageProp('debugNetwork') @Watch('onDebugNetworkChanged') debugNetwork: boolean = false;
   @State currentTab: number = 0;
   @State showWeb: boolean = false;
   @State keyword: string = '';
   @State refreshing: boolean = false;
+  /** 顶栏板块（农大要闻等）是否收起：上滑浏览时隐藏、下滑回顶时展示 */
+  @State tabsBarHidden: boolean = false;
+  /** 各板块列表上次滚动起始下标（用于判断滚动方向） */
+  private lastTabStart: number[] = [0, 0, 0, 0];
   /** 每个板块的新闻列表 */
   @State lists: NewsItem[][] = [[], [], [], []];
   /** 每个板块的加载状态 */
@@ -83,7 +88,9 @@ export struct NewsPage {
   @State pendingMore: NewsItem[][] = [[], [], [], []];
   /** 每个板块是否已加载过（懒加载去重） */
   private loadedTabs: boolean[] = [false, false, false, false];
-  private tabs: string[] = ['农大要闻', '综合新闻', '教学科研', '媒体农大'];
+  private tabs: string[] = ['要闻', '综合', '科研', '媒体'];
+  /** 板块切换控制器：自绘板块栏点击 / 列表滑动联动 Tabs 切页 */
+  private tabsController: TabsController = new TabsController();
   controller: webview.WebviewController = new webview.WebviewController();
   /** 横屏标记（平板横屏下每个板块新闻分两列显示） */
   @State isLandscape: boolean = false;
@@ -217,12 +224,27 @@ export struct NewsPage {
     AppState.stack.pushPath({ name: Const.ROUTE_SEARCH });
   }
 
-  @Builder tabBar(index: number, name: string) {
-    Text(name).fontSize(14)
+  /** 自绘板块按钮（视觉同原 Tabs bar：选中白胶囊/主题色字；点击/滑动共用 TabsController 切换）。
+   *  颜色固定浅色观感，不受深色模式影响（新闻页自身为白字/主题渐变风格） */
+  @Builder tabPill(index: number, name: string) {
+    Text(name)
+      .fontSize(14)
       .fontWeight(this.currentTab === index ? FontWeight.Bold : FontWeight.Normal)
-      .fontColor(this.currentTab === index ? $r('app.color.brand_on') : $r('app.color.text_primary'))
-      .padding({ left: 16, right: 16, top: 7, bottom: 7 }).borderRadius(16)
-      .backgroundColor(this.currentTab === index ? $r('app.color.brand') : Color.Transparent)
+      // 胶囊板块：未选=黑/白（随深浅）+chip 底；选中=主题色底 + 白字
+      .fontColor(this.currentTab === index ? Color.White : $r('app.color.text_primary'))
+      .padding({ left: 16, right: 16, top: 6, bottom: 6 })
+      .borderRadius(16)
+      .backgroundColor(this.currentTab === index ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
+      .margin({ right: 8 })
+      .onClick(() => {
+        if (this.currentTab !== index) {
+          this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
+            this.currentTab = index;
+          });
+          this.tabsController.changeIndex(index);
+        }
+        this.setTabsHidden(false); // 点击板块：展开板块栏
+      })
   }
 
   @Builder webSheet() {
@@ -242,7 +264,7 @@ export struct NewsPage {
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.listLoading[index]) {
       Column() {
-        LoadingProgress().width(32).height(32).color($r('app.color.brand'))
+        LoadingProgress().width(32).height(32).color(Theme.colorOf(this.themeColor))
         Text('加载中').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 10 })
       }
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
@@ -265,6 +287,10 @@ export struct NewsPage {
     } else {
       Refresh({ refreshing: $$this.refreshing }) {
         List() {
+          // 顶栏占位（随内容滚走）：列表初始从悬浮头（渐变顶栏+透明板块栏）下方开始，上滑后内容进入其下层
+          ListItem() {
+            Column().width('100%').height(px2vp(this.topInsetPx) + 60 + 44)
+          }
           // 横屏：每 ListItem 一行两列新闻；竖屏：单列
           if (this.isLandscape) {
             ForEach(this.newsRowStarts(index), (start: number) => {
@@ -305,7 +331,7 @@ export struct NewsPage {
                     onTap: () => { this.openDetail(item); }
                   })
                   if (i < this.lists[index].length - 1) {
-                    Divider().color($r('app.color.divider')).margin({ left: 16, right: 16 })
+                    Divider().color('#E9EDEB').margin({ left: 16, right: 16 })
                   }
                 }
               }
@@ -315,7 +341,7 @@ export struct NewsPage {
           ListItem() {
             Column() {
               if (this.loadingMore[index]) {
-                LoadingProgress().width(22).height(22).color($r('app.color.brand')).margin({ top: 14 })
+                LoadingProgress().width(22).height(22).color(Theme.colorOf(this.themeColor)).margin({ top: 14 })
                 Text('加载中…').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 6 })
               } else if (!this.hasMore[index]) {
                 Text('已加载全部新闻').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 14 })
@@ -333,10 +359,30 @@ export struct NewsPage {
         .width('100%').layoutWeight(1)
         .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring)
         .onReachEnd(() => { this.loadMore(index); })
+        .onScrollIndex((start: number) => {
+          // 方向判定：start 增大 = 上滑浏览（收起板块栏）；start 减小 = 下滑（立即展示）
+          const prev: number = this.lastTabStart[index];
+          this.lastTabStart[index] = start;
+          if (!this.tabsBarHidden && start > prev && start >= 2) {
+            this.setTabsHidden(true); // 上滑浏览超过阈值：收起板块栏
+          } else if (this.tabsBarHidden && start < prev) {
+            this.setTabsHidden(false); // 下滑即展示板块栏（不必滑回顶部）
+          }
+        })
       }
       .width('100%').height('100%')
       .onRefreshing(() => { this.refreshCurrent(); })
     }
+  }
+
+  /** 收起/展开板块栏（带平滑动画） */
+  private setTabsHidden(hidden: boolean): void {
+    if (this.tabsBarHidden === hidden) {
+      return;
+    }
+    this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
+      this.tabsBarHidden = hidden;
+    });
   }
 
   /** 横屏两列：返回每行的起始下标（0,2,4,...） */
@@ -351,6 +397,16 @@ export struct NewsPage {
 
   build() {
     Column() {
+      // 三层悬浮顶栏：内容(底) / 全透明模糊(中) / 主题渐变(顶)
+      Stack({ alignContent: Alignment.TopStart }) {
+      // 模糊层已取消（用户要求：内容直接透渐变）
+        Column()
+          .width('100%')
+          .height(px2vp(this.topInsetPx) + 60)
+          .linearGradient({
+            angle: 180,
+            colors: Theme.barGradient(this.themeColor, this.barStyle)
+          })
       Row() {
         Text('农大新闻').fontSize(20).fontWeight(FontWeight.Bold).fontColor(Color.White)
         // 搜索框：输入框，回车跳转搜索结果页
@@ -393,22 +449,63 @@ export struct NewsPage {
       }
       .width('100%').height(px2vp(this.topInsetPx) + 60)
       .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-      .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
       .alignItems(VerticalAlign.Center)
+      }
+      // 内容穿透：三层悬浮顶栏（底层内容→中层全透明模糊→顶层主题渐变），不占布局空间
+      .width('100%')
+      .position({ x: 0, y: 0 })
+      .zIndex(2)
 
-      Tabs({ barPosition: BarPosition.Start, index: this.currentTab }) {
+      // 板块栏（自绘于 Tabs 外）：收起/展开做「高度折叠 + 淡出」平滑动画；
+      // 系统 Tabs bar 固定隐藏，切页由 TabsController 联动（点板块 / 左右滑动均可）。
+      Column() {
+        // 板块较多时横向滑动（右侧自动裁剪无遮拦），点击/滑动仍联动 TabsController
+        Scroll() {
+          Row() {
+            ForEach(this.tabs, (name: string, index: number) => {
+              this.tabPill(index, name)
+            }, (name: string) => name)
+          }
+          .height(44)
+          .alignItems(VerticalAlign.Top)
+          .padding({ left: 8, right: 8, top: 6 })
+        }
+        .scrollable(ScrollDirection.Horizontal)
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.None)
+        .width('100%')
+        .height(44)
+      }
+      .width('100%')
+      .height(this.tabsBarHidden ? 0 : 44)
+      .opacity(this.tabsBarHidden ? 0 : 1)
+      // 板块栏全透明：直接透过显示底层（壁纸/滚动上来的内容），不加主题渐变
+      .backgroundColor(Color.Transparent)
+      .clip(true)
+      // 内容穿透：悬浮于渐变顶栏正下方（y=顶栏高），不占布局空间
+      .position({ x: 0, y: px2vp(this.topInsetPx) + 60 })
+      .zIndex(1)
+
+      Tabs({ barPosition: BarPosition.Start, index: this.currentTab, controller: this.tabsController }) {
         ForEach(this.tabs, (name: string, index: number) => {
           TabContent() { this.tabNewsList(index) }
-          .tabBar(this.tabBar(index, name))
-          .onAppear(() => { this.ensureLoaded(index); })
+            .onAppear(() => { this.ensureLoaded(index); })
         }, (name: string) => name)
       }
-      .vertical(false).barMode(BarMode.Fixed).barWidth('100%').barHeight(52)
-      .barBackgroundColor($r('app.color.bg_card')).animationDuration(200)
-      .onChange((index: number) => { this.currentTab = index; })
+      .vertical(false).barMode(BarMode.Fixed).barWidth('100%')
+      .barHeight(0) // 系统 tabBar 已隐藏：板块栏由上方自绘栏承担
+      .animationDuration(200)
+      .onChange((index: number) => {
+        // 左右滑动/点击切页：胶囊选中态随动画淡出淡入（颜色过渡，无跳变）
+        this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
+          this.currentTab = index;
+        });
+        this.setTabsHidden(false); // 切换板块：展开板块栏
+      })
       .layoutWeight(1).width('100%')
     }
-    .width('100%').height('100%').backgroundColor($r('app.color.bg_page'))
+    .width('100%').height('100%')
+    // 跟随全局主题（透明：透出主框架壁纸/底色；深色时随 bg_page 兜底）
     .bindSheet($$this.showWeb, this.webSheet(), {
       width: SheetUtil.sheetWidth(),
       preferType: SheetType.BOTTOM,

@@ -12,10 +12,13 @@ import { Const } from '../common/Constants';
 import { LogStore } from '../common/LogStore';
 import { JwApi } from '../api/JwApi';
 import { PageHeader } from './common/UiKit';
+import { WallpaperFill } from './common/WallpaperFill';
 
 @Component
 export struct AboutPage {
+  @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 应用图标连点计数（5 次内有效） */
   @State iconTapCount: number = 0;
   /** 调试模式密码输入弹窗开关 */
@@ -207,17 +210,16 @@ export struct AboutPage {
 
   build() {
     NavDestination() {
-      Column() {
-        PageHeader({
-          title: '关于',
-          subtitle: '新农助手',
-          onBack: () => {
-            AppState.stack.pop();
-          }
-        })
-
+      Stack({ alignContent: Alignment.TopStart }) {
+        // 二级页壁纸底层（无壁纸回 bg_page，不透下层）
+        WallpaperFill()
+        // 内容全屏：顶部占位随内容滚走，让上滑的内容进入悬浮顶栏下层
         Scroll() {
           Column() {
+            // 顶栏占位（滚动时随内容滚走）：初始内容位于渐变顶栏下方
+            Column()
+              .width('100%')
+              .height(px2vp(this.topInsetPx) + 60)
             // 应用图标 + 名称 + 版本（连点 5 次进入隐藏调试模式）
             Column() {
               Image($r('app.media.startIcon'))
@@ -233,7 +235,7 @@ export struct AboutPage {
                 .fontWeight(FontWeight.Bold)
                 .fontColor($r('app.color.text_primary'))
                 .margin({ top: 12 })
-              Text('版本 1.2.6')
+              Text('版本 1.3.2')
                 .fontSize(12)
                 .fontColor($r('app.color.text_tertiary'))
                 .margin({ top: 4 })
@@ -246,9 +248,9 @@ export struct AboutPage {
             .alignItems(HorizontalAlign.Center)
             .padding({ top: 10, bottom: 16 })
 
-            // 应用简介（用户可快速了解功能）
+            // 应用简介（单独卡片）
             Column() {
-              Text('XJAU-Helper（新农大助手）是一款专为新疆农业大学学生打造的鸿蒙原生校园工具，集课表、成绩、考试、学业情况、校历、通知公告、空闲教室查询、农大新闻于一体。数据来自学校服务网页，不经过第三方服务器，不上传、不存储任何个人信息，完全开源。让校园学习更高效！')
+              Text('新农助手（XJAU Helper）是一款专为新疆农业大学学生打造的校园工具，原生鸿蒙开发，完全开源，完全免费，轻量小巧，集成个人课表、成绩查询、考试安排、学业情况、教室查询等功能于一体！数据来源于学校网页，数据不经过也不保存于非学校官方服务器。新农助手，让你的校园生活更便利！')
                 .fontSize(12)
                 .lineHeight(20)
                 .fontColor($r('app.color.text_secondary'))
@@ -256,7 +258,38 @@ export struct AboutPage {
                 .width('100%')
             }
             .width('100%')
-            .padding({ left: 20, right: 20, bottom: 20 })
+            .padding(16)
+            .backgroundColor($r('app.color.bg_card'))
+            .borderRadius(16)
+            .margin({ bottom: 12 })
+
+            this.changelog('1.3.2', '2026-09-06', [
+              '新增个性主题功能',
+              'UI界面换新'
+            ])
+
+            this.changelog('1.3.1', '2026-09-03', [
+              '优化部分界面的显示效果'
+            ])
+
+            this.changelog('1.3.0', '2026-09-01', [
+              '修一些已知问题',
+              '优化部分UI效果'
+            ])
+
+            this.changelog('1.2.9', '2026-09-01', [
+              '优化部分功能逻辑'
+            ])
+
+            this.changelog('1.2.8', '2026-08-31', [
+              '修复了一些已知问题'
+            ])
+
+            this.changelog('1.2.7', '2026-08-31', [
+              'API 变更为 API26 正式版',
+              '修复日历显示错误的 bug（绿色圆点未更新到正确日期、周数显示错误）',
+              '部分细节调整，以完成华为审核要求'
+            ])
 
             this.changelog('1.2.6', '2026-08-19', [
               '修改登录方式，默认使用服务大厅登录',
@@ -324,15 +357,28 @@ export struct AboutPage {
           .padding({ left: 16, right: 16, top: 4 })
         }
         .scrollBar(BarState.Off)
-        .layoutWeight(1)
+        .width('100%')
+        .height('100%')
         .align(Alignment.Top)
         .edgeEffect(EdgeEffect.Spring)
+
+        // 悬浮顶栏：主题色渐变到透明，内容可滚入其下层
+        PageHeader({
+          title: '关于应用',
+          subtitle: '新农助手',
+          onBack: () => {
+            AppState.stack.pop();
+          }
+        })
       }
       .width('100%')
       .height('100%')
-      .backgroundColor($r('app.color.bg_page'))
+      // 全局壁纸：二级页根背景透明，透出主框架底层壁纸（无壁纸时由 MainView 底层纯色兜底）
+      .backgroundColor(Color.Transparent)
     }
+    .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)
+    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
     .width('100%')
     .height('100%')
     // 调试模式密码输入弹窗（连点图标 5 次触发）

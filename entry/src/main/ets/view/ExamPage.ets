@@ -13,6 +13,8 @@ import { DateUtil } from '../common/DateUtil';
 import { Theme } from '../common/ThemeUtil';
 import { ExamItem, TermInfo } from '../model/Models';
 import { EmptyTip, LoadingTip, TagChip } from './common/UiKit';
+import { BackButton } from './common/BackButton';
+import { WallpaperFill } from './common/WallpaperFill';
 
 @Component
 export struct ExamPage {
@@ -20,6 +22,7 @@ export struct ExamPage {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @State terms: TermInfo[] = [];
   @State selectedTermIndex: number = 0;
   @State exams: ExamItem[] = [];
@@ -252,7 +255,7 @@ export struct ExamPage {
         .margin({ top: 8 })
 
         Row() {
-          TagChip({ text: item.examType, color: $r('app.color.brand'), bg: $r('app.color.brand_light') })
+          TagChip({ text: item.examType, color: Theme.colorOf(this.themeColor), bg: Theme.rgba(Theme.colorOf(this.themeColor), 0.12) })
           Text(`座位号 ${item.seat}`)
             .fontSize(11)
             .fontColor($r('app.color.text_tertiary'))
@@ -307,8 +310,8 @@ export struct ExamPage {
         Row() {
           Button('导入日历')
             .fontSize(15)
-            .fontColor($r('app.color.brand'))
-            .backgroundColor($r('app.color.brand_light'))
+            .fontColor(Theme.colorOf(this.themeColor))
+            .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
             .height(44)
             .borderRadius(12)
             .layoutWeight(1)
@@ -366,7 +369,7 @@ export struct ExamPage {
               .width('100%')
               .height(46)
               .padding({ left: 16, right: 16 })
-              .backgroundColor(this.selectedTermIndex === index ? $r('app.color.brand') : $r('app.color.bg_chip'))
+              .backgroundColor(this.selectedTermIndex === index ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
               .borderRadius(10)
               .margin({ bottom: 8 })
               .onClick(() => {
@@ -503,7 +506,7 @@ export struct ExamPage {
                     Text('当前使用')
                       .fontSize(11)
                       .fontColor($r('app.color.brand_on'))
-                      .backgroundColor($r('app.color.brand'))
+                      .backgroundColor(Theme.colorOf(this.themeColor))
                       .height(24)
                       .padding({ left: 8, right: 8 })
                       .borderRadius(12)
@@ -511,8 +514,8 @@ export struct ExamPage {
                   } else {
                     Text('用作倒计时')
                       .fontSize(11)
-                      .fontColor($r('app.color.brand'))
-                      .backgroundColor($r('app.color.brand_light'))
+                      .fontColor(Theme.colorOf(this.themeColor))
+                      .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
                       .height(24)
                       .padding({ left: 8, right: 8 })
                       .borderRadius(12)
@@ -525,7 +528,7 @@ export struct ExamPage {
                 }
                 .width('100%')
                 .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-                .backgroundColor(this.pickedExamId === item.id ? $r('app.color.brand_light') : $r('app.color.bg_card'))
+                .backgroundColor(this.pickedExamId === item.id ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : $r('app.color.bg_card'))
                 .borderRadius(10)
                 .margin({ bottom: 6 })
               }
@@ -562,17 +565,20 @@ export struct ExamPage {
       // Stack 包裹：让"桌面卡片选考试"弹窗单独挂载在独立组件上，
       // 与外层 showTermSheet / 内层 showDetail 三种弹窗互不冲突
       Stack() {
+        // 二级页壁纸底层（无壁纸回 bg_page，不透下层）
+        WallpaperFill()
       Column() {
-        Row() {
-          Text('‹')
-            .fontSize(26)
-            .fontColor(Color.White)
-            .width(34)
-            .height(34)
-            .textAlign(TextAlign.Center)
-            .onClick(() => {
-              AppState.stack.pop();
+        // 顶栏（两层）：内容(底)/主题渐变(顶)；模糊层已取消
+        Stack({ alignContent: Alignment.TopStart }) {
+          Column()
+            .width('100%')
+            .height(px2vp(this.topInsetPx) + 60)
+            .linearGradient({
+              angle: 180,
+              colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
+        Row() {
+          BackButton({ onBack: () => { AppState.stack.pop(); } })
 
           Column() {
             Text('考试查询')
@@ -582,11 +588,11 @@ export struct ExamPage {
 Row() {
               Text(`${this.currentTermLabel()} · 待考 ${this.comingCount()} 场`)
                 .fontSize(11)
-                .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
+                .fontColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
               Image($r('app.media.list_bullet'))
                 .width(14)
                 .height(14)
-                .fillColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
+                .fillColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
                 .margin({ left: 3 })
             }
             .margin({ top: 3 })
@@ -615,7 +621,11 @@ Row() {
         .alignItems(VerticalAlign.Center)
         .padding({ left: 10, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
         .height(px2vp(this.topInsetPx) + 60)
-        .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
+        }
+        .width('100%')
+        // 顶栏悬浮：正文可滚入其渐变下层透出
+        .position({ x: 0, y: 0 })
+        .zIndex(2)
 
         // 考试详情弹层挂在内层容器，与外层"选择学期"弹层分离
         Column() {
@@ -625,6 +635,8 @@ Row() {
             Refresh({ refreshing: $$this.refreshing }) {
             Scroll() {
               Column() {
+                // 顶栏悬浮让位（正文默认从顶栏下方开始，上滑才滚入渐变下层）
+                Column().width('100%').height(px2vp(this.topInsetPx) + 60)
                 Row() {
                   Column() {
                     Text(this.nextExamText())
@@ -641,7 +653,7 @@ Row() {
                 }
                 .width('100%')
                 .padding(14)
-                .backgroundColor($r('app.color.brand_light'))
+                .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
                 .borderRadius(16)
                 .margin({ bottom: 14 })
 
@@ -665,7 +677,8 @@ Row() {
             }
             .layoutWeight(1)
             .height('100%')
-            .onRefreshing(() => { this.onRefresh(); })
+            .pullToRefresh(false)
+          .onRefreshing(() => { this.onRefresh(); })
           }
         }
         .width('100%')
@@ -681,7 +694,8 @@ Row() {
       }
       .width('100%')
       .height('100%')
-      .backgroundColor($r('app.color.bg_page'))
+      // 全局壁纸：二级页根背景透明，透出主框架底层壁纸（无壁纸时由 MainView 底层纯色兜底）
+      .backgroundColor(Color.Transparent)
       .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
         width: SheetUtil.sheetWidth(),
         preferType: SheetType.BOTTOM,
@@ -703,6 +717,8 @@ Row() {
         title: { title: '选择桌面卡片倒计时' }
       })
     }
+    .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)
+    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
   }
 }

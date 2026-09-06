@@ -2,7 +2,7 @@
  * 我的：学业概览 + 常用功能 + 设置
  */
 import { promptAction, mediaquery } from '@kit.ArkUI';
-import { common, contextConstant } from '@kit.AbilityKit';
+import { common, contextConstant, ConfigurationConstant, Want } from '@kit.AbilityKit';
 import { storageStatistics, fileIo, picker, fileUri } from '@kit.CoreFileKit';
 import { webview } from '@kit.ArkWeb';
 import { JwApi } from '../api/JwApi';
@@ -19,12 +19,15 @@ export struct MineView {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 日志调试开关（AppStorage 响应式）：开启后显示「日志详情」入口 */
   @StorageProp('logEnabled') logEnabled: boolean = false;
   /** 日志收集状态（AppStorage 响应式）：收集中=亮绿灯，暂停=灰灯 */
   @StorageProp('logCollecting') logCollecting: boolean = true;
   @StorageLink('showAvatar') showAvatar: boolean = false;
+  /** 全局壁纸 id（我的页入口显示当前状态） */
+  @StorageProp('wallpaperId') wallpaperId: string = 'none';
   @State report: AcademicReport = EMPTY_REPORT;
   @State loaded: boolean = false;
   @State syncing: boolean = false;
@@ -37,6 +40,62 @@ export struct MineView {
   /** 前往登录页（不退出登录，从"我的"页退出弹窗第二项触发） */
   onGotoLogin: () => void = () => {
   };
+
+  /** 当前主题显示名（三色枚举 / 自定义 hex 原样大写） */
+  private themeNameText(): string {
+    const t: string = this.themeColor;
+    if (Theme.isHex(t)) {
+      return t.toUpperCase();
+    }
+    if (t === 'red') {
+      return '中国红';
+    }
+    if (t === 'blue') {
+      return '天空蓝';
+    }
+    return '农大绿';
+  }
+
+  /** 壁纸摘要（跟随全局 wallpaperId 实时刷新） */
+  private wallpaperValueText(): string {
+    const id: string = this.wallpaperId;
+    if (id === 'none' || id.length === 0) {
+      return '未设置';
+    }
+    if (id.startsWith('c:')) {
+      return '自定义';
+    }
+    return `内置 ${id.substring(1)}`;
+  }
+
+  /** 个性主题行右侧摘要：主题色 · 壁纸状态（未设置壁纸时只显示主题色） */
+  private personaValueText(): string {
+    const wp: string = this.wallpaperValueText();
+    if (wp === '未设置') {
+      return this.themeNameText();
+    }
+    return `${this.themeNameText()} · ${wp}`;
+  }
+
+  /** 深色模式当前设置摘要（跟随系统 / 深色 / 浅色） */
+  private darkValueText(): string {
+    if (!DataStore.hasDarkSetting()) {
+      return '跟随系统';
+    }
+    return DataStore.isDarkOn() ? '深色' : '浅色';
+  }
+
+  /** 切换应用颜色模式：使 $r() 资源（文字/背景）与深色状态一致，保证可读性 */
+  private applyColorMode(dark: boolean): void {
+    try {
+      const ctx = getContext(this) as common.UIAbilityContext;
+      ctx.getApplicationContext()
+        .setColorMode(dark ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+          : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT);
+    } catch (e) {
+      // ignore
+    }
+  }
 
   /** 页面出现：加载学业概览并刷新缓存大小 */
   aboutToAppear(): void {
@@ -373,8 +432,16 @@ export struct MineView {
 
   @Builder
   titleBar() {
-    // 顶部固定标题栏：浅色=主题色（中国红/天空蓝/农大绿），深色=黑色
-    // 高度与其他主题色顶栏统一（topInset + 72vp 外高，内容区 48vp）
+    // 顶部固定标题栏（三层）：最下内容 → 中全透明模糊层 → 顶主题色渐变
+    Stack({ alignContent: Alignment.TopStart }) {
+      // 顶：主题色渐变
+      Column()
+        .width('100%')
+        .height(px2vp(this.topInsetPx) + 60)
+        .linearGradient({
+          angle: 180,
+          colors: Theme.barGradient(this.themeColor, this.barStyle)
+        })
     Row() {
       Text('我的')
         .fontSize(20)
@@ -386,7 +453,11 @@ export struct MineView {
     .height(px2vp(this.topInsetPx) + 60)
     .alignItems(VerticalAlign.Center)
     .padding({ left: 16, right: 16, top: px2vp(this.topInsetPx) + 12, bottom: 12 })
-    .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
+    }
+    .width('100%')
+    // 内容穿透：整个三层标题栏悬浮最上层、不占布局空间，内容可滚入其下层
+    .position({ x: 0, y: 0 })
+    .zIndex(2)
   }
 
   @Builder
@@ -413,7 +484,7 @@ export struct MineView {
           Text(AppState.avatarText())
             .fontSize(17)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.brand'))
+            .fontColor(Theme.colorOf(this.themeColor))
             .width(52)
             .height(52)
             .borderRadius(26)
@@ -492,7 +563,7 @@ export struct MineView {
         Text(this.loaded ? `${this.report.totalEarned}` : '--')
           .fontSize(18)
           .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.brand'))
+          .fontColor(Theme.colorOf(this.themeColor))
         Text('已修学分')
           .fontSize(11)
           .fontColor($r('app.color.text_tertiary'))
@@ -535,6 +606,10 @@ export struct MineView {
       Row() {
         Scroll() {
           Column() {
+          // 顶栏占位（随内容滚走）：内容初始位于悬浮渐变标题栏下方，上滑后进入其下层
+          Column()
+            .width('100%')
+            .height(px2vp(this.topInsetPx) + 60)
           // 头像卡片（始终显示；圆形头像由 showAvatar 开关控制）
           Row() {
             this.avatarCard()
@@ -543,33 +618,51 @@ export struct MineView {
 
           this.academicCard()
 
-          // 主题颜色 + 头像显示（上移到个人卡片区，学业情况下方）
+          // 个性主题（主题色/全局壁纸）→ 深色模式 → 头像显示
           Column() {
             SettingRow({
-              icon: '', title: '主题颜色', value: this.themeColor === 'red' ? '中国红' : (this.themeColor === 'blue' ? '天空蓝' : '农大绿'), onTap: () => {
+              icon: '', title: '个性主题', value: this.personaValueText(), onTap: () => {
+                AppState.stack.pushPath({ name: Const.ROUTE_WALLPAPER });
+              }
+            })
+            Divider().color($r('app.color.divider'))
+            // 深色模式：跟随系统 / 深色 / 浅色（切换即时生效，同时切换资源色保证文字可读）
+            SettingRow({
+              icon: '', title: '深色模式', value: this.darkValueText(), onTap: () => {
                 promptAction.showActionMenu({
-                  title: '顶栏主题色',
+                  title: '深色模式',
                   buttons: [
-                    { text: '中国红', color: '#C3272B' },
-                    { text: '天空蓝', color: '#3B82F6' },
-                    { text: '农大绿', color: '#079841' }
+                    { text: '跟随系统', color: '#666666' },
+                    { text: '深色', color: '#666666' },
+                    { text: '浅色', color: '#666666' }
                   ]
                 }).then((res) => {
-                  const themes: string[] = ['red', 'blue', 'green'];
-                  if (res.index >= 0 && res.index < themes.length) {
-                    Theme.apply(themes[res.index]);
+                  if (res.index === 0) {
+                    DataStore.clearDark();
+                    AppStorage.setOrCreate('darkManual', false);
+                    const sysDark: boolean = AppStorage.get<boolean>('systemDark') ?? false;
+                    AppStorage.setOrCreate('isDarkMode', sysDark);
+                    this.applyColorMode(sysDark);
+                  } else if (res.index === 1 || res.index === 2) {
+                    const on: boolean = res.index === 1;
+                    DataStore.setDark(on);
+                    AppStorage.setOrCreate('darkManual', true);
+                    AppStorage.setOrCreate('isDarkMode', on);
+                    this.applyColorMode(on);
                   }
+                  promptAction.showToast({ message: '深色模式已切换' });
                 });
               }
             })
             Divider().color($r('app.color.divider'))
+
             Row() {
               Text('头像显示')
                 .fontSize(15)
                 .fontColor($r('app.color.text_primary'))
               Blank()
               Toggle({ type: ToggleType.Switch, isOn: this.showAvatar })
-                .selectedColor($r('app.color.brand'))
+                .selectedColor(Theme.colorOf(this.themeColor))
                 .onChange((isOn: boolean) => {
                   this.showAvatar = isOn;
                   DataStore.put(DataStore.KEY_SHOW_AVATAR, isOn ? '1' : '0');
@@ -587,7 +680,7 @@ export struct MineView {
           // 常用功能：空闲教室查询 / 考试查询 / 学业情况
           Column() {
             SettingRow({
-              icon: '', title: '空闲教室查询', onTap: () => {
+              icon: '', title: '教室查询', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_EMPTY_ROOM });
               }
             })
@@ -614,7 +707,7 @@ export struct MineView {
           Column() {
             // 1. 网页端教务系统
             SettingRow({
-              icon: '', title: '网页端教务系统', value: '', onTap: () => {
+              icon: '', title: '教务系统', value: '', onTap: () => {
                 this.openWebPortal();
               }
             })
@@ -664,7 +757,7 @@ export struct MineView {
           .borderRadius(18)
           .margin({ top: 14 })
 
-          // 设置（数据同步 → 头像显示 → 清除缓存 → 恢复备份 → 清空数据 → 隐私协议 → 关于）
+          // 设置（数据同步 → 清除缓存 → 恢复备份 → 清空数据 → 隐私协议 → 关于）
           Column() {
             // 1. 数据同步
             SettingRow({
@@ -733,7 +826,7 @@ export struct MineView {
               }
             })
             Divider().color($r('app.color.divider'))
-            // 7. 清空数据（确认后提示手动重启）
+            // 7. 清空数据（确认后自动重启应用）
             SettingRow({
               icon: '', title: '清空数据', value: '', onTap: () => {
                 promptAction.showDialog({
@@ -747,11 +840,13 @@ export struct MineView {
                   if (res.index === 1) {
                     DataStore.clearAll();
                     AppState.profile = null;
-                    promptAction.showDialog({
-                      title: '清空完成',
-                      message: '全部数据已清空，请手动重启应用以刷新界面',
-                      buttons: [{ text: '知道了', color: '#1B7F5F' }]
-                    });
+                    promptAction.showToast({ message: '数据已清空，正在重启…' });
+                    const ctx = getContext(this) as common.UIAbilityContext;
+                    const want: Want = {
+                      bundleName: 'com.xndhelper.lzb',
+                      abilityName: 'EntryAbility'
+                    };
+                    ctx.restartApp(want);
                   }
                 });
               }
@@ -766,7 +861,7 @@ export struct MineView {
             Divider().color($r('app.color.divider'))
             // 9. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于', value: 'v1.2.6', onTap: () => {
+              icon: '', title: '关于应用', value: 'v1.3.2', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
@@ -778,7 +873,7 @@ export struct MineView {
                 icon: '',
                 title: '日志详情',
                 value: this.logCollecting ? '● 收集中' : '○ 已暂停',
-                valueColor: this.logCollecting ? $r('app.color.brand') : $r('app.color.text_tertiary'),
+                valueColor: this.logCollecting ? Theme.colorOf(this.themeColor) : $r('app.color.text_tertiary'),
                 onTap: () => {
                   AppState.stack.pushPath({ name: Const.ROUTE_LOG });
                 }
@@ -822,7 +917,8 @@ export struct MineView {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.bg_page'))
+    // 壁纸功能：页面根背景透明，让主框架底层的全局壁纸透出（无壁纸时由 MainView 底层 bg_page 兜底）
+    .backgroundColor(Color.Transparent)
   }
 
   @Builder
@@ -831,6 +927,10 @@ export struct MineView {
       // 左列：个人信息 + 常用功能
       Scroll() {
         Column() {
+          // 顶栏占位（随内容滚走）：内容从悬浮渐变标题栏下方开始
+          Column()
+            .width('100%')
+            .height(px2vp(this.topInsetPx) + 60)
           this.minePersonalSection()
         }
         .width('100%')
@@ -845,6 +945,10 @@ export struct MineView {
       // 右列：设置
       Scroll() {
         Column() {
+          // 顶栏占位（随内容滚走）：内容从悬浮渐变标题栏下方开始
+          Column()
+            .width('100%')
+            .height(px2vp(this.topInsetPx) + 60)
           this.mineSettingsSection()
         }
         .width('100%')
@@ -871,22 +975,39 @@ export struct MineView {
 
     this.academicCard()
 
-    // 主题颜色 + 头像显示（上移到个人卡片区，学业情况下方）
+    // 个性主题（主题色/全局壁纸）→ 深色模式 → 头像显示
     Column() {
       SettingRow({
-        icon: '', title: '主题颜色', value: this.themeColor === 'red' ? '中国红' : (this.themeColor === 'blue' ? '天空蓝' : '农大绿'), onTap: () => {
+        icon: '', title: '个性主题', value: this.personaValueText(), onTap: () => {
+          AppState.stack.pushPath({ name: Const.ROUTE_WALLPAPER });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      // 深色模式：跟随系统 / 深色 / 浅色
+      SettingRow({
+        icon: '', title: '深色模式', value: this.darkValueText(), onTap: () => {
           promptAction.showActionMenu({
-            title: '顶栏主题色',
+            title: '深色模式',
             buttons: [
-              { text: '中国红', color: '#C3272B' },
-              { text: '天空蓝', color: '#3B82F6' },
-              { text: '农大绿', color: '#079841' }
+              { text: '跟随系统', color: '#666666' },
+              { text: '深色', color: '#666666' },
+              { text: '浅色', color: '#666666' }
             ]
           }).then((res) => {
-            const themes: string[] = ['red', 'blue', 'green'];
-            if (res.index >= 0 && res.index < themes.length) {
-              Theme.apply(themes[res.index]);
+            if (res.index === 0) {
+              DataStore.clearDark();
+              AppStorage.setOrCreate('darkManual', false);
+              const sysDark: boolean = AppStorage.get<boolean>('systemDark') ?? false;
+              AppStorage.setOrCreate('isDarkMode', sysDark);
+              this.applyColorMode(sysDark);
+            } else if (res.index === 1 || res.index === 2) {
+              const on: boolean = res.index === 1;
+              DataStore.setDark(on);
+              AppStorage.setOrCreate('darkManual', true);
+              AppStorage.setOrCreate('isDarkMode', on);
+              this.applyColorMode(on);
             }
+            promptAction.showToast({ message: '深色模式已切换' });
           });
         }
       })
@@ -897,7 +1018,7 @@ export struct MineView {
           .fontColor($r('app.color.text_primary'))
         Blank()
         Toggle({ type: ToggleType.Switch, isOn: this.showAvatar })
-          .selectedColor($r('app.color.brand'))
+          .selectedColor(Theme.colorOf(this.themeColor))
           .onChange((isOn: boolean) => {
             this.showAvatar = isOn;
             DataStore.put(DataStore.KEY_SHOW_AVATAR, isOn ? '1' : '0');
@@ -915,7 +1036,7 @@ export struct MineView {
     // 常用功能：空闲教室查询 / 考试查询 / 学业情况
     Column() {
       SettingRow({
-        icon: '', title: '空闲教室查询', onTap: () => {
+        icon: '', title: '教室查询', onTap: () => {
           AppState.stack.pushPath({ name: Const.ROUTE_EMPTY_ROOM });
         }
       })
@@ -944,7 +1065,7 @@ export struct MineView {
     Column() {
       // 1. 网页端教务系统（最顶上）
       SettingRow({
-        icon: '', title: '网页端教务系统', value: '', onTap: () => {
+        icon: '', title: '教务系统', value: '', onTap: () => {
           this.openWebPortal();
         }
       })
@@ -1051,7 +1172,7 @@ export struct MineView {
         }
       })
       Divider().color($r('app.color.divider'))
-      // 7. 清空数据（确认后提示手动重启）
+      // 7. 清空数据（确认后自动重启应用）
       SettingRow({
         icon: '', title: '清空数据', value: '', onTap: () => {
           promptAction.showDialog({
@@ -1065,11 +1186,13 @@ export struct MineView {
             if (res.index === 1) {
               DataStore.clearAll();
               AppState.profile = null;
-              promptAction.showDialog({
-                title: '清空完成',
-                message: '全部数据已清空，请手动重启应用以刷新界面',
-                buttons: [{ text: '知道了', color: '#1B7F5F' }]
-              });
+              promptAction.showToast({ message: '数据已清空，正在重启…' });
+              const ctx = getContext(this) as common.UIAbilityContext;
+              const want: Want = {
+                bundleName: 'com.xndhelper.lzb',
+                abilityName: 'EntryAbility'
+              };
+              ctx.restartApp(want);
             }
           });
         }
@@ -1084,7 +1207,7 @@ export struct MineView {
       Divider().color($r('app.color.divider'))
       // 9. 关于（打开独立页面）
       SettingRow({
-        icon: '', title: '关于', value: 'v1.2.6', onTap: () => {
+        icon: '', title: '关于应用', value: 'v1.3.2', onTap: () => {
           AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
         }
       })
@@ -1096,7 +1219,7 @@ export struct MineView {
           icon: '',
           title: '日志详情',
           value: this.logCollecting ? '● 收集中' : '○ 已暂停',
-          valueColor: this.logCollecting ? $r('app.color.brand') : $r('app.color.text_tertiary'),
+          valueColor: this.logCollecting ? Theme.colorOf(this.themeColor) : $r('app.color.text_tertiary'),
           onTap: () => {
             AppState.stack.pushPath({ name: Const.ROUTE_LOG });
           }

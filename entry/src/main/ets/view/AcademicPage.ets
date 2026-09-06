@@ -12,22 +12,42 @@
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { LogStore } from '../common/LogStore';
+import { AntiPeepManager } from '../common/AntiPeepManager';
 import { CourseItem, AcademicReport, CreditCategory, TermScore } from '../model/Models';
 import { EMPTY_REPORT } from '../model/Empty';
 import { LoadingTip, PageHeader, StatCell } from './common/UiKit';
+import { AntiPeepOverlay } from './common/AntiPeepOverlay';
+import { WallpaperFill } from './common/WallpaperFill';
+import { Theme } from '../common/ThemeUtil';
 
 @Component
 export struct AcademicPage {
+  @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
+  /** 沉浸光感：卡片玻璃化 */
+  @StorageProp('glassEnabled') glassEnabled: boolean = false;
+  @StorageProp('glassBlur') glassBlur: number = 16;
+  @StorageProp('glassRefract') glassRefract: number = 40;
   @State report: AcademicReport = EMPTY_REPORT;
   @State courses: CourseItem[] = [];
   @State termScores: TermScore[] = [];
   @State loading: boolean = true;
   @State refreshing: boolean = false;
+  @State isPeeped: boolean = false;
+  private peepMgr: AntiPeepManager = new AntiPeepManager();
 
   /** 页面出现：触发学业数据加载 */
   aboutToAppear(): void {
     this.load();
+    // 启动防窥保护监听
+    this.peepMgr.start((hidden: boolean) => { this.isPeeped = hidden; });
+  }
+
+  aboutToDisappear(): void {
+    this.peepMgr.stop();
   }
 
   private async load(): Promise<void> {
@@ -61,6 +81,15 @@ export struct AcademicPage {
   }
 
   /** 下拉刷新：重新加载学业情况 */
+  private async buttonRefresh(): Promise<void> {
+    if (this.refreshing) {
+      return;
+    }
+    this.refreshing = true;
+    await this.load();
+    this.refreshing = false;
+  }
+
   private async onRefresh(): Promise<void> {
     await this.load();
     this.refreshing = false;
@@ -172,7 +201,7 @@ export struct AcademicPage {
               .fontColor($r('app.color.text_secondary'))
             Text(`  ${this.percent(item.earned, item.required)}%`)
               .fontSize(12)
-              .fontColor($r('app.color.brand'))
+              .fontColor(this.pctColor(this.percent(item.earned, item.required)))
           }
           .width('100%')
 
@@ -185,7 +214,7 @@ export struct AcademicPage {
             Row()
               .width(`${this.percent(item.earned, item.required)}%`)
               .height(7)
-              .backgroundColor($r('app.color.brand'))
+              .backgroundColor(this.pctColor(this.percent(item.earned, item.required)))
               .borderRadius(4)
           }
           .width('100%')
@@ -260,23 +289,42 @@ export struct AcademicPage {
     return p > 100 ? 100 : p;
   }
 
+  /** 进度条颜色按完成度分档（静态语义，不随主题）：<40 橙 / 40-70 琥珀 / 70-95 农大绿 / ≥95 深绿 */
+  private pctColor(p: number): ResourceColor {
+    if (p < 40) {
+      return $r('app.color.accent_orange');
+    }
+    if (p < 70) {
+      return '#D98E04';
+    }
+    if (p < 95) {
+      return '#079841';
+    }
+    return '#0B6E3B';
+  }
+
   build() {
     NavDestination() {
-      Column() {
-        PageHeader({
-          title: '学业情况',
-          subtitle: AppState.profile !== null ? `${AppState.profile.major} · ${AppState.profile.grade}` : '',
-          onBack: () => {
-            AppState.stack.pop();
-          }
-        })
-
+      Stack({ alignContent: Alignment.TopStart }) {
+        // 二级页壁纸底层（无壁纸回 bg_page，不透下层）
+        WallpaperFill()
+        Column() {
         if (this.loading) {
-          LoadingTip()
+          // 悬浮顶栏下垂直居中
+          Column() {
+            LoadingTip()
+          }
+          .width('100%')
+          .height('100%')
+          .justifyContent(FlexAlign.Center)
         } else {
           Refresh({ refreshing: $$this.refreshing }) {
           Scroll() {
             Column() {
+              // 顶栏让位 spacer（与成绩页同款：下拉刷新指示位置统一）
+              Column()
+                .width('100%')
+                .height(px2vp(this.topInsetPx) + 60 + (this.barStyle === 'legacy' ? 14 : 0))
               this.gpaCard()
               this.overviewRow()
               this.categorySection()
@@ -285,7 +333,7 @@ export struct AcademicPage {
                 .height(px2vp(this.bottomInsetPx) + 24)
             }
             .width('100%')
-            .padding({ left: 16, right: 16, top: 14 })
+            .padding({ left: 16, right: 16 })
           }
           .scrollBar(BarState.Off)
           .layoutWeight(1)
@@ -294,13 +342,36 @@ export struct AcademicPage {
           }
           .layoutWeight(1)
           .height('100%')
+          .pullToRefresh(false)
           .onRefreshing(() => { this.onRefresh(); })
         }
       }
       .width('100%')
       .height('100%')
-      .backgroundColor($r('app.color.bg_page'))
+      // 全局壁纸：二级页根背景透明，透出主框架底层壁纸（无壁纸时由 MainView 底层纯色兜底）
+      .backgroundColor(Color.Transparent)
+
+        // 顶栏悬浮（最上层）：正文 Scroll 顶部已让位，上滑可滚入其渐变下层透出
+        PageHeader({
+          title: '学业情况',
+          subtitle: AppState.profile !== null ? `${AppState.profile.major} · ${AppState.profile.grade}` : '',
+          actionText: '刷新',
+          actionTone: 'glass',
+          onAction: () => {
+            this.buttonRefresh();
+          },
+          onBack: () => {
+            AppState.stack.pop();
+          }
+        })
+
+        AntiPeepOverlay({ isPeeped: this.isPeeped })
+      }
+      .width('100%')
+      .height('100%')
     }
+    .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)
+    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
   }
 }

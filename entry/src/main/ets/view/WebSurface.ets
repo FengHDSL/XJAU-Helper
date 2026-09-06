@@ -27,6 +27,9 @@ export struct WebSurface {
   /** WebviewController 附着后回调（供外层菜单操作前进后退/刷新/UA/历史等） */
   onControllerReady: (ctrl: webview.WebviewController) => void = () => {
   };
+  /** 页面加载完成（onPageEnd）后回调（外层可执行初始滚动让位等） */
+  onLoadEnd: () => void = () => {
+  };
   private controller: webview.WebviewController = new webview.WebviewController();
   /** 防止网页版登录成功回调被重复触发 */
   private loggedIn: boolean = false;
@@ -246,6 +249,8 @@ export struct WebSurface {
           if (pageTitle.length > 0) {
             this.onTitleChange(pageTitle);
           }
+          // 通知外层（外部链接页用它做初始滚动让位：网页顶部落到悬浮顶栏下方）
+          this.onLoadEnd();
           // 浏览校园 SSO 页面（服务大厅/智慧学工/第二课堂等）时刷新捕获的会话 Cookie，
           // 保证下次「服务大厅/第二课堂」入口打开即是登录态
           if (url.indexOf('xjau.edu.cn') >= 0) {

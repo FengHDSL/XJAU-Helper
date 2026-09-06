@@ -27,6 +27,7 @@ export struct ScheduleView {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @State courses: CourseItem[] = [];
   @State terms: TermInfo[] = [];
@@ -386,7 +387,9 @@ export struct ScheduleView {
     if (next < 1 || next > this.currentTerm().totalWeeks) {
       return;
     }
-    this.viewWeek = next;
+    this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
+      this.viewWeek = next;
+    });
   }
 
   /** 全部周次列表（1..totalWeeks），用于快速选择 */
@@ -443,7 +446,16 @@ export struct ScheduleView {
 
   @Builder
   topBar() {
-    // 顶部标题栏：浅色=主题色（中国红/天空蓝/农大绿），深色=黑色；文字白色
+    // 顶部标题栏（三层）：内容(底) / 全透明模糊(中) / 主题渐变(顶)
+    Stack({ alignContent: Alignment.TopStart }) {
+      // 顶：主题色渐变
+      Column()
+        .width('100%')
+        .height(px2vp(this.topInsetPx) + 60)
+        .linearGradient({
+          angle: 180,
+          colors: Theme.barGradient(this.themeColor, this.barStyle)
+        })
     Column() {
       Row() {
         Column() {
@@ -477,12 +489,12 @@ export struct ScheduleView {
           Row() {
             Text(this.currentTerm().label)
               .fontSize(11)
-              .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
+              .fontColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
             // 学期选择箭头：list.png 图标，深色模式用浅色 fillColor 适配
             Image($r('app.media.list_bullet'))
               .width(14)
               .height(14)
-              .fillColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
+              .fillColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
               .margin({ left: 3 })
           }
           .margin({ top: 3 })
@@ -491,6 +503,8 @@ export struct ScheduleView {
           })
         }
         .alignItems(HorizontalAlign.Start)
+        // ★ 主标题整组微调：只改这个 offset 的 y（正=下移 / 负=上移）
+        .offset({ y: 2.5 })
 
         Blank()
 
@@ -547,7 +561,8 @@ export struct ScheduleView {
     .height(px2vp(this.topInsetPx) + 60)
     .justifyContent(FlexAlign.Center)
     .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-    .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
+    }
+    .width('100%')
   }
 
   @Builder
@@ -566,16 +581,16 @@ export struct ScheduleView {
           Text(Const.WEEK_SHORT[wd - 1])
             .fontSize(this.cfg.headerFontSize)
             .fontWeight(this.isToday(wd) ? FontWeight.Bold : FontWeight.Normal)
-            .fontColor(this.isToday(wd) ? $r('app.color.brand') : $r('app.color.text_secondary'))
+            .fontColor(this.isToday(wd) ? Theme.colorOf(this.themeColor) : $r('app.color.text_secondary'))
           Text(`${this.dateOf(wd).getMonth() + 1}/${this.dateOf(wd).getDate()}`)
             .fontSize(11)
-            .fontColor(this.isToday(wd) ? $r('app.color.brand') : $r('app.color.text_tertiary'))
+            .fontColor(this.isToday(wd) ? Theme.colorOf(this.themeColor) : $r('app.color.text_tertiary'))
             .margin({ top: 2 })
         }
         .layoutWeight(1)
         .margin({ left: 2, right: 2 })
         .padding({ top: 7, bottom: 7 })
-        .backgroundColor(this.isToday(wd) ? $r('app.color.brand_light') : Color.Transparent)
+        .backgroundColor(this.isToday(wd) ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : Color.Transparent)
         .borderRadius(8)
       }, (wd: number) => `w${wd}`)
     }
@@ -601,7 +616,7 @@ export struct ScheduleView {
               .height(4)
               .fill(this.isDotFilled(week, day, row) ?
                 (week === this.viewWeek ? $r('app.color.brand_on') :
-                  (week === this.currentWeek ? $r('app.color.brand') : $r('app.color.text_secondary'))) :
+                  (week === this.currentWeek ? Theme.colorOf(this.themeColor) : $r('app.color.text_secondary'))) :
                 (week === this.viewWeek ? 'rgba(255,255,255,0.3)' : $r('app.color.divider')))
               .margin(2)
           }, (day: number) => `d${day}`)
@@ -619,13 +634,13 @@ export struct ScheduleView {
           .fontSize(13)
           .fontWeight(week === this.viewWeek ? FontWeight.Bold : FontWeight.Normal)
           .fontColor(week === this.viewWeek ? $r('app.color.brand_on') :
-            (week === this.currentWeek ? $r('app.color.brand') : $r('app.color.text_primary')))
+            (week === this.currentWeek ? Theme.colorOf(this.themeColor) : $r('app.color.text_primary')))
         if (week === this.currentWeek) {
           Text('当前')
             .fontSize(9)
-            .fontColor($r('app.color.brand'))
+            .fontColor(Theme.colorOf(this.themeColor))
             .padding({ left: 4, right: 4, top: 1, bottom: 1 })
-            .backgroundColor($r('app.color.brand_light'))
+            .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
             .borderRadius(4)
             .margin({ top: 6 })
         }
@@ -638,8 +653,8 @@ export struct ScheduleView {
     }
     .width('100%')
     .padding(12)
-    .backgroundColor(week === this.viewWeek ? $r('app.color.brand') :
-      (week === this.currentWeek ? $r('app.color.brand_light') : $r('app.color.bg_chip')))
+    .backgroundColor(week === this.viewWeek ? Theme.colorOf(this.themeColor) :
+      (week === this.currentWeek ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : $r('app.color.bg_chip')))
     .borderRadius(10)
     .onClick(onClick)
   }
@@ -653,13 +668,13 @@ export struct ScheduleView {
           .fontSize(13)
           .fontWeight(week === this.viewWeek ? FontWeight.Bold : FontWeight.Normal)
           .fontColor(week === this.viewWeek ? $r('app.color.brand_on') :
-            (week === this.currentWeek ? $r('app.color.brand') : $r('app.color.text_primary')))
+            (week === this.currentWeek ? Theme.colorOf(this.themeColor) : $r('app.color.text_primary')))
         if (week === this.currentWeek) {
           Text('当前')
             .fontSize(9)
-            .fontColor($r('app.color.brand'))
+            .fontColor(Theme.colorOf(this.themeColor))
             .padding({ left: 4, right: 4, top: 1, bottom: 1 })
-            .backgroundColor($r('app.color.brand_light'))
+            .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
             .borderRadius(4)
             .margin({ left: 4 })
         }
@@ -670,8 +685,8 @@ export struct ScheduleView {
     }
     .width('100%')
     .padding(10)
-    .backgroundColor(week === this.viewWeek ? $r('app.color.brand') :
-      (week === this.currentWeek ? $r('app.color.brand_light') : $r('app.color.bg_chip')))
+    .backgroundColor(week === this.viewWeek ? Theme.colorOf(this.themeColor) :
+      (week === this.currentWeek ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : $r('app.color.bg_chip')))
     .borderRadius(10)
     .onClick(onClick)
   }
@@ -807,6 +822,7 @@ export struct ScheduleView {
       this.selected = course;
       this.showSheet = true;
     })
+    .transition(TransitionEffect.OPACITY)
   }
 
   /**
@@ -918,7 +934,9 @@ export struct ScheduleView {
         ForEach(this.weekList(), (w: number) => {
           ListItem() {
             this.weekItemCard(w, () => {
-              this.viewWeek = w;
+              this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
+                this.viewWeek = w;
+              });
               this.showWeekSheet = false;
             })
           }
@@ -960,7 +978,7 @@ export struct ScheduleView {
           .width('100%')
           .height(46)
           .padding({ left: 16, right: 16 })
-          .backgroundColor(index === this.selectedTermIndex ? $r('app.color.brand') : $r('app.color.bg_chip'))
+          .backgroundColor(index === this.selectedTermIndex ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
           .borderRadius(10)
           .margin({ bottom: 8 })
           .onClick(() => {
@@ -1050,6 +1068,7 @@ export struct ScheduleView {
       }
       .width('100%')
       .height('100%')
+      // 课程表保持自身不透明底色，不受全局壁纸影响（表格信息密度高，铺壁纸可读性差）
       .backgroundColor($r('app.color.bg_page'))
       .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
         height: SheetSize.FIT_CONTENT,
@@ -1161,7 +1180,9 @@ export struct ScheduleView {
         ForEach(this.weekList(), (w: number) => {
           GridItem() {
             this.weekItemCardGrid(w, () => {
-              this.viewWeek = w;
+              this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
+                this.viewWeek = w;
+              });
             })
           }
         }, (w: number) => `wk${w}`)
@@ -1195,7 +1216,9 @@ export struct ScheduleView {
             ForEach(this.weekList(), (w: number) => {
               GridItem() {
                 this.weekItemCardGrid(w, () => {
-                  this.viewWeek = w;
+                  this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
+                    this.viewWeek = w;
+                  });
                 })
               }
             }, (w: number) => `landwk${w}`)

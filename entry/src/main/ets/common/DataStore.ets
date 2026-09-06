@@ -120,6 +120,8 @@ export class DataStore {
   static readonly KEY_PRIVACY_AGREED_AT: string = 'privacy_agreed_at';
   // 账号风控提醒是否已展示（首次启动，开发者声明之后）
   static readonly KEY_RISK_TIP_SHOWN: string = 'risk_tip_shown';
+  // 开发者声明是否已展示（同意隐私后改为"用户首次任意点击"时弹出，仅一次）
+  static readonly KEY_DECLARATION_SHOWN: string = 'declaration_shown';
   // 网页登录会话 Cookie（持久化，下次启动恢复）
   static readonly KEY_SESSION_COOKIE: string = 'session_cookie';
   // 自动重新登录凭据（账号+加密密码，冷启动时静默重登刷新会话）
@@ -238,6 +240,65 @@ export class DataStore {
   /** 标记风控提醒已展示 */
   static setRiskTipShown(): void {
     DataStore.put(DataStore.KEY_RISK_TIP_SHOWN, '1');
+  }
+
+  /** 开发者声明是否已展示过（同意隐私后首次点击弹出，仅一次） */
+  static isDeclarationShown(): boolean {
+    return DataStore.get(DataStore.KEY_DECLARATION_SHOWN) === '1';
+  }
+
+  /** 标记开发者声明已展示 */
+  static setDeclarationShown(): void {
+    DataStore.put(DataStore.KEY_DECLARATION_SHOWN, '1');
+  }
+
+  // ── 全局壁纸（我的页选择，主界面背景；b1~b6 预置，c:<path> 相册导入，'none'=未启用）──
+  static readonly KEY_WALLPAPER: string = 'wallpaper_id';
+
+  /** 保存当前壁纸 id（空串/'none'=未启用） */
+  static saveWallpaper(id: string): void {
+    DataStore.put(DataStore.KEY_WALLPAPER, id);
+  }
+
+  /** 读取当前壁纸 id（空串=未设置，默认 'none' 由调用方兜底） */
+  static loadWallpaper(): string {
+    return DataStore.get(DataStore.KEY_WALLPAPER);
+  }
+
+  // ── 深色模式（手动开关；未设置时跟随系统）──
+  static readonly KEY_DARK: string = 'dark_mode';
+
+  /** 手动深色是否已设置（空=未设置，跟随系统） */
+  static hasDarkSetting(): boolean {
+    const v: string = DataStore.get(DataStore.KEY_DARK);
+    return v === '1' || v === '0';
+  }
+
+  /** 是否深色模式（读取手动设置值） */
+  static isDarkOn(): boolean {
+    return DataStore.get(DataStore.KEY_DARK) === '1';
+  }
+
+  /** 设置深色模式 */
+  static setDark(on: boolean): void {
+    DataStore.put(DataStore.KEY_DARK, on ? '1' : '0');
+  }
+
+  // ── 顶栏样式：新版(渐变, 默认) / 旧版 1.3.1 实色 ──
+  static readonly KEY_BAR_STYLE: string = 'bar_style';
+
+  static barStyle(): string {
+    const raw: string = DataStore.get(DataStore.KEY_BAR_STYLE);
+    return raw === 'legacy' ? 'legacy' : 'new';
+  }
+
+  static setBarStyle(style: string): void {
+    DataStore.put(DataStore.KEY_BAR_STYLE, style === 'legacy' ? 'legacy' : 'new');
+  }
+
+  /** 清除手动设置（恢复跟随系统） */
+  static clearDark(): void {
+    DataStore.put(DataStore.KEY_DARK, '');
   }
 
   /** 记录一次成功登录的账号（去重、置顶、最多保留 8 个，密码 base64+XOR 编码存储） */

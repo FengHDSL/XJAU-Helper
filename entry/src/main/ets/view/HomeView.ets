@@ -32,6 +32,7 @@ export struct HomeView {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @StorageLink('showAvatar') showAvatar: boolean = false;
   @State todayCourses: TodayCourse[] = [];
@@ -201,15 +202,25 @@ export struct HomeView {
 
   /**
    * 寻找今天之后最近的一节课（用于"无课时下次课预告"）。
-   * 1) 当前周 weekday > 今天 weekday
+   * 1) 当前周 weekday > 今天 weekday（今天的课已全部结束，视为"今天没课了"，从明天起找）
    * 2) 否则后续周 weekday 升序
    */
   private findNextFutureCourse(courses: CourseItem[], term: TermInfo): NextFutureCourse | null {
     const todayW: number = DateUtil.weekdayOf(new Date());
     const cw: number = DateUtil.weekOfTerm(term, new Date());
-    for (let w: number = todayW + 1; w <= 7; w++) {
+    const nowMin: number = DateUtil.minutesOfNow();
+    // 1) 当前周，今天及之后
+    for (let w: number = todayW; w <= 7; w++) {
       for (const c of courses) {
         if (c.weekday === w && c.weeks.includes(cw)) {
+          // 今天的课必须还没结束；明天及之后的课直接命中
+          if (w === todayW) {
+            const e: number = Math.max(1, Math.min(Const.SECTION_COUNT, c.endSection));
+            const endMin: number = DateUtil.minutesOf(Const.SECTIONS[e - 1].end);
+            if (nowMin > endMin) {
+              continue;
+            }
+          }
           const dt: Date = DateUtil.dateOfWeekDay(term, cw, w);
           return {
             course: c,
@@ -374,8 +385,16 @@ export struct HomeView {
 
   @Builder
   titleBar() {
-    // 顶部固定标题栏：浅色=主题色（中国红/天空蓝/农大绿），深色=黑色
-    // 高度与其他主题色顶栏统一（topInset + 72vp 外高，内容区 48vp）
+    // 顶部固定标题栏（三层）：最下内容 → 中全透明模糊层 → 顶主题色渐变
+    Stack({ alignContent: Alignment.TopStart }) {
+      // 顶：主题色渐变
+      Column()
+        .width('100%')
+        .height(px2vp(this.topInsetPx) + 60)
+        .linearGradient({
+          angle: 180,
+          colors: Theme.barGradient(this.themeColor, this.barStyle)
+        })
     Row() {
       Text('首页')
         .fontSize(20)
@@ -413,13 +432,13 @@ export struct HomeView {
           ? this.terms[this.selectedTermIndex].label
           : AppState.term.label)
           .fontSize(11)
-          .fontColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
+          .fontColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Image($r('app.media.list_bullet'))
           .width(14)
           .height(14)
-          .fillColor(this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')
+          .fillColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
           .margin({ left: 4 })
       }
       .padding({ left: 10, right: 6, top: 4, bottom: 4 })
@@ -432,7 +451,11 @@ export struct HomeView {
     .height(px2vp(this.topInsetPx) + 60)
     .alignItems(VerticalAlign.Center)
     .padding({ left: 16, right: 16, top: px2vp(this.topInsetPx) + 12, bottom: 12 })
-    .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
+    }
+    .width('100%')
+    // 内容穿透：整个三层标题栏悬浮最上层、不占布局空间，内容可滚入其下层
+    .position({ x: 0, y: 0 })
+    .zIndex(2)
   }
 
   /** 学期选择弹层（全局设置） */
@@ -464,7 +487,7 @@ export struct HomeView {
               .width('100%')
               .height(46)
               .padding({ left: 16, right: 16 })
-              .backgroundColor(this.selectedTermIndex === index ? $r('app.color.brand') : $r('app.color.bg_chip'))
+              .backgroundColor(this.selectedTermIndex === index ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
               .borderRadius(10)
               .margin({ bottom: 8 })
               .onClick(() => {
@@ -506,7 +529,7 @@ export struct HomeView {
           Text(AppState.avatarText())
             .fontSize(17)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.brand'))
+            .fontColor(Theme.colorOf(this.themeColor))
             .width(52)
             .height(52)
             .borderRadius(26)
@@ -564,13 +587,19 @@ export struct HomeView {
   todayCard() {
     Column() {
       Row() {
+        Divider()
+          .vertical(true)
+          .strokeWidth(3)
+          .color(Theme.colorOf(this.themeColor))
+          .height(14)
+          .margin({ right: 8 })
         Text('下一节课')
           .fontSize(16)
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.text_primary'))
         Blank()
         if (this.todayCourses.length > 0) {
-          Text(this.nextClass === null ? '今日已结束' : `今日 ${this.todayCourses.length} 节`)
+          Text(this.nextClass === null ? '今日课程已结束' : `今日 ${this.todayCourses.length} 节`)
             .fontSize(12)
             .fontColor($r('app.color.text_tertiary'))
         }
@@ -578,6 +607,8 @@ export struct HomeView {
       .width('100%')
       .margin({ bottom: 12 })
 
+      // 卡片主体（"下一节课"标题单独在卡片外显示）
+      Column() {
       if (this.todayCourses.length === 0) {
         // 无今日课时：当前没课了哦！ + 随机鼓励文案 + 下次课预告（点击跳课程表打开详情）
         Column() {
@@ -591,12 +622,12 @@ export struct HomeView {
             Row() {
               // 左侧竖条：下次课 三个字竖排
               Column() {
-                Text('下').fontSize(13).fontWeight(FontWeight.Medium).fontColor($r('app.color.brand'))
-                Text('次').fontSize(13).fontWeight(FontWeight.Medium).fontColor($r('app.color.brand'))
-                Text('课').fontSize(13).fontWeight(FontWeight.Medium).fontColor($r('app.color.brand'))
+                Text('下').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
+                Text('次').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
+                Text('课').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
               }
               .padding(10)
-              .backgroundColor($r('app.color.brand_light'))
+              .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
               .justifyContent(FlexAlign.Center)
               .alignItems(HorizontalAlign.Center)
               .borderRadius({ topLeft: 16, bottomLeft: 16 })
@@ -628,7 +659,7 @@ export struct HomeView {
                 Text(this.nextFutureCourse.dateLabel)
                   .fontSize(11)
                   .fontWeight(FontWeight.Medium)
-                  .fontColor($r('app.color.brand'))
+                  .fontColor(Theme.colorOf(this.themeColor))
                   .textAlign(TextAlign.Center)
                 Text(this.nextFutureCourse.timeRange)
                   .fontSize(11)
@@ -648,24 +679,82 @@ export struct HomeView {
         }
         .width('100%')
       } else if (this.nextClass === null) {
-        Row() {
-          Text('🎉')
-            .fontSize(26)
-            .margin({ right: 12 })
-          Column() {
-            Text('今日课程已全部结束')
-              .fontSize(16)
-              .fontWeight(FontWeight.Medium)
-              .fontColor($r('app.color.text_primary'))
-            Text(`今天共 ${this.todayCourses.length} 节课，辛苦啦`)
-              .fontSize(12)
-              .fontColor($r('app.color.text_secondary'))
-              .margin({ top: 4 })
+        Column() {
+          Row() {
+            Text('🎉')
+              .fontSize(26)
+              .margin({ right: 12 })
+            Column() {
+              Text('今日课程已全部结束')
+                .fontSize(16)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.text_primary'))
+              Text(`今天共 ${this.todayCourses.length} 节课，辛苦啦`)
+                .fontSize(12)
+                .fontColor($r('app.color.text_secondary'))
+                .margin({ top: 4 })
+            }
+            .alignItems(HorizontalAlign.Start)
           }
-          .alignItems(HorizontalAlign.Start)
+          .width('100%')
+          .padding({ top: 8, bottom: 8 })
+          if (this.nextFutureCourse !== null) {
+            Row() {
+              Column() {
+                Text('下').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
+                Text('次').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
+                Text('课').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
+              }
+              .padding(10)
+              .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
+              .justifyContent(FlexAlign.Center)
+              .alignItems(HorizontalAlign.Center)
+              .borderRadius({ topLeft: 16, bottomLeft: 16 })
+
+              Column() {
+                Text(this.nextFutureCourse.course.name)
+                  .fontSize(18)
+                  .fontWeight(FontWeight.Bold)
+                  .fontColor($r('app.color.text_primary'))
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .textAlign(TextAlign.Center)
+                  .width('100%')
+                Text(this.nextFutureCourse.course.location)
+                  .fontSize(11)
+                  .fontColor($r('app.color.text_secondary'))
+                  .textAlign(TextAlign.Center)
+                  .width('100%')
+                  .margin({ top: 6 })
+              }
+              .layoutWeight(1)
+              .alignItems(HorizontalAlign.Center)
+              .padding({ left: 8, right: 8, top: 12, bottom: 12 })
+              .border({ width: { right: 1 }, color: $r('app.color.divider') })
+
+              Column() {
+                Text(this.nextFutureCourse.dateLabel)
+                  .fontSize(11)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(Theme.colorOf(this.themeColor))
+                  .textAlign(TextAlign.Center)
+                Text(this.nextFutureCourse.timeRange)
+                  .fontSize(11)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.text_primary'))
+                  .textAlign(TextAlign.Center)
+                  .margin({ top: 3 })
+              }
+              .padding({ left: 10, right: 12 })
+              .justifyContent(FlexAlign.Center)
+            }
+            .width('100%')
+            .backgroundColor($r('app.color.bg_chip'))
+            .borderRadius(16)
+            .margin({ top: 12 })
+          }
         }
         .width('100%')
-        .padding({ top: 8, bottom: 8 })
       } else {
         Row() {
           Column() {
@@ -685,7 +774,7 @@ export struct HomeView {
             Circle()
               .width(8)
               .height(8)
-              .fill(this.nextClass!.ongoing ? $r('app.color.brand') : Const.COURSE_FG[this.nextClass!.course.colorIndex])
+              .fill(this.nextClass!.ongoing ? Theme.colorOf(this.themeColor) : Const.COURSE_FG[this.nextClass!.course.colorIndex])
           }
           .width(20)
           .margin({ top: 6 })
@@ -700,7 +789,7 @@ export struct HomeView {
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
                 .layoutWeight(1)
               if (this.nextClass!.ongoing) {
-                TagChip({ text: '进行中', color: $r('app.color.brand_on'), bg: $r('app.color.brand') })
+                TagChip({ text: '进行中', color: $r('app.color.brand_on'), bg: Theme.colorOf(this.themeColor) })
               } else {
                 TagChip({
                   text: this.countdownText(this.nextClass!),
@@ -712,13 +801,23 @@ export struct HomeView {
             .width('100%')
 
             Row() {
-              Text(`📍 ${this.nextClass!.course.location}`)
+              // 上课地点：地图定位图标（农大绿）
+              Image($r('app.media.map_badge_local'))
+                .width(13)
+                .height(13)
+              Text(this.nextClass!.course.location)
                 .fontSize(12)
                 .fontColor($r('app.color.text_secondary'))
-              Text(`👤 ${this.nextClass!.course.teacher}`)
+                .margin({ left: 4 })
+              // 授课教师：人像图标（农大绿）
+              Image($r('app.media.portrait'))
+                .width(13)
+                .height(13)
+                .margin({ left: 12 })
+              Text(this.nextClass!.course.teacher)
                 .fontSize(12)
                 .fontColor($r('app.color.text_secondary'))
-                .margin({ left: 10 })
+                .margin({ left: 4 })
               Blank()
               Text(`第 ${this.nextClass!.course.startSection}-${this.nextClass!.course.endSection} 节`)
                 .fontSize(11)
@@ -730,53 +829,67 @@ export struct HomeView {
           .layoutWeight(1)
           .padding({ left: 6 })
         }
-        .width('100%')
-        .alignItems(VerticalAlign.Top)
+          .width('100%')
+          .alignItems(VerticalAlign.Top)
+        }
       }
+      .width('100%')
+      .padding(16)
+      .backgroundColor($r('app.color.bg_card'))
+      .borderRadius(18)
+      .shadow({ radius: 16, color: '#0F000000', offsetY: 4 })
     }
     .width('100%')
-    .padding(16)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .shadow({ radius: 16, color: '#0F000000', offsetY: 4 })
   }
 
   @Builder
   quickEntries() {
-    Grid() {
-      ForEach(Const.QUICK_ENTRIES, (item: QuickEntry) => {
-        GridItem() {
-          Column() {
-            Row() {
-              Image(item.key === 'exam' ? $r('app.media.exam_entry') : $r('app.media.academic_entry'))
-                .width(20)
-                .height(20)
-                .fillColor(item.color)
-              Text(item.title)
-                .fontSize(14)
-                .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.text_primary'))
-                .margin({ left: 8 })
+    Column() {
+      SectionHeader({ title: '快捷入口', action: '', onAction: () => {} })
+      // 快捷入口卡（实色底）
+      Column() {
+        Grid() {
+        ForEach(Const.QUICK_ENTRIES, (item: QuickEntry) => {
+          GridItem() {
+            Column() {
+              Row() {
+                // 考试查询/学业情况图标（单色 SVG，随主题色渲染）
+                Image(item.key === 'exam' ? $r('app.media.exam_arrange') : $r('app.media.data_icon'))
+                  .width(22)
+                  .height(22)
+                  .objectFit(ImageFit.Contain)
+                  .fillColor(Theme.colorOf(this.themeColor))
+                Text(item.title)
+                  .fontSize(14)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor($r('app.color.text_primary'))
+                  .margin({ left: 8 })
+              }
+              .width('94%')
+              .height(48)
+              .justifyContent(FlexAlign.Center)
+              // 快捷入口胶囊（实色底）
+              .backgroundColor($r('app.color.bg_chip'))
+              .borderRadius(14)
             }
-            .width('90%')
-            .height(48)
-            .justifyContent(FlexAlign.Center)
-            .backgroundColor($r('app.color.bg_chip'))
-            .borderRadius(14)
+            .onClick(() => {
+              this.onEntryTap(item.key);
+            })
           }
-          .onClick(() => {
-            this.onEntryTap(item.key);
-          })
-        }
-      }, (item: QuickEntry) => item.key)
+        }, (item: QuickEntry) => item.key)
+      }
+        .columnsTemplate('1fr 1fr')
+        .rowsTemplate('1fr')
+        .width('100%')
+        .padding({ top: 6, bottom: 6 })
+      }
+      .width('100%')
+      .height(64) // 固定卡高（原液态玻璃容器高度），避免 Grid 内容撑高导致卡片拉长
+      .padding({ left: 16, right: 16 })
+      .backgroundColor($r('app.color.bg_card'))
+      .borderRadius(18)
     }
-    .columnsTemplate('1fr 1fr')
-    .rowsTemplate('1fr')
-    .height(64)
     .width('100%')
-    .padding({ top: 6, bottom: 6 })
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
   }
 
   @Builder
@@ -897,7 +1010,7 @@ export struct HomeView {
                 Blank()
                 Text('详情 ›')
                   .fontSize(11)
-                  .fontColor($r('app.color.brand'))
+                  .fontColor(Theme.colorOf(this.themeColor))
               }
               .width('100%')
               .margin({ top: 6 })
@@ -967,7 +1080,7 @@ export struct HomeView {
                 Blank()
                 Text('阅读 ›')
                   .fontSize(11)
-                  .fontColor($r('app.color.brand'))
+                  .fontColor(Theme.colorOf(this.themeColor))
               }
               .width('100%')
               .margin({ top: 6 })
@@ -1055,16 +1168,22 @@ export struct HomeView {
     .padding(16)
   }
 
+  /** 设备当前日期（yyyy-MM-dd），优先于校历内置 todayDate，避免缓存/预置数据过期 */
+  private effectiveToday(): string {
+    return DateUtil.format(new Date());
+  }
+
   /** 今日所属教学周次（开学后返回对应周次；未开学返回 0） */
   private todayTeachingWeek(): number {
     const cal: TeachingCalendar | null = this.teachingCal;
-    if (cal === null || cal.todayDate.length === 0) {
+    if (cal === null) {
       return 0;
     }
+    const today: string = this.effectiveToday();
     for (let r: number = 0; r < cal.rows.length; r++) {
       const dates: string[] = cal.rows[r].dates;
       for (let c: number = 0; c < dates.length; c++) {
-        if (dates[c] === cal.todayDate) {
+        if (dates[c] === today) {
           return cal.weekNumbers[c] !== undefined ? cal.weekNumbers[c] : 0;
         }
       }
@@ -1171,7 +1290,7 @@ export struct HomeView {
 
   /** 学期日历信息小标签 */
   @Builder
-  infoChip(text: string, color: Resource) {
+  infoChip(text: string, color: ResourceColor) {
     Text(text)
       .fontSize(11)
       .fontColor(color)
@@ -1204,10 +1323,15 @@ export struct HomeView {
     Column() {
       SectionHeader({ title: '日历', action: '', onAction: () => {} })
 
+      // 卡片主体（标题"日历"单独在卡片外，样式对齐"近期考试"）
+      Column() {
       if (this.teachingCal === null) {
-        LoadingTip({ text: '加载日历…' })
+        Column() {
+          LoadingTip({ text: '加载日历…' })
+        }
           .width('100%')
           .height(140)
+          .justifyContent(FlexAlign.Center)
           .backgroundColor($r('app.color.bg_card'))
           .borderRadius(18)
       } else {
@@ -1221,7 +1345,7 @@ export struct HomeView {
         Row() {
           // 未开学不显示周次，显示"未开学"
           if (this.isTermStarted()) {
-            this.infoChip(`第 ${this.todayTeachingWeek()} 周`, $r('app.color.brand'))
+            this.infoChip(`第 ${this.todayTeachingWeek()} 周`, Theme.colorOf(this.themeColor))
           } else {
             this.infoChip('未开学', $r('app.color.accent_orange'))
           }
@@ -1267,18 +1391,18 @@ export struct HomeView {
                           .fontSize(11)
                           .textAlign(TextAlign.Center)
                           .fontColor(
-                            day === this.teachingCal!.todayDate
+                            day === this.effectiveToday()
                               ? Color.White
                               : (this.isCalHoliday(day)
                                 ? $r('app.color.accent_orange')
                                 : (this.isInTerm(day) ? $r('app.color.text_primary') : $r('app.color.text_tertiary')))
                           )
-                          .fontWeight(day === this.teachingCal!.todayDate ? FontWeight.Bold : FontWeight.Normal)
+                          .fontWeight(day === this.effectiveToday() ? FontWeight.Bold : FontWeight.Normal)
                           .width(30)
                           .height(28)
                           .borderRadius(14)
                           .backgroundColor(
-                            day === this.teachingCal!.todayDate
+                            day === this.effectiveToday()
                               ? Theme.colorOf(this.themeColor)
                               : Color.Transparent
                           )
@@ -1318,15 +1442,17 @@ export struct HomeView {
         }
         .width('100%')
         .padding(12)
-        .backgroundColor($r('app.color.bg_chip'))
-        .borderRadius(12)
-        .margin({ top: 6 })
+          .backgroundColor($r('app.color.bg_chip'))
+          .borderRadius(12)
+          .margin({ top: 6 })
+        }
       }
+      .width('100%')
+      .padding(16)
+      .backgroundColor($r('app.color.bg_card'))
+      .borderRadius(18)
     }
     .width('100%')
-    .padding(16)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
     .margin({ top: 18 })
   }
 
@@ -1341,6 +1467,10 @@ export struct HomeView {
       Refresh({ refreshing: $$this.refreshing }) {
         Scroll() {
           Column() {
+            // 顶栏占位（随内容滚走）：内容初始位于悬浮渐变标题栏下方，上滑后进入其下层
+            Column()
+              .width('100%')
+              .height(px2vp(this.topInsetPx) + 60)
             // 头像卡片（始终显示；圆形头像由 showAvatar 开关控制）
             this.avatarCard()
 
@@ -1409,7 +1539,8 @@ export struct HomeView {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.bg_page'))
+    // 壁纸功能：页面根背景透明，让主框架底层的全局壁纸透出（无壁纸时由 MainView 底层 bg_page 兜底）
+    .backgroundColor(Color.Transparent)
     .bindSheet($$this.showNoticeSheet, this.noticeSheet(), {
       width: SheetUtil.sheetWidth(),
       preferType: SheetType.BOTTOM,
@@ -1426,6 +1557,10 @@ export struct HomeView {
       Refresh({ refreshing: $$this.refreshing }) {
         Scroll() {
           Column() {
+            // 顶栏占位（随内容滚走）
+            Column()
+              .width('100%')
+              .height(px2vp(this.topInsetPx) + 60)
             this.avatarCard()
             Column() {
               this.todayCard()
@@ -1462,6 +1597,10 @@ export struct HomeView {
       Refresh({ refreshing: $$this.refreshing }) {
         Scroll() {
           Column() {
+            // 顶栏占位（随内容滚走）
+            Column()
+              .width('100%')
+              .height(px2vp(this.topInsetPx) + 60)
             this.examSection()
             this.messageSection()
             this.noticeSection()

@@ -6,6 +6,7 @@
 import { promptAction } from '@kit.ArkUI';
 import { ScheduleConfig } from '../common/ScheduleConfig';
 import { DateUtil } from '../common/DateUtil';
+import { Theme } from '../common/ThemeUtil';
 
 const BG_PALETTE: string[] = [
   '#FFFFFF', '#FAF9F6', '#F0F0F0', '#F5F0E1', '#E8F0FE', '#E3F9E5',
@@ -26,6 +27,7 @@ const COLOR_PALETTE: string[] = [
 @Component
 struct ColorPickCell {
   @Link hex: string;
+  @StorageProp('themeColor') themeColor: string = 'green';
   palette: string[] = [];
   label: string = '';
   onChange: () => void = () => {};
@@ -50,14 +52,14 @@ struct ColorPickCell {
 
       Flex({ wrap: FlexWrap.Wrap }) {
         Column() {
-          Image($r('app.media.reload')).width(18).height(18).fillColor($r('app.color.text_secondary'))
+          Image($r('app.media.icon_restore')).width(18).height(18).fillColor($r('app.color.text_secondary'))
         }
         .width(34).height(34).borderRadius(17)
         .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
         .backgroundColor($r('app.color.bg_chip'))
         .border({
           width: this.hex.length === 0 ? 3 : 1,
-          color: this.hex.length === 0 ? $r('app.color.brand') : '#CCCCCC'
+          color: this.hex.length === 0 ? Theme.colorOf(this.themeColor) : '#CCCCCC'
         })
         .margin({ right: 12, top: 10 })
         .onClick(() => { this.hex = ''; this.onChange(); })
@@ -67,7 +69,7 @@ struct ColorPickCell {
             .width(34).height(34).borderRadius(17).backgroundColor(p)
             .border({
               width: p === this.hex ? 3 : 1,
-              color: p === this.hex ? $r('app.color.brand') : '#CCCCCC'
+              color: p === this.hex ? Theme.colorOf(this.themeColor) : '#CCCCCC'
             })
             .margin({ right: 12, top: 10 })
             .onClick(() => { this.hex = p; this.onChange(); })
@@ -79,6 +81,7 @@ struct ColorPickCell {
 
 @Component
 export struct ScheduleSettingsPanel {
+  @StorageProp('themeColor') themeColor: string = 'green';
   cfg: ScheduleConfig = new ScheduleConfig();
   scheduleBg: string = '';
   onPickBg: () => void = () => {};
@@ -208,7 +211,7 @@ export struct ScheduleSettingsPanel {
     Scroll() {
       Column() {
         // ===== 整体 =====
-        Text('整体').fontSize(17).fontWeight(FontWeight.Bold).fontColor($r('app.color.brand'))
+        Text('整体').fontSize(17).fontWeight(FontWeight.Bold).fontColor(Theme.colorOf(this.themeColor))
           .width('100%').textAlign(TextAlign.Start).margin({ top: 16, bottom: 8 })
 
         // 自定义开学时间（覆盖默认 9-01/3-01 推算，用于修正周次）
@@ -249,7 +252,7 @@ export struct ScheduleSettingsPanel {
               .width(48).height(48).borderRadius(8).objectFit(ImageFit.Cover).margin({ right: 12 })
           }
           Button(this.scheduleBg.length > 0 ? '更换图片' : '选择图片')
-            .fontSize(13).fontColor($r('app.color.brand_on')).backgroundColor($r('app.color.brand'))
+            .fontSize(13).fontColor($r('app.color.brand_on')).backgroundColor(Theme.colorOf(this.themeColor))
             .height(36).layoutWeight(1).borderRadius(10)
             .onClick(() => { this.onPickBg(); })
         }.width('100%')
@@ -260,7 +263,7 @@ export struct ScheduleSettingsPanel {
           Text('网格辅助线').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.gridOn })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => {
               // 展开/收起带动画
               animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
@@ -275,10 +278,10 @@ export struct ScheduleSettingsPanel {
             Row() {
               Text('线宽').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.text_primary'))
               Blank()
-              Text(`${this.gridW}vp`).fontSize(12).fontColor($r('app.color.brand'))
+              Text(`${this.gridW}vp`).fontSize(12).fontColor(Theme.colorOf(this.themeColor))
             }.width('100%')
             Slider({ value: this.gridW, min: 0.5, max: 3, step: 0.5, style: SliderStyle.OutSet })
-              .width('100%').selectedColor($r('app.color.brand'))
+              .width('100%').selectedColor(Theme.colorOf(this.themeColor))
               .trackColor($r('app.color.bg_chip')).blockColor(Color.White)
               .sliderInteractionMode(SliderInteraction.SLIDE_ONLY)
               .onChange((v: number) => { this.gridW = v; this.apply(); })
@@ -293,13 +296,13 @@ export struct ScheduleSettingsPanel {
             Row({ space: 16 }) {
               Row({ space: 4 }) {
                 Radio({ value: 'solid', group: 'line' }).checked(this.lineStyle === 0)
-                  .radioStyle({ checkedBackgroundColor: $r('app.color.brand') })
+                  .radioStyle({ checkedBackgroundColor: Theme.colorOf(this.themeColor) })
                   .onChange(() => { this.lineStyle = 0; this.apply(); })
                 Text('实线').fontSize(13).fontColor($r('app.color.text_primary'))
               }
               Row({ space: 4 }) {
                 Radio({ value: 'dash', group: 'line' }).checked(this.lineStyle === 1)
-                  .radioStyle({ checkedBackgroundColor: $r('app.color.brand') })
+                  .radioStyle({ checkedBackgroundColor: Theme.colorOf(this.themeColor) })
                   .onChange(() => { this.lineStyle = 1; this.apply(); })
                 Text('虚线').fontSize(13).fontColor($r('app.color.text_primary'))
               }
@@ -321,10 +324,10 @@ export struct ScheduleSettingsPanel {
           Row() {
             Text('表头文字大小').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.text_primary'))
             Blank()
-            Text(`${this.hdrSize}`).fontSize(12).fontColor($r('app.color.brand'))
+            Text(`${this.hdrSize}`).fontSize(12).fontColor(Theme.colorOf(this.themeColor))
           }.width('100%')
           Slider({ value: this.hdrSize, min: 10, max: 20, step: 1, style: SliderStyle.OutSet })
-            .width('100%').selectedColor($r('app.color.brand'))
+            .width('100%').selectedColor(Theme.colorOf(this.themeColor))
             .trackColor($r('app.color.bg_chip')).blockColor(Color.White)
               .sliderInteractionMode(SliderInteraction.SLIDE_ONLY)
               .onChange((v: number) => { this.hdrSize = v; this.apply(); })
@@ -336,26 +339,26 @@ export struct ScheduleSettingsPanel {
           Text('节次栏显示时间').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.secTime })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.secTime = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
         Row() {
           Text('显示周六周日').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.weekend })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.weekend = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
         Row() {
           Text('显示下周课程').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.nextWeek })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.nextWeek = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
 
         // ===== 课程格子 =====
-        Text('课程格子').fontSize(17).fontWeight(FontWeight.Bold).fontColor($r('app.color.brand'))
+        Text('课程格子').fontSize(17).fontWeight(FontWeight.Bold).fontColor(Theme.colorOf(this.themeColor))
           .width('100%').textAlign(TextAlign.Start).margin({ top: 18, bottom: 8 })
 
         ColorPickCell({ hex: $txtColor, palette: COLOR_PALETTE, label: '文字颜色', onChange: () => { this.apply(); } })
@@ -363,7 +366,7 @@ export struct ScheduleSettingsPanel {
           Text('文字颜色叠加格子颜色').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.textMix })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.textMix = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
 
@@ -373,14 +376,14 @@ export struct ScheduleSettingsPanel {
           Text('边框使用格子颜色').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.bdrCourse })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.bdrCourse = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
         Row() {
           Text('虚线边框').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.bdrDash })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.bdrDash = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
 
@@ -388,10 +391,10 @@ export struct ScheduleSettingsPanel {
           Row() {
             Text('边框粗细').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.text_primary'))
             Blank()
-            Text(`${this.borderW}vp`).fontSize(12).fontColor($r('app.color.brand'))
+            Text(`${this.borderW}vp`).fontSize(12).fontColor(Theme.colorOf(this.themeColor))
           }.width('100%')
           Slider({ value: this.borderW, min: 0, max: 4, step: 0.5, style: SliderStyle.OutSet })
-            .width('100%').selectedColor($r('app.color.brand'))
+            .width('100%').selectedColor(Theme.colorOf(this.themeColor))
             .trackColor($r('app.color.bg_chip')).blockColor(Color.White)
               .sliderInteractionMode(SliderInteraction.SLIDE_ONLY)
               .onChange((v: number) => { this.borderW = v; this.apply(); })
@@ -402,10 +405,10 @@ export struct ScheduleSettingsPanel {
           Row() {
             Text('格子高度').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.text_primary'))
             Blank()
-            Text(`${this.cellH}vp`).fontSize(12).fontColor($r('app.color.brand'))
+            Text(`${this.cellH}vp`).fontSize(12).fontColor(Theme.colorOf(this.themeColor))
           }.width('100%')
           Slider({ value: this.cellH, min: 44, max: 80, step: 2, style: SliderStyle.OutSet })
-            .width('100%').selectedColor($r('app.color.brand'))
+            .width('100%').selectedColor(Theme.colorOf(this.themeColor))
             .trackColor($r('app.color.bg_chip')).blockColor(Color.White)
               .sliderInteractionMode(SliderInteraction.SLIDE_ONLY)
               .onChange((v: number) => { this.cellH = v; this.apply(); })
@@ -414,10 +417,10 @@ export struct ScheduleSettingsPanel {
           Row() {
             Text('圆角半径').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.text_primary'))
             Blank()
-            Text(`${this.cellR}vp`).fontSize(12).fontColor($r('app.color.brand'))
+            Text(`${this.cellR}vp`).fontSize(12).fontColor(Theme.colorOf(this.themeColor))
           }.width('100%')
           Slider({ value: this.cellR, min: 0, max: 16, step: 1, style: SliderStyle.OutSet })
-            .width('100%').selectedColor($r('app.color.brand'))
+            .width('100%').selectedColor(Theme.colorOf(this.themeColor))
             .trackColor($r('app.color.bg_chip')).blockColor(Color.White)
               .sliderInteractionMode(SliderInteraction.SLIDE_ONLY)
               .onChange((v: number) => { this.cellR = v; this.apply(); })
@@ -426,10 +429,10 @@ export struct ScheduleSettingsPanel {
           Row() {
             Text('不透明度').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.text_primary'))
             Blank()
-            Text(`${this.cellOp}%`).fontSize(12).fontColor($r('app.color.brand'))
+            Text(`${this.cellOp}%`).fontSize(12).fontColor(Theme.colorOf(this.themeColor))
           }.width('100%')
           Slider({ value: this.cellOp, min: 30, max: 100, step: 5, style: SliderStyle.OutSet })
-            .width('100%').selectedColor($r('app.color.brand'))
+            .width('100%').selectedColor(Theme.colorOf(this.themeColor))
             .trackColor($r('app.color.bg_chip')).blockColor(Color.White)
               .sliderInteractionMode(SliderInteraction.SLIDE_ONLY)
               .onChange((v: number) => { this.cellOp = v; this.apply(); })
@@ -438,10 +441,10 @@ export struct ScheduleSettingsPanel {
           Row() {
             Text('下周课程不透明度').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.text_primary'))
             Blank()
-            Text(`${this.nextOp}%`).fontSize(12).fontColor($r('app.color.brand'))
+            Text(`${this.nextOp}%`).fontSize(12).fontColor(Theme.colorOf(this.themeColor))
           }.width('100%')
           Slider({ value: this.nextOp, min: 10, max: 70, step: 5, style: SliderStyle.OutSet })
-            .width('100%').selectedColor($r('app.color.brand'))
+            .width('100%').selectedColor(Theme.colorOf(this.themeColor))
             .trackColor($r('app.color.bg_chip')).blockColor(Color.White)
               .sliderInteractionMode(SliderInteraction.SLIDE_ONLY)
               .onChange((v: number) => { this.nextOp = v; this.apply(); })
@@ -452,10 +455,10 @@ export struct ScheduleSettingsPanel {
           Row() {
             Text('文字大小').fontSize(14).fontWeight(FontWeight.Medium).fontColor($r('app.color.text_primary'))
             Blank()
-            Text(`${this.textSz}`).fontSize(12).fontColor($r('app.color.brand'))
+            Text(`${this.textSz}`).fontSize(12).fontColor(Theme.colorOf(this.themeColor))
           }.width('100%')
           Slider({ value: this.textSz, min: 8, max: 16, step: 1, style: SliderStyle.OutSet })
-            .width('100%').selectedColor($r('app.color.brand'))
+            .width('100%').selectedColor(Theme.colorOf(this.themeColor))
             .trackColor($r('app.color.bg_chip')).blockColor(Color.White)
               .sliderInteractionMode(SliderInteraction.SLIDE_ONLY)
               .onChange((v: number) => { this.textSz = v; this.apply(); })
@@ -467,19 +470,19 @@ export struct ScheduleSettingsPanel {
           Row({ space: 12 }) {
             Row({ space: 4 }) {
               Radio({ value: 'c', group: 'align' }).checked(this.hAlign === 0)
-                .radioStyle({ checkedBackgroundColor: $r('app.color.brand') })
+                .radioStyle({ checkedBackgroundColor: Theme.colorOf(this.themeColor) })
                 .onChange(() => { this.hAlign = 0; this.apply(); })
               Text('居中').fontSize(13).fontColor($r('app.color.text_primary'))
             }
             Row({ space: 4 }) {
               Radio({ value: 'l', group: 'align' }).checked(this.hAlign === 1)
-                .radioStyle({ checkedBackgroundColor: $r('app.color.brand') })
+                .radioStyle({ checkedBackgroundColor: Theme.colorOf(this.themeColor) })
                 .onChange(() => { this.hAlign = 1; this.apply(); })
               Text('靠左').fontSize(13).fontColor($r('app.color.text_primary'))
             }
             Row({ space: 4 }) {
               Radio({ value: 'r', group: 'align' }).checked(this.hAlign === 2)
-                .radioStyle({ checkedBackgroundColor: $r('app.color.brand') })
+                .radioStyle({ checkedBackgroundColor: Theme.colorOf(this.themeColor) })
                 .onChange(() => { this.hAlign = 2; this.apply(); })
               Text('靠右').fontSize(13).fontColor($r('app.color.text_primary'))
             }
@@ -490,7 +493,7 @@ export struct ScheduleSettingsPanel {
           Text('文字垂直居中').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.vCenter })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.vCenter = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
 
@@ -499,28 +502,28 @@ export struct ScheduleSettingsPanel {
           Text('格子内显示上课时间').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.showTime })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.showTime = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
         Row() {
           Text('格子内显示上课地点').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.showLoc })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.showLoc = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
         Row() {
           Text('地点前显示@').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.showAt })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.showAt = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
         Row() {
           Text('格子内显示授课老师').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Toggle({ type: ToggleType.Switch, isOn: this.showTch })
-            .selectedColor($r('app.color.brand'))
+            .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.showTch = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
 
@@ -549,7 +552,7 @@ export struct ScheduleSettingsPanel {
             promptAction.showToast({ message: '已恢复默认设置' });
           })
         Button('关闭')
-          .width('100%').height(44).fontSize(15).fontColor($r('app.color.brand'))
+          .width('100%').height(44).fontSize(15).fontColor(Theme.colorOf(this.themeColor))
           .backgroundColor($r('app.color.brand_light')).borderRadius(12).margin({ top: 10 })
           .onClick(() => { this.onClose(); })
         Column().height(24)

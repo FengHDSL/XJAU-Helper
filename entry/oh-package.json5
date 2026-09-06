@@ -1,10 +1,9 @@
 {
   "name": "entry",
   "version": "1.0.0",
-  "description": "Please describe the basic information.",
+  "description": "新农助手",
   "main": "",
   "author": "",
-  "license": "",
+  "license": "MIT",
   "dependencies": {}
 }
-

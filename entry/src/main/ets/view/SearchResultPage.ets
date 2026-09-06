@@ -7,6 +7,8 @@ import { NewsApi, SearchItem } from '../api/NewsApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
+import { BackButton } from './common/BackButton';
+import { WallpaperFill } from './common/WallpaperFill';
 
 @Component
 struct SearchRow {
@@ -67,6 +69,7 @@ struct SearchRow {
 export struct SearchResultPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @State results: SearchItem[] = [];
   @State loading: boolean = true;
@@ -128,13 +131,21 @@ export struct SearchResultPage {
 
   build() {
     NavDestination() {
+      // 二级页壁纸底层（无壁纸回 bg_page，不透下层）
+      Stack({ alignContent: Alignment.TopStart }) {
+        WallpaperFill()
       Column() {
+        // 顶栏（两层）：内容(底)/主题渐变(顶)；模糊层已取消
+        Stack({ alignContent: Alignment.TopStart }) {
+          Column()
+            .width('100%')
+            .height(px2vp(this.topInsetPx) + 60)
+            .linearGradient({
+              angle: 180,
+              colors: Theme.barGradient(this.themeColor, this.barStyle)
+            })
         Row() {
-          Text('‹')
-            .fontSize(26)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
-            .width(34).height(34).textAlign(TextAlign.Center)
-            .onClick(() => { AppState.stack.pop(); })
+          BackButton({ onBack: () => { AppState.stack.pop(); } })
           Text('搜索结果')
             .fontSize(18).fontWeight(FontWeight.Bold)
             .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
@@ -151,11 +162,12 @@ export struct SearchResultPage {
         .width('100%').alignItems(VerticalAlign.Center)
         .height(px2vp(this.topInsetPx) + 60)
         .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-        .backgroundColor(this.isDarkMode ? '#1A1D1C' : Theme.colorOf(this.themeColor))
+        }
+        .width('100%')
 
         if (this.loading) {
           Column() {
-            LoadingProgress().width(32).height(32).color($r('app.color.brand'))
+            LoadingProgress().width(32).height(32).color(Theme.colorOf(this.themeColor))
             Text('搜索中').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 10 })
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
@@ -185,7 +197,7 @@ export struct SearchResultPage {
             ListItem() {
               Column() {
                 if (this.loadingMore) {
-                  LoadingProgress().width(24).height(24).color($r('app.color.brand'))
+                  LoadingProgress().width(24).height(24).color(Theme.colorOf(this.themeColor))
                   Text('加载中').fontSize(11).fontColor($r('app.color.text_tertiary')).margin({ top: 6 })
                 } else if (this.hasMore) {
                   Text('上拉加载更多')
@@ -208,9 +220,15 @@ export struct SearchResultPage {
         }
       }
       .width('100%').height('100%')
-      .backgroundColor($r('app.color.bg_page'))
+      // 全局壁纸：二级页根背景透明，透出主框架底层壁纸（无壁纸时由 MainView 底层纯色兜底）
+      .backgroundColor(Color.Transparent)
+      }
+      .width('100%')
+      .height('100%')
     }
+    .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)
+    .systemTransition(NavigationSystemTransitionType.SLIDE_RIGHT)
     .width('100%').height('100%')
   }
 }

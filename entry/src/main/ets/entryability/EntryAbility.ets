@@ -24,17 +24,44 @@ export default class EntryAbility extends UIAbility {
     // 头像显示开关（默认关闭，仅影响圆形头像）
     const showAvatar: boolean = DataStore.get(DataStore.KEY_SHOW_AVATAR) === '1';
     AppStorage.setOrCreate('showAvatar', showAvatar);
-    // 恢复顶栏主题色（中国红/天空蓝/农大绿）
+    // 全局壁纸 id（'b1'..'b6' 预置 / 'c:<path>' 自定义 / 'none'=未启用；默认不启用保持原观感）
+    const wp: string = DataStore.loadWallpaper();
+    AppStorage.setOrCreate('wallpaperId', wp.length > 0 ? wp : 'none');
+    // 恢复顶栏主题色（中国红/天空蓝/农大绿/自定义 #RRGGBB）
     Theme.restore();
-    // 检测系统深色模式，写入 AppStorage（默认 false 即浅色模式）
+    // 深色模式：手动开关优先；未手动设置时跟随系统（mediaquery 实时监听）
     try {
-      const listener = mediaquery.matchMediaSync('(prefers-color-scheme: dark)');
-      AppStorage.setOrCreate('isDarkMode', listener.matches);
-      listener.on('change', (result) => {
-        AppStorage.setOrCreate('isDarkMode', result.matches);
+      const darkListener = mediaquery.matchMediaSync('(prefers-color-scheme: dark)');
+      const manual: boolean = DataStore.hasDarkSetting();
+      const initial: boolean = manual ? DataStore.isDarkOn() : darkListener.matches;
+      AppStorage.setOrCreate('isDarkMode', initial);
+    // 顶栏样式：新版渐变（默认）/ 旧版实色
+    AppStorage.setOrCreate('barStyle', DataStore.barStyle());
+      // 让 $r() 资源色与之一致（文字/背景资源随 colorMode 切换）
+      AppStorage.setOrCreate('darkManual', manual);
+      AppStorage.setOrCreate('systemDark', darkListener.matches);
+      this.applyColorMode(initial);
+      darkListener.on('change', (result: mediaquery.MediaQueryResult) => {
+        AppStorage.setOrCreate('systemDark', result.matches);
+        // 仅未手动设置时随系统变化
+        if (!AppStorage.get<boolean>('darkManual')) {
+          AppStorage.setOrCreate('isDarkMode', result.matches);
+          this.applyColorMode(result.matches);
+        }
       });
     } catch (e) {
       AppStorage.setOrCreate('isDarkMode', false);
+    }
+  }
+
+  /** 应用颜色模式（使 $r 资源切换到对应深浅色） */
+  private applyColorMode(dark: boolean): void {
+    try {
+      this.context.getApplicationContext()
+        .setColorMode(dark ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+          : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT);
+    } catch (err) {
+      hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
   }
 
@@ -110,7 +137,13 @@ export default class EntryAbility extends UIAbility {
     });
 
     try {
-      this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+      // 手动设置过深色 → 应用该模式；否则跟随系统
+      const manual: boolean = DataStore.hasDarkSetting();
+      this.context.getApplicationContext()
+        .setColorMode(manual
+          ? (DataStore.isDarkOn() ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+            : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT)
+          : ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
