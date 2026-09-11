@@ -7,6 +7,8 @@ import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
+import { Immersive } from './common/Immersive';
 import { BackButton } from './common/BackButton';
 import { WallpaperFill } from './common/WallpaperFill';
 
@@ -15,7 +17,10 @@ export struct NewsFavPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸亮度（顶栏文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   /** 收藏列表（NewsItem） */
   @State items: NewsItem[] = [];
 
@@ -47,7 +52,7 @@ export struct NewsFavPage {
 
   /** 取消收藏（按 url）并刷新列表 */
   private removeFav(item: NewsItem): void {
-    promptAction.showDialog({
+    this.getUIContext().getPromptAction().showDialog({
       title: '取消收藏',
       message: '确定将该新闻从收藏中移除吗？',
       buttons: [
@@ -57,7 +62,7 @@ export struct NewsFavPage {
     }).then((res) => {
       if (res.index === 1) {
         DataStore.removeNewsFav(item.url);
-        promptAction.showToast({ message: '已取消收藏' });
+        this.getUIContext().getPromptAction().showToast({ message: '已取消收藏' });
         this.reload();
       }
     });
@@ -85,29 +90,31 @@ export struct NewsFavPage {
         Stack({ alignContent: Alignment.TopStart }) {
           Column()
             .width('100%')
-            .height(px2vp(this.topInsetPx) + 60)
+            .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             .linearGradient({
               angle: 180,
               colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
           Text('我的收藏')
             .fontSize(18).fontWeight(FontWeight.Bold)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .margin({ left: 6 })
             .layoutWeight(1)
           Text('刷新')
             .fontSize(12)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .padding({ left: 12, right: 12, top: 4, bottom: 4 })
             .backgroundColor('#33FFFFFF')
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
             .borderRadius(14)
             .onClick(() => { this.reload(); })
         }
         .width('100%').alignItems(VerticalAlign.Center)
-        .height(px2vp(this.topInsetPx) + 60)
-        .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
+        .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+        .padding({ left: 16, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
         }
         .width('100%')
 

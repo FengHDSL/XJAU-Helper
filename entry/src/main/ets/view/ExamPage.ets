@@ -11,6 +11,8 @@ import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { Theme } from '../common/ThemeUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
+import { Immersive } from './common/Immersive';
 import { ExamItem, TermInfo } from '../model/Models';
 import { EmptyTip, LoadingTip, TagChip } from './common/UiKit';
 import { BackButton } from './common/BackButton';
@@ -21,8 +23,12 @@ export struct ExamPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸亮度（顶栏文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('subtitleColor') subtitleColor: string = '';
   @State terms: TermInfo[] = [];
   @State selectedTermIndex: number = 0;
   @State exams: ExamItem[] = [];
@@ -66,9 +72,9 @@ export struct ExamPage {
     DataStore.setPickedExamId(id);
     this.pickedExamId = id;
     if (item !== null) {
-      promptAction.showToast({ message: `已设置《${item.courseName}》为桌面卡片倒计时` });
+      this.getUIContext().getPromptAction().showToast({ message: `已设置《${item.courseName}》为桌面卡片倒计时` });
     } else {
-      promptAction.showToast({ message: '已恢复为最近一场考试自动倒计时' });
+      this.getUIContext().getPromptAction().showToast({ message: '已恢复为最近一场考试自动倒计时' });
     }
   }
 
@@ -317,7 +323,7 @@ export struct ExamPage {
             .layoutWeight(1)
             .onClick(() => {
               if (this.selectedExam !== null) {
-                const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+                const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
                 CalendarUtil.addExamToCalendar(this.selectedExam, ctx);
               }
             })
@@ -572,30 +578,34 @@ export struct ExamPage {
         Stack({ alignContent: Alignment.TopStart }) {
           Column()
             .width('100%')
-            .height(px2vp(this.topInsetPx) + 60)
+            .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             .linearGradient({
               angle: 180,
               colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
 
           Column() {
             Text('考试查询')
-              .fontSize(18)
+              .fontSize(20)
               .fontWeight(FontWeight.Bold)
-              .fontColor(Color.White)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .height(28)
+              .lineHeight(28)
 Row() {
               Text(`${this.currentTermLabel()} · 待考 ${this.comingCount()} 场`)
                 .fontSize(11)
-                .fontColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
+                .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
               Image($r('app.media.list_bullet'))
                 .width(14)
                 .height(14)
-                .fillColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
+                .fillColor(this.subtitleColor.length > 0 ? this.subtitleColor : (this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')))
                 .margin({ left: 3 })
             }
-            .margin({ top: 3 })
+            .height(15)
+            .margin({ top: 2 })
             .onClick(() => {
               this.showTermSheet = true;
             })
@@ -607,7 +617,7 @@ Row() {
           // 右上："桌面卡片"快捷按钮（纯文字，触发选考试弹窗）
           Text('桌面卡片')
             .fontSize(13)
-            .fontColor('#CCFFFFFF')
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .height(28)
             .padding({ left: 12, right: 12 })
             .backgroundColor('#1AFFFFFF')
@@ -618,9 +628,9 @@ Row() {
             })
         }
         .width('100%')
-        .alignItems(VerticalAlign.Center)
-        .padding({ left: 10, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-        .height(px2vp(this.topInsetPx) + 60)
+        .alignItems(VerticalAlign.Top)
+        .padding({ left: 10, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
+        .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
         }
         .width('100%')
         // 顶栏悬浮：正文可滚入其渐变下层透出
@@ -636,7 +646,7 @@ Row() {
             Scroll() {
               Column() {
                 // 顶栏悬浮让位（正文默认从顶栏下方开始，上滑才滚入渐变下层）
-                Column().width('100%').height(px2vp(this.topInsetPx) + 60)
+                Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60)
                 Row() {
                   Column() {
                     Text(this.nextExamText())
@@ -666,7 +676,7 @@ Row() {
                 }
 
                 Column()
-                  .height(px2vp(this.bottomInsetPx) + 16)
+                  .height(this.getUIContext().px2vp(this.bottomInsetPx) + 16)
               }
               .width('100%')
               .padding({ left: 16, right: 16, top: 14 })

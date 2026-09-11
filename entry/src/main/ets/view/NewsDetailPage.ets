@@ -10,6 +10,8 @@ import { NewsApi, ContentBlock, NewsDetail, NewsItem } from '../api/NewsApi';
 import { AppState } from '../common/AppState';
 import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
+import { Immersive } from './common/Immersive';
 import { BackButton } from './common/BackButton';
 import { WallpaperFill } from './common/WallpaperFill';
 
@@ -18,7 +20,10 @@ export struct NewsDetailPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸亮度（顶栏文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @State detail: NewsDetail | null = null;
   @State loading: boolean = true;
   /** 下拉刷新中 */
@@ -64,7 +69,7 @@ export struct NewsDetailPage {
       this.loadImages(d);
     }).catch(() => {
       this.refreshing = false;
-      promptAction.showToast({ message: '刷新失败，请检查网络' });
+      this.getUIContext().getPromptAction().showToast({ message: '刷新失败，请检查网络' });
     });
   }
 
@@ -104,7 +109,7 @@ export struct NewsDetailPage {
     if (this.faved) {
       DataStore.removeNewsFav(url);
       this.faved = false;
-      promptAction.showToast({ message: '已取消收藏' });
+      this.getUIContext().getPromptAction().showToast({ message: '已取消收藏' });
     } else {
       const item: NewsItem = new NewsItem();
       if (this.detail !== null) {
@@ -117,7 +122,7 @@ export struct NewsDetailPage {
       item.thumb = '';
       DataStore.addNewsFav(JSON.stringify(item));
       this.faved = true;
-      promptAction.showToast({ message: '已加入收藏' });
+      this.getUIContext().getPromptAction().showToast({ message: '已加入收藏' });
     }
   }
 
@@ -130,13 +135,13 @@ export struct NewsDetailPage {
         content: `${this.detail.title}\n${AppState.currentNewsUrl}`
       });
       const controller: systemShare.ShareController = new systemShare.ShareController(shareData);
-      const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       await controller.show(context, {
         previewMode: systemShare.SharePreviewMode.DEFAULT,
         selectionMode: systemShare.SelectionMode.SINGLE
       });
     } catch (e) {
-      promptAction.showToast({ message: '分享失败' });
+      this.getUIContext().getPromptAction().showToast({ message: '分享失败' });
     }
   }
 
@@ -150,16 +155,17 @@ export struct NewsDetailPage {
         Stack({ alignContent: Alignment.TopStart }) {
           Column()
             .width('100%')
-            .height(px2vp(this.topInsetPx) + 60)
+            .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             .linearGradient({
               angle: 180,
               colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
           Text('新闻详情')
             .fontSize(18).fontWeight(FontWeight.Bold)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .margin({ left: 6 })
             .layoutWeight(1)
           // 右上角：加入收藏 / 取消收藏（分享按钮左边）
@@ -168,20 +174,22 @@ export struct NewsDetailPage {
             .fontColor(this.faved ? '#FFD9A8' : (this.isDarkMode ? $r('app.color.text_primary') : Color.White))
             .padding({ left: 12, right: 12, top: 6, bottom: 6 })
             .backgroundColor(this.faved ? '#33DB5252' : (this.isDarkMode ? $r('app.color.bg_chip') : '#33FFFFFF'))
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
             .borderRadius(14)
             .onClick(() => { this.toggleFav(); })
           Text('分享')
             .fontSize(13)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .padding({ left: 12, right: 12, top: 6, bottom: 6 })
             .backgroundColor(this.isDarkMode ? $r('app.color.bg_chip') : '#33FFFFFF')
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
             .borderRadius(14)
             .margin({ left: 8 })
             .onClick(() => { this.shareNews(); })
         }
         .width('100%').alignItems(VerticalAlign.Center)
-        .height(px2vp(this.topInsetPx) + 60)
-        .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
+        .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+        .padding({ left: 16, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
         }
         .width('100%')
         // 顶栏悬浮：正文上滑可滚入其渐变下层透出
@@ -253,7 +261,7 @@ export struct NewsDetailPage {
 
                 Column().height(40)
               }
-              .width('100%').padding({ left: 20, right: 20, top: px2vp(this.topInsetPx) + 60, bottom: 100 })
+              .width('100%').padding({ left: 20, right: 20, top: this.getUIContext().px2vp(this.topInsetPx) + 60, bottom: 100 })
             }
             .width('100%').layoutWeight(1).scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring)

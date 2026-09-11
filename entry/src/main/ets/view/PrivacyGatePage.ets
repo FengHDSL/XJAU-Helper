@@ -13,6 +13,7 @@
 import { webview } from '@kit.ArkWeb';
 import { privacyManager } from '@kit.AppGalleryKit';
 import { Theme } from '../common/ThemeUtil';
+import { Immersive } from './common/Immersive';
 import { DeclarationSection, DEVELOPER_DECLARATION } from '../common/PrivacyText';
 import { DataStore } from '../common/DataStore';
 
@@ -22,6 +23,7 @@ export struct PrivacyGatePage {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 完成回调：agreed=true 已同意隐私且走完引导；false = 暂不同意（仅可使用功能浏览） */
   onDone: (agreed: boolean) => void = () => {
@@ -138,11 +140,12 @@ export struct PrivacyGatePage {
       Stack({ alignContent: Alignment.TopStart }) {
         Column()
           .width('100%')
-          .height(px2vp(this.topInsetPx) + 60)
+          .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
           .linearGradient({
             angle: 180,
             colors: Theme.barGradient(this.themeColor, this.barStyle)
           })
+          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
       Row() {
         Text(this.stepTitle())
           .fontSize(19)
@@ -154,8 +157,8 @@ export struct PrivacyGatePage {
           .fontColor('#CCFFFFFF')
       }
       .width('100%')
-      .height(px2vp(this.topInsetPx) + 60)
-      .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
+      .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+      .padding({ left: 16, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
       .alignItems(VerticalAlign.Center)
       }
       .width('100%')
@@ -166,7 +169,7 @@ export struct PrivacyGatePage {
       // 顶栏高度占位（正文默认从顶栏下方开始）
       Column()
         .width('100%')
-        .height(px2vp(this.topInsetPx) + 60)
+        .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
 
       if (this.step === 0) {
         // ── 第 1 步：隐私协议全文 ──
@@ -192,7 +195,7 @@ export struct PrivacyGatePage {
             this.actionBar('暂不同意', '同意并继续', () => { this.onDecline(); }, () => { this.onAgreePrivacy(); })
           }
           .width('100%')
-          .padding({ left: 20, right: 20, top: 12, bottom: 16 + px2vp(this.bottomInsetPx) })
+          .padding({ left: 20, right: 20, top: 12, bottom: 16 + this.getUIContext().px2vp(this.bottomInsetPx) })
           .backgroundColor($r('app.color.bg_card'))
         }
         .width('100%')
@@ -230,7 +233,7 @@ export struct PrivacyGatePage {
             this.actionBar('上一步', '我已知晓',
               () => { this.goStep(0); }, () => { this.onKnowDeclaration(); })
           }
-          .margin({ bottom: 16 + px2vp(this.bottomInsetPx) })
+          .margin({ bottom: 16 + this.getUIContext().px2vp(this.bottomInsetPx) })
         }
         .width('100%')
         .layoutWeight(1)
@@ -268,7 +271,7 @@ export struct PrivacyGatePage {
             this.actionBar('上一步', '我知道了',
               () => { this.goStep(1); }, () => { this.onFinish(); })
           }
-          .margin({ bottom: 16 + px2vp(this.bottomInsetPx) })
+          .margin({ bottom: 16 + this.getUIContext().px2vp(this.bottomInsetPx) })
         }
         .width('100%')
         .layoutWeight(1)

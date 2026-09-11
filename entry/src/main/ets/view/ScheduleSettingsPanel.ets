@@ -266,7 +266,7 @@ export struct ScheduleSettingsPanel {
             .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => {
               // 展开/收起带动画
-              animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
+              this.getUIContext().animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
                 this.gridOn = on;
                 this.apply();
               });
@@ -549,7 +549,7 @@ export struct ScheduleSettingsPanel {
             this.hAlign = c.textHCenter ? 0 : (c.textLeft ? 1 : 2);
             this.cfg.save();
             this.onCfgChange(this.cfg);
-            promptAction.showToast({ message: '已恢复默认设置' });
+            this.getUIContext().getPromptAction().showToast({ message: '已恢复默认设置' });
           })
         Button('关闭')
           .width('100%').height(44).fontSize(15).fontColor(Theme.colorOf(this.themeColor))

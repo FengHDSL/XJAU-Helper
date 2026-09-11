@@ -5,18 +5,23 @@ import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
+import { Immersive } from './common/Immersive';
 import { NoticeItem } from '../model/Models';
 import { EMPTY_NOTICE } from '../model/Empty';
-import { EmptyTip, LoadingTip, TagChip } from './common/UiKit';
+import { BarTitle, EmptyTip, LoadingTip, TagChip } from './common/UiKit';
 import { BackButton } from './common/BackButton';
 import { WallpaperFill } from './common/WallpaperFill';
 
 @Component
 export struct NoticePage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @State notices: NoticeItem[] = [];
   @State loading: boolean = true;
@@ -94,7 +99,7 @@ export struct NoticePage {
         Blank()
         Text(item.date)
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
       }
       .width('100%')
       .margin({ top: 10 })
@@ -119,23 +124,18 @@ export struct NoticePage {
         Stack({ alignContent: Alignment.TopStart }) {
           Column()
             .width('100%')
-            .height(px2vp(this.topInsetPx) + 60)
+            .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             .linearGradient({
               angle: 180,
               colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
 
           Column() {
-            Text('消息')
-              .fontSize(18)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
-            Text(`教务通知汇总 · 共 ${this.notices.length} 条 · ${this.unreadCount()} 条未读`)
-              .fontSize(11)
-              .fontColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
-              .margin({ top: 3 })
+            // 统一标题组件
+            BarTitle({ title: '消息', subtitle: `教务通知汇总 · 共 ${this.notices.length} 条 · ${this.unreadCount()} 条未读` })
           }
           .alignItems(HorizontalAlign.Start)
           .margin({ left: 6 })
@@ -144,9 +144,9 @@ export struct NoticePage {
           Blank()
         }
         .width('100%')
-        .alignItems(VerticalAlign.Center)
-        .height(px2vp(this.topInsetPx) + 60)
-        .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
+        .alignItems(VerticalAlign.Top)
+        .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+        .padding({ left: 16, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
         }
         .width('100%')
         // 顶栏悬浮：正文可滚入其渐变下层透出
@@ -165,7 +165,7 @@ export struct NoticePage {
                 .margin({ top: 16, bottom: 24 })
             }
             .width('100%')
-            .padding({ top: px2vp(this.topInsetPx) + 68, left: 16, right: 16 })
+            .padding({ top: this.getUIContext().px2vp(this.topInsetPx) + 68, left: 16, right: 16 })
           }
         } else {
           Scroll() {
@@ -174,10 +174,10 @@ export struct NoticePage {
                 this.noticeCard(item)
               }, (item: NoticeItem) => `${item.id}-${item.read}`)
               Column()
-                .height(px2vp(this.bottomInsetPx) + 16)
+                .height(this.getUIContext().px2vp(this.bottomInsetPx) + 16)
             }
             .width('100%')
-            .padding({ left: 16, right: 16, top: px2vp(this.topInsetPx) + 68 })
+            .padding({ left: 16, right: 16, top: this.getUIContext().px2vp(this.topInsetPx) + 68 })
           }
           .scrollBar(BarState.Off)
           .edgeEffect(EdgeEffect.Spring)
@@ -203,9 +203,12 @@ export struct NoticePage {
 @Component
 export struct NoticeDetailPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @State notice: NoticeItem = AppState.currentNotice !== null ? AppState.currentNotice : EMPTY_NOTICE;
 
@@ -219,19 +222,17 @@ export struct NoticeDetailPage {
         Stack({ alignContent: Alignment.TopStart }) {
           Column()
             .width('100%')
-            .height(px2vp(this.topInsetPx) + 60)
+            .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             .linearGradient({
               angle: 180,
               colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
 
           Column() {
-            Text('消息详情')
-              .fontSize(18)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
+            BarTitle({ title: '消息详情' })
           }
           .alignItems(HorizontalAlign.Start)
           .margin({ left: 6 })
@@ -240,9 +241,9 @@ export struct NoticeDetailPage {
           Blank()
         }
         .width('100%')
-        .alignItems(VerticalAlign.Center)
-        .height(px2vp(this.topInsetPx) + 60)
-        .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
+        .alignItems(VerticalAlign.Top)
+        .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+        .padding({ left: 16, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
         }
         .width('100%')
         // 顶栏悬浮：正文可滚入其渐变下层透出
@@ -269,7 +270,7 @@ export struct NoticeDetailPage {
                   .margin({ left: 6, right: 6 })
                 Text(this.notice.date)
                   .fontSize(12)
-                  .fontColor($r('app.color.text_tertiary'))
+                  .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
               }
               .width('100%')
               .margin({ top: 12, bottom: 14 })
@@ -298,10 +299,10 @@ export struct NoticeDetailPage {
             }
 
             Column()
-              .height(px2vp(this.bottomInsetPx) + 24)
+              .height(this.getUIContext().px2vp(this.bottomInsetPx) + 24)
           }
           .width('100%')
-          .padding({ left: 18, right: 18, top: px2vp(this.topInsetPx) + 68 })
+          .padding({ left: 18, right: 18, top: this.getUIContext().px2vp(this.topInsetPx) + 68 })
         }
         .scrollBar(BarState.Off)
           .edgeEffect(EdgeEffect.Spring)

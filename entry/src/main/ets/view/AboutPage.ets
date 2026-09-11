@@ -11,12 +11,15 @@ import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { LogStore } from '../common/LogStore';
 import { JwApi } from '../api/JwApi';
+import { WallpaperTone } from '../common/WallpaperTone';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
 
 @Component
 export struct AboutPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 壁纸亮度（文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 应用图标连点计数（5 次内有效） */
@@ -47,7 +50,7 @@ export struct AboutPage {
       // 已开启：询问是否退出（按当前生效的模式提示）
       const isLog: boolean = AppState.logEnabled;
       const isNet: boolean = AppState.debugNetwork;
-      promptAction.showDialog({
+      this.getUIContext().getPromptAction().showDialog({
         title: isLog ? '日志调试已开启' : '调试模式已开启',
         message: isLog && isNet ? '当前正在收集使用日志，且功能浏览模式允许联网。是否退出调试模式？' :
           (isLog ? '当前正在收集功能使用日志。是否退出日志调试？' : '当前功能浏览模式允许联网。是否退出调试模式？'),
@@ -60,7 +63,7 @@ export struct AboutPage {
           AppState.logEnabled = false;
           AppState.debugNetwork = false;
           LogStore.clearAll(); // 退出调试：自动删除已收集日志与附件
-          promptAction.showToast({ message: '已退出调试模式，日志已清除' });
+          this.getUIContext().getPromptAction().showToast({ message: '已退出调试模式，日志已清除' });
         }
       });
     } else {
@@ -74,13 +77,13 @@ export struct AboutPage {
    *  功能浏览模式（USE_MOCK）开启调试联网 + 日志收集；真实登录模式开启日志调试 */
   private submitDebugPwd(): void {
     if (this.debugPwd !== 'admin') {
-      promptAction.showToast({ message: '密码错误' });
+      this.getUIContext().getPromptAction().showToast({ message: '密码错误' });
       return;
     }
     this.showDebugSheet = false;
     if (AppState.logEnabled || AppState.debugNetwork) {
       // 已开启：提示已开启，避免重复开启
-      promptAction.showToast({ message: AppState.logEnabled ? '日志调试已开启' : '调试模式已开启' });
+      this.getUIContext().getPromptAction().showToast({ message: AppState.logEnabled ? '日志调试已开启' : '调试模式已开启' });
       return;
     }
     if (JwApi.USE_MOCK) {
@@ -88,12 +91,12 @@ export struct AboutPage {
       AppState.debugNetwork = true;
       AppState.logEnabled = true;
       LogStore.log('日志调试', '开启', '成功', '功能浏览模式调试开启（联网 + 日志收集）');
-      promptAction.showToast({ message: '调试模式已开启：功能浏览允许联网并收集日志' });
+      this.getUIContext().getPromptAction().showToast({ message: '调试模式已开启：功能浏览允许联网并收集日志' });
     } else {
       // 真实登录：开启日志调试
       AppState.logEnabled = true;
       LogStore.log('日志调试', '开启', '成功', '真实登录模式');
-      promptAction.showToast({ message: '日志调试已开启，开始收集使用日志' });
+      this.getUIContext().getPromptAction().showToast({ message: '日志调试已开启，开始收集使用日志' });
     }
   }
 
@@ -203,7 +206,7 @@ export struct AboutPage {
       } else {
         // 参考链接：复制到剪贴板，方便用户在浏览器中打开
         pasteboard.getSystemPasteboard().setDataSync(pasteboard.createPlainTextData(url));
-        promptAction.showToast({ message: '链接已复制' });
+        this.getUIContext().getPromptAction().showToast({ message: '链接已复制' });
       }
     })
   }
@@ -219,7 +222,7 @@ export struct AboutPage {
             // 顶栏占位（滚动时随内容滚走）：初始内容位于渐变顶栏下方
             Column()
               .width('100%')
-              .height(px2vp(this.topInsetPx) + 60)
+              .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             // 应用图标 + 名称 + 版本（连点 5 次进入隐藏调试模式）
             Column() {
               Image($r('app.media.startIcon'))
@@ -233,15 +236,15 @@ export struct AboutPage {
               Text('新农助手')
                 .fontSize(20)
                 .fontWeight(FontWeight.Bold)
-                .fontColor($r('app.color.text_primary'))
+                .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 12 })
-              Text('版本 1.3.2')
+              Text('版本 1.3.4')
                 .fontSize(12)
-                .fontColor($r('app.color.text_tertiary'))
+                .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 4 })
               Text('仅供学习交流使用，严禁用于商业用途！')
                 .fontSize(11)
-                .fontColor($r('app.color.text_tertiary'))
+                .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 8 })
             }
             .width('100%')
@@ -262,6 +265,14 @@ export struct AboutPage {
             .backgroundColor($r('app.color.bg_card'))
             .borderRadius(16)
             .margin({ bottom: 12 })
+
+            this.changelog('1.3.4', '2026-09-11', [
+              '修复应用闪退的问题'
+            ])
+
+            this.changelog('1.3.3', '2026-09-10', [
+              '修复了一些已知问题'
+            ])
 
             this.changelog('1.3.2', '2026-09-06', [
               '新增个性主题功能',
@@ -351,7 +362,7 @@ export struct AboutPage {
             this.footer()
 
             Column()
-              .height(px2vp(this.bottomInsetPx) + 24)
+              .height(this.getUIContext().px2vp(this.bottomInsetPx) + 24)
           }
           .width('100%')
           .padding({ left: 16, right: 16, top: 4 })

@@ -10,6 +10,8 @@ import { MainView } from '../view/MainView';
 import { PrivacyGatePage } from '../view/PrivacyGatePage';
 import { TermInfo, UserProfile } from '../model/Models';
 import { promptAction } from '@kit.ArkUI';
+import { common } from '@kit.AbilityKit';
+import { DailyWallpaper } from '../common/DailyWallpaper';
 
 @Entry
 @Component
@@ -38,6 +40,12 @@ struct Index {
 
   /** 页面出现：初始化 AppStorage 兜底值并加载主界面 */
   aboutToAppear(): void {
+    // 每日壁纸：已保存图像地址时，每天首次启动自动下载并应用新壁纸（静默，失败不影响启动）
+    try {
+      DailyWallpaper.ensureToday(this.getUIContext().getHostContext() as common.UIAbilityContext);
+    } catch (e) {
+    }
+
     // 首次启动隐私引导：未同意隐私协议 → 全屏覆盖引导页（隐私协议→开发者声明），
     // 同意/暂不同意后才进入下方登录/主界面逻辑（LoginView 不再自动弹隐私弹窗）。
     this.privacyGate = !DataStore.isPrivacyAgreed();
@@ -140,7 +148,7 @@ struct Index {
       this.autoRelogin = true;
       setTimeout(() => {
         if (!this.logged) {
-          promptAction.showToast({ message: '登录失败，请稍后再试', duration: 2000 });
+          this.getUIContext().getPromptAction().showToast({ message: '登录失败，请稍后再试', duration: 2000 });
           this.logged = true; // 进入主页，使用本地缓存数据
         }
       }, 10000);
@@ -166,7 +174,7 @@ struct Index {
     const reloginMsg: string = sys === 'service'
       ? '当前为「服务大厅登录」。将重新从服务大厅登录，并自动打开教务系统刷新数据；登录期间不允许操作其他功能。'
       : '当前为「教务登录」。将使用保存的账号密码重新登录教务系统；登录期间不允许操作其他功能。';
-    promptAction.showDialog({
+    this.getUIContext().getPromptAction().showDialog({
       title: '真正重新登录',
       message: reloginMsg,
       buttons: [
@@ -185,7 +193,7 @@ struct Index {
       setTimeout(() => {
         if (this.forceReloginLoading) {
           this.forceReloginLoading = false;
-          promptAction.showToast({ message: '登录失败，请稍后再试', duration: 2000 });
+          this.getUIContext().getPromptAction().showToast({ message: '登录失败，请稍后再试', duration: 2000 });
           this.showLoginOnly = false;
         }
       }, 10000);

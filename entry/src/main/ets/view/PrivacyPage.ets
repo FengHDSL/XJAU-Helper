@@ -24,7 +24,7 @@ export struct PrivacyPage {
           .backgroundColor(Color.Transparent)
           .darkMode(WebDarkMode.Auto)
           .onPageEnd(() => {
-            const barVp: number = px2vp(this.topInsetPx) + 60;
+            const barVp: number = this.getUIContext().px2vp(this.topInsetPx) + 60;
             this.controller.runJavaScript(
               `(function(){var s=document.getElementById('xju_top_spacer');` +
               `if(!s){s=document.createElement('div');s.id='xju_top_spacer';` +

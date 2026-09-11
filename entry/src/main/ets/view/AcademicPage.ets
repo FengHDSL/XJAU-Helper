@@ -19,12 +19,15 @@ import { LoadingTip, PageHeader, StatCell } from './common/UiKit';
 import { AntiPeepOverlay } from './common/AntiPeepOverlay';
 import { WallpaperFill } from './common/WallpaperFill';
 import { Theme } from '../common/ThemeUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
 
 @Component
 export struct AcademicPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸亮度（文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
   /** 沉浸光感：卡片玻璃化 */
@@ -124,7 +127,7 @@ export struct AcademicPage {
 
       Text(`数据来源: 教务系统学业页（统计时间 ${new Date().toLocaleDateString('zh-CN')}）`)
         .fontSize(11)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
         .margin({ top: 4 })
     }
     .width('100%')
@@ -324,13 +327,13 @@ export struct AcademicPage {
               // 顶栏让位 spacer（与成绩页同款：下拉刷新指示位置统一）
               Column()
                 .width('100%')
-                .height(px2vp(this.topInsetPx) + 60 + (this.barStyle === 'legacy' ? 14 : 0))
+                .height(this.getUIContext().px2vp(this.topInsetPx) + 60 + (this.barStyle === 'legacy' ? 14 : 0))
               this.gpaCard()
               this.overviewRow()
               this.categorySection()
               this.warningSection()
               Column()
-                .height(px2vp(this.bottomInsetPx) + 24)
+                .height(this.getUIContext().px2vp(this.bottomInsetPx) + 24)
             }
             .width('100%')
             .padding({ left: 16, right: 16 })

@@ -4,24 +4,34 @@
  * 既让二级页显示全局壁纸，又保持不透明背景（避免下层残留）。
  */
 import { Wallpaper } from '../../common/Wallpaper';
+import { WallpaperTone } from '../../common/WallpaperTone';
 
 @Component
 export struct WallpaperFill {
   @StorageProp('wallpaperId') wallpaperId: string = 'none';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸蒙版开关（关闭时不叠加可读性遮罩） */
+  @StorageProp('wallpaperMask') wallpaperMask: boolean = true;
+  /** 壁纸平均亮度（-1=未分析）；用于自动适配文字对比度 */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
 
   build() {
     Stack() {
-      if (this.wallpaperId !== 'none') {
+      if (this.wallpaperId.startsWith('c:')) {
         Image(Wallpaper.src(this.wallpaperId))
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
-        // 可读性遮罩（深浅各半透明），同主界面观感
-        Column()
-          .width('100%')
-          .height('100%')
-          .backgroundColor(this.isDarkMode ? 'rgba(8,10,10,0.38)' : 'rgba(255,255,255,0.18)')
+        // 对比度适配遮罩：按壁纸明暗自动加厚/减薄，保证正文 ≥ 4.5:1、标题 ≥ 3:1
+        // （未分析出亮度时回落固定遮罩）
+        if (this.wallpaperMask) {
+          Column()
+            .width('100%')
+            .height('100%')
+            .backgroundColor(this.wallpaperTone >= 0
+              ? WallpaperTone.overlay(this.wallpaperTone, this.isDarkMode)
+              : (this.isDarkMode ? 'rgba(8,10,10,0.38)' : 'rgba(255,255,255,0.18)'))
+        }
       } else {
         // 未启用壁纸：与原有页面底色一致（不透出下层）
         Column()

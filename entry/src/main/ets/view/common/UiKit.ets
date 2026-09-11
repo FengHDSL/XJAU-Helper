@@ -2,13 +2,18 @@
  * 通用小组件：卡片标题、标签、空状态、加载中、统计格
  */
 import { Theme } from '../../common/ThemeUtil';
+import { Immersive } from './Immersive';
+import { WallpaperTone } from '../../common/WallpaperTone';
 import { BackButton } from './BackButton';
 
 /** 区块标题：左侧竖条 + 标题 + 右侧操作 */
 @Component
 export struct SectionHeader {
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('subtitleColor') subtitleColor: string = '';
   @Prop title: string = '';
   @Prop action: string = '';
   onAction: () => void = () => {
@@ -35,7 +40,7 @@ export struct SectionHeader {
         Row() {
           Text(this.action)
             .fontSize(12)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
           Text('›')
             .fontSize(14)
             .fontColor($r('app.color.text_tertiary'))
@@ -97,6 +102,7 @@ export struct EmptyTip {
 export struct LoadingTip {
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('subtitleColor') subtitleColor: string = '';
   @Prop icon: string = '';
   @Prop text: string = '正在同步教务数据…';
 
@@ -226,11 +232,62 @@ export struct PickRow {
 
 /** 二级页面统一头部（简约白底 + 返回）；可选右侧按钮（actionText + onAction） */
 @Component
-export struct PageHeader {
-  @StorageProp('topInsetPx') topInsetPx: number = 0;
-  @StorageProp('isDarkMode') isDarkMode: boolean = false;
+/**
+ * 统一顶栏标题：大标题固定同一高度（所有页面顶端对齐），副标题独立一行位于其下。
+ */
+@Component
+export struct BarTitle {
+  @Prop title: string = '';
+  @Prop subtitle: string = '';
+  /** 长标题是否跑马灯滚动（默认省略号） */
+  @Prop marquee: boolean = false;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('subtitleColor') subtitleColor: string = '';
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸亮度（顶栏文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+
+  /** 顶栏文字颜色：始终按壁纸明暗自适应（两档顶栏样式均生效） */
+  private titleColor(): ResourceColor {
+    return WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode);
+  }
+
+  build() {
+    Column() {
+      Text(this.title)
+        .fontSize(20)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(this.titleColor())
+        .height(28)
+        .lineHeight(28)
+        .maxLines(1)
+        .textOverflow({ overflow: this.marquee ? TextOverflow.MARQUEE : TextOverflow.Ellipsis })
+      if (this.subtitle.length > 0) {
+        Text(this.subtitle)
+          .fontSize(11)
+          .height(15)
+          .lineHeight(15)
+          .fontColor(this.subtitleColor.length > 0 ? this.subtitleColor :
+            WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+          .margin({ top: 2 })
+      }
+    }
+    .alignItems(HorizontalAlign.Start)
+    .justifyContent(FlexAlign.Start)
+  }
+}
+
+@Component
+export struct PageHeader {
+  @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 壁纸亮度（文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('subtitleColor') subtitleColor: string = '';
   @Prop title: string = '';
   @Prop subtitle: string = '';
   /** 右侧按钮文字（空 = 不显示按钮） */
@@ -256,11 +313,12 @@ export struct PageHeader {
       // 顶：主题色渐变（最上层视觉）
       Column()
         .width('100%')
-        .height(px2vp(this.topInsetPx) + 60)
+        .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
         .linearGradient({
           angle: 180,
           colors: Theme.barGradient(this.themeColor, this.barStyle)
         })
+        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
       Row() {
         // 官方风格圆形返回按钮
         BackButton({
@@ -269,21 +327,8 @@ export struct PageHeader {
         }
       })
 
-      Column() {
-        Text(this.title)
-          .fontSize(18)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(Color.White)
-        if (this.subtitle.length > 0) {
-          Text(this.subtitle)
-            .fontSize(11)
-            .fontColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' :
-              (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
-            .margin({ top: 3 })
-        }
-      }
-      .alignItems(HorizontalAlign.Start)
-      .margin({ left: 6 })
+      BarTitle({ title: this.title, subtitle: this.subtitle })
+        .margin({ left: 6 })
 
       Blank()
 
@@ -292,7 +337,7 @@ export struct PageHeader {
         Row() {
           Text(this.actionToggleLabel.length > 0 ? this.actionToggleLabel : (this.actionToggleOn ? '收集中' : '已暂停'))
             .fontSize(11)
-            .fontColor(Color.White)
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .margin({ right: 8 })
           Toggle({ type: ToggleType.Switch, isOn: this.actionToggleOn })
             .selectedColor(Theme.colorOf(this.themeColor))
@@ -305,10 +350,11 @@ export struct PageHeader {
         Text(this.actionText)
           .fontSize(13)
           .fontWeight(FontWeight.Medium)
-          .fontColor(Color.White)
+          .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
           .padding({ left: 14, right: 14, top: 5, bottom: 5 })
           .backgroundColor(this.actionTone === 'theme' ? Theme.colorOf(this.themeColor) :
             (this.actionTone === 'glass' ? '#33FFFFFF' : '#DB5252'))
+          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
           .borderRadius(14)
           .margin({ left: 10 })
           .onClick(() => {
@@ -317,11 +363,11 @@ export struct PageHeader {
       }
     }
       .width('100%')
-      .height(px2vp(this.topInsetPx) + 60)
-      .alignItems(VerticalAlign.Center)
-      .padding({ left: 10, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
+      .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+      .alignItems(VerticalAlign.Top)
+      .padding({ left: 10, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
     }
     .width('100%')
-    .height(px2vp(this.topInsetPx) + 60)
+    .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
   }
 }

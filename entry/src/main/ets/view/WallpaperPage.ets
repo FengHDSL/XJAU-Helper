@@ -10,7 +10,10 @@ import { fileIo, picker, fileUri } from '@kit.CoreFileKit';
 import { http } from '@kit.NetworkKit';
 import { promptAction } from '@kit.ArkUI';
 import { AppState } from '../common/AppState';
-import { DataStore } from '../common/DataStore';
+import { DataStore, ThemeCombo } from '../common/DataStore';
+import { DateUtil } from '../common/DateUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
+import { Immersive } from './common/Immersive';
 import { Theme } from '../common/ThemeUtil';
 import { Wallpaper } from '../common/Wallpaper';
 import { PageHeader } from './common/UiKit';
@@ -20,6 +23,8 @@ import { WallpaperFill } from './common/WallpaperFill';
 export struct WallpaperPage {
   /** 全局壁纸 id（'b1'..'b6' 预置 / 'c:<path>' 自定义 / 'none'=未启用） */
   @StorageProp('wallpaperId') wallpaperId: string = 'none';
+  /** 壁纸蒙版开关 */
+  @StorageProp('wallpaperMask') wallpaperMask: boolean = true;
   /** URL 导入输入框内容 */
   @State urlText: string = '';
   @StorageProp('topInsetPx') topInsetPx: number = 0;
@@ -27,11 +32,24 @@ export struct WallpaperPage {
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 顶栏样式：new=新版渐变（默认）/ legacy=旧版实色 */
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   /** 跟随系统深色（只读展示用） */
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸亮度（文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   /** 自定义主题色输入（rrggbb，可不带 #） */
+  @StorageProp('subtitleColor') subtitleColor: string = '';
+  /** 已保存的主题组合（背景+顶栏颜色+副标题颜色） */
+  @State combos: ThemeCombo[] = [];
+  @State comboName: string = '';
+  /** 副标题自定义颜色输入 */
+  @State subHex: string = '';
   @State hexInput: string = '';
   @State hexOk: boolean = false;
+
+  aboutToAppear(): void {
+    this.combos = DataStore.combos();
+  }
 
   /** 当前主题显示名（三色枚举 / 自定义 hex 大写） */
   private themeNameText(): string {
@@ -54,7 +72,7 @@ export struct WallpaperPage {
       return;
     }
     Theme.apply(t);
-    promptAction.showToast({ message: t.startsWith('#') ? `已应用自定义主题 ${t.toUpperCase()}` : `已切换为${Theme.label()}` });
+    this.getUIContext().getPromptAction().showToast({ message: t.startsWith('#') ? `已应用自定义主题 ${t.toUpperCase()}` : `已切换为${Theme.label()}` });
   }
 
   /** 应用输入的 rrggbb 自定义主题 */
@@ -65,7 +83,7 @@ export struct WallpaperPage {
     }
     const hex: string = `#${raw.toLowerCase()}`;
     if (!Theme.isHex(hex)) {
-      promptAction.showToast({ message: '格式有误：请输入 6 位 rrggbb，例如 3b82f6' });
+      this.getUIContext().getPromptAction().showToast({ message: '格式有误：请输入 6 位 rrggbb，例如 3b82f6' });
       return;
     }
     this.applyTheme(hex);
@@ -102,13 +120,13 @@ export struct WallpaperPage {
     }
     AppStorage.setOrCreate('wallpaperId', id);
     DataStore.saveWallpaper(id);
-    promptAction.showToast({ message: '壁纸已应用' });
+    this.getUIContext().getPromptAction().showToast({ message: '壁纸已应用' });
   }
 
   /** 取消壁纸：无背景（'none'），并删除自定义壁纸文件 */
   private cancelWallpaper(): void {
     try {
-      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const p: string = `${ctx.filesDir}/wallpaper_user.dat`;
       if (fileIo.accessSync(p)) {
         fileIo.unlinkSync(p);
@@ -117,13 +135,13 @@ export struct WallpaperPage {
       // 文件不存在等忽略
     }
     this.applyWallpaper('none');
-    promptAction.showToast({ message: '已取消壁纸背景' });
+    this.getUIContext().getPromptAction().showToast({ message: '已取消壁纸背景' });
   }
 
   /** 导入自定义壁纸（文档选择器，免相册权限；jpg/jpeg/png/webp） */
   private pickCustomWallpaper(): void {
     try {
-      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: picker.DocumentSelectOptions = new picker.DocumentSelectOptions();
       options.maxSelectNumber = 1;
       options.fileSuffixFilters = ['jpg', 'jpeg', 'png', 'webp'];
@@ -145,15 +163,19 @@ export struct WallpaperPage {
             fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC | fileIo.OpenMode.READ_WRITE);
           fileIo.writeSync(file.fd, buf);
           fileIo.closeSync(file);
+          // 自动分析壁纸明暗 → 适配文字对比度（正文 ≥ 4.5:1 / 标题 ≥ 3:1）
+          WallpaperTone.analyze(buf).then((tone: number) => {
+            WallpaperTone.save(tone);
+          });
           this.applyWallpaper(`c:${dstPath}`);
         } catch (e) {
-          promptAction.showToast({ message: '图片导入失败' });
+          this.getUIContext().getPromptAction().showToast({ message: '图片导入失败' });
         }
       }).catch(() => {
-        promptAction.showToast({ message: '选择文件失败' });
+        this.getUIContext().getPromptAction().showToast({ message: '选择文件失败' });
       });
     } catch (e) {
-      promptAction.showToast({ message: '选择文件失败' });
+      this.getUIContext().getPromptAction().showToast({ message: '选择文件失败' });
     }
   }
 
@@ -161,11 +183,11 @@ export struct WallpaperPage {
   private importByUrl(): void {
     const url: string = this.urlText.trim();
     if (url.length === 0) {
-      promptAction.showToast({ message: '请输入图片 URL' });
+      this.getUIContext().getPromptAction().showToast({ message: '请输入图片 URL' });
       return;
     }
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      promptAction.showToast({ message: 'URL 需以 http(s):// 开头' });
+      this.getUIContext().getPromptAction().showToast({ message: 'URL 需以 http(s):// 开头' });
       return;
     }
     const req: http.HttpRequest = http.createHttp();
@@ -175,28 +197,105 @@ export struct WallpaperPage {
       readTimeout: 20000
     }).then((resp: http.HttpResponse) => {
       if (resp.responseCode !== 200) {
-        promptAction.showToast({ message: `下载失败(${resp.responseCode})` });
+        this.getUIContext().getPromptAction().showToast({ message: `下载失败(${resp.responseCode})` });
         req.destroy();
         return;
       }
       const arr: ArrayBuffer = resp.result as ArrayBuffer;
       try {
-        const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+        const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
         const dstPath: string = `${ctx.filesDir}/wallpaper_user.dat`;
         const file: fileIo.File = fileIo.openSync(dstPath,
           fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC | fileIo.OpenMode.READ_WRITE);
         fileIo.writeSync(file.fd, arr);
         fileIo.closeSync(file);
+        // 自动分析壁纸明暗 → 适配文字对比度
+        WallpaperTone.analyze(arr).then((tone: number) => {
+          WallpaperTone.save(tone);
+        });
         this.applyWallpaper(`c:${dstPath}`);
-        promptAction.showToast({ message: '壁纸已应用（URL）' });
+        // 记录图像地址与更新日期：之后每天首次启动自动下载新壁纸
+        DataStore.saveWallpaperUrl(url);
+        DataStore.setWallpaperUrlDate(DateUtil.format(new Date()));
+        this.getUIContext().getPromptAction().showToast({ message: '壁纸已应用，之后每天自动更新' });
       } catch (e) {
-        promptAction.showToast({ message: '保存壁纸失败' });
+        this.getUIContext().getPromptAction().showToast({ message: '保存壁纸失败' });
       }
       req.destroy();
     }).catch(() => {
-      promptAction.showToast({ message: '下载失败，请检查 URL/网络' });
+      this.getUIContext().getPromptAction().showToast({ message: '下载失败，请检查 URL/网络' });
       req.destroy();
     });
+  }
+
+  /** 设置顶栏副标题文字颜色（空=自动） */
+  private applySubtitle(color: string): void {
+    AppStorage.setOrCreate('subtitleColor', color);
+    DataStore.setSubtitleColor(color);
+  }
+
+  /** 自定义副标题颜色（#RRGGBB；留空=自动） */
+  private applySubtitleHex(): void {
+    const v: string = this.subHex.trim();
+    if (v.length === 0) {
+      this.applySubtitle('');
+      return;
+    }
+    const hex: string = v.startsWith('#') ? v : `#${v}`;
+    if (!Theme.isHex(hex)) {
+      this.getUIContext().getPromptAction().showToast({ message: '颜色码格式应为 #RRGGBB' });
+      return;
+    }
+    this.applySubtitle(hex);
+  }
+
+  /** 保存当前组合（背景 + 顶栏颜色 + 副标题颜色） */
+  private saveCombo(): void {
+    const name: string = this.comboName.trim();
+    if (name.length === 0) {
+      this.getUIContext().getPromptAction().showToast({ message: '请输入组合名称' });
+      return;
+    }
+    const c: ThemeCombo = {
+      name: name,
+      wallpaper: this.wallpaperId,
+      theme: this.themeColor,
+      subtitle: this.subtitleColor
+    };
+    DataStore.saveCombo(c);
+    this.combos = DataStore.combos();
+    this.comboName = '';
+    this.getUIContext().getPromptAction().showToast({ message: `已保存组合「${name}」` });
+  }
+
+  /** 应用组合（一次性设置背景/顶栏颜色/副标题颜色） */
+  private applyCombo(c: ThemeCombo): void {
+    AppStorage.setOrCreate('wallpaperId', c.wallpaper);
+    DataStore.saveWallpaper(c.wallpaper);
+    Theme.apply(c.theme);
+    AppStorage.setOrCreate('subtitleColor', c.subtitle);
+    DataStore.setSubtitleColor(c.subtitle);
+    this.getUIContext().getPromptAction().showToast({ message: `已应用「${c.name}」` });
+  }
+
+  /** 删除组合 */
+  private deleteCombo(name: string): void {
+    DataStore.removeCombo(name);
+    this.combos = DataStore.combos();
+  }
+
+  /** 副标题颜色胶囊 */
+  @Builder
+  subtitleChip(label: string, color: string) {
+    Text(label)
+      .fontSize(12)
+      .fontColor(this.subtitleColor === color ? Color.White : $r('app.color.text_primary'))
+      .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+      .backgroundColor(this.subtitleColor === color ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
+      .borderRadius(12)
+      .onClick(() => {
+        this.applySubtitle(color);
+      })
   }
 
   /** 单张主题色预置块 */
@@ -282,6 +381,53 @@ export struct WallpaperPage {
       .width('100%')
       .margin({ bottom: 12 })
 
+
+      // 顶栏副标题文字颜色（自动=跟随顶栏样式）
+      Row() {
+        Text('副标题颜色')
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+        Blank()
+        Row({ space: 8 }) {
+          this.subtitleChip('自动', '')
+          this.subtitleChip('黑色', '#1B1B1B')
+          this.subtitleChip('灰色', '#8A9199')
+          this.subtitleChip('白色', '#FFFFFF')
+        }
+      }
+      .width('100%')
+      .margin({ bottom: 12 })
+
+      // 副标题自定义颜色（#RRGGBB）
+      Row() {
+        Text('自定义副标题色')
+          .fontSize(12)
+          .fontColor($r('app.color.text_tertiary'))
+          .margin({ right: 10 })
+        TextInput({ text: this.subHex, placeholder: '#RRGGBB' })
+          .fontSize(13)
+          .height(36)
+          .layoutWeight(1)
+          .backgroundColor($r('app.color.bg_chip'))
+          .borderRadius(10)
+          .onChange((v: string) => {
+            this.subHex = v;
+          })
+        Button('应用')
+          .fontSize(13)
+          .height(36)
+          .borderRadius(18)
+          .fontColor(Color.White)
+          .backgroundColor(Theme.colorOf(this.themeColor))
+          .margin({ left: 10 })
+          .onClick(() => {
+            this.applySubtitleHex();
+          })
+      }
+      .width('100%')
+      .margin({ bottom: 12 })
+
       Row({ space: 18 }) {
         this.themeSwatch('red', '#C3272B', '中国红')
         this.themeSwatch('blue', '#3B82F6', '天空蓝')
@@ -327,42 +473,6 @@ export struct WallpaperPage {
     .margin({ top: 14 })
   }
 
-  @Builder
-  wpThumb(id: string) {
-    Stack({ alignContent: Alignment.BottomEnd }) {
-      Image(Wallpaper.res(id))
-        .width('100%')
-        .height('100%')
-        .objectFit(ImageFit.Cover)
-        .borderRadius(12)
-        .border({
-          width: this.wallpaperId === id ? 3 : 0,
-          color: this.wallpaperId === id ? Theme.colorOf(this.themeColor) : Color.Transparent
-        })
-        .onClick(() => {
-          this.applyWallpaper(id);
-        })
-      if (this.wallpaperId === id) {
-        // 选中勾（统一打勾图标）
-        Column() {
-          Image($r('app.media.checkmark_sel'))
-            .width(12)
-            .height(12)
-            .fillColor(Color.White)
-        }
-        .width(18)
-        .height(18)
-        .backgroundColor(Theme.colorOf(this.themeColor))
-        .borderRadius(10)
-        .justifyContent(FlexAlign.Center)
-        .alignItems(HorizontalAlign.Center)
-        .margin({ right: 6, bottom: 6 })
-      }
-    }
-    .width('31%')
-    .aspectRatio(0.62)
-    .margin({ bottom: 10 })
-  }
 
   build() {
     NavDestination() {
@@ -373,33 +483,10 @@ export struct WallpaperPage {
         Scroll() {
           Column() {
             // 悬浮顶栏让位（正文默认从顶栏下方开始，上滑可滚入其渐变下层透出）
-            Column().width('100%').height(px2vp(this.topInsetPx) + 60)
+            Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             // 顶栏主题色（三色预设 + 自定义 rrggbb）
             this.themeSection()
 
-            Text('全局壁纸')
-              .fontSize(15)
-              .fontWeight(FontWeight.Bold)
-              .fontColor($r('app.color.text_primary'))
-              .width('100%')
-              .margin({ top: 16, bottom: 10 })
-
-            // 三张一行 × 两行
-            Row() {
-              this.wpThumb('b1')
-              this.wpThumb('b2')
-              this.wpThumb('b3')
-            }
-            .width('100%')
-            .justifyContent(FlexAlign.SpaceBetween)
-
-            Row() {
-              this.wpThumb('b4')
-              this.wpThumb('b5')
-              this.wpThumb('b6')
-            }
-            .width('100%')
-            .justifyContent(FlexAlign.SpaceBetween)
 
             // 自定义壁纸（已启用时预览）
             if (this.wallpaperId.startsWith('c:')) {
@@ -438,26 +525,13 @@ export struct WallpaperPage {
                 .onClick(() => {
                   this.pickCustomWallpaper();
                 })
-              Button('取消壁纸')
-                .fontSize(14)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(this.isDarkMode ? '#FFFFFF' : '#5A5F5E')
-                .backgroundColor(Color.Transparent)
-                .border({ width: 1, color: this.isDarkMode ? 'rgba(255,255,255,0.30)' : 'rgba(0,0,0,0.15)' })
-                .height(42)
-                .layoutWeight(1)
-                .borderRadius(21)
-                .onClick(() => {
-                  this.cancelWallpaper();
-                })
-                .margin({ left: 12 })
             }
             .width('100%')
             .margin({ top: 18 })
 
             // URL 导入壁纸：直接填图片链接，下载到应用目录并应用
             Row() {
-              TextInput({ text: this.urlText, placeholder: '图片 URL（http/https）' })
+              TextInput({ text: this.urlText, placeholder: '编辑图像地址（支持API地址）' })
                 .fontSize(14)
                 .fontColor($r('app.color.text_primary'))
                 .placeholderColor($r('app.color.text_tertiary'))
@@ -471,14 +545,15 @@ export struct WallpaperPage {
                 .onSubmit(() => {
                   this.importByUrl();
                 })
-              Button('URL 导入')
+              Button('保存')
                 .fontSize(14)
                 .fontWeight(FontWeight.Medium)
-                .fontColor(Color.White)
+                .fontColor($r('app.color.brand_on'))
                 .backgroundColor(Theme.colorOf(this.themeColor))
-                .height(40)
-                .borderRadius(20)
-                .margin({ left: 10 })
+                .height(42)
+                .width(96)
+                .borderRadius(21)
+                .margin({ left: 12 })
                 .onClick(() => {
                   this.importByUrl();
                 })
@@ -487,13 +562,165 @@ export struct WallpaperPage {
             .margin({ top: 12 })
             .alignItems(VerticalAlign.Center)
 
+            // 壁纸蒙版开关：关闭后不叠加可读性遮罩（文字仍会自动适配颜色）
+            Row() {
+              Column() {
+                Text('壁纸蒙版')
+                  .fontSize(13)
+                  .fontWeight(FontWeight.Medium)
+                  .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+                Text('在壁纸上叠加可读性遮罩，保证文字清晰')
+                  .fontSize(11)
+                  .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
+                  .margin({ top: 2 })
+              }
+              .alignItems(HorizontalAlign.Start)
+              .layoutWeight(1)
+              Toggle({ type: ToggleType.Switch, isOn: this.wallpaperMask })
+                .selectedColor(Theme.colorOf(this.themeColor))
+                .onChange((on: boolean) => {
+                  AppStorage.setOrCreate('wallpaperMask', on);
+                  DataStore.setWallpaperMask(on);
+                })
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+            .margin({ top: 14 })
+
+            // 取消壁纸：恢复默认纯色背景（粉红按钮）
+            Button('取消壁纸')
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(Color.White)
+              .backgroundColor('#F2A0B5')
+              .height(42)
+              .width('100%')
+              .borderRadius(21)
+              .margin({ top: 10 })
+              .onClick(() => {
+                this.cancelWallpaper();
+              })
+
             // URL 行上移到提示文本上方；提示放其下
             Text('提示：壁纸应用在主界面五个 Tab 与多数二级页背景，切换后即时生效；课程表页保持纯色底不受影响；各功能卡片保持原有底色以保证可读性。取消壁纸即恢复默认纯色背景。')
               .fontSize(11)
               .lineHeight(18)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
               .width('100%')
               .margin({ top: 16, bottom: 20 })
+
+            // ── 主题组合：保存/应用（背景 + 顶栏颜色 + 副标题颜色）──
+            Text('主题组合')
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.text_primary'))
+              .width('100%')
+              .margin({ top: 4, bottom: 10 })
+
+            Row() {
+              TextInput({ text: this.comboName, placeholder: '组合名称（如：夜间阅读）' })
+                .fontSize(14)
+                .fontColor($r('app.color.text_primary'))
+                .placeholderColor($r('app.color.text_tertiary'))
+                .backgroundColor($r('app.color.bg_chip'))
+                .borderRadius(12)
+                .height(40)
+                .layoutWeight(1)
+                .onChange((v: string) => {
+                  this.comboName = v;
+                })
+              Button('保存当前组合')
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(Color.White)
+                .backgroundColor(Theme.colorOf(this.themeColor))
+                .height(40)
+                .borderRadius(20)
+                .margin({ left: 10 })
+                .onClick(() => {
+                  this.saveCombo();
+                })
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+
+            ForEach(this.combos, (c: ThemeCombo) => {
+              Row() {
+                // 壁纸缩略图（自定义壁纸走 file://；未设置时显示占位块）
+                if (c.wallpaper.startsWith('c:')) {
+                  Image(`file://${c.wallpaper.substring(2)}`)
+                    .width(40)
+                    .height(40)
+                    .borderRadius(10)
+                    .objectFit(ImageFit.Cover)
+                    .backgroundColor($r('app.color.bg_chip'))
+                    .margin({ right: 12 })
+                } else if (c.wallpaper !== 'none' && c.wallpaper.length > 0) {
+                  // 旧内置壁纸 id（已移除资源）：仅显示占位块
+                  Column()
+                    .width(40)
+                    .height(40)
+                    .borderRadius(10)
+                    .backgroundColor($r('app.color.bg_chip'))
+                    .margin({ right: 12 })
+                } else {
+                  Column()
+                    .width(40)
+                    .height(40)
+                    .borderRadius(10)
+                    .backgroundColor($r('app.color.bg_chip'))
+                    .margin({ right: 12 })
+                }
+                Column() {
+                  Text(c.name)
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor($r('app.color.text_primary'))
+                  // 颜色预览点：顶栏色 + 副标题色（空=自动，显示描边空点）
+                  Row({ space: 6 }) {
+                    Row()
+                      .width(12)
+                      .height(12)
+                      .borderRadius(6)
+                      .backgroundColor(Theme.colorOf(c.theme))
+                    Row()
+                      .width(12)
+                      .height(12)
+                      .borderRadius(6)
+                      .backgroundColor(c.subtitle.length > 0 ? c.subtitle : Color.Transparent)
+                      .border({ width: 1, color: $r('app.color.divider') })
+                  }
+                  .margin({ top: 4 })
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                Text('应用')
+                  .fontSize(12)
+                  .fontColor(Color.White)
+                  .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                  .backgroundColor(Theme.colorOf(this.themeColor))
+                  .borderRadius(12)
+                  .onClick(() => {
+                    this.applyCombo(c);
+                  })
+                Text('删除')
+                  .fontSize(12)
+                  .fontColor($r('app.color.text_secondary'))
+                  .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                  .backgroundColor($r('app.color.bg_chip'))
+                  .borderRadius(12)
+                  .margin({ left: 8 })
+                  .onClick(() => {
+                    this.deleteCombo(c.name);
+                  })
+              }
+              .width('100%')
+              .padding({ left: 14, right: 14, top: 10, bottom: 10 })
+              .margin({ top: 10 })
+              .backgroundColor($r('app.color.bg_card'))
+              .borderRadius(14)
+            }, (c: ThemeCombo) => c.name)
+
           }
           .width('100%')
           .padding({ left: 16, right: 16, top: 14, bottom: 24 })

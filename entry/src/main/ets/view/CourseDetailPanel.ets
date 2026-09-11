@@ -95,13 +95,13 @@ export struct CourseDetailPanel {
       this.disp = n;
       DataStore.setCourseCustomColors(JSON.stringify(n));
       this.onColorsChange(n);
-      promptAction.showToast({ message: '已恢复默认颜色' });
+      this.getUIContext().getPromptAction().showToast({ message: '已恢复默认颜色' });
     } else {
       m[name] = hex;
       this.disp = m;
       DataStore.setCourseCustomColors(JSON.stringify(m));
       this.onColorsChange(m);
-      promptAction.showToast({ message: `已设置《${name}》颜色` });
+      this.getUIContext().getPromptAction().showToast({ message: `已设置《${name}》颜色` });
     }
   }
 
@@ -126,7 +126,7 @@ export struct CourseDetailPanel {
     this.disp = m;
     DataStore.setCourseCustomColors(JSON.stringify(m));
     this.onColorsChange(m);
-    promptAction.showToast({ message: `已为 ${this.courseNames.length} 门课程分配颜色` });
+    this.getUIContext().getPromptAction().showToast({ message: `已为 ${this.courseNames.length} 门课程分配颜色` });
   }
 
   @Builder
@@ -261,7 +261,7 @@ export struct CourseDetailPanel {
                   // 该颜色已被其它课程使用：拒绝并提示
                   const usedBy: string = this.colorUsedBy(p);
                   if (usedBy.length > 0) {
-                    promptAction.showToast({ message: `《${usedBy}》已使用此颜色` });
+                    this.getUIContext().getPromptAction().showToast({ message: `《${usedBy}》已使用此颜色` });
                     return;
                   }
                   this.setCourseColor(this.selected.name, p);

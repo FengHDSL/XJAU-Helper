@@ -8,10 +8,10 @@
 
 一款为新疆农业大学学生打造的鸿蒙原生校园工具，集成登录、课表、成绩、考试、学业情况、校历信息、通知公告、空闲教室查询、农大新闻等常用功能于一体。注：非学校官方应用！非学校官方应用！
 
-[![Version](https://img.shields.io/badge/version-1.3.1-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.3.1)
+[![Version](https://img.shields.io/badge/version-1.3.4-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.3.4)
 [![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT%20(API%2026)-orange)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.1/XJAU-Helper_v1.3.1_GitHub.hap)
+[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.4/XJAU-Helper_v1.3.4.hap)
 
 </div>
 
@@ -19,7 +19,7 @@
 
 ## 📦 下载安装
 
-- **GitHub Release**：[XJAU-Helper_v1.3.1_GitHub.hap](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.1/XJAU-Helper_v1.3.1_GitHub.hap)
+- **GitHub Release**：[XJAU-Helper_v1.3.4.hap](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.4/XJAU-Helper_v1.3.4.hap)
 - **Gitee**：[XJAU-Helper](https://gitee.com/pandasoos/XJAU-Helper)
 - **HAP Store资源站**：[https://www.sydxky.cn/detail.php?id=796](https://www.sydxky.cn/detail.php?id=796)
 - **华为应用市场（邀测）**：[https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP](https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP)，邀测邀请码：`7f0Oz56PxoP`
@@ -179,6 +179,14 @@ XJAU-Helper/
 ---
 
 ## 更新日志
+
+### v1.3.4（2026-09-11）
+
+- 修复应用闪退的问题
+
+### v1.3.3（2026-09-10）
+
+- 修复了一些已知问题
 
 ### v1.3.2（2026-09-06）
 

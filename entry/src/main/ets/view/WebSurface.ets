@@ -30,6 +30,8 @@ export struct WebSurface {
   /** 页面加载完成（onPageEnd）后回调（外层可执行初始滚动让位等） */
   onLoadEnd: () => void = () => {
   };
+  /** 是否使用电脑端 UA（智慧学工默认开启） */
+  desktopUa: boolean = false;
   private controller: webview.WebviewController = new webview.WebviewController();
   /** 防止网页版登录成功回调被重复触发 */
   private loggedIn: boolean = false;
@@ -37,6 +39,10 @@ export struct WebSurface {
   private bridging: boolean = false;
   /** 上次网页版登录目标（切换目标时重置 bridging） */
   private lastTarget: string = AppState.webLoginTarget;
+
+  /** 电脑端 UA（智慧学工等 PC 版页面） */
+  private static readonly DESKTOP_UA: string =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
   /** WebView 组件出现：加载目标网页 */
   aboutToAppear(): void {
@@ -220,6 +226,10 @@ export struct WebSurface {
           // 校园 SSO 域名注入会话 Cookie（教务系统 + 统一认证/服务大厅；外部链接不注入，避免隐私泄漏）
           if (AppState.webUrl.indexOf('xjau.edu.cn') >= 0) {
             WebSurface.injectCookies(AppState.webUrl);
+          }
+          // 智慧学工等 PC 版页面：使用电脑端 UA
+          if (this.desktopUa) {
+            this.controller.setCustomUserAgent(WebSurface.DESKTOP_UA);
           }
           this.controller.loadUrl(AppState.webUrl);
           // 把 controller 交给外层（"更多"菜单操作前进后退/刷新/UA/历史等）

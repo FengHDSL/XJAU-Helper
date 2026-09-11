@@ -16,6 +16,8 @@ import { DataStore } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { ScheduleConfig, COURSE_BG_HEX, COURSE_FG_HEX } from '../common/ScheduleConfig';
 import { Theme } from '../common/ThemeUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
+import { Immersive } from './common/Immersive';
 import { CourseItem, TermInfo } from '../model/Models';
 import { EMPTY_COURSE } from '../model/Empty';
 import { LoadingTip } from './common/UiKit';
@@ -28,7 +30,11 @@ export struct ScheduleView {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸亮度（顶栏文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @State courses: CourseItem[] = [];
   @State terms: TermInfo[] = [];
   @State selectedTermIndex: number = 0;
@@ -77,7 +83,7 @@ export struct ScheduleView {
     // 平板适配：半模态面板宽度（≥600vp 视为平板，加宽并水平居中；手机保持全宽）
     try {
       const d = display.getDefaultDisplaySync();
-      const screenVp: number = px2vp(d.width);
+      const screenVp: number = this.getUIContext().px2vp(d.width);
       this.isTablet = screenVp >= 600;
       this.sheetWidth = screenVp >= 600 ? `${Math.min(Math.round(screenVp * 0.7), 840)}vp` : '100%';
     } catch (e) {
@@ -300,6 +306,24 @@ export struct ScheduleView {
     return this.hexLuma(bgHex) > 0.6 ? '#212121' : '#FFFFFF';
   }
 
+  /**
+   * 课表正文文字色：用户自定义过（cfg.textColor 非空）则用自定义；否则默认跟随壁纸自适应
+   */
+  private schedText(): ResourceColor {
+    if (this.cfg.textColor.length > 0) {
+      return this.cfg.textColor;
+    }
+    return WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode);
+  }
+
+  /** 课表次要文字色（时间轴、日期、底部说明）：同样"自定义优先，默认跟随壁纸" */
+  private schedTextSec(): ResourceColor {
+    if (this.cfg.textColor.length > 0) {
+      return this.cfg.textColor;
+    }
+    return WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode);
+  }
+
   /** 格子文字颜色：文字叠加 > 自定义文字色 > 课程主题文字色 */
   private fgOf(course: CourseItem, isNext: boolean): string {
     if (isNext) {
@@ -451,11 +475,12 @@ export struct ScheduleView {
       // 顶：主题色渐变
       Column()
         .width('100%')
-        .height(px2vp(this.topInsetPx) + 60)
+        .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
         .linearGradient({
           angle: 180,
           colors: Theme.barGradient(this.themeColor, this.barStyle)
         })
+        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
     Column() {
       Row() {
         Column() {
@@ -463,19 +488,22 @@ export struct ScheduleView {
             Text('课程表')
               .fontSize(20)
               .fontWeight(FontWeight.Bold)
-              .fontColor(Color.White)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .height(28)
+              .lineHeight(28)
             // 设置按钮：紧贴"课程表"标题右侧，圆形半透白底 + 齿轮图标
             Column() {
               Image($r('app.media.gearshape'))
                 .width(20)
                 .height(20)
-                .fillColor(Color.White)
+                .fillColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
                 .opacity(0.9)
             }
-            .width(30)
-            .height(30)
-            .borderRadius(15)
+            .width(28)
+            .height(28)
+            .borderRadius(14)
             .backgroundColor('#26FFFFFF')
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
             .justifyContent(FlexAlign.Center)
             .alignItems(HorizontalAlign.Center)
             .margin({ left: 8 })
@@ -489,15 +517,16 @@ export struct ScheduleView {
           Row() {
             Text(this.currentTerm().label)
               .fontSize(11)
-              .fontColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
+              .fontColor(this.subtitleColor.length > 0 ? this.subtitleColor : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             // 学期选择箭头：list.png 图标，深色模式用浅色 fillColor 适配
             Image($r('app.media.list_bullet'))
               .width(14)
               .height(14)
-              .fillColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
+              .fillColor(this.subtitleColor.length > 0 ? this.subtitleColor : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
               .margin({ left: 3 })
           }
-          .margin({ top: 3 })
+          .height(15)
+          .margin({ top: 2 })
           .onClick(() => {
             this.showTermSheet = true;
           })
@@ -512,9 +541,10 @@ export struct ScheduleView {
         if (this.viewWeek !== this.currentWeek) {
           Text('回到本周')
             .fontSize(11)
-            .fontColor(Color.White)
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .padding({ left: 10, right: 10, top: 5, bottom: 5 })
             .backgroundColor('#33FFFFFF')
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
             .borderRadius(12)
             .margin({ right: 8 })
             .onClick(() => {
@@ -526,7 +556,7 @@ export struct ScheduleView {
         Row() {
           Text('‹')
             .fontSize(16)
-            .fontColor(Color.White)
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .width(22)
             .textAlign(TextAlign.Center)
             .onClick(() => {
@@ -535,7 +565,7 @@ export struct ScheduleView {
           Text(`第 ${this.viewWeek} 周`)
             .fontSize(12)
             .fontWeight(FontWeight.Medium)
-            .fontColor(Color.White)
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .width(56)
             .textAlign(TextAlign.Center)
             .onClick(() => {
@@ -543,7 +573,7 @@ export struct ScheduleView {
             })
           Text('›')
             .fontSize(16)
-            .fontColor(Color.White)
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .width(22)
             .textAlign(TextAlign.Center)
             .onClick(() => {
@@ -551,16 +581,17 @@ export struct ScheduleView {
             })
         }
         .backgroundColor('#33FFFFFF')
+        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
         .borderRadius(14)
         .padding({ top: 4, bottom: 4 })
       }
       .width('100%')
-      .alignItems(VerticalAlign.Center) // 右侧"回到本周"/周次组件与"课程表"标题水平中线对齐
+      .alignItems(VerticalAlign.Center) // 右侧.alignItems(VerticalAlign.Top)"回到本周"/周次组件与"课程表"标题水平中线对齐
     }
     .width('100%')
-    .height(px2vp(this.topInsetPx) + 60)
+    .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
     .justifyContent(FlexAlign.Center)
-    .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
+    .padding({ left: 16, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
     }
     .width('100%')
   }
@@ -571,7 +602,7 @@ export struct ScheduleView {
       Column() {
         Text(`${this.dateOf(1).getMonth() + 1}月`)
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(this.schedTextSec())
       }
       .width(40)
       .justifyContent(FlexAlign.Center)
@@ -581,10 +612,10 @@ export struct ScheduleView {
           Text(Const.WEEK_SHORT[wd - 1])
             .fontSize(this.cfg.headerFontSize)
             .fontWeight(this.isToday(wd) ? FontWeight.Bold : FontWeight.Normal)
-            .fontColor(this.isToday(wd) ? Theme.colorOf(this.themeColor) : $r('app.color.text_secondary'))
+            .fontColor(this.isToday(wd) ? Theme.colorOf(this.themeColor) : this.schedTextSec())
           Text(`${this.dateOf(wd).getMonth() + 1}/${this.dateOf(wd).getDate()}`)
             .fontSize(11)
-            .fontColor(this.isToday(wd) ? Theme.colorOf(this.themeColor) : $r('app.color.text_tertiary'))
+            .fontColor(this.isToday(wd) ? Theme.colorOf(this.themeColor) : this.schedTextSec())
             .margin({ top: 2 })
         }
         .layoutWeight(1)
@@ -721,15 +752,15 @@ export struct ScheduleView {
           Text(`${item.index}`)
             .fontSize(13)
             .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.text_secondary'))
+            .fontColor(this.schedTextSec())
           if (this.cfg.showSectionTime) {
             Text(item.start)
               .fontSize(9)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(this.schedTextSec())
               .margin({ top: 2 })
             Text(item.end)
               .fontSize(9)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(this.schedTextSec())
           }
         }
         .width('100%')
@@ -903,9 +934,9 @@ export struct ScheduleView {
       const base64: string = JwApi.arrayBufferToBase64(out);
       DataStore.setScheduleBg(base64);
       this.scheduleBg = base64;
-      promptAction.showToast({ message: '背景图已设置' });
+      this.getUIContext().getPromptAction().showToast({ message: '背景图已设置' });
     } catch (e) {
-      promptAction.showToast({ message: '设置背景图失败' });
+      this.getUIContext().getPromptAction().showToast({ message: '设置背景图失败' });
     }
   }
 
@@ -913,7 +944,7 @@ export struct ScheduleView {
   private clearBackgroundImage(): void {
     DataStore.setScheduleBg('');
     this.scheduleBg = '';
-    promptAction.showToast({ message: '背景图已清除' });
+    this.getUIContext().getPromptAction().showToast({ message: '背景图已清除' });
   }
 
   /** 所有课程名（去重），课程详情"一键分配"用 */
@@ -1044,6 +1075,9 @@ export struct ScheduleView {
           }
           .width('100%')
           .layoutWeight(1)
+          // 大卡片圆角（竖屏课程表卡片）
+          .borderRadius(18)
+          .clip(true)
           // 左右滑动切换上一周/下一周（水平滑动手势，不干扰表格内部垂直滚动）
           .gesture(
             SwipeGesture({ direction: SwipeDirection.Horizontal })
@@ -1069,7 +1103,8 @@ export struct ScheduleView {
       .width('100%')
       .height('100%')
       // 课程表保持自身不透明底色，不受全局壁纸影响（表格信息密度高，铺壁纸可读性差）
-      .backgroundColor($r('app.color.bg_page'))
+      // 背景透明：跟随全局壁纸/主题底色（与其它 Tab 一致）
+      .backgroundColor(Color.Transparent)
       .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
         height: SheetSize.FIT_CONTENT,
         preferType: SheetType.BOTTOM,
@@ -1098,8 +1133,8 @@ export struct ScheduleView {
 
   /** 监听屏幕方向变化（横屏时左列周数选择 + 右列课程表） */
   private listenLandscape(): void {
-    this.isLandscape = mediaquery.matchMediaSync('(orientation: landscape)').matches;
-    this.landscapeListener = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.isLandscape = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)').matches;
+    this.landscapeListener = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
     this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
       this.isLandscape = res.matches;
     });
@@ -1123,11 +1158,11 @@ export struct ScheduleView {
           Row() {
             Text(`本周共 ${this.weekCourseCount()} 节课`)
               .fontSize(11)
-              .fontColor(this.scheduleBg.length > 0 ? '#FFFFFF' : $r('app.color.text_tertiary'))
+              .fontColor(this.schedTextSec())
             Blank()
             Text('点击课程查看详情')
               .fontSize(11)
-              .fontColor(this.scheduleBg.length > 0 ? '#FFFFFF' : $r('app.color.text_tertiary'))
+              .fontColor(this.schedTextSec())
           }
           .width('100%')
           // bottom 100 是"悬浮底栏"预留（课程表页无悬浮底栏），正是课程表与点阵之间大间隙的来源；
@@ -1140,7 +1175,7 @@ export struct ScheduleView {
             }
             .width('100%')
             // 底部预留 = 安全区 + 180：提高滚动到底部的余量，点阵最后一行不被导航栏/手势条遮挡
-            .padding({ left: 16, right: 16, bottom: px2vp(this.bottomInsetPx) + 0 })
+            .padding({ left: 16, right: 16, bottom: this.getUIContext().px2vp(this.bottomInsetPx) + 0 })
             .margin({ top: 8 })
           }
         }
@@ -1153,8 +1188,9 @@ export struct ScheduleView {
       .height('100%')
       .scrollBar(BarState.Off)
       .edgeEffect(EdgeEffect.Spring)
+      // 三层结构：底层=全局壁纸（穿透可见）；中间=课表背景（图片/自定义色，未设置则透明）；上层=卡片与文字
       .backgroundColor(this.scheduleBg.length > 0 ? Color.Transparent :
-        (this.cfg.bgColor.length > 0 ? this.cfg.bgColor : $r('app.color.bg_page')))
+        (this.cfg.bgColor.length > 0 ? this.cfg.bgColor : Color.Transparent))
       .align(Alignment.TopStart)
     }
     .width('100%')
@@ -1280,6 +1316,9 @@ export struct ScheduleView {
     .height('100%')
     // 显式交叉轴拉伸：修复横屏右列高度塌缩（课程表 Scroll 视口过矮，节数多时底部"第九节"滚不上来）
     .alignSelf(ItemAlign.Stretch)
+    // 大卡片圆角（横屏右侧课程表卡片）
+    .borderRadius(18)
+    .clip(true)
 
     .width('100%')
     .layoutWeight(1)

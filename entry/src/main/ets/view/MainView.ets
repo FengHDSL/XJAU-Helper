@@ -12,6 +12,7 @@ import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
 import { Wallpaper } from '../common/Wallpaper';
+import { WallpaperTone } from '../common/WallpaperTone';
 import { AboutPage } from './AboutPage';
 import { AcademicPage } from './AcademicPage';
 import { ExamPage } from './ExamPage';
@@ -34,9 +35,14 @@ import { ScoreView } from './ScoreView';
 export struct MainView {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸蒙版开关（关闭时不叠加可读性遮罩） */
+  @StorageProp('wallpaperMask') wallpaperMask: boolean = true;
   @StorageProp('themeColor') themeColor: string = 'green';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   /** 全局壁纸 id（'b1'..'b6' 预置 / 'c:<path>' 自定义 / 'none'=未启用） */
   @StorageProp('wallpaperId') wallpaperId: string = 'none';
+  /** 壁纸亮度（自动对比度适配用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @State currentIndex: number = 0;
   private tabsController: HdsTabsController = new HdsTabsController();
   onLogout: () => void = () => {
@@ -73,7 +79,7 @@ export struct MainView {
       Image(icon)
         .width(20)
         .height(20)
-        .fillColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#FFFFFF' : '#000000'))
+        .fillColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
       Text(title)
         .fontSize(10)
         .fontWeight(this.currentIndex === index ? FontWeight.Medium : FontWeight.Normal)
@@ -123,6 +129,24 @@ export struct MainView {
     }
   }
 
+  /** HDS 材质类型（容错：部分 ROM/HDS 版本可能不提供该枚举） */
+  private safeMaterialType(): hdsMaterial.MaterialType {
+    try {
+      return hdsMaterial.MaterialType.IMMERSIVE;
+    } catch (e) {
+      return 0 as hdsMaterial.MaterialType;
+    }
+  }
+
+  /** HDS 材质档位（容错） */
+  private safeMaterialLevel(): hdsMaterial.MaterialLevel {
+    try {
+      return hdsMaterial.MaterialLevel.ADAPTIVE;
+    } catch (e) {
+      return 0 as hdsMaterial.MaterialLevel;
+    }
+  }
+
   build() {
     Stack() {
       // 页面底色：无壁纸时的默认纯色底（五个 Tab 页根背景已透明，由本层兜底）
@@ -133,17 +157,21 @@ export struct MainView {
         .hitTestBehavior(HitTestMode.None)
       // 全局壁纸（'none'=未启用不渲染）。壁纸始终清晰显示；
       // 可读性遮罩仅壁纸启用时叠加，避免默认观感变化。
-      if (this.wallpaperId !== 'none') {
+      if (this.wallpaperId.startsWith('c:')) {
         Image(Wallpaper.src(this.wallpaperId))
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
           .hitTestBehavior(HitTestMode.None)
-        Column()
-          .width('100%')
-          .height('100%')
-          .backgroundColor(this.isDarkMode ? 'rgba(8,10,10,0.38)' : 'rgba(255,255,255,0.18)')
-          .hitTestBehavior(HitTestMode.None)
+        if (this.wallpaperMask) {
+          Column()
+            .width('100%')
+            .height('100%')
+            .backgroundColor(this.wallpaperTone >= 0
+              ? WallpaperTone.overlay(this.wallpaperTone, this.isDarkMode)
+              : (this.isDarkMode ? 'rgba(8,10,10,0.38)' : 'rgba(255,255,255,0.18)'))
+            .hitTestBehavior(HitTestMode.None)
+        }
       }
       Navigation(AppState.stack) {
         HdsTabs({ barPosition: BarPosition.End, index: this.currentIndex, controller: this.tabsController }) {
@@ -197,12 +225,14 @@ export struct MainView {
         .barFloatingStyle({
           barWidth: { smallWidth: 340, mediumWidth: 420, largeWidth: 500 },
           barSideMargin: 12, // 悬浮栏距屏幕左右边缘
-          barBottomMargin: 4 + px2vp(this.bottomInsetPx), // 距屏幕底部尽量小（贴近底部，含小白条安全区）
+          barBottomMargin: 4 + this.getUIContext().px2vp(this.bottomInsetPx), // 距屏幕底部尽量小（贴近底部，含小白条安全区）
           adaptToHandedness: true, // 左右手自适应
-          lightColor: this.isDarkMode ? '#40FFFFFF' : '#20FFFFFF', // 光效颜色：深色半透白高光 / 浅色低饱和
+          // 光效颜色跟随主题色（点光源与主题色一致）
+          lightColor: Theme.rgba(Theme.colorOf(this.themeColor), this.isDarkMode ? 0.40 : 0.28),
           systemMaterialEffect: {
-            materialType: hdsMaterial.MaterialType.IMMERSIVE, // 沉浸式系统材质（毛玻璃光感）
-            materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE // 随系统沉浸光感强弱自适应
+            // 底栏沉浸光感固定开启（不受个性主题开关影响）
+            materialType: this.safeMaterialType(),
+            materialLevel: this.safeMaterialLevel() // 随系统沉浸光感强弱自适应
           }
         })
         .width('100%')

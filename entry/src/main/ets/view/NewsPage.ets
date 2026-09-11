@@ -7,6 +7,9 @@ import { image } from '@kit.ImageKit';
 import { webview } from '@kit.ArkWeb';
 import { promptAction, mediaquery } from '@kit.ArkUI';
 import { Theme } from '../common/ThemeUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
+import { Immersive } from './common/Immersive';
+import { BarTitle } from './common/UiKit';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { NewsApi, NewsItem } from '../api/NewsApi';
@@ -15,6 +18,8 @@ import { JwApi } from '../api/JwApi';
 @Component
 struct NewsRow {
   @Prop item: NewsItem | null = null;
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @Prop showThumb: boolean = true;
   @State thumb: image.PixelMap | null = null;
   onTap: () => void = () => {};
@@ -47,7 +52,7 @@ struct NewsRow {
           Text(this.item.title).fontSize(15).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
-          Text(this.item.date).fontSize(11).fontColor($r('app.color.text_tertiary'))
+          Text(this.item.date).fontSize(11).fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
             .margin({ top: 6 }).width('100%')
         }
         .layoutWeight(1).alignItems(HorizontalAlign.Start)
@@ -61,9 +66,13 @@ struct NewsRow {
 @Component
 export struct NewsPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  /** 壁纸亮度（顶栏文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   /** 调试模式（AppStorage 响应式）：开启后功能浏览模式允许加载新闻 */
   @StorageProp('debugNetwork') @Watch('onDebugNetworkChanged') debugNetwork: boolean = false;
   @State currentTab: number = 0;
@@ -108,8 +117,8 @@ export struct NewsPage {
 
   /** 监听屏幕方向变化（横屏时新闻分两列） */
   private listenLandscape(): void {
-    this.isLandscape = mediaquery.matchMediaSync('(orientation: landscape)').matches;
-    this.landscapeListener = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.isLandscape = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)').matches;
+    this.landscapeListener = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
     this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
       this.isLandscape = res.matches;
     });
@@ -289,7 +298,7 @@ export struct NewsPage {
         List() {
           // 顶栏占位（随内容滚走）：列表初始从悬浮头（渐变顶栏+透明板块栏）下方开始，上滑后内容进入其下层
           ListItem() {
-            Column().width('100%').height(px2vp(this.topInsetPx) + 60 + 44)
+            Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60 + 44)
           }
           // 横屏：每 ListItem 一行两列新闻；竖屏：单列
           if (this.isLandscape) {
@@ -349,7 +358,7 @@ export struct NewsPage {
                 Text('上拉加载更多').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 14 })
               }
               Text('数据来源: 新疆农业大学新闻网')
-                .fontSize(11).fontColor($r('app.color.text_tertiary'))
+                .fontSize(11).fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 16 })
               Column().height(120)
             }
@@ -402,19 +411,20 @@ export struct NewsPage {
       // 模糊层已取消（用户要求：内容直接透渐变）
         Column()
           .width('100%')
-          .height(px2vp(this.topInsetPx) + 60)
+          .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
           .linearGradient({
             angle: 180,
             colors: Theme.barGradient(this.themeColor, this.barStyle)
           })
+          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
       Row() {
-        Text('农大新闻').fontSize(20).fontWeight(FontWeight.Bold).fontColor(Color.White)
+        BarTitle({ title: '农大新闻' })
         // 搜索框：输入框，回车跳转搜索结果页
         Row() {
           TextInput({ text: this.keyword, placeholder: '搜索新闻' })
             .fontSize(13)
-            .fontColor(Color.White)
-            .placeholderColor('#CCFFFFFF')
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+            .placeholderColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .backgroundColor(Color.Transparent)
             .layoutWeight(1)
             .height(32)
@@ -422,24 +432,31 @@ export struct NewsPage {
             .onSubmit(() => { this.doSearch(); })
         }
         .backgroundColor('#26FFFFFF')
+        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
         .borderRadius(16)
         .height(32)
         .layoutWeight(1)
         .margin({ left: 10, right: 10 })
-        Text('收藏').fontSize(12).fontColor(Color.White)
-          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-          .backgroundColor('#33FFFFFF').borderRadius(14)
+        Text('收藏').fontSize(12).fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+          .height(32)
+          .textAlign(TextAlign.Center)
+          .padding({ left: 14, right: 14 })
+          .backgroundColor('#33FFFFFF').borderRadius(16)
+          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
           .onClick(() => {
             AppState.stack.pushPath({ name: Const.ROUTE_NEWS_FAV });
           })
-        Text('网页端').fontSize(12).fontColor(Color.White)
-          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-          .backgroundColor('#33FFFFFF').borderRadius(14)
+        Text('网页端').fontSize(12).fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+          .height(32)
+          .textAlign(TextAlign.Center)
+          .padding({ left: 14, right: 14 })
+          .backgroundColor('#33FFFFFF').borderRadius(16)
+          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
           .margin({ left: 8 })
           .onClick(() => {
             // 功能浏览模式默认禁止；调试模式开启后允许
             if (JwApi.USE_MOCK && !this.debugNetwork) {
-              promptAction.showToast({ message: '当前模式禁止使用' });
+              this.getUIContext().getPromptAction().showToast({ message: '当前模式禁止使用' });
               return;
             }
             AppState.webUrl = 'https://news.xjau.edu.cn/main.htm';
@@ -447,9 +464,9 @@ export struct NewsPage {
             AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
           })
       }
-      .width('100%').height(px2vp(this.topInsetPx) + 60)
-      .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
-      .alignItems(VerticalAlign.Center)
+      .width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+      .padding({ left: 16, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
+      .alignItems(VerticalAlign.Top)
       }
       // 内容穿透：三层悬浮顶栏（底层内容→中层全透明模糊→顶层主题渐变），不占布局空间
       .width('100%')
@@ -483,7 +500,7 @@ export struct NewsPage {
       .backgroundColor(Color.Transparent)
       .clip(true)
       // 内容穿透：悬浮于渐变顶栏正下方（y=顶栏高），不占布局空间
-      .position({ x: 0, y: px2vp(this.topInsetPx) + 60 })
+      .position({ x: 0, y: this.getUIContext().px2vp(this.topInsetPx) + 60 })
       .zIndex(1)
 
       Tabs({ barPosition: BarPosition.Start, index: this.currentTab, controller: this.tabsController }) {

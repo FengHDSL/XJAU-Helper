@@ -20,8 +20,10 @@ import { DataStore } from '../common/DataStore';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
+import { Immersive } from './common/Immersive';
 import { EmptyRoomCondition, EmptyRoomItem, EmptyRoomQueryParams, EmptyRoomResult, TermInfo } from '../model/Models';
-import { EmptyTip, LoadingTip, PickRow } from './common/UiKit';
+import { BarTitle, EmptyTip, LoadingTip, PickRow } from './common/UiKit';
 import { BackButton } from './common/BackButton';
 import { WebSurface } from './WebSurface';
 import { WallpaperFill } from './common/WallpaperFill';
@@ -60,9 +62,11 @@ const STATIC_SUB_TYPES: Record<string, EmptyRoomCondition[]> = {
 @Component
 export struct KxjsPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   // 学年学期（本地生成）
   @State terms: TermInfo[] = [];
@@ -139,8 +143,8 @@ export struct KxjsPage {
 
   /** 监听屏幕方向变化（横屏时左列查询选项 + 右列查询结果） */
   private listenLandscape(): void {
-    this.isLandscape = mediaquery.matchMediaSync('(orientation: landscape)').matches;
-    this.landscapeListener = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.isLandscape = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)').matches;
+    this.landscapeListener = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
     this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
       this.isLandscape = res.matches;
     });
@@ -421,13 +425,13 @@ export struct KxjsPage {
     this.pageIndex = 1;
     this.rooms = [];
     this.resultMessage = '';
-    promptAction.showToast({ message: '已清空', duration: 1500 });
+    this.getUIContext().getPromptAction().showToast({ message: '已清空', duration: 1500 });
   }
 
   /** 打开网页端空闲教室查询（在"外部链接"页面中访问，共享登录 Cookie） */
   private openWebQuery(): void {
     if (JwApi.USE_MOCK && !AppState.debugNetwork) {
-      promptAction.showToast({ message: '当前模式禁止使用' });
+      this.getUIContext().getPromptAction().showToast({ message: '当前模式禁止使用' });
       return;
     }
     AppState.webUrl =
@@ -517,7 +521,7 @@ export struct KxjsPage {
   /** 场地二级类别（须先选一级） */
   private openSubTypePicker(): void {
     if (this.subTypeList.length === 0) {
-      promptAction.showToast({ message: '请先选择场地类别' });
+      this.getUIContext().getPromptAction().showToast({ message: '请先选择场地类别' });
       return;
     }
     this.openSingleSheet('选择场地二级类别', 'subType', this.subTypeList.map((c: EmptyRoomCondition) => c.name), this.subTypeIndex);
@@ -583,7 +587,7 @@ export struct KxjsPage {
 
   private confirmMultiPicker(): void {
     if (this.multiPickerTempSet.length === 0) {
-      promptAction.showToast({ message: '请至少选择 1 项' });
+      this.getUIContext().getPromptAction().showToast({ message: '请至少选择 1 项' });
       return;
     }
     const t: string = this.multiPickerTitle;
@@ -850,7 +854,7 @@ export struct KxjsPage {
           this.queryOptionsCard()
         }
         .width('100%')
-        .padding({ left: 16, right: 8, top: px2vp(this.topInsetPx) + 104, bottom: 120 })
+        .padding({ left: 16, right: 8, top: this.getUIContext().px2vp(this.topInsetPx) + 104, bottom: 120 })
       }
       .layoutWeight(1)
       .height('100%')
@@ -862,7 +866,7 @@ export struct KxjsPage {
         Scroll() {
           Column() {
             // 顶栏让位
-            Column().width('100%').height(px2vp(this.topInsetPx) + 60)
+            Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             Row() {
               Text('查询结果')
                 .fontSize(14)
@@ -904,7 +908,7 @@ export struct KxjsPage {
               .borderRadius(18)
             }
             Column()
-              .height(px2vp(this.bottomInsetPx) + 100)
+              .height(this.getUIContext().px2vp(this.bottomInsetPx) + 100)
           }
           .width('100%')
           .padding({ left: 8, right: 16, top: 14, bottom: 120 })
@@ -943,33 +947,33 @@ export struct KxjsPage {
         Stack({ alignContent: Alignment.TopStart }) {
           Column()
             .width('100%')
-            .height(px2vp(this.topInsetPx) + 60)
+            .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             .linearGradient({
               angle: 180,
               colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
-          Text('空闲教室查询')
-            .fontSize(18)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
+          BarTitle({ title: '空闲教室查询' })
             .margin({ left: 6 })
             .layoutWeight(1)
           Text('网页端')
             .fontSize(13)
-            .fontColor(this.barStyle === 'legacy' ? Color.White : (this.isDarkMode ? $r('app.color.text_secondary') : Color.White))
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .padding({ left: 10, right: 10, top: 5, bottom: 5 })
             .backgroundColor(this.barStyle === 'legacy' ? '#33FFFFFF' : (this.isDarkMode ? $r('app.color.bg_chip') : '#26FFFFFF'))
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
             .borderRadius(14)
             .onClick(() => {
               this.openWebQuery();
             })
           Text('清空')
             .fontSize(13)
-            .fontColor(this.barStyle === 'legacy' ? Color.White : (this.isDarkMode ? $r('app.color.text_secondary') : Color.White))
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .padding({ left: 10, right: 10, top: 5, bottom: 5 })
             .backgroundColor(this.barStyle === 'legacy' ? '#33FFFFFF' : (this.isDarkMode ? $r('app.color.bg_chip') : '#26FFFFFF'))
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
             .borderRadius(14)
             .margin({ left: 8 })
             .onClick(() => {
@@ -977,9 +981,9 @@ export struct KxjsPage {
             })
         }
         .width('100%')
-        .alignItems(VerticalAlign.Center)
-        .height(px2vp(this.topInsetPx) + 60)
-        .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
+        .alignItems(VerticalAlign.Top)
+        .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+        .padding({ left: 16, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
         // 详情弹窗（挂顶栏 Row，与单选/多选弹窗分离避免 bindSheet 相互覆盖）
         .bindSheet($$this.showDetail, this.detailSheet(), {
           width: SheetUtil.sheetWidth(),
@@ -1004,7 +1008,7 @@ export struct KxjsPage {
             Scroll() {
               Column() {
                 // 顶栏悬浮让位（正文默认从顶栏下方开始，上滑才滚入渐变下层）
-                Column().width('100%').height(px2vp(this.topInsetPx) + 60)
+                Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60)
                 // 查询条件卡
                 this.queryOptionsCard()
 
@@ -1053,7 +1057,7 @@ export struct KxjsPage {
                 }
                 // 底部抬高（参考学业情况页，避免内容贴底；+100 保证翻页控件滚到底可见）
                 Column()
-                  .height(px2vp(this.bottomInsetPx) + 100)
+                  .height(this.getUIContext().px2vp(this.bottomInsetPx) + 100)
               }
               .width('100%')
               .padding({ left: 16, right: 16, top: 14 })

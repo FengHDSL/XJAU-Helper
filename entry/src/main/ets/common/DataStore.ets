@@ -9,6 +9,14 @@ import { common } from '@kit.AbilityKit';
 import { UserProfile } from '../model/Models';
 import { DateUtil } from './DateUtil';
 
+/** 个性主题组合：背景壁纸 + 顶栏主题色 + 副标题颜色 */
+export interface ThemeCombo {
+  name: string;
+  wallpaper: string;
+  theme: string;
+  subtitle: string;
+}
+
 export class DataStore {
   private static pref: preferences.Preferences | null = null;
 
@@ -265,6 +273,38 @@ export class DataStore {
     return DataStore.get(DataStore.KEY_WALLPAPER);
   }
 
+  // ── 壁纸蒙版（可读性遮罩）开关：'1'=开（默认） / '0'=关 ──
+  static readonly KEY_WALLPAPER_MASK: string = 'wallpaper_mask';
+
+  static wallpaperMaskOn(): boolean {
+    return DataStore.get(DataStore.KEY_WALLPAPER_MASK) !== '0';
+  }
+
+  static setWallpaperMask(on: boolean): void {
+    DataStore.put(DataStore.KEY_WALLPAPER_MASK, on ? '1' : '0');
+  }
+
+  // ── 壁纸图像地址（用户填写的 URL；保存后每天自动下载新壁纸）──
+  static readonly KEY_WALLPAPER_URL: string = 'wallpaper_url';
+  static readonly KEY_WALLPAPER_URL_DATE: string = 'wallpaper_url_date';
+
+  static saveWallpaperUrl(url: string): void {
+    DataStore.put(DataStore.KEY_WALLPAPER_URL, url);
+  }
+
+  static loadWallpaperUrl(): string {
+    return DataStore.get(DataStore.KEY_WALLPAPER_URL);
+  }
+
+  /** 记录最近一次自动/手动按 URL 更新壁纸的日期（YYYY-MM-DD） */
+  static setWallpaperUrlDate(date: string): void {
+    DataStore.put(DataStore.KEY_WALLPAPER_URL_DATE, date);
+  }
+
+  static loadWallpaperUrlDate(): string {
+    return DataStore.get(DataStore.KEY_WALLPAPER_URL_DATE);
+  }
+
   // ── 深色模式（手动开关；未设置时跟随系统）──
   static readonly KEY_DARK: string = 'dark_mode';
 
@@ -294,6 +334,70 @@ export class DataStore {
 
   static setBarStyle(style: string): void {
     DataStore.put(DataStore.KEY_BAR_STYLE, style === 'legacy' ? 'legacy' : 'new');
+  }
+
+  // ── 沉浸光感（系统材质）开关：'1'=开（默认） / '0'=关 ──
+  static readonly KEY_IMMERSIVE: string = 'immersive_effect';
+
+  /** 沉浸光感已改为默认开启（不再提供开关） */
+  static immersiveOn(): boolean {
+    return true;
+  }
+
+  static setImmersive(on: boolean): void {
+    DataStore.put(DataStore.KEY_IMMERSIVE, on ? '1' : '0');
+  }
+
+  // ── 顶栏副标题颜色（空 = 自动，按顶栏样式/深浅决定）──
+  static readonly KEY_SUBTITLE_COLOR: string = 'subtitle_color';
+
+  static subtitleColor(): string {
+    return DataStore.get(DataStore.KEY_SUBTITLE_COLOR);
+  }
+
+  static setSubtitleColor(color: string): void {
+    DataStore.put(DataStore.KEY_SUBTITLE_COLOR, color);
+  }
+
+  // ── 个性主题组合（背景 + 顶栏颜色 + 副标题颜色）──
+  static readonly KEY_THEME_COMBOS: string = 'theme_combos';
+
+  /** 已保存的组合列表 */
+  static combos(): ThemeCombo[] {
+    const raw: string = DataStore.get(DataStore.KEY_THEME_COMBOS);
+    if (raw.length === 0) {
+      return [];
+    }
+    try {
+      return JSON.parse(raw) as ThemeCombo[];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /** 保存组合（同名覆盖） */
+  static saveCombo(c: ThemeCombo): void {
+    const list: ThemeCombo[] = DataStore.combos();
+    const out: ThemeCombo[] = [];
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].name !== c.name) {
+        out.push(list[i]);
+      }
+    }
+    out.push(c);
+    DataStore.put(DataStore.KEY_THEME_COMBOS, JSON.stringify(out));
+  }
+
+  /** 删除组合（按名称） */
+  static removeCombo(name: string): void {
+    const list: ThemeCombo[] = DataStore.combos();
+    const out: ThemeCombo[] = [];
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].name !== name) {
+        out.push(list[i]);
+      }
+    }
+    DataStore.put(DataStore.KEY_THEME_COMBOS, JSON.stringify(out));
   }
 
   /** 清除手动设置（恢复跟随系统） */

@@ -82,7 +82,7 @@ export class Const {
    * （ServiceShow?wid=1238430490178043904，用户确认），登录后 SSO 到 xgxt 智慧学工系统。
    */
   static readonly ZHIHUI_XUEGONG_URL: string =
-    'https://rhmh.xjau.edu.cn/index.html#/ServiceShow?isMobile=2&wid=1238430490178043904';
+    'https://rhmh.xjau.edu.cn/index.html#/ServiceShow?isMobile=0&wid=1238430490178043904';
   /** 服务大厅→新教务系统 跳转地址（authserver CAS，service=jziotlogin?gid_=...；用户 2026-08-19 提供，服务大厅点开新教务系统的真实地址） */
   static readonly JW_BRIDGE_FROM_HALL_URL: string =
     'https://authserver.xjau.edu.cn/authserver/login?service=http%3A%2F%2Fjwxt.xjau.edu.cn%2Fsso%2Fjziotlogin%3Fgid_%3DTWdOQ25Nbm5POW9pQ0NQQzVUZ3kzc2hxRlNHSFhrY3dvRnZqQ3liMVc0eEJjRERUWk84Sy9wS0ZZYTRwVUZxVkxKSGZEVTlHZ2xOak9veERKQktmSUE9PQ%26amp_sec_version_%3D1%26EMAP_LANG%3Dzh%26THEME%3D';

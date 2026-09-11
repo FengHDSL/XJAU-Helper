@@ -4,6 +4,7 @@ import { mediaquery, window } from '@kit.ArkUI';
 import { fileIo } from '@kit.CoreFileKit';
 import { AppState } from '../common/AppState';
 import { DataStore } from '../common/DataStore';
+import { WallpaperTone } from '../common/WallpaperTone';
 import { Theme } from '../common/ThemeUtil';
 import { NewsApi } from '../api/NewsApi';
 
@@ -37,6 +38,14 @@ export default class EntryAbility extends UIAbility {
       AppStorage.setOrCreate('isDarkMode', initial);
     // 顶栏样式：新版渐变（默认）/ 旧版实色
     AppStorage.setOrCreate('barStyle', DataStore.barStyle());
+    // 顶栏副标题颜色（空=自动）
+    AppStorage.setOrCreate('subtitleColor', DataStore.subtitleColor());
+    // 沉浸光感开关（个性主题可切换）
+    AppStorage.setOrCreate('immersiveEffect', true); // 沉浸光感默认开启（已移除开关）
+    // 壁纸蒙版开关（默认为开）
+    AppStorage.setOrCreate('wallpaperMask', DataStore.wallpaperMaskOn());
+    // 壁纸明暗（对比度自动适配用，-1=未分析）
+    AppStorage.setOrCreate('wallpaperTone', WallpaperTone.load());
       // 让 $r() 资源色与之一致（文字/背景资源随 colorMode 切换）
       AppStorage.setOrCreate('darkManual', manual);
       AppStorage.setOrCreate('systemDark', darkListener.matches);

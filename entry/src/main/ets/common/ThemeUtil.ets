@@ -50,11 +50,8 @@ export class Theme {
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
-  /** 顶栏渐变颜色段：新版=顶部实色→底部渐隐透明；旧版(1.3.1)=整段实色不透明 */
+  /** 顶栏渐变颜色段：两档均为"顶部实色 → 底部渐隐透明"（旧版实色仅为命名，实际同为渐变+毛玻璃） */
   static barGradient(key: string, style: string): [ResourceColor, number][] {
-    if (style === 'legacy') {
-      return [[Theme.colorOf(key), 0], [Theme.colorOf(key), 1]];
-    }
     return [[Theme.colorOf(key), 0], [Theme.rgba(Theme.colorOf(key), 0), 1]];
   }
 

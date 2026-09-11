@@ -13,6 +13,9 @@ import { webview } from '@kit.ArkWeb';
 import { WebSurface } from './WebSurface';
 import { AppState, SharedHistoryItem } from '../common/AppState';
 import { Theme } from '../common/ThemeUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
+import { Immersive } from './common/Immersive';
+import { BarTitle } from './common/UiKit';
 import { BackButton } from './common/BackButton';
 import { JwApi } from '../api/JwApi';
 
@@ -32,9 +35,13 @@ const UA_TABLET: number = 2;
 @Component
 export struct WebViewPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸亮度（顶栏文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   /** 标题栏文字：初始为调用方设置的 webTitle，网页加载完成后自动替换为网页自身标题 */
   @State pageTitle: string = '网页';
   /** 当前 UA 模式（0 手机 / 1 桌面 / 2 平板） */
@@ -50,7 +57,7 @@ export struct WebViewPage {
     this.pageTitle = AppState.webTitle.length > 0 ? AppState.webTitle : '网页';
     // 功能浏览模式默认禁止使用外部链接页（所有入口统一拦截）；调试模式开启后放行
     if (JwApi.USE_MOCK && !AppState.debugNetwork) {
-      promptAction.showToast({ message: '当前模式禁止使用' });
+      this.getUIContext().getPromptAction().showToast({ message: '当前模式禁止使用' });
       setTimeout(() => {
         AppState.stack.pop();
       }, 400);
@@ -66,7 +73,7 @@ export struct WebViewPage {
       return;
     }
     pasteboard.getSystemPasteboard().setDataSync(pasteboard.createPlainTextData(url));
-    promptAction.showToast({ message: '链接已复制' });
+    this.getUIContext().getPromptAction().showToast({ message: '链接已复制' });
   }
 
   /** 拉起系统分享面板（链接），分享不可用时退回复制 */
@@ -83,7 +90,7 @@ export struct WebViewPage {
       };
       const data: systemShare.SharedData = new systemShare.SharedData(record);
       const controller: systemShare.ShareController = new systemShare.ShareController(data);
-      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       controller.show(ctx, {});
     } catch (e) {
       // 设备不支持分享面板时退回复制
@@ -95,18 +102,18 @@ export struct WebViewPage {
   private openInBrowser(): void {
     const url: string = AppState.webUrl;
     if (url.length === 0) {
-      promptAction.showToast({ message: '链接为空' });
+      this.getUIContext().getPromptAction().showToast({ message: '链接为空' });
       return;
     }
     try {
-      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const want: Want = {
         action: 'ohos.want.action.viewData',
         uri: url
       };
       ctx.startAbility(want);
     } catch (e) {
-      promptAction.showToast({ message: '打开浏览器失败' });
+      this.getUIContext().getPromptAction().showToast({ message: '打开浏览器失败' });
     }
   }
 
@@ -115,7 +122,7 @@ export struct WebViewPage {
     if (this.ctrl !== null && this.ctrl.accessBackward()) {
       this.ctrl.backward();
     } else {
-      promptAction.showToast({ message: '已是第一页' });
+      this.getUIContext().getPromptAction().showToast({ message: '已是第一页' });
     }
   }
 
@@ -124,7 +131,7 @@ export struct WebViewPage {
     if (this.ctrl !== null && this.ctrl.accessForward()) {
       this.ctrl.forward();
     } else {
-      promptAction.showToast({ message: '已是最后一页' });
+      this.getUIContext().getPromptAction().showToast({ message: '已是最后一页' });
     }
   }
 
@@ -158,9 +165,9 @@ export struct WebViewPage {
   private trimMemory(): void {
     try {
       webview.WebviewController.trimMemoryByPressureLevel(webview.PressureLevel.MEMORY_PRESSURE_LEVEL_MODERATE);
-      promptAction.showToast({ message: '内存已释放' });
+      this.getUIContext().getPromptAction().showToast({ message: '内存已释放' });
     } catch (e) {
-      promptAction.showToast({ message: '释放失败' });
+      this.getUIContext().getPromptAction().showToast({ message: '释放失败' });
     }
   }
 
@@ -197,7 +204,7 @@ export struct WebViewPage {
         // ignore
       }
     }
-    promptAction.showToast({ message: '历史记录已清空' });
+    this.getUIContext().getPromptAction().showToast({ message: '历史记录已清空' });
   }
 
   // ── 标题栏"更多"菜单（复刻 DailyNic_HMOS，不带图标）──
@@ -338,6 +345,18 @@ export struct WebViewPage {
     .backgroundColor($r('app.color.bg_page'))
   }
 
+  /** 是否服务大厅主页（仅此页面内部自带滚动容器，需页面级留白；其它外部链接保持穿透效果） */
+  static isSpaPortal(url: string): boolean {
+    // 服务大厅相关地址（rhmh 域名，含智慧学工等应用）→ 固定顶栏（页面级留白）
+    return url.indexOf('rhmh.xjau.edu.cn') >= 0 || url.indexOf('/default/index.html') >= 0;
+  }
+
+  /** 是否智慧学工页面（默认使用电脑端 UA） */
+  static isZhihuiXuegong(url: string): boolean {
+    return url.indexOf('wid=1238430490178043904') >= 0 || url.indexOf('xgxt') >= 0 ||
+      url.indexOf('zhihui') >= 0 || url.indexOf('ServiceShow') >= 0;
+  }
+
   build() {
     NavDestination() {
       Column() {
@@ -345,66 +364,77 @@ export struct WebViewPage {
         Stack({ alignContent: Alignment.TopStart }) {
           Column()
             .width('100%')
-            .height(px2vp(this.topInsetPx) + 60)
+            .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             .linearGradient({
               angle: 180,
               colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
         Row() {
           // 返回
           BackButton({ onBack: () => { AppState.stack.pop(); } })
-          Text(this.pageTitle)
-            .fontSize(18).fontWeight(FontWeight.Bold)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
+          BarTitle({ title: this.pageTitle, marquee: true })
             .margin({ left: 6 })
-            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
           // 右上角胶囊按钮：分享
           Text('分享')
             .fontSize(12)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .padding({ left: 12, right: 12, top: 4, bottom: 4 })
             .backgroundColor('#33FFFFFF')
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
             .borderRadius(14)
             .onClick(() => { this.shareLink(); })
           // 右上角胶囊按钮：更多（功能菜单，复刻 DailyNic_HMOS）
           Text('更多')
             .fontSize(12)
-            .fontColor(this.isDarkMode ? $r('app.color.text_primary') : Color.White)
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .padding({ left: 12, right: 12, top: 4, bottom: 4 })
             .backgroundColor('#33FFFFFF')
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
             .borderRadius(14)
             .margin({ left: 8 })
             .bindMenu(this.moreMenu())
         }
-        .width('100%').alignItems(VerticalAlign.Center)
-        .height(px2vp(this.topInsetPx) + 60)
-        .padding({ left: 16, right: 16, bottom: 12, top: px2vp(this.topInsetPx) + 12 })
+        .width('100%').alignItems(VerticalAlign.Top)
+        .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+        .padding({ left: 16, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
         }
         .width('100%')
         // 顶栏悬浮；网页文档头部注入一段可随滚动移动的留白（网页初始内容位于顶栏下方，上滚时可穿过渐变下层）
         .position({ x: 0, y: 0 })
         .zIndex(2)
 
+        // 网页全屏：顶部让位顶栏、底部让位悬浮底栏；留白随网页滚动，上滑内容可穿入渐变底层
         WebSurface({
           onTitleChange: (t: string) => { this.pageTitle = t; },
           onControllerReady: (ctrl: webview.WebviewController) => { this.ctrl = ctrl; },
+          desktopUa: WebViewPage.isZhihuiXuegong(AppState.webUrl),
           onLoadEnd: () => {
-            // 文档头部注入透明留白段（幂等）：留白是网页内容的一部分，随网页滚动走——不是固定空白
-            const barVp: number = px2vp(this.topInsetPx) + 60;
-            if (this.ctrl !== null) {
-              this.ctrl.runJavaScript(
-                `(function(){var s=document.getElementById('xju_top_spacer');` +
-                `if(!s){s=document.createElement('div');s.id='xju_top_spacer';` +
-                `s.style.width='100%';s.style.height='0px';s.style.flexShrink='0';` +
-                `document.body.insertBefore(s,document.body.firstChild);}` +
-                `s.style.height=${barVp}+'px';})()`, () => {
-                });
+            const topVp: number = this.getUIContext().px2vp(this.topInsetPx) + 60;
+            const bottomVp: number = this.getUIContext().px2vp(this.bottomInsetPx) + 64;
+            if (this.ctrl === null) {
+              return;
             }
+            // 统一方案：给页面真正的滚动容器加内边距（body 滚动/内部容器滚动/平板横屏均适用），不插入 DOM 节点
+            this.ctrl.runJavaScript(
+              `(function(){` +
+              `function pick(){` +
+              `var best=null,area=0;` +
+              `var all=document.querySelectorAll('div,main,section,article');` +
+              `for(var i=0;i<all.length;i++){var e=all[i];var st=getComputedStyle(e);var oy=st.overflowY;` +
+              `if((oy==='auto'||oy==='scroll')&&e.clientHeight>200&&e.scrollHeight>e.clientHeight+10){` +
+              `var a=e.clientHeight*e.clientWidth;if(a>area){area=a;best=e;}}}` +
+              `return best||document.scrollingElement||document.documentElement;}` +
+              `function apply(){var s=pick();s.style.paddingTop='${topVp}px';s.style.paddingBottom='${bottomVp}px';}` +
+              `apply();setTimeout(apply,600);setTimeout(apply,1600);` +
+              `})()`, () => {
+              });
           }
         })
           .width('100%')
           .layoutWeight(1)
+
       }
       .width('100%').height('100%')
       .backgroundColor($r('app.color.bg_page'))

@@ -12,9 +12,11 @@ import { DataStore } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { LogStore } from '../common/LogStore';
 import { Theme } from '../common/ThemeUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
+import { Immersive } from './common/Immersive';
 import { CourseItem, ExamItem, NoticeItem, QuickEntry, TermInfo, TodayCourse } from '../model/Models';
 import { TeachingCalendar } from '../model/TeachingCalendar';
-import { EmptyTip, LoadingTip, SectionHeader, TagChip } from './common/UiKit';
+import { BarTitle, EmptyTip, LoadingTip, SectionHeader, TagChip } from './common/UiKit';
 import { WebSurface } from './WebSurface';
 
 /** 下一次非今日课的预告（首页课程无课时展示） */
@@ -33,7 +35,11 @@ export struct HomeView {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸亮度（顶栏文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageLink('showAvatar') showAvatar: boolean = false;
   @State todayCourses: TodayCourse[] = [];
   @State nextClass: TodayCourse | null = null;
@@ -83,9 +89,9 @@ export struct HomeView {
 
   /** 监听屏幕方向变化（横屏时压缩头部） */
   private listenLandscape(): void {
-    const mq: mediaquery.MediaQueryResult = mediaquery.matchMediaSync('(orientation: landscape)');
+    const mq: mediaquery.MediaQueryResult = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
     this.isLandscape = mq.matches;
-    this.landscapeListener = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.landscapeListener = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
     this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
       this.isLandscape = res.matches;
     });
@@ -379,7 +385,7 @@ export struct HomeView {
     } else if (key === 'academic') {
       AppState.stack.pushPath({ name: Const.ROUTE_ACADEMIC });
     } else {
-      promptAction.showToast({ message: '该功能将在接入教务接口后开放' });
+      this.getUIContext().getPromptAction().showToast({ message: '该功能将在接入教务接口后开放' });
     }
   }
 
@@ -390,16 +396,14 @@ export struct HomeView {
       // 顶：主题色渐变
       Column()
         .width('100%')
-        .height(px2vp(this.topInsetPx) + 60)
+        .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
         .linearGradient({
           angle: 180,
           colors: Theme.barGradient(this.themeColor, this.barStyle)
         })
+        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
     Row() {
-      Text('首页')
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(Color.White)
+      BarTitle({ title: '首页' })
       // 手动重登模式 + 校历为空：标题右侧显示"重登"胶囊（点击执行自动重新登录）
       if (this.shouldShowRelogin()) {
         Text('重登')
@@ -421,9 +425,10 @@ export struct HomeView {
       Text(this.isTermStarted() ? `第 ${this.todayTeachingWeek()} 周` : '未开学')
         .fontSize(12)
         .fontWeight(FontWeight.Medium)
-        .fontColor(Color.White)
+        .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
         .padding({ left: 10, right: 10, top: 5, bottom: 5 })
         .backgroundColor('#33FFFFFF')
+        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
         .borderRadius(12)
         .margin({ right: 8 })
       // 右侧：当前学年学期（完整格式，点击展开学期选择，全局设置）
@@ -432,13 +437,13 @@ export struct HomeView {
           ? this.terms[this.selectedTermIndex].label
           : AppState.term.label)
           .fontSize(11)
-          .fontColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
+          .fontColor(this.subtitleColor.length > 0 ? this.subtitleColor : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Image($r('app.media.list_bullet'))
           .width(14)
           .height(14)
-          .fillColor(this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF'))
+          .fillColor(this.subtitleColor.length > 0 ? this.subtitleColor : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
           .margin({ left: 4 })
       }
       .padding({ left: 10, right: 6, top: 4, bottom: 4 })
@@ -448,9 +453,9 @@ export struct HomeView {
       })
     }
     .width('100%')
-    .height(px2vp(this.topInsetPx) + 60)
-    .alignItems(VerticalAlign.Center)
-    .padding({ left: 16, right: 16, top: px2vp(this.topInsetPx) + 12, bottom: 12 })
+    .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+    .alignItems(VerticalAlign.Top)
+    .padding({ left: 16, right: 16, top: this.getUIContext().px2vp(this.topInsetPx) + 12, bottom: 12 })
     }
     .width('100%')
     // 内容穿透：整个三层标题栏悬浮最上层、不占布局空间，内容可滚入其下层
@@ -601,7 +606,7 @@ export struct HomeView {
         if (this.todayCourses.length > 0) {
           Text(this.nextClass === null ? '今日课程已结束' : `今日 ${this.todayCourses.length} 节`)
             .fontSize(12)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
         }
       }
       .width('100%')
@@ -1096,7 +1101,7 @@ export struct HomeView {
               if (item.url.length > 0) {
                 // 功能浏览模式默认禁止打开网页；调试模式开启后允许
                 if (JwApi.USE_MOCK && !AppState.debugNetwork) {
-                  promptAction.showToast({ message: '当前模式禁止使用' });
+                  this.getUIContext().getPromptAction().showToast({ message: '当前模式禁止使用' });
                   return;
                 }
                 // 有文章链接：在"外部链接"页面打开教务处官网文章页
@@ -1222,7 +1227,7 @@ export struct HomeView {
     if (AppState.onForceRelogin !== null) {
       AppState.onForceRelogin();
     } else {
-      promptAction.showToast({ message: '重登功能暂不可用' });
+      this.getUIContext().getPromptAction().showToast({ message: '重登功能暂不可用' });
     }
   }
 
@@ -1470,7 +1475,7 @@ export struct HomeView {
             // 顶栏占位（随内容滚走）：内容初始位于悬浮渐变标题栏下方，上滑后进入其下层
             Column()
               .width('100%')
-              .height(px2vp(this.topInsetPx) + 60)
+              .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             // 头像卡片（始终显示；圆形头像由 showAvatar 开关控制）
             this.avatarCard()
 
@@ -1490,12 +1495,12 @@ export struct HomeView {
             this.noticeSection()
             Column() {
               Text('数据来源: 新疆农业大学教务系统').fontSize(11)
-                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
               Text('新疆农业大学教务处').fontSize(11)
-                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 3 })
               Text('"功能浏览"模式为本地模拟数据').fontSize(11)
-                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 3 })
             }
             .width('100%')
@@ -1560,7 +1565,7 @@ export struct HomeView {
             // 顶栏占位（随内容滚走）
             Column()
               .width('100%')
-              .height(px2vp(this.topInsetPx) + 60)
+              .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             this.avatarCard()
             Column() {
               this.todayCard()
@@ -1600,18 +1605,18 @@ export struct HomeView {
             // 顶栏占位（随内容滚走）
             Column()
               .width('100%')
-              .height(px2vp(this.topInsetPx) + 60)
+              .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             this.examSection()
             this.messageSection()
             this.noticeSection()
             Column() {
               Text('数据来源: 新疆农业大学教务系统').fontSize(11)
-                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
               Text('新疆农业大学教务处').fontSize(11)
-                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 3 })
               Text('"功能浏览"模式为本地模拟数据').fontSize(11)
-                .fontColor($r('app.color.text_tertiary')).width('100%').textAlign(TextAlign.Center)
+                .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 3 })
             }
             .width('100%')

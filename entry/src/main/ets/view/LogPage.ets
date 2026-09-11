@@ -115,7 +115,7 @@ export struct LogPage {
   private toggleCollecting(on: boolean): void {
     LogStore.collecting = on;
     this.collecting = on;
-    promptAction.showToast({ message: on ? '已恢复收集' : '已暂停收集' });
+    this.getUIContext().getPromptAction().showToast({ message: on ? '已恢复收集' : '已暂停收集' });
   }
 
   /** 切换时间排序（最新在前 / 最旧在前） */
@@ -126,7 +126,7 @@ export struct LogPage {
 
   /** 清空日志（标题栏右上角） */
   private clearLogs(): void {
-    promptAction.showDialog({
+    this.getUIContext().getPromptAction().showDialog({
       title: '清空日志',
       message: '确定清空全部日志记录吗？',
       buttons: [
@@ -137,7 +137,7 @@ export struct LogPage {
       if (res.index === 1) {
         LogStore.clearAll(); // 清空日志与附件（图片等文件）
         this.refresh();
-        promptAction.showToast({ message: '日志已清空' });
+        this.getUIContext().getPromptAction().showToast({ message: '日志已清空' });
       }
     });
   }
@@ -148,7 +148,7 @@ export struct LogPage {
       this.toggleSelected(index);
       return;
     }
-    animateTo({ duration: 220, curve: Curve.EaseInOut }, () => {
+    this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseInOut }, () => {
       const pos: number = this.expanded.indexOf(index);
       if (pos >= 0) {
         this.expanded.splice(pos, 1);
@@ -294,7 +294,7 @@ export struct LogPage {
    *  打包失败时降级为纯 txt 导出，保证日志不丢。 */
   private exportZip(content: string, files: string[], name: string): void {
     try {
-      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const tmpDir: string = `${ctx.cacheDir}/log_export_${new Date().getTime()}`;
       fileIo.mkdirSync(tmpDir);
       // 1) 写日志 txt
@@ -331,7 +331,7 @@ export struct LogPage {
   /** 让用户选择保存位置并写入 zip 文件 */
   private saveZipToPicker(zipPath: string, name: string): void {
     try {
-      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
       const base: string = name.replace(/\.txt$/i, '');
       options.newFileNames = [`${base}.zip`];
@@ -339,56 +339,56 @@ export struct LogPage {
       const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
       docPicker.save(options).then((uris: string[]) => {
         if (uris.length === 0) {
-          promptAction.showToast({ message: '已取消导出' });
+          this.getUIContext().getPromptAction().showToast({ message: '已取消导出' });
           return;
         }
         try {
           fileIo.copyFileSync(zipPath, uris[0]);
-          promptAction.showToast({ message: '日志与附件已导出（zip）' });
+          this.getUIContext().getPromptAction().showToast({ message: '日志与附件已导出（zip）' });
         } catch (e) {
-          promptAction.showToast({ message: '导出失败' });
+          this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
         }
       }).catch(() => {
-        promptAction.showToast({ message: '导出失败' });
+        this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
       });
     } catch (e) {
-      promptAction.showToast({ message: '导出失败' });
+      this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
     }
   }
 
   /** 导出文本到用户选择的文件（txt） */
   private exportText(content: string, name: string): void {
     try {
-      const ctx: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+      const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
       options.newFileNames = [name];
       options.fileSuffixChoices = ['.txt'];
       const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
       docPicker.save(options).then((uris: string[]) => {
         if (uris.length === 0) {
-          promptAction.showToast({ message: '已取消导出' });
+          this.getUIContext().getPromptAction().showToast({ message: '已取消导出' });
           return;
         }
         try {
           const file: fileIo.File = fileIo.openSync(uris[0], fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
           fileIo.writeSync(file.fd, content);
           fileIo.closeSync(file);
-          promptAction.showToast({ message: '日志已导出' });
+          this.getUIContext().getPromptAction().showToast({ message: '日志已导出' });
         } catch (e) {
-          promptAction.showToast({ message: '导出失败' });
+          this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
         }
       }).catch(() => {
-        promptAction.showToast({ message: '导出失败' });
+        this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
       });
     } catch (e) {
-      promptAction.showToast({ message: '导出失败' });
+      this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
     }
   }
 
   /** 全部导出 */
   private exportAll(): void {
     if (this.logs.length === 0) {
-      promptAction.showToast({ message: '暂无日志可导出' });
+      this.getUIContext().getPromptAction().showToast({ message: '暂无日志可导出' });
       return;
     }
     const stamp: string = `${new Date().getHours()}_${new Date().getMinutes()}`;
@@ -398,7 +398,7 @@ export struct LogPage {
   /** 导出选中（无选中提示） */
   private exportSelected(): void {
     if (this.selectedIdx.length === 0) {
-      promptAction.showToast({ message: '请先选择要导出的日志' });
+      this.getUIContext().getPromptAction().showToast({ message: '请先选择要导出的日志' });
       return;
     }
     const stamp: string = `${new Date().getHours()}_${new Date().getMinutes()}`;

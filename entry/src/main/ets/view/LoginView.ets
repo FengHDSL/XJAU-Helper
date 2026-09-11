@@ -100,7 +100,7 @@ export struct LoginView {
     // 半模态面板宽度：平板（≥600vp）取 min(屏宽*0.7, 840)vp 加宽并封顶；手机全宽。与课程表页面一致。
     try {
       const d = display.getDefaultDisplaySync();
-      const screenVp: number = px2vp(d.width);
+      const screenVp: number = this.getUIContext().px2vp(d.width);
       this.sheetWidth = screenVp >= 600 ? `${Math.min(Math.round(screenVp * 0.7), 840)}vp` : '100%';
     } catch (e) {
       this.sheetWidth = '100%';
@@ -140,9 +140,9 @@ export struct LoginView {
         this.password = DataStore.decodePwd(this.historyList[0]['password'] ?? '');
       }
     }
-    const mq: mediaquery.MediaQueryResult = mediaquery.matchMediaSync('(orientation: landscape)');
+    const mq: mediaquery.MediaQueryResult = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
     this.isLandscape = mq.matches;
-    this.landscapeListener = mediaquery.matchMediaSync('(orientation: landscape)');
+    this.landscapeListener = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
     this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
       this.isLandscape = res.matches;
     });
@@ -239,11 +239,11 @@ export struct LoginView {
       this.loginMode = 'auto';
     }
     if (this.account.trim().length === 0) {
-      promptAction.showToast({ message: '请输入学号' });
+      this.getUIContext().getPromptAction().showToast({ message: '请输入学号' });
       return;
     }
     if (this.password.length === 0) {
-      promptAction.showToast({ message: '请输入密码' });
+      this.getUIContext().getPromptAction().showToast({ message: '请输入密码' });
       return;
     }
     // 真实登录：强制走真实接口，关闭离线模式
@@ -258,7 +258,7 @@ export struct LoginView {
     this.loginTimer = setTimeout(() => {
       if (this.loading) {
         this.cancelLogin('登录等待超时（20s），已自动取消');
-        promptAction.showToast({ message: '登录超时，已自动取消' });
+        this.getUIContext().getPromptAction().showToast({ message: '登录超时，已自动取消' });
       }
     }, 20000);
     const captchaVal: string = this.showCaptcha ? this.captchaInput.trim() : '';
@@ -277,10 +277,10 @@ export struct LoginView {
       // 该账号被要求图形验证码：原生登录无法处理，自动打开网页版（WebView）CAS 页兜底，
       // 不作为可选登录模式暴露给用户（用户明确要求不要「网页登录」选项）。
       if (e instanceof CasCaptchaRequiredError) {
-        promptAction.showToast({ message: '该账号需要验证码，正在打开网页登录…', duration: 2000 });
+        this.getUIContext().getPromptAction().showToast({ message: '该账号需要验证码，正在打开网页登录…', duration: 2000 });
         this.openWebLogin();
       } else {
-        promptAction.showToast({ message: '登录失败，请检查账号密码或网络', duration: 2500 });
+        this.getUIContext().getPromptAction().showToast({ message: '登录失败，请检查账号密码或网络', duration: 2500 });
       }
       return;
     }
@@ -309,7 +309,7 @@ export struct LoginView {
       if (this.loginSystem === 'original') {
         DataStore.setLoginMethod('pwd');
       }
-      promptAction.showToast({ message: '登录成功' });
+      this.getUIContext().getPromptAction().showToast({ message: '登录成功' });
       this.onSuccess();
     } else {
       // 只有服务端要求验证码，才显示验证码输入框并推送图片
@@ -319,7 +319,7 @@ export struct LoginView {
         }
         this.loadCaptcha();
       }
-      promptAction.showToast({ message: result.message, duration: 2500 });
+      this.getUIContext().getPromptAction().showToast({ message: result.message, duration: 2500 });
     }
   }
 
@@ -327,7 +327,7 @@ export struct LoginView {
    *  登录成功后按目标类型取 Cookie 并自动登录教务系统（服务大厅模式由 WebSurface 桥接 jwglxt）。 */
   private openWebLogin(): void {
     if (JwApi.USE_MOCK && !AppState.debugNetwork) {
-      promptAction.showToast({ message: '当前模式禁止使用' });
+      this.getUIContext().getPromptAction().showToast({ message: '当前模式禁止使用' });
       return;
     }
     AppState.webLoginMode = true;
@@ -378,7 +378,7 @@ export struct LoginView {
   /** 更改重登方式（固定入口，可随时切换，切换后立即刷新显示） */
   private changeLoginMode(): void {
     const current: string = this.loginModeText();
-    promptAction.showActionMenu({
+    this.getUIContext().getPromptAction().showActionMenu({
       title: `选择重登方式（当前：${current}）`,
       buttons: [
         { text: '自动重登', color: '#079841' },
@@ -388,11 +388,11 @@ export struct LoginView {
       if (res.index === 0) {
         DataStore.setLoginMode('auto');
         this.loginMode = 'auto';
-        promptAction.showToast({ message: '已切换为自动重登' });
+        this.getUIContext().getPromptAction().showToast({ message: '已切换为自动重登' });
       } else if (res.index === 1) {
         DataStore.setLoginMode('legacy');
         this.loginMode = 'legacy';
-        promptAction.showToast({ message: '已切换为手动重登' });
+        this.getUIContext().getPromptAction().showToast({ message: '已切换为手动重登' });
       }
     }).catch(() => {
       // 取消选择
@@ -401,7 +401,7 @@ export struct LoginView {
 
   /** 弹窗说明两种重登方式的区别（问号图标点击） */
   private showLoginModeInfo(): void {
-    promptAction.showDialog({
+    this.getUIContext().getPromptAction().showDialog({
       title: '重登方式说明',
       message: '「教务登录」默认自动重登：每次重新打开应用用保存的账号密码自动登录教务系统，免去手动点击。\n\n「服务大厅登录」为手动重登：教务系统会话不可持久化，重新打开应用会自动从服务大厅重新打开教务系统刷新（无需重新输入密码）；仅当该刷新失败时才需在首页点击「重登」按钮。\n\n重登方式可在下方随时手动更改。',
       buttons: [
@@ -413,7 +413,7 @@ export struct LoginView {
   /** 打开找回密码网页（学校统一身份认证平台），跳转系统浏览器打开。 */
   private openForgotPassword(): void {
     if (JwApi.USE_MOCK && !AppState.debugNetwork) {
-      promptAction.showToast({ message: '当前模式禁止使用' });
+      this.getUIContext().getPromptAction().showToast({ message: '当前模式禁止使用' });
       return;
     }
     AppState.openExternalLink(Const.FORGOT_PASSWORD_URL);
@@ -442,7 +442,7 @@ export struct LoginView {
   private toggleLogDebug(): void {
     if (AppState.logEnabled) {
       // 已开启：询问是否退出（同时关闭功能浏览联网，清除已收集日志与附件）
-      promptAction.showDialog({
+      this.getUIContext().getPromptAction().showDialog({
         title: '日志调试已开启',
         message: '当前正在收集登录与使用日志，且功能浏览模式允许联网。是否退出调试模式？',
         buttons: [
@@ -454,7 +454,7 @@ export struct LoginView {
           AppState.logEnabled = false;
           AppState.debugNetwork = false;
           LogStore.clearAll(); // 退出日志调试：自动删除已收集日志与附件
-          promptAction.showToast({ message: '已退出调试模式，日志已清除' });
+          this.getUIContext().getPromptAction().showToast({ message: '已退出调试模式，日志已清除' });
         }
       });
     } else {
@@ -467,19 +467,19 @@ export struct LoginView {
   /** 提交日志调试密码：admin（登录页入口——开启日志收集，并同时允许功能浏览模式联网） */
   private submitLogPwd(): void {
     if (this.logPwd !== 'admin') {
-      promptAction.showToast({ message: '密码错误' });
+      this.getUIContext().getPromptAction().showToast({ message: '密码错误' });
       return;
     }
     this.showLogSheet = false;
     if (AppState.logEnabled) {
-      promptAction.showToast({ message: '日志调试已开启' });
+      this.getUIContext().getPromptAction().showToast({ message: '日志调试已开启' });
       return;
     }
     AppState.logEnabled = true;
     // 功能浏览模式允许联网（debugNetwork）：进入功能浏览时网络请求不再被离线模式拦截
     AppState.debugNetwork = true;
     LogStore.log('日志调试', '开启', '成功', '登录页入口开启（日志收集 + 功能浏览允许联网）');
-    promptAction.showToast({ message: '日志调试已开启，开始收集登录与使用日志' });
+    this.getUIContext().getPromptAction().showToast({ message: '日志调试已开启，开始收集登录与使用日志' });
   }
 
   /** 日志调试密码输入弹窗 */
@@ -542,10 +542,10 @@ export struct LoginView {
     if (result.success && result.profile !== null) {
       AppState.profile = result.profile;
       AppState.account = 'demo';
-      promptAction.showToast({ message: '已进入功能浏览模式' });
+      this.getUIContext().getPromptAction().showToast({ message: '已进入功能浏览模式' });
       this.onSuccess();
     } else {
-      promptAction.showToast({ message: '功能浏览启动失败，请重试' });
+      this.getUIContext().getPromptAction().showToast({ message: '功能浏览启动失败，请重试' });
     }
   }
 
@@ -618,7 +618,7 @@ export struct LoginView {
       return;
     }
     const removedAcct: string = this.historyList[index]['account'] ?? '';
-    animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
+    this.getUIContext().animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
       this.historyList.splice(index, 1);
     });
     // 持久化剩余列表
@@ -1056,7 +1056,7 @@ export struct LoginView {
                 .justifyContent(FlexAlign.Center)
                 .onClick(() => {
                   // 展开/收起带过渡动画，避免跳变
-                  animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
+                  this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
                     this.showHistory = !this.showHistory;
                   })
                 })
@@ -1213,7 +1213,7 @@ export struct LoginView {
         .edgeEffect(EdgeEffect.Spring)
         .width('100%')
         .height('100%')
-        .padding({ top: px2vp(this.topInsetPx) })
+        .padding({ top: this.getUIContext().px2vp(this.topInsetPx) })
       }
       .layoutWeight(1)
       .width('100%')
