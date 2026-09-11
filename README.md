@@ -22,7 +22,7 @@
 - **GitHub Release**：[XJAU-Helper_v1.3.4.hap](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.4/XJAU-Helper_v1.3.4.hap)
 - **Gitee**：[XJAU-Helper](https://gitee.com/pandasoos/XJAU-Helper)
 - **HAP Store资源站**：[https://www.sydxky.cn/detail.php?id=796](https://www.sydxky.cn/detail.php?id=796)
-- **华为应用市场（邀测）**：[https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP](https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP)，邀测邀请码：`7f0Oz56PxoP`
+- **华为应用市场（邀测）**：[https://appgallery.huawei.com/link/invite-test-wap?taskId=d1db149a233e9680e15041d6d198d76d&invitationCode=7f0Oz56PxoP](https://appgallery.huawei.com/link/invite-test-wap?taskId=d1db149a233e9680e15041d6d198d76d&invitationCode=7f0Oz56PxoP)，邀测邀请码：`7f0Oz56PxoP`
 
 ---
 
@@ -175,35 +175,6 @@ XJAU-Helper/
 ├── LICENSE                  # MIT 许可证
 └── README.md                # 本文件
 ```
-
----
-
-## 更新日志
-
-### v1.3.4（2026-09-11）
-
-- 修复应用闪退的问题
-
-### v1.3.3（2026-09-10）
-
-- 修复了一些已知问题
-
-### v1.3.2（2026-09-06）
-
-- 新增个性主题功能
-- UI界面换新
-
----
-
-### v1.3.1（2026-09-05）
-
-- API 变更为 API 26 正式版，同时移除 API 26 部分官方阉割的组件
-- 修复日历显示错误
-- 部分细节调整优化，以完成华为审核要求
-- 优化部分界面 UI 效果
-- 优化部分功能逻辑
-- 修复一些已知问题
-
 ---
 
 ## 已知限制
