@@ -24,10 +24,18 @@ Thumbs.db
 # 临时
 *.tmp
 *.bak
+*.orig
+*.bak_*
 _build.sh
 .hvigor/
 local.properties
 *.hap
+_upload_*.hap
+
+# 发布脚本临时文件（git 凭据/API 响应）
+.ght
+.r*.json
+
 # 签名配置(含私钥, 禁止提交)
 build-profile.json5
 entry/build-profile.json5
@@ -44,21 +52,4 @@ material/
 .git_backup_*/
 .git_fresh_empty_*/
 git_corrupt_*/
-
-# 签名证书/私钥(禁止提交)
-*.p12
-*.cer
-*.p7b
-*.csr
-material/
-
-# 本地 git 冗余备份(禁止提交)
-.git.bak/
-.git_backup_*/
-.git_fresh_empty_*/
-git_corrupt_*/
-
-# 本地备份/修复残留（不入库）
-*.bak_*
 git_corrupt*/
-*.orig
