@@ -62,6 +62,8 @@ export class Const {
   static readonly ROUTE_NOTICE_DETAIL: string = 'NoticeDetailPage';
   static readonly ROUTE_ACADEMIC: string = 'AcademicPage';
   static readonly ROUTE_PRIVACY: string = 'PrivacyPage';
+  /** 用户协议页（关于页底部卡片入口） */
+  static readonly ROUTE_TERMS: string = 'TermsPage';
   static readonly ROUTE_ABOUT: string = 'AboutPage';
   static readonly ROUTE_EMPTY_ROOM: string = 'KxjsPage';
   static readonly ROUTE_NEWS_DETAIL: string = 'NewsDetailPage';

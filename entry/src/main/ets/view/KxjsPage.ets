@@ -860,6 +860,8 @@ export struct KxjsPage {
       .height('100%')
       .scrollBar(BarState.Off)
       .align(Alignment.Top)
+      // 横屏同样提供滑动边缘回弹反馈（与竖屏一致）
+      .edgeEffect(EdgeEffect.Spring)
 
       // 右列：查询结果（与竖屏同渲染）；横屏右列同样支持下拉刷新重新导出
       Refresh({ refreshing: $$this.refreshing }) {
@@ -917,6 +919,8 @@ export struct KxjsPage {
         .height('100%')
         .scrollBar(BarState.Off)
         .align(Alignment.Top)
+        // 横屏同样提供滑动边缘回弹反馈（与竖屏一致）
+        .edgeEffect(EdgeEffect.Spring)
         // 网页版查询弹层（挂右列 Scroll，与顶栏详情/单选/多选弹窗分离）
         .bindSheet($$this.showWeb, this.webSheet(), {
           width: SheetUtil.sheetWidth(),

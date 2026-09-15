@@ -241,6 +241,11 @@ export struct BarTitle {
   @Prop subtitle: string = '';
   /** 长标题是否跑马灯滚动（默认省略号） */
   @Prop marquee: boolean = false;
+  /** 副标题右侧是否显示下拉图标（学期选择入口） */
+  @Prop showChevron: boolean = false;
+  /** 副标题（学年学期）点击回调（如打开学期选择） */
+  onSubtitleTap: () => void = () => {
+  };
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('subtitleColor') subtitleColor: string = '';
@@ -264,13 +269,28 @@ export struct BarTitle {
         .maxLines(1)
         .textOverflow({ overflow: this.marquee ? TextOverflow.MARQUEE : TextOverflow.Ellipsis })
       if (this.subtitle.length > 0) {
-        Text(this.subtitle)
-          .fontSize(11)
-          .height(15)
-          .lineHeight(15)
-          .fontColor(this.subtitleColor.length > 0 ? this.subtitleColor :
-            WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-          .margin({ top: 2 })
+        Row() {
+          Text(this.subtitle)
+            .fontSize(11)
+            .height(15)
+            .lineHeight(15)
+            .fontColor(this.subtitleColor.length > 0 ? this.subtitleColor :
+              WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+          if (this.showChevron) {
+            Image($r('app.media.list_bullet'))
+              .width(14)
+              .height(14)
+              .fillColor(this.subtitleColor.length > 0 ? this.subtitleColor :
+                WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .margin({ left: 3 })
+          }
+        }
+        .height(15)
+        .alignItems(VerticalAlign.Center)
+        .margin({ top: 2 })
+        .onClick(() => {
+          this.onSubtitleTap();
+        })
       }
     }
     .alignItems(HorizontalAlign.Start)

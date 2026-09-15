@@ -14,9 +14,10 @@ export struct BackButton {
 
   build() {
     Stack({ alignContent: Alignment.Center }) {
-      SymbolGlyph($r('sys.symbol.chevron_left'))
-        .fontSize(17)
-        .fontColor([WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode)])
+      Image($r('app.media.back_arrow'))
+        .width(18)
+        .height(18)
+        .fillColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
     }
     .width(34)
     .height(34)

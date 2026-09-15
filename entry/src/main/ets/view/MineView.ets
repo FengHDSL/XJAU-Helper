@@ -39,6 +39,8 @@ export struct MineView {
   @State photo: string = '';
   @State cacheSizeText: string = '计算中…';
   @State isLandscape: boolean = false;
+  /** 恢复备份：半模态面板 */
+  @State showBackupSheet: boolean = false;
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
   onLogout: () => void = () => {
   };
@@ -80,14 +82,6 @@ export struct MineView {
       return this.themeNameText();
     }
     return `${this.themeNameText()} · ${wp}`;
-  }
-
-  /** 深色模式当前设置摘要（跟随系统 / 深色 / 浅色） */
-  private darkValueText(): string {
-    if (!DataStore.hasDarkSetting()) {
-      return '跟随系统';
-    }
-    return DataStore.isDarkOn() ? '深色' : '浅色';
   }
 
   /** 切换应用颜色模式：使 $r() 资源（文字/背景）与深色状态一致，保证可读性 */
@@ -239,18 +233,17 @@ export struct MineView {
       const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
       options.newFileNames = [`xjau-helper_backup_${stamp}.txt`];
       options.fileSuffixChoices = ['.txt'];
-      // 打包备份数据（课程表内容 / 课程表设置项 / 主题颜色）
+      // 打包备份数据：应用全部信息（设置项 + 数据缓存 + 个人化内容；不含账号、密码与登录 Cookie）
+      const payload: string = JSON.stringify(DataStore.exportAll());
+      const d2: Date = new Date();
+      const exportTs: string = `${d2.getFullYear()}-${(d2.getMonth() + 1).toString().padStart(2, '0')}-${d2.getDate().toString().padStart(2, '0')} ${d2.getHours().toString().padStart(2, '0')}:${d2.getMinutes().toString().padStart(2, '0')}`;
       const data: Record<string, string> = {
         'app': 'xjau-helper',
-        'type': 'schedule-backup',
-        'version': '1',
+        'type': 'full-backup',
+        'version': '2',
+        'exportedAt': exportTs,
         'themeColor': Theme.current(),
-        'courses': DataStore.get(DataStore.KEY_COURSES),
-        'scheduleCfg': DataStore.get(DataStore.KEY_SCHEDULE_CFG),
-        'scheduleBg': DataStore.getScheduleBg(),
-        'scheduleDashed': DataStore.get(DataStore.KEY_SCHEDULE_DASHED),
-        'courseColorMap': DataStore.get(DataStore.KEY_COURSE_COLOR_MAP),
-        'courseCustomColor': DataStore.getCourseCustomColors()
+        'payload': payload
       };
       const content: string = JSON.stringify(data);
       const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
@@ -263,7 +256,7 @@ export struct MineView {
           const file: fileIo.File = fileIo.openSync(uris[0], fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
           fileIo.writeSync(file.fd, content);
           fileIo.closeSync(file);
-          this.getUIContext().getPromptAction().showToast({ message: '备份已导出' });
+          this.getUIContext().getPromptAction().showToast({ message: '备份已导出（不含账号与登录 Cookie）' });
         } catch (e) {
           this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
         }
@@ -291,25 +284,48 @@ export struct MineView {
         try {
           const content: string = fileIo.readTextSync(new fileUri.FileUri(uris[0]).path);
           const obj: Record<string, string> = JSON.parse(content) as Record<string, string>;
-          // 校验备份格式
-          if (obj['app'] !== 'xjau-helper' || obj['type'] !== 'schedule-backup') {
+          const btype: string = obj['type'] ?? '';
+          // 校验备份格式（v2 全量备份 / v1 旧版课表备份）
+          if (obj['app'] !== 'xjau-helper' || (btype !== 'full-backup' && btype !== 'schedule-backup')) {
             this.getUIContext().getPromptAction().showToast({ message: '不是有效的备份文件' });
             return;
           }
-          // 恢复课程表内容
-          DataStore.put(DataStore.KEY_COURSES, obj['courses'] ?? '');
-          // 恢复课程表设置项
-          DataStore.setScheduleCfg(obj['scheduleCfg'] ?? '');
-          DataStore.setScheduleBg(obj['scheduleBg'] ?? '');
-          DataStore.put(DataStore.KEY_SCHEDULE_DASHED, obj['scheduleDashed'] ?? '');
-          DataStore.put(DataStore.KEY_COURSE_COLOR_MAP, obj['courseColorMap'] ?? '');
-          DataStore.setCourseCustomColors(obj['courseCustomColor'] ?? '');
-          // 恢复主题颜色（写入 AppStorage + 持久化）
-          const theme: string = obj['themeColor'] ?? '';
-          if (theme === 'red' || theme === 'blue' || theme === 'green') {
-            Theme.apply(theme);
+          if (btype === 'full-backup') {
+            // 全量恢复：设置项 + 数据缓存 + 个人化内容（自动跳过账号、密码、Cookie）
+            const payloadText: string = obj['payload'] ?? '{}';
+            const payload: Record<string, string> = JSON.parse(payloadText) as Record<string, string>;
+            const n: number = DataStore.importAll(payload);
+            // 主题色（旧字段，兼容）
+            const theme0: string = obj['themeColor'] ?? '';
+            if (theme0 === 'red' || theme0 === 'blue' || theme0 === 'green') {
+              Theme.apply(theme0);
+            } else {
+              Theme.restore();
+            }
+            // 关键项即时同步到 AppStorage（避免需重启才生效）
+            AppStorage.setOrCreate('barStyle', DataStore.barStyle());
+            AppStorage.setOrCreate('subtitleColor', DataStore.subtitleColor());
+            AppStorage.setOrCreate('wallpaperMask', DataStore.wallpaperMaskOn());
+            const wp: string = DataStore.loadWallpaper();
+            AppStorage.setOrCreate('wallpaperId', wp.length > 0 ? wp : 'none');
+            if (DataStore.hasDarkSetting()) {
+              AppStorage.setOrCreate('isDarkMode', DataStore.isDarkOn());
+            }
+            this.getUIContext().getPromptAction().showToast({ message: `已恢复 ${n} 项数据（不含账号与登录 Cookie）` });
+          } else {
+            // 旧版 v1：仅课表内容 + 课程表设置项 + 主题颜色
+            DataStore.put(DataStore.KEY_COURSES, obj['courses'] ?? '');
+            DataStore.setScheduleCfg(obj['scheduleCfg'] ?? '');
+            DataStore.setScheduleBg(obj['scheduleBg'] ?? '');
+            DataStore.put(DataStore.KEY_SCHEDULE_DASHED, obj['scheduleDashed'] ?? '');
+            DataStore.put(DataStore.KEY_COURSE_COLOR_MAP, obj['courseColorMap'] ?? '');
+            DataStore.setCourseCustomColors(obj['courseCustomColor'] ?? '');
+            const theme: string = obj['themeColor'] ?? '';
+            if (theme === 'red' || theme === 'blue' || theme === 'green') {
+              Theme.apply(theme);
+            }
+            this.getUIContext().getPromptAction().showToast({ message: '恢复成功（旧版备份），重新进入课程表查看' });
           }
-          this.getUIContext().getPromptAction().showToast({ message: '恢复成功，重新进入课程表查看' });
         } catch (e) {
           this.getUIContext().getPromptAction().showToast({ message: '导入失败，文件格式不正确' });
         }
@@ -599,6 +615,51 @@ export struct MineView {
     })
   }
 
+  /** 恢复备份：半模态面板（说明 + 导出/导入） */
+  @Builder
+  backupSheet() {
+    Column() {
+      Text('备份包含：课程表、成绩、考试、学业情况、消息与新闻缓存，以及课表设置、主题颜色、深色模式、壁纸、日历与收藏等全部应用信息。\n'
+        + '出于安全考虑，备份文件不包含账号、密码与登录 Cookie。导入会覆盖当前对应数据，请确认后再恢复。')
+        .fontSize(12)
+        .lineHeight(19)
+        .fontColor($r('app.color.text_secondary'))
+        .width('100%')
+        .margin({ top: 10 })
+
+      Row({ space: 12 }) {
+        Button('导出备份')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Color.White)
+          .backgroundColor(Theme.colorOf(this.themeColor))
+          .height(42)
+          .layoutWeight(1)
+          .borderRadius(21)
+          .onClick(() => {
+            this.showBackupSheet = false;
+            this.exportBackup();
+          })
+        Button('导入备份')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(Theme.colorOf(this.themeColor))
+          .backgroundColor($r('app.color.bg_chip'))
+          .height(42)
+          .layoutWeight(1)
+          .borderRadius(21)
+          .onClick(() => {
+            this.showBackupSheet = false;
+            this.importBackup();
+          })
+      }
+      .width('100%')
+      .margin({ top: 18 })
+    }
+    .width('100%')
+    .padding({ left: 20, right: 20, top: 6, bottom: 26 })
+  }
+
   build() {
     Column() {
       this.titleBar()
@@ -629,34 +690,22 @@ export struct MineView {
               }
             })
             Divider().color($r('app.color.divider'))
-            // 深色模式：跟随系统 / 深色 / 浅色（切换即时生效，同时切换资源色保证文字可读）
-            SettingRow({
-              icon: '', title: '深色模式', value: this.darkValueText(), onTap: () => {
-                this.getUIContext().getPromptAction().showActionMenu({
-                  title: '深色模式',
-                  buttons: [
-                    { text: '跟随系统', color: '#666666' },
-                    { text: '深色', color: '#666666' },
-                    { text: '浅色', color: '#666666' }
-                  ]
-                }).then((res) => {
-                  if (res.index === 0) {
-                    DataStore.clearDark();
-                    AppStorage.setOrCreate('darkManual', false);
-                    const sysDark: boolean = AppStorage.get<boolean>('systemDark') ?? false;
-                    AppStorage.setOrCreate('isDarkMode', sysDark);
-                    this.applyColorMode(sysDark);
-                  } else if (res.index === 1 || res.index === 2) {
-                    const on: boolean = res.index === 1;
-                    DataStore.setDark(on);
-                    AppStorage.setOrCreate('darkManual', true);
-                    AppStorage.setOrCreate('isDarkMode', on);
-                    this.applyColorMode(on);
-                  }
-                  this.getUIContext().getPromptAction().showToast({ message: '深色模式已切换' });
-                });
-              }
-            })
+            // 深色模式：开关切换，即时生效（默认浅色）
+            Row() {
+              Text('深色模式')
+                .fontSize(15)
+                .fontColor($r('app.color.text_primary'))
+              Blank()
+              Toggle({ type: ToggleType.Switch, isOn: this.isDarkMode })
+                .selectedColor(Theme.colorOf(this.themeColor))
+                .onChange((isOn: boolean) => {
+                  AppStorage.setOrCreate('isDarkMode', isOn);
+                  DataStore.setDark(isOn);
+                  this.applyColorMode(isOn);
+                })
+            }
+            .width('100%')
+            .height(52)
             Divider().color($r('app.color.divider'))
 
             Row() {
@@ -813,19 +862,7 @@ export struct MineView {
             // 6. 恢复备份（导出/导入：课表内容 + 课程表设置项 + 主题颜色，打包为 txt）
             SettingRow({
               icon: '', title: '恢复备份', value: '', onTap: () => {
-                this.getUIContext().getPromptAction().showActionMenu({
-                  title: '恢复备份',
-                  buttons: [
-                    { text: '导出备份', color: '#1B7F5F' },
-                    { text: '导入备份', color: '#3B82F6' }
-                  ]
-                }).then((res) => {
-                  if (res.index === 0) {
-                    this.exportBackup();
-                  } else if (res.index === 1) {
-                    this.importBackup();
-                  }
-                });
+                this.showBackupSheet = true;
               }
             })
             Divider().color($r('app.color.divider'))
@@ -855,16 +892,9 @@ export struct MineView {
               }
             })
             Divider().color($r('app.color.divider'))
-            // 8. 隐私协议（打开独立页面）
+            // 8. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '隐私协议', value: '', onTap: () => {
-                AppState.stack.pushPath({ name: Const.ROUTE_PRIVACY });
-              }
-            })
-            Divider().color($r('app.color.divider'))
-            // 9. 关于（打开独立页面）
-            SettingRow({
-              icon: '', title: '关于应用', value: 'v1.3.4', onTap: () => {
+              icon: '', title: '关于应用', value: 'v1.3.6', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
@@ -922,6 +952,12 @@ export struct MineView {
     .height('100%')
     // 壁纸功能：页面根背景透明，让主框架底层的全局壁纸透出（无壁纸时由 MainView 底层 bg_page 兜底）
     .backgroundColor(Color.Transparent)
+        .bindSheet($$this.showBackupSheet, this.backupSheet(), {
+      height: SheetSize.FIT_CONTENT,
+      dragBar: true,
+      showClose: true,
+      title: { title: '恢复备份' }
+    })
   }
 
   @Builder
@@ -986,34 +1022,22 @@ export struct MineView {
         }
       })
       Divider().color($r('app.color.divider'))
-      // 深色模式：跟随系统 / 深色 / 浅色
-      SettingRow({
-        icon: '', title: '深色模式', value: this.darkValueText(), onTap: () => {
-          this.getUIContext().getPromptAction().showActionMenu({
-            title: '深色模式',
-            buttons: [
-              { text: '跟随系统', color: '#666666' },
-              { text: '深色', color: '#666666' },
-              { text: '浅色', color: '#666666' }
-            ]
-          }).then((res) => {
-            if (res.index === 0) {
-              DataStore.clearDark();
-              AppStorage.setOrCreate('darkManual', false);
-              const sysDark: boolean = AppStorage.get<boolean>('systemDark') ?? false;
-              AppStorage.setOrCreate('isDarkMode', sysDark);
-              this.applyColorMode(sysDark);
-            } else if (res.index === 1 || res.index === 2) {
-              const on: boolean = res.index === 1;
-              DataStore.setDark(on);
-              AppStorage.setOrCreate('darkManual', true);
-              AppStorage.setOrCreate('isDarkMode', on);
-              this.applyColorMode(on);
-            }
-            this.getUIContext().getPromptAction().showToast({ message: '深色模式已切换' });
-          });
-        }
-      })
+      // 深色模式：开关切换，即时生效（默认浅色）
+      Row() {
+        Text('深色模式')
+          .fontSize(15)
+          .fontColor($r('app.color.text_primary'))
+        Blank()
+        Toggle({ type: ToggleType.Switch, isOn: this.isDarkMode })
+          .selectedColor(Theme.colorOf(this.themeColor))
+          .onChange((isOn: boolean) => {
+            AppStorage.setOrCreate('isDarkMode', isOn);
+            DataStore.setDark(isOn);
+            this.applyColorMode(isOn);
+          })
+      }
+      .width('100%')
+      .height(52)
       Divider().color($r('app.color.divider'))
       Row() {
         Text('头像显示')
@@ -1159,19 +1183,7 @@ export struct MineView {
       // 6. 恢复备份（导出/导入：课表内容 + 课程表设置项 + 主题颜色，打包为 txt）
       SettingRow({
         icon: '', title: '恢复备份', value: '', onTap: () => {
-          this.getUIContext().getPromptAction().showActionMenu({
-            title: '恢复备份',
-            buttons: [
-              { text: '导出备份', color: '#1B7F5F' },
-              { text: '导入备份', color: '#3B82F6' }
-            ]
-          }).then((res) => {
-            if (res.index === 0) {
-              this.exportBackup();
-            } else if (res.index === 1) {
-              this.importBackup();
-            }
-          });
+          this.showBackupSheet = true;
         }
       })
       Divider().color($r('app.color.divider'))
@@ -1201,16 +1213,9 @@ export struct MineView {
         }
       })
       Divider().color($r('app.color.divider'))
-      // 8. 隐私协议（打开独立页面）
+      // 8. 关于（打开独立页面）
       SettingRow({
-        icon: '', title: '隐私协议', value: '', onTap: () => {
-          AppState.stack.pushPath({ name: Const.ROUTE_PRIVACY });
-        }
-      })
-      Divider().color($r('app.color.divider'))
-      // 9. 关于（打开独立页面）
-      SettingRow({
-        icon: '', title: '关于应用', value: 'v1.3.4', onTap: () => {
+        icon: '', title: '关于应用', value: 'v1.3.6', onTap: () => {
           AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
         }
       })

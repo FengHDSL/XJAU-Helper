@@ -5,6 +5,8 @@
  */
 import { promptAction } from '@kit.ArkUI';
 import { ScheduleConfig } from '../common/ScheduleConfig';
+import { Const, SectionTime } from '../common/Constants';
+import { SectionUtil } from '../common/SectionUtil';
 import { DateUtil } from '../common/DateUtil';
 import { Theme } from '../common/ThemeUtil';
 
@@ -31,6 +33,7 @@ struct ColorPickCell {
   palette: string[] = [];
   label: string = '';
   onChange: () => void = () => {};
+
 
   build() {
     Column() {
@@ -119,6 +122,18 @@ export struct ScheduleSettingsPanel {
   @State showAt: boolean = false;
   @State showTch: boolean = false;
   @State vCenter: boolean = true;
+  // ===== 节次与上课时间编辑（半模态覆盖层）=====
+  @State secCount: number = 10;
+  @State secTimeText: string = '';
+  /** 节次编辑面板（bindSheet）显隐 */
+  @State showSecSheet: boolean = false;
+  /** 面板内页面切换：false=主页（节数+列表） true=子页（单节时间编辑） */
+  @State secPageFlag: boolean = false;
+  /** 子页页面宽度（用于整页滑动位移，onAreaChange 实测） */
+  @State secPageWidth: number = 0;
+  /** 子页正在编辑的节序号（0 基） */
+  @State editingIndex: number = 0;
+  @State editTimes: string[] = [];
 
   @State lineStyle: number = 1;
   @State hAlign: number = 0;
@@ -141,6 +156,8 @@ export struct ScheduleSettingsPanel {
     this.showAt = c.showAtPrefix;
     this.showTch = c.showTeacher;
     this.vCenter = c.textVCenter;
+    this.secCount = c.sectionCount;
+    this.secTimeText = c.sectionTimeText;
     this.gridW = c.gridWidth;
     this.hdrSize = c.headerFontSize;
     this.borderW = c.borderWidth;
@@ -151,6 +168,89 @@ export struct ScheduleSettingsPanel {
     this.textSz = c.textSize;
     this.lineStyle = c.gridDashed ? 1 : 0;
     this.hAlign = c.textHCenter ? 0 : (c.textLeft ? 1 : 2);
+  }
+
+  // ===== 节次与上课时间编辑 =====
+  /** 打开编辑器：用当前配置初始化编辑缓冲 */
+  private openSectionEditor(): void {
+    const list: string[] = SectionUtil.list(this.cfg).map((x) => `${x.start}-${x.end}`);
+    this.secCount = SectionUtil.count(this.cfg);
+    this.editTimes = list.slice(0, this.secCount);
+    this.secPageFlag = false;
+    this.showSecSheet = true;
+  }
+
+  /** 编辑器内的节序号数组（供 ForEach 使用） */
+  private secIndexes(): number[] {
+    const out: number[] = [];
+    for (let i = 0; i < this.secCount; i++) {
+      out.push(i);
+    }
+    return out;
+  }
+
+  /** 调整节数（1~15），同步编辑缓冲 */
+  private changeSecCount(delta: number): void {
+    let n: number = this.secCount + delta;
+    if (n < 1) {
+      n = 1;
+    }
+    if (n > 15) {
+      n = 15;
+    }
+    this.secCount = n;
+    const next: string[] = [];
+    for (let i = 0; i < n; i++) {
+      if (i < this.editTimes.length && this.editTimes[i].length > 0) {
+        next.push(this.editTimes[i]);
+      } else {
+        // 新增节次：以上一节为基础顺延（默认 45 分钟课 + 10 分钟间隔）
+        const prev: string = next.length > 0 ? next[next.length - 1] : '08:00-08:45';
+        const parts: string[] = prev.split('-');
+        next.push(`${SectionUtil.addMinutesText(parts[1], 10)}-${SectionUtil.addMinutesText(SectionUtil.addMinutesText(parts[1], 10), 45)}`);
+      }
+    }
+    this.editTimes = next;
+  }
+
+  /** 修改某一节的开/下课时间（which: 0=开始 1=结束） */
+  private setEditTime(idx: number, which: number, value: string): void {
+    const arr: string[] = this.editTimes.slice(0);
+    const cur: string = arr[idx] ?? '00:00-00:00';
+    const p: string[] = cur.split('-');
+    const start: string = p.length > 0 ? p[0] : '00:00';
+    const end: string = p.length > 1 ? p[1] : '00:00';
+    arr[idx] = which === 0 ? `${value}-${end}` : `${start}-${value}`;
+    this.editTimes = arr;
+  }
+
+  /** 恢复默认作息（清空自定义） */
+  private resetSectionEditor(): void {
+    this.secCount = Const.SECTION_COUNT;
+    this.editTimes = Const.SECTIONS.map((x: SectionTime) => `${x.start}-${x.end}`);
+    this.getUIContext().getPromptAction().showToast({ message: '已恢复默认作息，点击保存后生效' });
+  }
+
+  /** 保存：写回配置并通知外部刷新 */
+  private saveSectionEditor(): void {
+    for (let i = 0; i < this.editTimes.length; i++) {
+      const p: string[] = (this.editTimes[i] ?? '').split('-');
+      if (p.length !== 2 || !SectionUtil.isTime(p[0]) || !SectionUtil.isTime(p[1])) {
+        this.getUIContext().getPromptAction().showToast({ message: `第 ${i + 1} 节时间格式应为 HH:MM-HH:MM` });
+        return;
+      }
+    }
+    const list: SectionTime[] = [];
+    for (let i = 0; i < this.editTimes.length; i++) {
+      const p: string[] = this.editTimes[i].split('-');
+      list.push({ index: i + 1, start: p[0], end: p[1] } as SectionTime);
+    }
+    this.cfg.sectionCount = this.secCount;
+    this.cfg.sectionTimeText = SectionUtil.toText(list);
+    this.secTimeText = this.cfg.sectionTimeText;
+    this.onCfgChange(this.cfg);
+    this.showSecSheet = false;
+    this.getUIContext().getPromptAction().showToast({ message: '课程节数与上课时间已保存' });
   }
 
   private apply(): void {
@@ -207,8 +307,174 @@ export struct ScheduleSettingsPanel {
     });
   }
 
+  // ===== 节次编辑面板：同一面板内页面转换（参考官方 BindSheetExample）=====
+  /** 面板主页：节数调整 + 每节时间列表（点击某节进入子页编辑） */
+  @Builder
+  secSheetMain() {
+    Column() {
+      Row() {
+        Text('课程节数').fontSize(14).fontColor($r('app.color.text_primary')).layoutWeight(1)
+        Text('－')
+          .fontSize(18).fontColor($r('app.color.text_primary'))
+          .width(34).height(30).textAlign(TextAlign.Center)
+          .backgroundColor($r('app.color.bg_chip')).borderRadius(8)
+          .onClick(() => { this.changeSecCount(-1); })
+        Text(`${this.secCount}`)
+          .fontSize(15).fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+          .width(46).textAlign(TextAlign.Center)
+        Text('＋')
+          .fontSize(18).fontColor($r('app.color.text_primary'))
+          .width(34).height(30).textAlign(TextAlign.Center)
+          .backgroundColor($r('app.color.bg_chip')).borderRadius(8)
+          .onClick(() => { this.changeSecCount(1); })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+
+      Divider().color($r('app.color.divider')).margin({ top: 12, bottom: 4 })
+
+      List() {
+        ForEach(this.secIndexes(), (idx: number) => {
+          ListItem() {
+            Row() {
+              Text(`第 ${idx + 1} 节`)
+                .fontSize(14).fontColor($r('app.color.text_primary')).layoutWeight(1)
+              Text((this.editTimes[idx] ?? '').replace('-', ' ~ '))
+                .fontSize(13).fontColor($r('app.color.text_secondary'))
+              Text('›').fontSize(18).fontColor($r('app.color.text_tertiary')).margin({ left: 6 })
+            }
+            .width('100%')
+            .height(46)
+            .alignItems(VerticalAlign.Center)
+          }
+          .onClick(() => {
+            this.editingIndex = idx;
+            this.getUIContext().animateTo({ duration: 320, curve: Curve.EaseOut }, () => {
+              this.secPageFlag = true;
+            });
+          })
+        }, (idx: number) => `secrow${idx}`)
+      }
+      .width('100%')
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+      .divider({ strokeWidth: 0.5, color: $r('app.color.divider') })
+
+      Row({ space: 12 }) {
+        Button('恢复默认')
+          .fontSize(14).fontColor(Theme.colorOf(this.themeColor))
+          .backgroundColor($r('app.color.bg_chip'))
+          .height(42).layoutWeight(1).borderRadius(21)
+          .onClick(() => { this.resetSectionEditor(); })
+        Button('保存')
+          .fontSize(14).fontWeight(FontWeight.Medium).fontColor(Color.White)
+          .backgroundColor(Theme.colorOf(this.themeColor))
+          .height(42).layoutWeight(1).borderRadius(21)
+          .onClick(() => { this.saveSectionEditor(); })
+      }
+      .width('100%')
+      .margin({ top: 12 })
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 20, right: 20, top: 8, bottom: 8 })
+  }
+
+  /** 面板子页：编辑单节上课/下课时间（左上角返回，整页滑回主页） */
+  @Builder
+  secSheetDetail() {
+    Column() {
+      Row() {
+        Image($r('app.media.back_arrow'))
+          .width(18)
+          .height(18)
+          .fillColor($r('app.color.text_primary'))
+        Text(`第 ${this.editingIndex + 1} 节时间`)
+          .fontSize(15).fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+          .margin({ left: 10 })
+      }
+      .width('100%')
+      .height(44)
+      .alignItems(VerticalAlign.Center)
+      .onClick(() => {
+        this.getUIContext().animateTo({ duration: 320, curve: Curve.EaseOut }, () => {
+          this.secPageFlag = false;
+        });
+      })
+
+      Column() {
+        Row() {
+          Text('上课时间').fontSize(13).fontColor($r('app.color.text_secondary')).width(72)
+          TextInput({ text: (this.editTimes[this.editingIndex] ?? '').split('-')[0], placeholder: 'HH:MM' })
+            .fontSize(14).height(40).layoutWeight(1)
+            .backgroundColor($r('app.color.bg_chip')).borderRadius(12)
+            .onChange((v: string) => { this.setEditTime(this.editingIndex, 0, v); })
+        }
+        .width('100%').margin({ top: 12 }).alignItems(VerticalAlign.Center)
+
+        Row() {
+          Text('下课时间').fontSize(13).fontColor($r('app.color.text_secondary')).width(72)
+          TextInput({ text: (this.editTimes[this.editingIndex] ?? '').split('-')[1], placeholder: 'HH:MM' })
+            .fontSize(14).height(40).layoutWeight(1)
+            .backgroundColor($r('app.color.bg_chip')).borderRadius(12)
+            .onChange((v: string) => { this.setEditTime(this.editingIndex, 1, v); })
+        }
+        .width('100%').margin({ top: 14 }).alignItems(VerticalAlign.Center)
+
+        Text('时间格式：HH:MM，例如 08:00 ~ 08:45')
+          .fontSize(11).fontColor($r('app.color.text_tertiary'))
+          .width('100%').margin({ top: 10 })
+
+        Button('返回列表')
+          .fontSize(14).fontWeight(FontWeight.Medium).fontColor(Color.White)
+          .backgroundColor(Theme.colorOf(this.themeColor))
+          .height(42).width('100%').borderRadius(21)
+          .margin({ top: 20 })
+          .onClick(() => {
+            this.getUIContext().animateTo({ duration: 320, curve: Curve.EaseOut }, () => {
+              this.secPageFlag = false;
+            });
+          })
+      }
+      .width('100%')
+      .layoutWeight(1)
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 20, right: 20, top: 8, bottom: 8 })
+  }
+
+  /** 面板容器：两页叠加，用 translate + animateTo 实现同一面板内页面转换 */
+  @Builder
+  secSheet() {
+    Stack() {
+      Column() {
+        this.secSheetMain()
+      }
+      .width('100%')
+      .height('100%')
+      .translate({ x: this.secPageFlag ? (0 - this.secPageWidth) : 0 })
+
+      Column() {
+        this.secSheetDetail()
+      }
+      .width('100%')
+      .height('100%')
+      .translate({ x: this.secPageFlag ? 0 : this.secPageWidth })
+      .onAreaChange((_o: Area, n: Area) => {
+        this.secPageWidth = Number(n.width);
+      })
+    }
+    .width('100%')
+    .height('100%')
+    .clip(true)
+  }
+
   build() {
-    Scroll() {
+    Stack({ alignContent: Alignment.Bottom }) {
+      Scroll() {
       Column() {
         // ===== 整体 =====
         Text('整体').fontSize(17).fontWeight(FontWeight.Bold).fontColor(Theme.colorOf(this.themeColor))
@@ -233,6 +499,27 @@ export struct ScheduleSettingsPanel {
           Text('›').fontSize(20).fontColor($r('app.color.text_tertiary'))
         }.width('100%')
         .onClick(() => { this.openTermStartPicker(); })
+
+        // 课程节数
+        Divider().color($r('app.color.divider')).margin({ top: 12, bottom: 12 })
+        Row() {
+          Text('课程节数').fontSize(14).fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary')).layoutWeight(1)
+          Text(`${this.secCount} 节`).fontSize(13).fontColor($r('app.color.text_secondary'))
+          Text('›').fontSize(20).fontColor($r('app.color.text_tertiary')).margin({ left: 6 })
+        }.width('100%')
+        .onClick(() => { this.openSectionEditor(); })
+
+        // 每节课上课时间
+        Divider().color($r('app.color.divider')).margin({ top: 12, bottom: 12 })
+        Row() {
+          Text('每节课时间').fontSize(14).fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary')).layoutWeight(1)
+          Text(this.secTimeText.length > 0 ? '已自定义' : '默认作息').fontSize(13)
+            .fontColor($r('app.color.text_secondary'))
+          Text('›').fontSize(20).fontColor($r('app.color.text_tertiary')).margin({ left: 6 })
+        }.width('100%')
+        .onClick(() => { this.openSectionEditor(); })
 
         // 背景图（第一位）
         Divider().color($r('app.color.divider')).margin({ top: 12, bottom: 12 })
@@ -560,5 +847,18 @@ export struct ScheduleSettingsPanel {
       .width('100%').padding({ left: 20, right: 20, top: 8 })
     }
     .width('100%').height('100%').scrollBar(BarState.Off).align(Alignment.Top)
+
+    }
+    .width('100%')
+    .height('100%')
+    .bindSheet($$this.showSecSheet, this.secSheet(), {
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+      showClose: true,
+      preferType: SheetType.BOTTOM,
+      title: { title: '课程节数与上课时间' },
+      onDisappear: () => {
+        this.secPageFlag = false;
+      }
+    })
   }
 }

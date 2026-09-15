@@ -28,6 +28,7 @@ import { WebViewPage } from './WebViewPage';
 import { WallpaperPage } from './WallpaperPage';
 import { NoticeDetailPage, NoticePage } from './NoticePage';
 import { PrivacyPage } from './PrivacyPage';
+import { TermsPage } from './TermsPage';
 import { ScheduleView } from './ScheduleView';
 import { ScoreView } from './ScoreView';
 
@@ -110,6 +111,8 @@ export struct MainView {
       AcademicPage()
     } else if (name === Const.ROUTE_PRIVACY) {
       PrivacyPage()
+    } else if (name === Const.ROUTE_TERMS) {
+      TermsPage()
     } else if (name === Const.ROUTE_ABOUT) {
       AboutPage()
     } else if (name === Const.ROUTE_EMPTY_ROOM) {

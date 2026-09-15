@@ -1,6 +1,6 @@
 /**
- * 隐私协议页：Web 组件加载本地 rawfile HTML（参考本地项目 xndcourse 的 privacy.html 写法）
- * 入口：关于页（MineView/AboutPage）底部「隐私协议」入口
+ * 用户协议页：Web 组件加载本地 rawfile HTML（与隐私协议页同构）
+ * 入口：关于应用页底部「用户协议 & 隐私政策」卡片
  */
 import { webview } from '@kit.ArkWeb';
 import { AppState } from '../common/AppState';
@@ -8,7 +8,7 @@ import { Const } from '../common/Constants';
 import { PageHeader } from './common/UiKit';
 
 @Component
-export struct PrivacyPage {
+export struct TermsPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   private controller: webview.WebviewController = new webview.WebviewController();
@@ -17,8 +17,7 @@ export struct PrivacyPage {
     NavDestination() {
       // 悬浮顶栏：正文(网页)占满全屏，上滑网页内容可从渐变下层透出
       Stack({ alignContent: Alignment.TopStart }) {
-        // 协议正文（本地 rawfile HTML）：悬浮顶栏 + 网页全屏；加载完成后在文档头部注入可随滚动移动的留白段
-        Web({ src: $rawfile('privacy.html'), controller: this.controller })
+        Web({ src: $rawfile('terms.html'), controller: this.controller })
           .width('100%')
           .height('100%')
           .backgroundColor(Color.Transparent)
@@ -48,7 +47,7 @@ export struct PrivacyPage {
 
         // 统一头部（悬浮层）
         PageHeader({
-          title: '隐私政策',
+          title: '用户协议',
           onBack: () => {
             AppState.stack.pop();
           }

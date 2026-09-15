@@ -37,6 +37,12 @@ export class ScheduleConfig {
   /** 是否显示非本周课程（下周灰色半透明） */
   showNextWeek: boolean = false;
 
+  // ===== 节次与作息时间（可在课程表设置中调整）=====
+  /** 课程表总节数（默认 10，可调 1~15） */
+  sectionCount: number = 10;
+  /** 每节课时间："HH:MM-HH:MM" 以逗号分隔（空 = 使用内置默认作息） */
+  sectionTimeText: string = '';
+
   // ===== 课程格子 =====
   /** 课程文字颜色，空 = 使用课程主题文字色 */
   textColor: string = '';
@@ -89,6 +95,8 @@ export class ScheduleConfig {
     c.showSectionTime = this.showSectionTime;
     c.showWeekend = this.showWeekend;
     c.showNextWeek = this.showNextWeek;
+    c.sectionCount = this.sectionCount;
+    c.sectionTimeText = this.sectionTimeText;
     c.textColor = this.textColor;
     c.textMixWithBg = this.textMixWithBg;
     c.borderColor = this.borderColor;
@@ -133,6 +141,8 @@ export class ScheduleConfig {
       if (typeof o['showSectionTime'] === 'boolean') { c.showSectionTime = o['showSectionTime'] as boolean; }
       if (typeof o['showWeekend'] === 'boolean') { c.showWeekend = o['showWeekend'] as boolean; }
       if (typeof o['showNextWeek'] === 'boolean') { c.showNextWeek = o['showNextWeek'] as boolean; }
+      if (typeof o['sectionCount'] === 'number') { c.sectionCount = o['sectionCount'] as number; }
+      if (typeof o['sectionTimeText'] === 'string') { c.sectionTimeText = o['sectionTimeText'] as string; }
       if (typeof o['textColor'] === 'string') { c.textColor = o['textColor'] as string; }
       if (typeof o['textMixWithBg'] === 'boolean') { c.textMixWithBg = o['textMixWithBg'] as boolean; }
       if (typeof o['borderColor'] === 'string') { c.borderColor = o['borderColor'] as string; }
@@ -170,6 +180,8 @@ export class ScheduleConfig {
       'showSectionTime': this.showSectionTime,
       'showWeekend': this.showWeekend,
       'showNextWeek': this.showNextWeek,
+      'sectionCount': this.sectionCount,
+      'sectionTimeText': this.sectionTimeText,
       'textColor': this.textColor,
       'textMixWithBg': this.textMixWithBg,
       'borderColor': this.borderColor,

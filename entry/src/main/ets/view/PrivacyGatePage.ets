@@ -14,8 +14,10 @@ import { webview } from '@kit.ArkWeb';
 import { privacyManager } from '@kit.AppGalleryKit';
 import { Theme } from '../common/ThemeUtil';
 import { Immersive } from './common/Immersive';
+import { WallpaperTone } from '../common/WallpaperTone';
 import { DeclarationSection, DEVELOPER_DECLARATION } from '../common/PrivacyText';
 import { DataStore } from '../common/DataStore';
+import { common } from '@kit.AbilityKit';
 
 @Component
 export struct PrivacyGatePage {
@@ -25,6 +27,8 @@ export struct PrivacyGatePage {
   @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸亮度（顶栏文字自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   /** 完成回调：agreed=true 已同意隐私且走完引导；false = 暂不同意（仅可使用功能浏览） */
   onDone: (agreed: boolean) => void = () => {
   };
@@ -32,9 +36,22 @@ export struct PrivacyGatePage {
   @State step: number = 0;
   /** 步骤切换方向：1=前进，-1=后退 */
   @State stepDirection: number = 1;
+  /** 首次进入动画：淡入 + 轻微右移归位 */
+  @State enterIn: boolean = false;
+  /** 协议勾选：用户协议 / 隐私政策（需全部同意） */
+  @State agreeTerms: boolean = false;
+  @State agreePrivacy: boolean = false;
+  /** 正在查看的文档：'' / 'terms' / 'privacy' */
+  @State showDoc: string = '';
+  private termsController: webview.WebviewController = new webview.WebviewController();
+  private privacyDocController: webview.WebviewController = new webview.WebviewController();
   private privacyController: webview.WebviewController = new webview.WebviewController();
 
   aboutToAppear(): void {
+    // 进入动画
+    this.getUIContext().animateTo({ duration: 280, curve: Curve.EaseOut }, () => {
+      this.enterIn = true;
+    });
     // 已接入华为托管隐私协议且用户已同意（FULL_MODE_AGREED）：跳过自带协议页，直接从开发者声明开始
     try {
       const results = privacyManager.getAppPrivacyResult();
@@ -93,6 +110,29 @@ export struct PrivacyGatePage {
     this.onDone(false);
   }
 
+  /** 不同意：询问是否清除数据 → 退出应用（不同意则无法使用） */
+  private declineAgreement(): void {
+    this.getUIContext().getPromptAction().showDialog({
+      title: '不同意',
+      message: '不同意用户协议与隐私政策将无法使用本应用。是否清除本地数据？',
+      buttons: [
+        { text: '清除数据并退出', color: '#DB5252' },
+        { text: '保留数据并退出', color: '#666666' },
+        { text: '取消', color: '#666666' }
+      ]
+    }).then((res) => {
+      if (res.index === 2) {
+        return;
+      }
+      if (res.index === 0) {
+        DataStore.clearAll();
+      }
+      DataStore.clearPrivacyAgreed();
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      ctx.terminateSelf();
+    });
+  }
+
   /** 底部操作行（等宽双按钮：左侧次要=上一步/暂不同意，右侧品牌主按钮） */
   @Builder
   actionBar(secondaryText: string, primaryText: string,
@@ -135,7 +175,8 @@ export struct PrivacyGatePage {
   }
 
   build() {
-    Column() {
+    Stack() {
+      Column() {
       // 顶栏（两层）：内容(底)/主题渐变(顶)；标题+步骤提示（模糊层已取消）
       Stack({ alignContent: Alignment.TopStart }) {
         Column()
@@ -150,11 +191,11 @@ export struct PrivacyGatePage {
         Text(this.stepTitle())
           .fontSize(19)
           .fontWeight(FontWeight.Bold)
-          .fontColor(Color.White)
+          .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
         Blank()
         Text(`第 ${this.step + 1}/3 步`)
           .fontSize(12)
-          .fontColor('#CCFFFFFF')
+          .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
       }
       .width('100%')
       .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
@@ -186,13 +227,69 @@ export struct PrivacyGatePage {
             .darkMode(WebDarkMode.Auto)
 
           Column() {
-            Text('未同意将无法使用账号登录，仅可使用"功能浏览"')
+            Row() {
+              Checkbox({ name: 'agreeTerms', group: 'agreement' })
+                .select(this.agreeTerms)
+                .selectedColor(Theme.colorOf(this.themeColor))
+                .onChange((v: boolean) => { this.agreeTerms = v; })
+              Text('我已阅读并同意')
+                .fontSize(12)
+                .fontColor($r('app.color.text_secondary'))
+              Text('《用户协议》')
+                .fontSize(12)
+                .fontColor(Theme.colorOf(this.themeColor))
+                .onClick(() => { this.showDoc = 'terms'; })
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+
+            Row() {
+              Checkbox({ name: 'agreePrivacy', group: 'agreement' })
+                .select(this.agreePrivacy)
+                .selectedColor(Theme.colorOf(this.themeColor))
+                .onChange((v: boolean) => { this.agreePrivacy = v; })
+              Text('我已阅读并同意')
+                .fontSize(12)
+                .fontColor($r('app.color.text_secondary'))
+              Text('《隐私政策》')
+                .fontSize(12)
+                .fontColor(Theme.colorOf(this.themeColor))
+                .onClick(() => { this.showDoc = 'privacy'; })
+            }
+            .width('100%')
+            .margin({ top: 4 })
+            .alignItems(VerticalAlign.Center)
+
+            Text(this.agreeTerms && this.agreePrivacy
+              ? '点击"同意并继续"进入下一步'
+              : '需同时勾选《用户协议》与《隐私政策》后方可继续')
               .fontSize(11)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(this.agreeTerms && this.agreePrivacy ? $r('app.color.text_tertiary') : $r('app.color.accent_orange'))
               .width('100%')
-              .textAlign(TextAlign.End)
-              .margin({ bottom: 8 })
-            this.actionBar('暂不同意', '同意并继续', () => { this.onDecline(); }, () => { this.onAgreePrivacy(); })
+              .margin({ top: 8, bottom: 8 })
+
+            Row({ space: 12 }) {
+              Button('不同意')
+                .fontSize(14)
+                .fontColor($r('app.color.text_secondary'))
+                .backgroundColor($r('app.color.bg_chip'))
+                .height(42)
+                .layoutWeight(1)
+                .borderRadius(21)
+                .onClick(() => { this.declineAgreement(); })
+              Button('同意并继续')
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.brand_on'))
+                .backgroundColor(Theme.colorOf(this.themeColor))
+                .opacity(this.agreeTerms && this.agreePrivacy ? 1 : 0.5)
+                .height(42)
+                .layoutWeight(1)
+                .borderRadius(21)
+                .enabled(this.agreeTerms && this.agreePrivacy)
+                .onClick(() => { this.onAgreePrivacy(); })
+            }
+            .width('100%')
           }
           .width('100%')
           .padding({ left: 20, right: 20, top: 12, bottom: 16 + this.getUIContext().px2vp(this.bottomInsetPx) })
@@ -283,5 +380,49 @@ export struct PrivacyGatePage {
     .width('100%')
     .height('100%')
     .backgroundColor($r('app.color.bg_page'))
+    .opacity(this.enterIn ? 1 : 0)
+    .translate({ x: this.enterIn ? 0 : 28 })
+
+      // 协议全文查看（覆盖层）：点击《用户协议》/《隐私政策》后展示
+      if (this.showDoc.length > 0) {
+        Column() {
+          Row() {
+            Text(this.showDoc === 'terms' ? '用户协议' : '隐私政策')
+              .fontSize(16)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.text_primary'))
+              .layoutWeight(1)
+            Text('✕')
+              .fontSize(18)
+              .fontColor($r('app.color.text_secondary'))
+              .width(36)
+              .height(36)
+              .textAlign(TextAlign.Center)
+              .onClick(() => { this.showDoc = ''; })
+          }
+          .width('100%')
+          .height(52)
+          .padding({ left: 16, right: 16, top: this.getUIContext().px2vp(this.topInsetPx) })
+          .alignItems(VerticalAlign.Center)
+
+          if (this.showDoc === 'terms') {
+            Web({ src: $rawfile('terms.html'), controller: this.termsController })
+              .width('100%')
+              .layoutWeight(1)
+              .backgroundColor($r('app.color.bg_page'))
+              .darkMode(WebDarkMode.Auto)
+          } else {
+            Web({ src: $rawfile('privacy.html'), controller: this.privacyDocController })
+              .width('100%')
+              .layoutWeight(1)
+              .backgroundColor($r('app.color.bg_page'))
+              .darkMode(WebDarkMode.Auto)
+          }
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor($r('app.color.bg_page'))
+      }
+    }
   }
 }

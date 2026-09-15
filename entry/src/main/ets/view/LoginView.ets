@@ -997,10 +997,18 @@ export struct LoginView {
                 // 前往登录页模式：灰色返回按钮（左侧，与登录按钮等宽等高，合计与原登录按钮相同）
                 if (this.showBack) {
                   Button() {
-                    Text('‹ 返回')
-                      .fontSize(16)
-                      .fontWeight(FontWeight.Medium)
-                      .fontColor($r('app.color.text_secondary'))
+                    Row() {
+                      Image($r('app.media.back_arrow'))
+                        .width(16)
+                        .height(16)
+                        .fillColor($r('app.color.text_secondary'))
+                      Text('返回')
+                        .fontSize(16)
+                        .fontWeight(FontWeight.Medium)
+                        .fontColor($r('app.color.text_secondary'))
+                        .margin({ left: 4 })
+                    }
+                    .alignItems(VerticalAlign.Center)
                   }
                   .layoutWeight(1)
                   .height(48)
@@ -1370,7 +1378,7 @@ export struct LoginView {
   @Builder
   privacySheet() {
     Column() {
-      Text('隐私协议')
+      Text('隐私政策')
         .fontSize(20)
         .fontWeight(FontWeight.Bold)
         .fontColor($r('app.color.text_primary'))

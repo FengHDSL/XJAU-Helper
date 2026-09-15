@@ -57,3 +57,8 @@ material/
 .git_backup_*/
 .git_fresh_empty_*/
 git_corrupt_*/
+
+# 本地备份/修复残留（不入库）
+*.bak_*
+git_corrupt*/
+*.orig

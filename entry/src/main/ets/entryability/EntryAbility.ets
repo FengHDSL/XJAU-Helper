@@ -1,6 +1,6 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { mediaquery, window } from '@kit.ArkUI';
+import { window } from '@kit.ArkUI';
 import { fileIo } from '@kit.CoreFileKit';
 import { AppState } from '../common/AppState';
 import { DataStore } from '../common/DataStore';
@@ -30,12 +30,8 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('wallpaperId', wp.length > 0 ? wp : 'none');
     // 恢复顶栏主题色（中国红/天空蓝/农大绿/自定义 #RRGGBB）
     Theme.restore();
-    // 深色模式：手动开关优先；未手动设置时跟随系统（mediaquery 实时监听）
-    try {
-      const darkListener = mediaquery.matchMediaSync('(prefers-color-scheme: dark)');
-      const manual: boolean = DataStore.hasDarkSetting();
-      const initial: boolean = manual ? DataStore.isDarkOn() : darkListener.matches;
-      AppStorage.setOrCreate('isDarkMode', initial);
+    // 深色模式：默认为浅色（isDarkOn 返回 false 即表示浅色）
+    AppStorage.setOrCreate('isDarkMode', DataStore.isDarkOn());
     // 顶栏样式：新版渐变（默认）/ 旧版实色
     AppStorage.setOrCreate('barStyle', DataStore.barStyle());
     // 顶栏副标题颜色（空=自动）
@@ -44,33 +40,27 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('immersiveEffect', true); // 沉浸光感默认开启（已移除开关）
     // 壁纸蒙版开关（默认为开）
     AppStorage.setOrCreate('wallpaperMask', DataStore.wallpaperMaskOn());
+    // 新闻封面缩略图开关（默认开启）
+    AppStorage.setOrCreate('newsThumb', DataStore.newsThumbOn());
     // 壁纸明暗（对比度自动适配用，-1=未分析）
     AppStorage.setOrCreate('wallpaperTone', WallpaperTone.load());
-      // 让 $r() 资源色与之一致（文字/背景资源随 colorMode 切换）
-      AppStorage.setOrCreate('darkManual', manual);
-      AppStorage.setOrCreate('systemDark', darkListener.matches);
-      this.applyColorMode(initial);
-      darkListener.on('change', (result: mediaquery.MediaQueryResult) => {
-        AppStorage.setOrCreate('systemDark', result.matches);
-        // 仅未手动设置时随系统变化
-        if (!AppStorage.get<boolean>('darkManual')) {
-          AppStorage.setOrCreate('isDarkMode', result.matches);
-          this.applyColorMode(result.matches);
-        }
-      });
-    } catch (e) {
-      AppStorage.setOrCreate('isDarkMode', false);
-    }
-  }
-
-  /** 应用颜色模式（使 $r 资源切换到对应深浅色） */
-  private applyColorMode(dark: boolean): void {
     try {
       this.context.getApplicationContext()
-        .setColorMode(dark ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+        .setColorMode(DataStore.isDarkOn() ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
           : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT);
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
+    }
+  }
+
+  /** 应用回到前台：重新应用当前颜色模式 */
+  onForeground(): void {
+    try {
+      this.context.getApplicationContext()
+        .setColorMode(DataStore.isDarkOn() ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+          : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT);
+    } catch (e) {
+      // ignore
     }
   }
 
@@ -146,13 +136,10 @@ export default class EntryAbility extends UIAbility {
     });
 
     try {
-      // 手动设置过深色 → 应用该模式；否则跟随系统
-      const manual: boolean = DataStore.hasDarkSetting();
+      // 应用当前深色模式设置
       this.context.getApplicationContext()
-        .setColorMode(manual
-          ? (DataStore.isDarkOn() ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
-            : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT)
-          : ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
+        .setColorMode(DataStore.isDarkOn() ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+          : ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT);
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
@@ -162,12 +149,6 @@ export default class EntryAbility extends UIAbility {
   onWindowStageDestroy(): void {
     // Main window is destroyed, release UI related resources
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
-  }
-
-  /** 应用进入前台回调 */
-  onForeground(): void {
-    // Ability has brought to foreground
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
   }
 
   /** 应用进入后台回调 */

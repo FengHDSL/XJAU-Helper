@@ -12,6 +12,7 @@ import { promptAction, display, mediaquery } from '@kit.ArkUI';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const, SectionTime } from '../common/Constants';
+import { SectionUtil } from '../common/SectionUtil';
 import { DataStore } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { ScheduleConfig, COURSE_BG_HEX, COURSE_FG_HEX } from '../common/ScheduleConfig';
@@ -208,7 +209,7 @@ export struct ScheduleView {
   private selectedTimeText(): string {
     const startSec: number = this.selected.startSection;
     const endSec: number = this.selected.endSection;
-    const period: string = Const.SECTION_PERIODS[startSec - 1] ?? '';
+    const period: string = SectionUtil.period(startSec);
     const dateLabel: string = `${Const.WEEK_LABELS[this.selected.weekday - 1]}（${DateUtil.formatCn(this.dateOf(this.selected.weekday))}）`;
     return `${dateLabel} ${period} 第 ${startSec}-${endSec} 节（${DateUtil.sectionRange(startSec, endSec)}）`;
   }
@@ -627,7 +628,14 @@ export struct ScheduleView {
     }
     .width('100%')
     .padding({ top: 4, bottom: 4 })
-    .backgroundColor(this.cfg.headerColor.length > 0 ? this.cfg.headerColor : $r('app.color.bg_card'))
+    // 日期栏毛玻璃条：低不透明度 + Regular 模糊 + 细描边，透出下层壁纸图案
+    // （用户自定义 headerColor 时沿用其自定义色）
+    .backgroundColor(this.cfg.headerColor.length > 0
+      ? this.cfg.headerColor
+      : (this.isDarkMode ? 'rgba(20,24,23,0.35)' : 'rgba(255,255,255,0.35)'))
+    .backgroundBlurStyle(Immersive.blur(BlurStyle.Regular, this.immersiveEffect))
+    .borderRadius(12)
+    .border({ width: 0.5, color: this.isDarkMode ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)' })
   }
 
   /** 判断某星期几是否今天（同周同星期才高亮） */
@@ -747,7 +755,7 @@ export struct ScheduleView {
   @Builder
   sectionColumn() {
     Column() {
-      ForEach(Const.SECTIONS, (item: SectionTime) => {
+      ForEach(SectionUtil.list(this.cfg), (item: SectionTime) => {
         Column() {
           Text(`${item.index}`)
             .fontSize(13)
@@ -775,7 +783,7 @@ export struct ScheduleView {
   dayColumn(weekday: number) {
     Stack({ alignContent: Alignment.TopStart }) {
       Column() {
-        ForEach(Const.SECTIONS, (item: SectionTime) => {
+        ForEach(SectionUtil.list(this.cfg), (item: SectionTime) => {
           Column()
             .width('100%')
             .height(this.cellH())
@@ -798,7 +806,7 @@ export struct ScheduleView {
     }
     .layoutWeight(1)
     .margin({ left: 2, right: 2 })
-    .height(this.cellH() * Const.SECTION_COUNT)
+    .height(this.cellH() * SectionUtil.count(this.cfg))
   }
 
   /** 课程格子：支持文字色/叠加/边框/圆角/透明度/大小/对齐/时间/地点/@/老师全套配置 */
@@ -1031,7 +1039,7 @@ export struct ScheduleView {
       onPickBg: () => { this.pickBackgroundImage(); },
       onClearBg: () => { this.clearBackgroundImage(); },
       onClose: () => { this.showSettingsSheet = false; },
-      onCfgChange: (c: ScheduleConfig) => { this.cfg = c; },
+      onCfgChange: (c: ScheduleConfig) => { this.cfg = c; c.save(); },
       currentTermId: AppState.term.id,
       currentTermStart: this.customTermStart,
       onTermStartChange: (d: string) => { this.onTermStartChanged(d); }

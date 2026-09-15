@@ -50,6 +50,8 @@ export struct HomeView {
   @State photo: string = '';
   @State isLandscape: boolean = false;
   @State teachingCal: TeachingCalendar | null = null;
+  /** 日历月份 Swiper 当前页（自绘页码指示器用） */
+  @State calPageIndex: number = 0;
   @State jwcNotices: NoticeItem[] = [];
   @State showNoticeSheet: boolean = false;
   @State sheetNotice: NoticeItem | null = null;
@@ -77,6 +79,7 @@ export struct HomeView {
       this.currentWeek = DateUtil.weekOfTerm(AppState.term, new Date());
     }
     this.calDefaultMonth = this.computeCurrentMonth();
+    this.calPageIndex = this.calInitialIndex();
     this.randomRestText = this.pickRestText();
     this.listenLandscape();
     this.loadData();
@@ -1293,6 +1296,31 @@ export struct HomeView {
     return false;
   }
 
+  /** 某日期所属教学周（1 起；不在学期内返回 0，按校历解析的开学日推算） */
+  private weekIndex(day: string): number {
+    const cal: TeachingCalendar | null = this.teachingCal;
+    if (cal === null || cal.startDate.length === 0 || day.length === 0) {
+      return 0;
+    }
+    const d: number = DateUtil.diffDays(DateUtil.parse(cal.startDate), DateUtil.parse(day));
+    if (d < 0) {
+      return 0;
+    }
+    return Math.floor(d / 7) + 1;
+  }
+
+  /** 周次配色（同周同色，8 色循环；低透明度以保持文字可读） */
+  private weekColor(idx: number): string {
+    if (idx <= 0) {
+      return '#00000000';
+    }
+    const palette: string[] = [
+      '#332E7AFF', '#3322A06B', '#33E8833A', '#339B59C9',
+      '#33D94F70', '#3300A6B8', '#33C9A227', '#33546E7A'
+    ];
+    return palette[(idx - 1) % palette.length];
+  }
+
   /** 学期日历信息小标签 */
   @Builder
   infoChip(text: string, color: ResourceColor) {
@@ -1389,32 +1417,48 @@ export struct HomeView {
 
               ForEach(this.monthGrid(Math.floor(ym / 100), ym % 100), (row: string[]) => {
                 Row() {
-                  ForEach(row, (day: string) => {
+                  ForEach(row, (day: string, di: number) => {
                     Column() {
                       if (day.length > 0) {
                         Text(day.slice(-2))
                           .fontSize(11)
-                          .textAlign(TextAlign.Center)
                           .fontColor(
                             day === this.effectiveToday()
                               ? Color.White
                               : (this.isCalHoliday(day)
                                 ? $r('app.color.accent_orange')
-                                : (this.isInTerm(day) ? $r('app.color.text_primary') : $r('app.color.text_tertiary')))
+                                : (this.isInTerm(day)
+                                  ? (day < this.effectiveToday()
+                                    ? $r('app.color.text_tertiary')
+                                    : $r('app.color.text_primary'))
+                                  : $r('app.color.text_tertiary')))
                           )
                           .fontWeight(day === this.effectiveToday() ? FontWeight.Bold : FontWeight.Normal)
-                          .width(30)
+                          .width('100%')
                           .height(28)
-                          .borderRadius(14)
-                          .backgroundColor(
-                            day === this.effectiveToday()
-                              ? Theme.colorOf(this.themeColor)
-                              : Color.Transparent
-                          )
+                          .textAlign(TextAlign.Center)
                       }
                     }
                     .layoutWeight(1)
-                    .alignItems(HorizontalAlign.Center)
+                    .height(28)
+                    .justifyContent(FlexAlign.Center)
+                    // 色带两端圆角（周一到周日为一条，两头收角）
+                    .borderRadius({
+                      topLeft: di === 0 ? 10 : 0,
+                      bottomLeft: di === 0 ? 10 : 0,
+                      topRight: di === row.length - 1 ? 10 : 0,
+                      bottomRight: di === row.length - 1 ? 10 : 0
+                    })
+                    // 背景铺满整格 → 同一周（行内 7 天）连成一条色带；已过去的日期/周次显示为灰色
+                    .backgroundColor(
+                      day.length === 0
+                        ? Color.Transparent
+                        : (day === this.effectiveToday()
+                          ? Theme.colorOf(this.themeColor)
+                          : (day < this.effectiveToday()
+                            ? 'rgba(128,138,136,0.22)'
+                            : (this.isInTerm(day) ? this.weekColor(this.weekIndex(day)) : Color.Transparent)))
+                    )
                   }, (day: string, di: number) => `${di}-${day}`)
                 }
                 .width('100%')
@@ -1428,8 +1472,25 @@ export struct HomeView {
         }
         .index(this.calInitialIndex())
         .loop(false)
-        .indicator(true)
+        .indicator(false)
+        .onChange((index: number) => {
+          this.calPageIndex = index;
+        })
         .width('100%')
+
+        // 页码指示器（自绘）：位于月份内容下方，位置可精确控制，不遮挡日期
+        Row({ space: 6 }) {
+          ForEach(this.calMonthList(), (ym: number, i: number) => {
+            Column()
+              .width(i === this.calPageIndex ? 14 : 6)
+              .height(6)
+              .borderRadius(3)
+              .backgroundColor(i === this.calPageIndex ? Theme.colorOf(this.themeColor) : '#33000000')
+          }, (ym: number, i: number) => `caldot${i}`)
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+        .margin({ top: 2, bottom: 2 })
 
         // 校历说明（来自校历 PDF 说明区）
         Column() {

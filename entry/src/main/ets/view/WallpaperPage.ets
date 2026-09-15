@@ -30,7 +30,7 @@ export struct WallpaperPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   /** 顶栏主题色（'red' | 'blue' | 'green' | '#RRGGBB'） */
   @StorageProp('themeColor') themeColor: string = 'green';
-  /** 顶栏样式：new=新版渐变（默认）/ legacy=旧版实色 */
+  /** 顶栏样式：new=渐变色（默认）/ legacy=毛玻璃 */
   @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   /** 跟随系统深色（只读展示用） */
@@ -356,7 +356,7 @@ export struct WallpaperPage {
           .fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.text_primary'))
         Blank()
-        Text('旧版实色')
+        Text('毛玻璃')
           .fontSize(12)
           .fontColor(this.barStyle === 'legacy' ? Color.White : $r('app.color.text_primary'))
           .padding({ left: 12, right: 12, top: 5, bottom: 5 })
@@ -366,7 +366,7 @@ export struct WallpaperPage {
             AppStorage.setOrCreate('barStyle', 'legacy');
             DataStore.setBarStyle('legacy');
           })
-        Text('新版渐变')
+        Text('渐变色')
           .fontSize(12)
           .fontColor(this.barStyle === 'new' ? Color.White : $r('app.color.text_primary'))
           .padding({ left: 12, right: 12, top: 5, bottom: 5 })
@@ -406,11 +406,14 @@ export struct WallpaperPage {
           .fontColor($r('app.color.text_tertiary'))
           .margin({ right: 10 })
         TextInput({ text: this.subHex, placeholder: '#RRGGBB' })
-          .fontSize(13)
-          .height(36)
+  .fontSize(13)
+  .fontColor($r('app.color.text_primary'))
+  .placeholderColor($r('app.color.text_tertiary'))
+  .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)')
+  .border({ width: 1, color: this.isDarkMode ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.12)' })
+  .borderRadius(10)
+  .height(40)
           .layoutWeight(1)
-          .backgroundColor($r('app.color.bg_chip'))
-          .borderRadius(10)
           .onChange((v: string) => {
             this.subHex = v;
           })
@@ -443,12 +446,13 @@ export struct WallpaperPage {
           .margin({ right: 10 })
         TextInput({ text: $$this.hexInput, placeholder: '#RRGGBB' })
           .fontSize(13)
-          .height(38)
-          .layoutWeight(1)
-          // 颜色码输入框：实色底 + 细描边
+          .fontColor($r('app.color.text_primary'))
+          .placeholderColor($r('app.color.text_tertiary'))
           .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)')
           .border({ width: 1, color: this.isDarkMode ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.12)' })
           .borderRadius(10)
+          .height(40)
+          .layoutWeight(1)
           .onChange((v: string) => {
             this.validateHex(v);
           })
@@ -488,6 +492,14 @@ export struct WallpaperPage {
             this.themeSection()
 
 
+            // ── 壁纸（卡片）：选择 / 取消 / 蒙版 / 图像地址 ──
+            Column() {
+              Text('全局壁纸')
+                .fontSize(15)
+                .fontWeight(FontWeight.Bold)
+                .fontColor($r('app.color.text_primary'))
+                .width('100%')
+                .margin({ bottom: 10 })
             // 自定义壁纸（已启用时预览）
             if (this.wallpaperId.startsWith('c:')) {
               Text('自定义壁纸')
@@ -511,7 +523,6 @@ export struct WallpaperPage {
                 .textAlign(TextAlign.Center)
                 .margin({ top: 8 })
             }
-
             // 操作区
             Row() {
               Button('从相册选择图片')
@@ -528,40 +539,19 @@ export struct WallpaperPage {
             }
             .width('100%')
             .margin({ top: 18 })
-
-            // URL 导入壁纸：直接填图片链接，下载到应用目录并应用
-            Row() {
-              TextInput({ text: this.urlText, placeholder: '编辑图像地址（支持API地址）' })
-                .fontSize(14)
-                .fontColor($r('app.color.text_primary'))
-                .placeholderColor($r('app.color.text_tertiary'))
-                .backgroundColor($r('app.color.bg_chip'))
-                .borderRadius(12)
-                .height(40)
-                .layoutWeight(1)
-                .onChange((v: string) => {
-                  this.urlText = v;
-                })
-                .onSubmit(() => {
-                  this.importByUrl();
-                })
-              Button('保存')
-                .fontSize(14)
-                .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.brand_on'))
-                .backgroundColor(Theme.colorOf(this.themeColor))
-                .height(42)
-                .width(96)
-                .borderRadius(21)
-                .margin({ left: 12 })
-                .onClick(() => {
-                  this.importByUrl();
-                })
-            }
-            .width('100%')
-            .margin({ top: 12 })
-            .alignItems(VerticalAlign.Center)
-
+            // 取消壁纸：恢复默认纯色背景（粉红按钮）
+            Button('取消壁纸')
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(Color.White)
+              .backgroundColor('#F2A0B5')
+              .height(42)
+              .width('100%')
+              .borderRadius(21)
+              .margin({ top: 12 })
+              .onClick(() => {
+                this.cancelWallpaper();
+              })
             // 壁纸蒙版开关：关闭后不叠加可读性遮罩（文字仍会自动适配颜色）
             Row() {
               Column() {
@@ -585,30 +575,56 @@ export struct WallpaperPage {
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
-            .margin({ top: 14 })
-
-            // 取消壁纸：恢复默认纯色背景（粉红按钮）
-            Button('取消壁纸')
-              .fontSize(14)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(Color.White)
-              .backgroundColor('#F2A0B5')
-              .height(42)
-              .width('100%')
-              .borderRadius(21)
-              .margin({ top: 10 })
-              .onClick(() => {
-                this.cancelWallpaper();
-              })
-
+            .margin({ top: 12 })
+            // URL 导入壁纸：直接填图片链接，下载到应用目录并应用
+            Row() {
+              TextInput({ text: this.urlText, placeholder: '编辑图像地址（支持API地址）' })
+  .fontSize(13)
+  .fontColor($r('app.color.text_primary'))
+  .placeholderColor($r('app.color.text_tertiary'))
+  .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)')
+  .border({ width: 1, color: this.isDarkMode ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.12)' })
+  .borderRadius(10)
+  .height(40)
+                .layoutWeight(1)
+                .onChange((v: string) => {
+                  this.urlText = v;
+                })
+                .onSubmit(() => {
+                  this.importByUrl();
+                })
+              Button('保存')
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.brand_on'))
+                .backgroundColor(Theme.colorOf(this.themeColor))
+                .height(42)
+                .width(96)
+                .borderRadius(21)
+                .margin({ left: 12 })
+                .onClick(() => {
+                  this.importByUrl();
+                })
+            }
+            .width('100%')
+            .margin({ top: 12 })
+            .alignItems(VerticalAlign.Center)
             // URL 行上移到提示文本上方；提示放其下
             Text('提示：壁纸应用在主界面五个 Tab 与多数二级页背景，切换后即时生效；课程表页保持纯色底不受影响；各功能卡片保持原有底色以保证可读性。取消壁纸即恢复默认纯色背景。')
               .fontSize(11)
               .lineHeight(18)
               .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
               .width('100%')
-              .margin({ top: 16, bottom: 20 })
+              .margin({ top: 12 })
+            }
+            .width('100%')
+            .padding(16)
+            .backgroundColor($r('app.color.bg_card'))
+            .borderRadius(16)
+            .margin({ top: 14 })
 
+            // ── 主题组合（卡片）──
+            Column() {
             // ── 主题组合：保存/应用（背景 + 顶栏颜色 + 副标题颜色）──
             Text('主题组合')
               .fontSize(15)
@@ -616,15 +632,15 @@ export struct WallpaperPage {
               .fontColor($r('app.color.text_primary'))
               .width('100%')
               .margin({ top: 4, bottom: 10 })
-
             Row() {
               TextInput({ text: this.comboName, placeholder: '组合名称（如：夜间阅读）' })
-                .fontSize(14)
-                .fontColor($r('app.color.text_primary'))
-                .placeholderColor($r('app.color.text_tertiary'))
-                .backgroundColor($r('app.color.bg_chip'))
-                .borderRadius(12)
-                .height(40)
+  .fontSize(13)
+  .fontColor($r('app.color.text_primary'))
+  .placeholderColor($r('app.color.text_tertiary'))
+  .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)')
+  .border({ width: 1, color: this.isDarkMode ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.12)' })
+  .borderRadius(10)
+  .height(40)
                 .layoutWeight(1)
                 .onChange((v: string) => {
                   this.comboName = v;
@@ -643,7 +659,6 @@ export struct WallpaperPage {
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
-
             ForEach(this.combos, (c: ThemeCombo) => {
               Row() {
                 // 壁纸缩略图（自定义壁纸走 file://；未设置时显示占位块）
@@ -717,9 +732,15 @@ export struct WallpaperPage {
               .width('100%')
               .padding({ left: 14, right: 14, top: 10, bottom: 10 })
               .margin({ top: 10 })
-              .backgroundColor($r('app.color.bg_card'))
+              .backgroundColor($r('app.color.bg_chip'))
               .borderRadius(14)
             }, (c: ThemeCombo) => c.name)
+            }
+            .width('100%')
+            .padding(16)
+            .backgroundColor($r('app.color.bg_card'))
+            .borderRadius(16)
+            .margin({ top: 14 })
 
           }
           .width('100%')

@@ -10,6 +10,7 @@ import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
+import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { ScoreItem, TermInfo, TermScore } from '../model/Models';
 import { BarTitle, EmptyTip, LoadingTip, TagChip } from './common/UiKit';
@@ -27,6 +28,8 @@ export struct ScoreView {
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 壁纸亮度（顶栏文字/图标自适应用） */
+  @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @State terms: TermInfo[] = [];
   @State selectedTermIndex: number = 0;
   @State termScores: TermScore[] = [];
@@ -383,7 +386,12 @@ export struct ScoreView {
       Row() {
         Column() {
           // 统一标题组件（大标题固定高 28，副标题独立行）
-          BarTitle({ title: '成绩查询', subtitle: this.currentTermLabel() })
+          BarTitle({
+            title: '成绩查询',
+            subtitle: this.currentTermLabel(),
+            showChevron: true,
+            onSubtitleTap: () => { this.showTermSheet = true; }
+          })
         }
         .alignItems(HorizontalAlign.Start)
         .onClick(() => {

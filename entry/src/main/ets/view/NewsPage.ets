@@ -11,6 +11,7 @@ import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { BarTitle } from './common/UiKit';
 import { AppState } from '../common/AppState';
+import { DataStore } from '../common/DataStore';
 import { Const } from '../common/Constants';
 import { NewsApi, NewsItem } from '../api/NewsApi';
 import { JwApi } from '../api/JwApi';
@@ -25,7 +26,7 @@ struct NewsRow {
   onTap: () => void = () => {};
 
   aboutToAppear(): void {
-    if (this.item !== null && this.item.thumb.length > 0) {
+    if (this.showThumb && this.item !== null && this.item.thumb.length > 0) {
       NewsApi.fetchImage(this.item.thumb).then((pm: image.PixelMap) => {
         this.thumb = pm;
       }).catch(() => {
@@ -75,6 +76,10 @@ export struct NewsPage {
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   /** 调试模式（AppStorage 响应式）：开启后功能浏览模式允许加载新闻 */
   @StorageProp('debugNetwork') @Watch('onDebugNetworkChanged') debugNetwork: boolean = false;
+  /** 新闻设置面板显隐 */
+  @State showNewsSetting: boolean = false;
+  /** 是否获取封面缩略图（设置项，默认开） */
+  @StorageProp('newsThumb') newsThumb: boolean = true;
   @State currentTab: number = 0;
   @State showWeb: boolean = false;
   @State keyword: string = '';
@@ -97,7 +102,10 @@ export struct NewsPage {
   @State pendingMore: NewsItem[][] = [[], [], [], []];
   /** 每个板块是否已加载过（懒加载去重） */
   private loadedTabs: boolean[] = [false, false, false, false];
-  private tabs: string[] = ['要闻', '综合', '科研', '媒体'];
+  /** 真实新闻板块（用于 Tabs 内容，避免为"收藏"创建空 TabContent） */
+  private newsTabs: string[] = ['要闻', '综合', '科研', '媒体'];
+  /** 板块栏标签（最后一项为"收藏"，点击跳转收藏页） */
+  private tabs: string[] = ['要闻', '综合', '科研', '媒体', '收藏'];
   /** 板块切换控制器：自绘板块栏点击 / 列表滑动联动 Tabs 切页 */
   private tabsController: TabsController = new TabsController();
   controller: webview.WebviewController = new webview.WebviewController();
@@ -246,6 +254,12 @@ export struct NewsPage {
       .backgroundColor(this.currentTab === index ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
       .margin({ right: 8 })
       .onClick(() => {
+        // 最后一个标签「收藏」：跳转到收藏页（不切换板块）
+        if (name === '收藏') {
+          AppState.stack.pushPath({ name: Const.ROUTE_NEWS_FAV });
+          this.setTabsHidden(false);
+          return;
+        }
         if (this.currentTab !== index) {
           this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
             this.currentTab = index;
@@ -259,6 +273,36 @@ export struct NewsPage {
   @Builder webSheet() {
     Web({ src: AppState.webUrl, controller: this.controller })
       .width('100%').height('100%').javaScriptAccess(true).domStorageAccess(true)
+  }
+
+  /** 新闻设置面板：封面缩略图开关 */
+  @Builder newsSettingSheet() {
+    Column() {
+      Row() {
+        Column() {
+          Text('获取新闻封面缩略图')
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary'))
+          Text('关闭后列表不再加载封面图片，可节省流量、加快加载')
+            .fontSize(11)
+            .fontColor($r('app.color.text_tertiary'))
+            .margin({ top: 2 })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        Toggle({ type: ToggleType.Switch, isOn: this.newsThumb })
+          .selectedColor(Theme.colorOf(this.themeColor))
+          .onChange((on: boolean) => {
+            AppStorage.setOrCreate('newsThumb', on);
+            DataStore.setNewsThumb(on);
+          })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+    }
+    .width('100%')
+    .padding({ left: 20, right: 20, top: 12, bottom: 26 })
   }
 
   /** 通用新闻列表（index = 板块下标），支持下拉刷新；
@@ -308,7 +352,7 @@ export struct NewsPage {
                   Column() {
                     NewsRow({
                       item: this.lists[index][start],
-                      showThumb: index !== 3,
+                      showThumb: index !== 3 && this.newsThumb,
                       onTap: () => { this.openDetail(this.lists[index][start]); }
                     })
                   }
@@ -317,7 +361,7 @@ export struct NewsPage {
                     Column() {
                       NewsRow({
                         item: this.lists[index][start + 1],
-                        showThumb: index !== 3,
+                        showThumb: index !== 3 && this.newsThumb,
                         onTap: () => { this.openDetail(this.lists[index][start + 1]); }
                       })
                     }
@@ -336,7 +380,7 @@ export struct NewsPage {
                   // 媒体农大（index=3）不显示缩略图
                   NewsRow({
                     item: item,
-                    showThumb: index !== 3,
+                    showThumb: index !== 3 && this.newsThumb,
                     onTap: () => { this.openDetail(item); }
                   })
                   if (i < this.lists[index].length - 1) {
@@ -437,14 +481,20 @@ export struct NewsPage {
         .height(32)
         .layoutWeight(1)
         .margin({ left: 10, right: 10 })
-        Text('收藏').fontSize(12).fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+        .bindSheet($$this.showNewsSetting, this.newsSettingSheet(), {
+          height: SheetSize.FIT_CONTENT,
+          showClose: true,
+          preferType: SheetType.BOTTOM,
+          title: { title: '新闻设置' }
+        })
+        Text('设置').fontSize(12).fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
           .height(32)
           .textAlign(TextAlign.Center)
           .padding({ left: 14, right: 14 })
           .backgroundColor('#33FFFFFF').borderRadius(16)
           .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
           .onClick(() => {
-            AppState.stack.pushPath({ name: Const.ROUTE_NEWS_FAV });
+            this.showNewsSetting = true;
           })
         Text('网页端').fontSize(12).fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
           .height(32)
@@ -504,7 +554,7 @@ export struct NewsPage {
       .zIndex(1)
 
       Tabs({ barPosition: BarPosition.Start, index: this.currentTab, controller: this.tabsController }) {
-        ForEach(this.tabs, (name: string, index: number) => {
+        ForEach(this.newsTabs, (name: string, index: number) => {
           TabContent() { this.tabNewsList(index) }
             .onAppear(() => { this.ensureLoaded(index); })
         }, (name: string) => name)

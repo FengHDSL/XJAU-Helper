@@ -8,16 +8,22 @@ import { SheetUtil } from '../common/SheetUtil';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { promptAction } from '@kit.ArkUI';
 import { AppState } from '../common/AppState';
+import { Theme } from '../common/ThemeUtil';
 import { Const } from '../common/Constants';
 import { LogStore } from '../common/LogStore';
 import { JwApi } from '../api/JwApi';
+import { DataStore } from '../common/DataStore';
+import { common } from '@kit.AbilityKit';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
 
 @Component
 export struct AboutPage {
+  /** 历史更新日志是否展开（默认仅显示最近 5 条） */
+  @State changelogExpanded: boolean = false;
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  @StorageProp('themeColor') themeColor: string = 'green';
   /** 壁纸亮度（文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
@@ -176,7 +182,7 @@ export struct AboutPage {
     .padding(16)
     .backgroundColor($r('app.color.bg_card'))
     .borderRadius(16)
-    .margin({ top: 6 })
+    .margin({ top: 0 })
   }
 
   @Builder
@@ -188,7 +194,7 @@ export struct AboutPage {
         .layoutWeight(1)
       Text(url.replace('https://github.com/', ''))
         .fontSize(12)
-        .fontColor($r('app.color.brand'))
+        .fontColor(Theme.colorOf(this.themeColor))
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
@@ -209,6 +215,32 @@ export struct AboutPage {
         this.getUIContext().getPromptAction().showToast({ message: '链接已复制' });
       }
     })
+  }
+
+  /** 取消同意：询问是否清除数据 → 取消同意并退出应用（功能浏览模式不提供） */
+  private cancelAgreement(): void {
+    if (JwApi.USE_MOCK) {
+      return;
+    }
+    this.getUIContext().getPromptAction().showDialog({
+      title: '取消同意',
+      message: '取消同意后将无法使用本应用，下次打开需重新同意。是否同时清除本地数据？',
+      buttons: [
+        { text: '清除数据并退出', color: '#DB5252' },
+        { text: '保留数据并退出', color: '#666666' },
+        { text: '取消', color: '#666666' }
+      ]
+    }).then((res) => {
+      if (res.index === 2) {
+        return;
+      }
+      if (res.index === 0) {
+        DataStore.clearAll();
+      }
+      DataStore.clearPrivacyAgreed();
+      const ctx = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      ctx.terminateSelf();
+    });
   }
 
   build() {
@@ -238,7 +270,7 @@ export struct AboutPage {
                 .fontWeight(FontWeight.Bold)
                 .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 12 })
-              Text('版本 1.3.4')
+              Text('版本 1.3.6')
                 .fontSize(12)
                 .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 4 })
@@ -266,6 +298,18 @@ export struct AboutPage {
             .borderRadius(16)
             .margin({ bottom: 12 })
 
+            this.changelog('1.3.6', '2026-09-15', [
+              '学期日历支持手动调节',
+              '日历样式微调',
+              '课程表支持调整每节课的时间和节数',
+              '隐私协议优化',
+              '备份功能优化'
+            ])
+
+            this.changelog('1.3.5', '2026-09-11', [
+              '修复深色模式bug'
+            ])
+
             this.changelog('1.3.4', '2026-09-11', [
               '修复应用闪退的问题'
             ])
@@ -278,6 +322,8 @@ export struct AboutPage {
               '新增个性主题功能',
               'UI界面换新'
             ])
+
+            if (this.changelogExpanded) {
 
             this.changelog('1.3.1', '2026-09-03', [
               '优化部分界面的显示效果'
@@ -359,7 +405,61 @@ export struct AboutPage {
               '第一版上线'
             ])
 
+            }
+
+            // 展开 / 收起历史更新日志
+            Row() {
+              Text(this.changelogExpanded ? '收起历史更新日志' : '展开更早的更新日志')
+                .fontSize(12)
+                .fontColor(Theme.colorOf(this.themeColor))
+            }
+            .width('100%')
+            .justifyContent(FlexAlign.Center)
+            .padding({ top: 6, bottom: 10 })
+            .onClick(() => {
+              this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
+                this.changelogExpanded = !this.changelogExpanded;
+              });
+            })
+
             this.footer()
+
+            // 用户协议 & 隐私政策（居中，可分别查看）
+            Column() {
+              Row({ space: 22 }) {
+                Text('《用户协议》')
+                  .fontSize(12)
+                  .fontColor(Theme.colorOf(this.themeColor))
+                  .onClick(() => {
+                    AppState.stack.pushPath({ name: Const.ROUTE_TERMS });
+                  })
+                Text('《隐私政策》')
+                  .fontSize(12)
+                  .fontColor(Theme.colorOf(this.themeColor))
+                  .onClick(() => {
+                    AppState.stack.pushPath({ name: Const.ROUTE_PRIVACY });
+                  })
+              }
+              .margin({ top: 8 })
+
+              // 取消同意（胶囊按钮；功能浏览模式下不提供）
+              if (!JwApi.USE_MOCK) {
+                Text('取消同意并退出')
+                  .fontSize(12)
+                  .fontColor('#DB5252')
+                  .padding({ left: 16, right: 16, top: 6, bottom: 6 })
+                  .backgroundColor('rgba(219,82,82,0.10)')
+                  .borderRadius(14)
+                  .margin({ top: 12 })
+                  .onClick(() => { this.cancelAgreement(); })
+              }
+            }
+            .width('100%')
+            .padding({ top: 12, bottom: 12, left: 16, right: 16 })
+            .backgroundColor($r('app.color.bg_card'))
+            .borderRadius(16)
+            .alignItems(HorizontalAlign.Center)
+            .margin({ top: 14, bottom: 12 })
 
             Column()
               .height(this.getUIContext().px2vp(this.bottomInsetPx) + 24)

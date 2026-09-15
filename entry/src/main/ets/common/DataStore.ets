@@ -67,6 +67,57 @@ export class DataStore {
   }
 
   /** 清空所有本地数据（含历史账号、缓存、个人信息等） */
+  // ── 备份 / 恢复（全部应用信息，排除账号、密码与登录 Cookie）──
+  /** 不参与备份的敏感键（账号、密码、会话凭据） */
+  static readonly BACKUP_EXCLUDE: string[] = [
+    'login_accounts', 'last_account', 'auto_relogin_account', 'auto_relogin_pwd',
+    'session_cookie', 'cas_tgc', 'sso_cookies'
+  ];
+
+  /** 参与备份的键（设置项 + 数据缓存 + 个人化内容） */
+  static readonly BACKUP_KEYS: string[] = [
+    'show_avatar', 'current_term_id', 'custom_term_start', 'custom_term_end', 'semester_label',
+    'privacy_agreed', 'privacy_agreed_at', 'risk_tip_shown', 'declaration_shown',
+    'login_method', 'login_system', 'login_mode', 'picked_exam_id',
+    'schedule_bg', 'schedule_dashed', 'schedule_cfg', 'course_color_map', 'course_custom_color',
+    'wallpaper_id', 'wallpaper_mask', 'wallpaper_url', 'wallpaper_url_date',
+    'dark_mode', 'bar_style', 'immersive_effect', 'subtitle_color', 'theme_combos',
+    'cache_profile', 'cache_courses', 'cache_term_scores', 'cache_exams', 'cache_academic',
+    'cache_notices', 'cache_notices_jwc', 'cache_teaching_cal', 'cache_jwc_cal',
+    'cache_photo', 'cache_time', 'news_favs', 'web_history'
+  ];
+
+  /** 导出全部可备份数据（不含账号、密码、Cookie） */
+  static exportAll(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (let i = 0; i < DataStore.BACKUP_KEYS.length; i++) {
+      const k: string = DataStore.BACKUP_KEYS[i];
+      const v: string = DataStore.get(k);
+      if (v.length > 0) {
+        out[k] = v;
+      }
+    }
+    return out;
+  }
+
+  /** 导入可备份数据（自动跳过敏感键），返回写入条数 */
+  static importAll(data: Record<string, string>): number {
+    let n: number = 0;
+    const keys: string[] = Object.keys(data);
+    for (let i = 0; i < keys.length; i++) {
+      const k: string = keys[i];
+      if (DataStore.BACKUP_EXCLUDE.indexOf(k) >= 0) {
+        continue;
+      }
+      const v: string = data[k];
+      if (typeof v === 'string') {
+        DataStore.put(k, v);
+        n++;
+      }
+    }
+    return n;
+  }
+
   static clearAll(): void {
     try {
       DataStore.store().clearSync();
@@ -84,6 +135,10 @@ export class DataStore {
   static readonly KEY_DS_TERM: string = 'current_term_id';
   // 自定义开学时间：各学期 termId -> 自定义开学日(yyyy-MM-dd)，覆盖默认 9-01/3-01 推算；空串=未自定义
   static readonly KEY_CUSTOM_TERM_START: string = 'custom_term_start';
+  /** 自定义学期结束日（yyyy-MM-dd，空 = 使用校历解析值） */
+  static readonly KEY_CUSTOM_TERM_END: string = 'custom_term_end';
+  /** 自定义学年学期标题（空 = 使用校历解析值） */
+  static readonly KEY_SEMESTER_LABEL: string = 'semester_label';
 
   /** 读取某学期的自定义开学日（空串=未自定义，用默认推算） */
   static getCustomTermStart(termId: string): string {
@@ -235,6 +290,12 @@ export class DataStore {
     DataStore.put(DataStore.KEY_PRIVACY_AGREED_AT, ts);
   }
 
+  /** 取消隐私同意（清空同意标记与时间；下次启动重新弹出引导） */
+  static clearPrivacyAgreed(): void {
+    DataStore.put(DataStore.KEY_PRIVACY_AGREED, '');
+    DataStore.put(DataStore.KEY_PRIVACY_AGREED_AT, '');
+  }
+
   /** 读取同意时间（未同意返回空串） */
   static getPrivacyAgreedAt(): string {
     return DataStore.get(DataStore.KEY_PRIVACY_AGREED_AT);
@@ -305,16 +366,16 @@ export class DataStore {
     return DataStore.get(DataStore.KEY_WALLPAPER_URL_DATE);
   }
 
-  // ── 深色模式（手动开关；未设置时跟随系统）──
+  // ── 深色模式（开关，默认浅色）──
   static readonly KEY_DARK: string = 'dark_mode';
 
-  /** 手动深色是否已设置（空=未设置，跟随系统） */
+  /** 是否深色模式（未设置时默认为浅色） */
+  /** 是否已手动设置过深色模式（'1'/'0'；空 = 未设置，跟随系统） */
   static hasDarkSetting(): boolean {
     const v: string = DataStore.get(DataStore.KEY_DARK);
     return v === '1' || v === '0';
   }
 
-  /** 是否深色模式（读取手动设置值） */
   static isDarkOn(): boolean {
     return DataStore.get(DataStore.KEY_DARK) === '1';
   }
@@ -398,11 +459,6 @@ export class DataStore {
       }
     }
     DataStore.put(DataStore.KEY_THEME_COMBOS, JSON.stringify(out));
-  }
-
-  /** 清除手动设置（恢复跟随系统） */
-  static clearDark(): void {
-    DataStore.put(DataStore.KEY_DARK, '');
   }
 
   /** 记录一次成功登录的账号（去重、置顶、最多保留 8 个，密码 base64+XOR 编码存储） */
@@ -675,6 +731,17 @@ export class DataStore {
 
   // 应用级共享网页浏览历史（持久化：重启后保留）
   static readonly KEY_WEB_HISTORY: string = 'web_history';
+  /** 新闻页：是否获取封面缩略图（'1'=开（默认） / '0'=关） */
+  static readonly KEY_NEWS_THUMB: string = 'news_thumb';
+
+  /** 是否获取新闻封面缩略图（默认开启；'0' 时关闭，节省流量） */
+  static newsThumbOn(): boolean {
+    return DataStore.get(DataStore.KEY_NEWS_THUMB) !== '0';
+  }
+
+  static setNewsThumb(on: boolean): void {
+    DataStore.put(DataStore.KEY_NEWS_THUMB, on ? '1' : '0');
+  }
 
   /** 读取共享网页历史 JSON 数组（未记录返回空串） */
   static loadWebHistoryJson(): string {

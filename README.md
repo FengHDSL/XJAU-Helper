@@ -8,7 +8,7 @@
 
 一款为新疆农业大学学生打造的鸿蒙原生校园工具，集成登录、课表、成绩、考试、学业情况、校历信息、通知公告、空闲教室查询、农大新闻等常用功能于一体。注：非学校官方应用！非学校官方应用！
 
-[![Version](https://img.shields.io/badge/version-1.3.4-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.3.4)
+[![Version](https://img.shields.io/badge/version-1.3.6-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.3.6)
 [![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT%20(API%2026)-orange)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.4/XJAU-Helper_v1.3.4.hap)
@@ -28,69 +28,59 @@
 
 ## 应用截图
 
+### 手机端
+
 <table align="center">
   <tr>
-    <td align="center" width="200"><b>登录</b></td>
-    <td align="center" width="200"><b>首页</b></td>
-    <td align="center" width="200"><b>课程表</b></td>
+    <td><img src="docs/screenshots/phone\01.jpg" width="180" /></td>
+    <td><img src="docs/screenshots/phone\02.jpg" width="180" /></td>
+    <td><img src="docs/screenshots/phone\03.jpg" width="180" /></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/01-login.png" width="180" alt="登录" /></td>
-    <td><img src="docs/screenshots/02-home.png" width="180" alt="首页" /></td>
-    <td><img src="docs/screenshots/03-schedule.png" width="180" alt="课程表" /></td>
+    <td><img src="docs/screenshots/phone\04.jpg" width="180" /></td>
+    <td><img src="docs/screenshots/phone\05.jpg" width="180" /></td>
+    <td><img src="docs/screenshots/phone\06.jpg" width="180" /></td>
   </tr>
   <tr>
-    <td align="center" width="200"><b>成绩查询</b></td>
-    <td align="center" width="200"><b>农大新闻</b></td>
-    <td align="center" width="200"><b>我的</b></td>
+    <td><img src="docs/screenshots/phone\07.jpg" width="180" /></td>
+    <td><img src="docs/screenshots/phone\08.jpg" width="180" /></td>
+    <td><img src="docs/screenshots/phone\09.jpg" width="180" /></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/04-score.png" width="180" alt="成绩查询" /></td>
-    <td><img src="docs/screenshots/05-news.png" width="180" alt="农大新闻" /></td>
-    <td><img src="docs/screenshots/06-mine.png" width="180" alt="我的" /></td>
-  </tr>
-  <tr>
-    <td align="center" width="200"><b>考试查询</b></td>
-    <td align="center" width="200"><b>学业情况</b></td>
-    <td align="center" width="200"></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/07-exam.png" width="180" alt="考试查询" /></td>
-    <td><img src="docs/screenshots/08-academic.png" width="180" alt="学业情况" /></td>
+    <td><img src="docs/screenshots/phone\10.jpg" width="180" /></td>
+    <td></td>
     <td></td>
   </tr>
 </table>
 
-### 平板端
+### 平板 / 大屏（横屏）
 
 <table align="center">
   <tr>
-    <td align="center" width="320"><b>首页</b></td>
-    <td align="center" width="320"><b>课程表</b></td>
+    <td><img src="docs/screenshots/pad\01.jpg" width="420" /></td>
+    <td><img src="docs/screenshots/pad\02.jpg" width="420" /></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/pad/01-home.jpg" width="300" alt="首页（平板）" /></td>
-    <td><img src="docs/screenshots/pad/02-schedule.jpg" width="300" alt="课程表（平板）" /></td>
+    <td><img src="docs/screenshots/pad\03.jpg" width="420" /></td>
+    <td><img src="docs/screenshots/pad\04.jpg" width="420" /></td>
   </tr>
   <tr>
-    <td align="center" width="320"><b>成绩查询</b></td>
-    <td align="center" width="320"><b>农大新闻</b></td>
+    <td><img src="docs/screenshots/pad\05.jpg" width="420" /></td>
+    <td><img src="docs/screenshots/pad\06.jpg" width="420" /></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/pad/03-score.jpg" width="300" alt="成绩查询（平板）" /></td>
-    <td><img src="docs/screenshots/pad/04-news.jpg" width="300" alt="农大新闻（平板）" /></td>
+    <td><img src="docs/screenshots/pad\07.jpg" width="420" /></td>
+    <td><img src="docs/screenshots/pad\08.jpg" width="420" /></td>
   </tr>
   <tr>
-    <td align="center" width="320"><b>我的</b></td>
-    <td align="center" width="320"><b>空闲教室查询</b></td>
+    <td><img src="docs/screenshots/pad\09.jpg" width="420" /></td>
+    <td><img src="docs/screenshots/pad\10.jpg" width="420" /></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/pad/05-mine.jpg" width="300" alt="我的（平板）" /></td>
-    <td><img src="docs/screenshots/pad/06-kxjs.jpg" width="300" alt="空闲教室查询（平板）" /></td>
+    <td><img src="docs/screenshots/pad\11.jpg" width="420" /></td>
+    <td></td>
   </tr>
 </table>
-
----
 
 ## 功能特性
 
@@ -179,6 +169,18 @@ XJAU-Helper/
 ---
 
 ## 更新日志
+
+### v1.3.6（2026-09-15）
+
+- 学期日历支持手动调节
+- 日历样式微调
+- 课程表支持调整每节课的时间和节数
+- 隐私协议优化
+- 备份功能优化
+
+### v1.3.5（2026-09-11）
+
+- 修复深色模式bug
 
 ### v1.3.4（2026-09-11）
 
