@@ -112,7 +112,7 @@ export struct ScheduleSettingsPanel {
 
   @State gridOn: boolean = false;
   @State secTime: boolean = false;
-  @State weekend: boolean = false;
+  @State weekend: boolean = true;
   @State nextWeek: boolean = false;
   @State textMix: boolean = false;
   @State bdrCourse: boolean = false;
@@ -630,8 +630,17 @@ export struct ScheduleSettingsPanel {
             .onChange((on: boolean) => { this.secTime = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
         Row() {
-          Text('显示周六周日').fontSize(14).fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.text_primary')).layoutWeight(1)
+          Column() {
+            Text('显示周六周日').fontSize(14).fontWeight(FontWeight.Medium)
+              .fontColor($r('app.color.text_primary'))
+              .width('100%')
+            Text('关闭后，若当周周六/周日确实有课仍会显示，避免漏课').fontSize(11)
+              .fontColor($r('app.color.text_tertiary'))
+              .width('100%')
+              .margin({ top: 2 })
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
           Toggle({ type: ToggleType.Switch, isOn: this.weekend })
             .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.weekend = on; this.apply(); })

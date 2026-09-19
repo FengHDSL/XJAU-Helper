@@ -8,10 +8,10 @@
 
 一款为新疆农业大学学生打造的鸿蒙原生校园工具，集成登录、课表、成绩、考试、学业情况、校历信息、通知公告、空闲教室查询、农大新闻等常用功能于一体。注：非学校官方应用！非学校官方应用！
 
-[![Version](https://img.shields.io/badge/version-1.3.6-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.3.6)
+[![Version](https://img.shields.io/badge/version-1.3.8-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.3.8)
 [![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT%20(API%2026)-orange)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.6/XJAU-Helper_v1.3.6.hap)
+[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.8/XJAU-Helper_v1.3.8.hap)
 
 </div>
 
@@ -19,7 +19,7 @@
 
 ## 📦 下载安装
 
-- **GitHub Release**：[XJAU-Helper_v1.3.6.hap](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.6/XJAU-Helper_v1.3.6.hap)
+- **GitHub Release**：[XJAU-Helper_v1.3.8.hap](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.8/XJAU-Helper_v1.3.8.hap)
 - **Gitee**：[XJAU-Helper](https://gitee.com/pandasoos/XJAU-Helper)
 - **HAP Store资源站**：[https://www.sydxky.cn/detail.php?id=796](https://www.sydxky.cn/detail.php?id=796)
 - **华为应用市场（邀测）**：[https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP](https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP)，邀测邀请码：`7f0Oz56PxoP`
@@ -93,7 +93,7 @@
 | 考试查询 | 考试时间、地点、座位号查询，最近考试倒计时，按剩余天数分级配色（红紧急 / 黄中等 / 绿充足）；支持导入系统日历 |
 | 成绩查询 | 学期成绩列表与平均分 / GPA 展示（按学校「课程及学分」办法自动换算） |
 | 学业情况 | GPA、学分完成度、课程分类统计、学历预警；对接教务处官网「学期校历」文章通知 |
-| 日历 | 按月分块的正常日历样式，左右滑动查看月份，未开学/学期外日期灰色显示，支持手动调节开学时间 |
+| 日历 | 按月分块的正常日历样式，左右滑动查看月份，未开学/学期外日期灰色显示；支持手动调节开学 / 结束时间与自定义学期标题 |
 | 空闲教室查询 | 数据对接教务系统空闲教室查询页面，支持按校区/楼号/场地类别/时间筛选 |
 | 农大新闻 | 对接新闻网官网「农大要闻 / 综合新闻 / 教学科研 / 媒体农大」四大板块，支持站内搜索、收藏、分享、下拉刷新、滚动翻页 |
 | 外部链接页 | 应用内 WebView 浏览教务处官网/教务系统/新闻网任意页面，右上角**复制链接/分享**胶囊按钮（链接自动变成网页标题） |
@@ -170,6 +170,14 @@ XJAU-Helper/
 
 ## 更新日志
 
+### v1.3.8（2026-09-19）
+
+- 修复课程表不显示周六周日课程的问题
+
+### v1.3.7（2026-09-16）
+
+- 修复已知问题
+
 ### v1.3.6（2026-09-15）
 
 - 学期日历支持手动调节
@@ -180,11 +188,11 @@ XJAU-Helper/
 
 ### v1.3.5（2026-09-11）
 
-- 修复深色模式bug
+- 修复了一些已知问题
 
 ### v1.3.4（2026-09-11）
 
-- 修复应用闪退的问题
+- 修复了一些已知问题
 
 ### v1.3.3（2026-09-10）
 
@@ -204,7 +212,7 @@ XJAU-Helper/
 - 部分细节调整优化，以完成华为审核要求
 - 优化部分界面 UI 效果
 - 优化部分功能逻辑
-- 修复一些已知问题
+- 修复了一些已知问题
 
 ---
 
@@ -235,6 +243,8 @@ XJAU-Helper/
 本项目桌面卡片、界面布局与交互实现参考了 [**HiXD**](https://github.com/PollenWang6/HiXD)（西安电子科技大学校园助手），感谢该项目的开源分享与 UI 设计思路。
 
 本项目教务系统接口探索参考了 [**Traintime PDA / XDYou**](https://github.com/BenderBlog/traintime_pda)（MPL-2.0），感谢该项目的接口探索工作。
+
+本项目「学业情况-总体成绩」与「快捷选课（BETA）」的功能实现参考了 [**zhengfang-apk**](https://github.com/znjhahaha/zhengfang-apk)（正方教务助手），感谢该项目的接口与流程探索。
 
 ---
 

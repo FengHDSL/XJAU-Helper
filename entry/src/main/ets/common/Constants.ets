@@ -65,6 +65,12 @@ export class Const {
   /** 用户协议页（关于页底部卡片入口） */
   static readonly ROUTE_TERMS: string = 'TermsPage';
   static readonly ROUTE_ABOUT: string = 'AboutPage';
+  /** 更新日志（完整历史）页：关于应用页「查看全部更新日志」入口 */
+  static readonly ROUTE_CHANGELOG: string = 'ChangelogPage';
+  /** 课表原文件（原始导入识别文件）查看页：课表页底部「课表原文件」入口 */
+  static readonly ROUTE_COURSE_RAW: string = 'CourseRawPage';
+  /** 快捷选课（BETA）：移植自参考项目的正方选课/抢课模块，入口在「我的」学业情况下方 */
+  static readonly ROUTE_QUICK_SELECT: string = 'QuickSelectPage';
   static readonly ROUTE_EMPTY_ROOM: string = 'KxjsPage';
   static readonly ROUTE_NEWS_DETAIL: string = 'NewsDetailPage';
   static readonly ROUTE_NEWS_FAV: string = 'NewsFavPage';

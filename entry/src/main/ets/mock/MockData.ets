@@ -51,8 +51,11 @@ export class MockData {
       MockData.course('c17', '大学生职业发展', '蒋五', '教学楼 C101', 2, 7, 8, range(1, 8, 1), '1-8周', '选修', 1, 6),
       MockData.course('c18', '农业信息化导论', '沈六', '信息楼 203', 5, 7, 8, range(1, 12, 1), '1-12周', '选修', 2, 7),
       MockData.course('c19', '人工智能导论', '韩七', '信息楼 406', 1, 7, 8, range(3, 16, 1), '3-16周', '选修', 2, 4),
-      MockData.course('c20', '创新创业实践', '杨八', '大学生活动中心', 3, 9, 10, range(1, 10, 2), '1-10周(单)', '实践', 1, 1)
-    ];
+  MockData.course('c20', '创新创业实践', '杨八', '大学生活动中心', 3, 9, 10, range(1, 10, 2), '1-10周(单)', '实践', 1, 1),
+      // 周末课程（用于验证周末列显示：周六 / 周日各一门）
+      MockData.course('c21', '工程训练', '朱九', '工程训练中心', 6, 1, 4, range(1, 16, 1), '1-16周', '实践', 2, 3),
+      MockData.course('c22', '专业导论', '秦十', '主楼 B301', 7, 3, 4, range(1, 16, 1), '1-16周', '必修', 1.5, 5)
+  ];
   }
 
   private static course(id: string, name: string, teacher: string, location: string, weekday: number,

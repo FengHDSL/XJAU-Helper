@@ -17,11 +17,12 @@ import { common } from '@kit.AbilityKit';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
+import { ChangelogCard } from './common/ChangelogCard';
+import { CHANGELOG_ALL, CHANGELOG_MAX, ChangelogItem } from '../common/Changelog';
+
 
 @Component
 export struct AboutPage {
-  /** 历史更新日志是否展开（默认仅显示最近 5 条） */
-  @State changelogExpanded: boolean = false;
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 壁纸亮度（文字自适应用） */
@@ -106,56 +107,6 @@ export struct AboutPage {
     }
   }
 
-  @Builder
-  changelog(version: string, date: string, items: string[]) {
-    Column() {
-      Row() {
-        Text(`v${version}`)
-          .fontSize(15)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.text_primary'))
-        Text(`  ${date}`)
-          .fontSize(12)
-          .fontColor($r('app.color.text_tertiary'))
-      }
-      .width('100%')
-      .margin({ bottom: 8 })
-
-      ForEach(items, (item: string) => {
-        // 分组标题（@新增@ / @修复@ 开头 → 渲染为品牌色加粗小标题）
-        if (item.startsWith('@新增@') || item.startsWith('@修复@')) {
-          Text(item.substring(3))
-            .fontSize(13)
-            .fontWeight(FontWeight.Bold)
-            .fontColor($r('app.color.brand'))
-            .width('100%')
-            .margin({ top: 6, bottom: 2 })
-        } else {
-          Row() {
-            Text('·')
-              .fontSize(13)
-              .fontColor($r('app.color.brand'))
-              .margin({ right: 8 })
-            Text(item)
-              .fontSize(13)
-              .lineHeight(20)
-              .fontColor($r('app.color.text_secondary'))
-              .layoutWeight(1)
-          }
-          .width('100%')
-          .alignItems(VerticalAlign.Top)
-          .margin({ bottom: 6 })
-        }
-      }, (item: string) => item)
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
-    .padding(16)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(16)
-    .margin({ bottom: 14 })
-  }
-
   /** 底部链接 + 开源等级 */
   @Builder
   footer() {
@@ -167,6 +118,7 @@ export struct AboutPage {
         .width('100%')
         .margin({ bottom: 10 })
       this.linkRow('XJAU-Helper（本项目）', 'https://github.com/FengHDSL/XJAU-Helper', true)
+      this.linkRow('zhengfang-apk（参考）', 'https://github.com/znjhahaha/zhengfang-apk')
       this.linkRow('HiXD（参考）', 'https://github.com/PollenWang6/HiXD')
       this.linkRow('Traintime PDA（参考）', 'https://github.com/BenderBlog/traintime_pda')
 
@@ -270,7 +222,7 @@ export struct AboutPage {
                 .fontWeight(FontWeight.Bold)
                 .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 12 })
-              Text('版本 1.3.6')
+              Text('版本 1.3.8')
                 .fontSize(12)
                 .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 4 })
@@ -298,128 +250,22 @@ export struct AboutPage {
             .borderRadius(16)
             .margin({ bottom: 12 })
 
-            this.changelog('1.3.6', '2026-09-15', [
-              '学期日历支持手动调节',
-              '日历样式微调',
-              '课程表支持调整每节课的时间和节数',
-              '隐私协议优化',
-              '备份功能优化'
-            ])
+            // 更新日志：固定只显示最近 CHANGELOG_MAX（5）条；完整历史在「更新日志」页查看
+            ForEach(CHANGELOG_ALL.slice(0, CHANGELOG_MAX), (e: ChangelogItem) => {
+              ChangelogCard({ version: e.version, date: e.date, items: e.items })
+            }, (e: ChangelogItem) => e.version)
 
-            this.changelog('1.3.5', '2026-09-11', [
-              '修复深色模式bug'
-            ])
-
-            this.changelog('1.3.4', '2026-09-11', [
-              '修复应用闪退的问题'
-            ])
-
-            this.changelog('1.3.3', '2026-09-10', [
-              '修复了一些已知问题'
-            ])
-
-            this.changelog('1.3.2', '2026-09-06', [
-              '新增个性主题功能',
-              'UI界面换新'
-            ])
-
-            if (this.changelogExpanded) {
-
-            this.changelog('1.3.1', '2026-09-03', [
-              '优化部分界面的显示效果'
-            ])
-
-            this.changelog('1.3.0', '2026-09-01', [
-              '修一些已知问题',
-              '优化部分UI效果'
-            ])
-
-            this.changelog('1.2.9', '2026-09-01', [
-              '优化部分功能逻辑'
-            ])
-
-            this.changelog('1.2.8', '2026-08-31', [
-              '修复了一些已知问题'
-            ])
-
-            this.changelog('1.2.7', '2026-08-31', [
-              'API 变更为 API26 正式版',
-              '修复日历显示错误的 bug（绿色圆点未更新到正确日期、周数显示错误）',
-              '部分细节调整，以完成华为审核要求'
-            ])
-
-            this.changelog('1.2.6', '2026-08-19', [
-              '修改登录方式，默认使用服务大厅登录',
-              '「我的」页面添加「服务大厅」和「智慧学工」网页快捷入口'
-            ])
-
-            this.changelog('1.2.5', '2026-08-18', [
-              '修复平板横屏状态下成绩查询页面闪退的问题',
-              '修复空闲教室查询无法使用的问题'
-            ])
-
-            this.changelog('1.2.4', '2026-08-17', [
-              '更多页面适配平板',
-              '课程表周次选择现在可以显示点阵图了',
-              '多个地方文本和UI微调'
-            ])
-
-            this.changelog('1.2.3', '2026-08-16', [
-              '兼容 API 24（鸿蒙 6.1），现在鸿蒙 6.1 的设备也可以安装了',
-              '适配平板端，课程表界面初步对大屏进行适配'
-            ])
-
-            this.changelog('1.2.2', '2026-08-12', [
-              '一些功能完善与问题修复'
-            ])
-
-            this.changelog('1.2.1', '2026-08-09', [
-              '修复了一些已知问题'
-            ])
-
-            this.changelog('1.2.0', '2026-08-08', [
-              '修复了一些已知问题'
-            ])
-
-            this.changelog('1.1.9', '2026-08-07', [
-              '修复了一些已知问题'
-            ])
-
-            this.changelog('1.1.6', '2026-08-07', [
-              '修复了一些已知问题'
-            ])
-
-            this.changelog('1.1.5', '2026-08-06', [
-              '修复了一些已知问题'
-            ])
-
-            this.changelog('1.1.0', '2026-08-06', [
-              '修复了一些已知问题'
-            ])
-
-            this.changelog('1.0.1', '2026-08-05', [
-              '修复了一些已知问题'
-            ])
-
-            this.changelog('1.0.0', '2026-08-05', [
-              '第一版上线'
-            ])
-
-            }
-
-            // 展开 / 收起历史更新日志
+            // 入口：查看全部历史更新日志
             Row() {
-              Text(this.changelogExpanded ? '收起历史更新日志' : '展开更早的更新日志')
+              Text('查看全部更新日志 ›')
                 .fontSize(12)
                 .fontColor(Theme.colorOf(this.themeColor))
             }
             .width('100%')
             .justifyContent(FlexAlign.Center)
-            .padding({ top: 6, bottom: 10 })
+            .padding({ top: 2, bottom: 10 })
             .onClick(() => {
-              this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
-                this.changelogExpanded = !this.changelogExpanded;
-              });
+              AppState.stack.pushPath({ name: Const.ROUTE_CHANGELOG });
             })
 
             this.footer()

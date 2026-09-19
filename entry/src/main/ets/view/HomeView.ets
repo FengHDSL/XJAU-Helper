@@ -18,6 +18,7 @@ import { CourseItem, ExamItem, NoticeItem, QuickEntry, TermInfo, TodayCourse } f
 import { TeachingCalendar } from '../model/TeachingCalendar';
 import { BarTitle, EmptyTip, LoadingTip, SectionHeader, TagChip } from './common/UiKit';
 import { WebSurface } from './WebSurface';
+import { ResponsiveUtil } from '../common/ResponsiveUtil';
 
 /** 下一次非今日课的预告（首页课程无课时展示） */
 interface NextFutureCourse {
@@ -62,6 +63,12 @@ export struct HomeView {
   @State showTermSheet: boolean = false;
   // 日历：Swiper 左右滑动查看月份
   @State calDefaultMonth: number = 0;
+  // 日历自定义：开学日（按学期存，与课程表共用同一份数据）/ 结束日 / 学期标题（空 = 用校历解析值）
+  @State customTermStart: string = '';
+  @State customTermEnd: string = '';
+  @State customSemesterLabel: string = '';
+  @State labelInput: string = '';
+  @State showCalEditor: boolean = false;
   // 课程无课时：随机鼓励文案 + 下次课预告
   @State randomRestText: string = '';
   @State nextFutureCourse: NextFutureCourse | null = null;
@@ -69,6 +76,11 @@ export struct HomeView {
   onSwitchTab: (index: number) => void = () => {
   };
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
+  /** 窗口宽度断点监听（PC 窗口缩放时切换布局） */
+  private wideListener: mediaquery.MediaQueryListener | null = null;
+  /** 当前窗口是否横向 / 是否宽 ≥ 600vp（两者组合出布局判定） */
+  private landscapeMq: boolean = false;
+  private wideMq: boolean = false;
 
   /** 页面出现：加载数据并监听横竖屏 */
   aboutToAppear(): void {
@@ -80,6 +92,7 @@ export struct HomeView {
     }
     this.calDefaultMonth = this.computeCurrentMonth();
     this.calPageIndex = this.calInitialIndex();
+    this.loadTermCustom();
     this.randomRestText = this.pickRestText();
     this.listenLandscape();
     this.loadData();
@@ -88,16 +101,30 @@ export struct HomeView {
   /** 页面消失：注销监听 */
   aboutToDisappear(): void {
     this.landscapeListener = null;
+    this.wideListener = null;
   }
 
-  /** 监听屏幕方向变化（横屏时压缩头部） */
+  /** 监听窗口尺寸/方向变化：窗口缩放或旋转时实时切换布局（判定规则见 ResponsiveUtil） */
   private listenLandscape(): void {
-    const mq: mediaquery.MediaQueryResult = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
-    this.isLandscape = mq.matches;
-    this.landscapeListener = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
+    const mq = this.getUIContext().getMediaQuery();
+    this.landscapeMq = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE).matches;
+    this.wideMq = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE).matches;
+    this.applyLayout();
+    this.landscapeListener = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE);
     this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
-      this.isLandscape = res.matches;
+      this.landscapeMq = res.matches;
+      this.applyLayout();
     });
+    this.wideListener = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE);
+    this.wideListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.wideMq = res.matches;
+      this.applyLayout();
+    });
+  }
+
+  /** 组合出布局判定：宽 ≥ 600vp 且横向 → 大屏布局，否则手机端布局（见 ResponsiveUtil.isWideLayout） */
+  private applyLayout(): void {
+    this.isLandscape = ResponsiveUtil.isWideLayout(this.wideMq, this.landscapeMq);
   }
 
   /** 等待冷启动会话恢复完成（AppState.sessionReady；服务大厅登录时 Index 先桥接新教务系统再置 true） */
@@ -155,7 +182,7 @@ export struct HomeView {
     LogStore.log('首页', '消息加载', '开始',
       `缓存课表${cachedCourses.length}节 考试${this.exams.length}门 通知${this.notices.length}条`);
     try {
-      const courses: CourseItem[] = await JwApi.getCourses(AppState.term.id);
+      const courses: CourseItem[] = await JwApi.getCoursesSmart(AppState.term.id, false);
       this.todayCourses = this.pickToday(courses);
       this.nextClass = this.firstUnfinished(this.todayCourses);
       this.nextFutureCourse = this.findNextFutureCourse(courses, AppState.term);
@@ -285,6 +312,8 @@ export struct HomeView {
       AppState.notifyTermSwitched();
     }
     this.currentWeek = DateUtil.weekOfTerm(term, new Date());
+    // 学期变更：重新读取该学期的自定义开学日等设置
+    this.loadTermCustom();
     // 学期变更：清空旧数据并重新拉取
     this.todayCourses = [];
     this.nextClass = null;
@@ -1181,13 +1210,20 @@ export struct HomeView {
     return DateUtil.format(new Date());
   }
 
-  /** 今日所属教学周次（开学后返回对应周次；未开学返回 0） */
+  /** 今日所属教学周次（开学后返回对应周次；未开学返回 0）。自定义开学日时按自定义日推算 */
   private todayTeachingWeek(): number {
     const cal: TeachingCalendar | null = this.teachingCal;
     if (cal === null) {
       return 0;
     }
     const today: string = this.effectiveToday();
+    if (this.customTermStart.length > 0) {
+      const d: number = DateUtil.diffDays(DateUtil.parse(this.customTermStart), DateUtil.parse(today));
+      if (d < 0) {
+        return 0;
+      }
+      return Math.floor(d / 7) + 1;
+    }
     for (let r: number = 0; r < cal.rows.length; r++) {
       const dates: string[] = cal.rows[r].dates;
       for (let c: number = 0; c < dates.length; c++) {
@@ -1199,13 +1235,13 @@ export struct HomeView {
     return 0;
   }
 
-  /** 是否已开学（今日 >= 校历开学日） */
+  /** 是否已开学（今日 >= 有效开学日，支持自定义） */
   private isTermStarted(): boolean {
-    const cal: TeachingCalendar | null = this.teachingCal;
-    if (cal === null || cal.startDate.length === 0) {
+    const start: string = this.effStart();
+    if (start.length === 0) {
       return false;
     }
-    return DateUtil.parse(cal.startDate).getTime() <= new Date().getTime();
+    return DateUtil.parse(start).getTime() <= new Date().getTime();
   }
 
   /**
@@ -1234,16 +1270,23 @@ export struct HomeView {
     }
   }
 
-  /** 校历覆盖的自然月列表：[年份*100+月份, ...]（如 202608 ~ 202702） */
+  /** 校历覆盖的自然月列表：[年份*100+月份, ...]（如 202608 ~ 202702），采用有效起止（自定义优先） */
   private calMonthList(): number[] {
-    const cal: TeachingCalendar | null = this.teachingCal;
-    if (cal === null || cal.startDate.length === 0 || cal.endDate.length === 0) {
+    const s: string = this.effStart();
+    const e: string = this.effEnd();
+    if (s.length === 0 || e.length === 0) {
       return [];
     }
-    const sy: number = Number(cal.startDate.slice(0, 4));
-    const sm: number = Number(cal.startDate.slice(5, 7));
-    const ey: number = Number(cal.endDate.slice(0, 4));
-    const em: number = Number(cal.endDate.slice(5, 7));
+    const sy: number = Number(s.slice(0, 4));
+    const sm: number = Number(s.slice(5, 7));
+    const ey: number = Number(e.slice(0, 4));
+    const em: number = Number(e.slice(5, 7));
+    if (sy === 0 || sm === 0 || ey === 0 || em === 0) {
+      return [];
+    }
+    if (sy > ey || (sy === ey && sm > em)) {
+      return [];
+    }
     const out: number[] = [];
     let y: number = sy;
     let m: number = sm;
@@ -1296,13 +1339,13 @@ export struct HomeView {
     return false;
   }
 
-  /** 某日期所属教学周（1 起；不在学期内返回 0，按校历解析的开学日推算） */
+  /** 某日期所属教学周（1 起；不在学期内返回 0，按有效开学日推算） */
   private weekIndex(day: string): number {
-    const cal: TeachingCalendar | null = this.teachingCal;
-    if (cal === null || cal.startDate.length === 0 || day.length === 0) {
+    const start: string = this.effStart();
+    if (start.length === 0 || day.length === 0) {
       return 0;
     }
-    const d: number = DateUtil.diffDays(DateUtil.parse(cal.startDate), DateUtil.parse(day));
+    const d: number = DateUtil.diffDays(DateUtil.parse(start), DateUtil.parse(day));
     if (d < 0) {
       return 0;
     }
@@ -1321,6 +1364,223 @@ export struct HomeView {
     return palette[(idx - 1) % palette.length];
   }
 
+  /** 载入日历自定义设置（开学日按学期存，结束日与标题为全局） */
+  private loadTermCustom(): void {
+    this.customTermStart = DataStore.getCustomTermStart(AppState.term.id);
+    this.customTermEnd = DataStore.get(DataStore.KEY_CUSTOM_TERM_END);
+    this.customSemesterLabel = DataStore.get(DataStore.KEY_SEMESTER_LABEL);
+    this.labelInput = this.customSemesterLabel;
+  }
+
+  /** 有效开学日（自定义优先，回落校历解析值） */
+  private effStart(): string {
+    if (this.customTermStart.length > 0) {
+      return this.customTermStart;
+    }
+    if (this.teachingCal === null) {
+      return '';
+    }
+    return this.teachingCal!.startDate;
+  }
+
+  /** 有效结束日（自定义优先，回落校历解析值） */
+  private effEnd(): string {
+    if (this.customTermEnd.length > 0) {
+      return this.customTermEnd;
+    }
+    if (this.teachingCal === null) {
+      return '';
+    }
+    return this.teachingCal!.endDate;
+  }
+
+  /** 有效学期标题（自定义优先，回落校历解析值） */
+  private effLabel(): string {
+    if (this.customSemesterLabel.length > 0) {
+      return this.customSemesterLabel;
+    }
+    if (this.teachingCal === null) {
+      return '';
+    }
+    return this.teachingCal!.semesterLabel;
+  }
+
+  /** 自定义起止变化后重算当前月与页码（避免停留在已被排除的空白月份） */
+  private refreshCalendarState(): void {
+    this.calDefaultMonth = this.computeCurrentMonth();
+    this.calPageIndex = this.calInitialIndex();
+  }
+
+  /** 打开「开学日」选择器（立即生效；与课程表共用同一份数据，周次同步变化） */
+  private openStartPicker(): void {
+    const base: string = this.effStart();
+    const sel: Date = base.length > 0 ? DateUtil.parse(base) : new Date();
+    DatePickerDialog.show({
+      start: new Date(2000, 0, 1),
+      end: new Date(2035, 11, 31),
+      selected: sel,
+      onAccept: (value: DatePickerResult) => {
+        const y: number = value.year ?? 2000;
+        const m: number = value.month ?? 0;
+        const d: number = value.day ?? 1;
+        const date: string = DateUtil.format(new Date(y, m, d));
+        this.customTermStart = date;
+        DataStore.setCustomTermStart(AppState.term.id, date);
+        this.refreshCalendarState();
+      }
+    });
+  }
+
+  /** 打开「结束日」选择器 */
+  private openEndPicker(): void {
+    const base: string = this.effEnd();
+    const sel: Date = base.length > 0 ? DateUtil.parse(base) : new Date();
+    DatePickerDialog.show({
+      start: new Date(2000, 0, 1),
+      end: new Date(2035, 11, 31),
+      selected: sel,
+      onAccept: (value: DatePickerResult) => {
+        const y: number = value.year ?? 2000;
+        const m: number = value.month ?? 0;
+        const d: number = value.day ?? 1;
+        const date: string = DateUtil.format(new Date(y, m, d));
+        this.customTermEnd = date;
+        DataStore.put(DataStore.KEY_CUSTOM_TERM_END, date);
+        this.refreshCalendarState();
+      }
+    });
+  }
+
+  /** 保存自定义学期标题（留空 = 恢复校历原标题） */
+  private saveCalLabel(): void {
+    this.customSemesterLabel = this.labelInput.trim();
+    DataStore.put(DataStore.KEY_SEMESTER_LABEL, this.customSemesterLabel);
+    this.getUIContext().getPromptAction().showToast({
+      message: this.customSemesterLabel.length > 0 ? '已保存' : '已恢复默认标题'
+    });
+  }
+
+  /** 恢复默认日期（清除自定义开学 / 结束日） */
+  private restoreCalDates(): void {
+    this.customTermStart = '';
+    this.customTermEnd = '';
+    DataStore.setCustomTermStart(AppState.term.id, '');
+    DataStore.put(DataStore.KEY_CUSTOM_TERM_END, '');
+    this.refreshCalendarState();
+    this.getUIContext().getPromptAction().showToast({ message: '已恢复校历日期' });
+  }
+
+  /** 日历设置面板：学期标题 + 开学日 / 结束日自定义 */
+  @Builder
+  calEditorSheet() {
+    Column() {
+      Text('学期标题')
+        .fontSize(13)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+        .width('100%')
+      TextInput({ placeholder: '留空则显示校历原标题', text: this.labelInput })
+        .fontSize(14)
+        .fontColor($r('app.color.text_primary'))
+        .backgroundColor($r('app.color.bg_chip'))
+        .borderRadius(10)
+        .height(40)
+        .margin({ top: 6 })
+        .onChange((v: string) => {
+          this.labelInput = v;
+        })
+      Row() {
+        Text('保存标题')
+          .fontSize(13)
+          .fontColor(Color.White)
+          .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+          .backgroundColor(Theme.colorOf(this.themeColor))
+          .borderRadius(10)
+          .onClick(() => {
+            this.saveCalLabel();
+          })
+        Text('恢复默认标题')
+          .fontSize(13)
+          .fontColor($r('app.color.text_secondary'))
+          .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+          .backgroundColor($r('app.color.bg_chip'))
+          .borderRadius(10)
+          .margin({ left: 10 })
+          .onClick(() => {
+            this.labelInput = '';
+            this.saveCalLabel();
+          })
+      }
+      .width('100%')
+      .margin({ top: 10 })
+
+      Row() {
+        Text('开学日期')
+          .fontSize(14)
+          .fontColor($r('app.color.text_primary'))
+          .layoutWeight(1)
+        Text(this.effStart().length > 0 ? this.effStart() : '未设置')
+          .fontSize(13)
+          .fontColor($r('app.color.text_secondary'))
+          .margin({ right: 10 })
+        Text('修改')
+          .fontSize(12)
+          .fontColor(Theme.colorOf(this.themeColor))
+          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .backgroundColor($r('app.color.bg_chip'))
+          .borderRadius(10)
+      }
+      .width('100%')
+      .height(46)
+      .alignItems(VerticalAlign.Center)
+      .onClick(() => {
+        this.openStartPicker();
+      })
+
+      Row() {
+        Text('结束日期')
+          .fontSize(14)
+          .fontColor($r('app.color.text_primary'))
+          .layoutWeight(1)
+        Text(this.effEnd().length > 0 ? this.effEnd() : '未设置')
+          .fontSize(13)
+          .fontColor($r('app.color.text_secondary'))
+          .margin({ right: 10 })
+        Text('修改')
+          .fontSize(12)
+          .fontColor(Theme.colorOf(this.themeColor))
+          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .backgroundColor($r('app.color.bg_chip'))
+          .borderRadius(10)
+      }
+      .width('100%')
+      .height(46)
+      .alignItems(VerticalAlign.Center)
+      .onClick(() => {
+        this.openEndPicker();
+      })
+
+      Text('恢复默认日期')
+        .fontSize(13)
+        .fontColor($r('app.color.text_secondary'))
+        .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+        .backgroundColor($r('app.color.bg_chip'))
+        .borderRadius(10)
+        .margin({ top: 10 })
+        .onClick(() => {
+          this.restoreCalDates();
+        })
+
+      Text('提示：修改开学时间会同时影响课程表的周次推算；学期标题留空即恢复校历原标题。')
+        .fontSize(11)
+        .fontColor($r('app.color.text_tertiary'))
+        .width('100%')
+        .margin({ top: 12 })
+    }
+    .width('100%')
+    .padding({ left: 20, right: 20, top: 14, bottom: 26 })
+  }
+
   /** 学期日历信息小标签 */
   @Builder
   infoChip(text: string, color: ResourceColor) {
@@ -1334,13 +1594,14 @@ export struct HomeView {
       .margin({ right: 8 })
   }
 
-  /** 日期是否在校历学期范围内（开学日 ~ 结束日），范围外灰色显示 */
+  /** 日期是否在有效学期范围内（有效开学日 ~ 有效结束日），范围外灰色显示 */
   private isInTerm(day: string): boolean {
-    const cal: TeachingCalendar | null = this.teachingCal;
-    if (cal === null || cal.startDate.length === 0 || cal.endDate.length === 0) {
+    const s: string = this.effStart();
+    const e: string = this.effEnd();
+    if (s.length === 0 || e.length === 0) {
       return true;
     }
-    return day >= cal.startDate && day <= cal.endDate;
+    return day >= s && day <= e;
   }
 
   /** Swiper 初始页索引（默认当月，不在校历覆盖月份则第一月） */
@@ -1354,7 +1615,10 @@ export struct HomeView {
   @Builder
   calendar() {
     Column() {
-      SectionHeader({ title: '日历', action: '', onAction: () => {} })
+      SectionHeader({ title: '日历', action: '设置', onAction: () => {
+        this.labelInput = this.customSemesterLabel;
+        this.showCalEditor = true;
+      } })
 
       // 卡片主体（标题"日历"单独在卡片外，样式对齐"近期考试"）
       Column() {
@@ -1368,12 +1632,17 @@ export struct HomeView {
           .backgroundColor($r('app.color.bg_card'))
           .borderRadius(18)
       } else {
-        Text(this.teachingCal!.semesterLabel)
+        // 学期标题：点击可自定义（留空恢复校历原标题）
+        Text(this.effLabel())
           .fontSize(13)
           .fontWeight(FontWeight.Bold)
           .fontColor($r('app.color.text_primary'))
           .width('100%')
           .margin({ bottom: 8 })
+          .onClick(() => {
+            this.labelInput = this.customSemesterLabel;
+            this.showCalEditor = true;
+          })
 
         Row() {
           // 未开学不显示周次，显示"未开学"
@@ -1382,11 +1651,31 @@ export struct HomeView {
           } else {
             this.infoChip('未开学', $r('app.color.accent_orange'))
           }
-          if (this.teachingCal!.startDate.length > 0) {
-            this.infoChip(`开学 ${this.teachingCal!.startDate.slice(5)}`, $r('app.color.accent_blue'))
+          if (this.effStart().length > 0) {
+            Text(`开学 ${this.effStart().slice(5)}`)
+              .fontSize(11)
+              .fontColor($r('app.color.accent_blue'))
+              .fontWeight(FontWeight.Medium)
+              .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+              .backgroundColor($r('app.color.bg_chip'))
+              .borderRadius(10)
+              .margin({ right: 8 })
+              .onClick(() => {
+                this.openStartPicker();
+              })
           }
-          if (this.teachingCal!.endDate.length > 0) {
-            this.infoChip(`结束 ${this.teachingCal!.endDate.slice(5)}`, $r('app.color.accent_orange'))
+          if (this.effEnd().length > 0) {
+            Text(`结束 ${this.effEnd().slice(5)}`)
+              .fontSize(11)
+              .fontColor($r('app.color.accent_orange'))
+              .fontWeight(FontWeight.Medium)
+              .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+              .backgroundColor($r('app.color.bg_chip'))
+              .borderRadius(10)
+              .margin({ right: 8 })
+              .onClick(() => {
+                this.openEndPicker();
+              })
           }
         }
         .width('100%')
@@ -1520,6 +1809,13 @@ export struct HomeView {
     }
     .width('100%')
     .margin({ top: 18 })
+    // 日历设置面板（挂日历卡片外框；与根 Column / Scroll 上的其它弹层分属不同组件，避免冲突）
+    .bindSheet($$this.showCalEditor, this.calEditorSheet(), {
+      height: SheetSize.FIT_CONTENT,
+      showClose: true,
+      preferType: SheetType.BOTTOM,
+      title: { title: '日历设置' }
+    })
   }
 
   build() {

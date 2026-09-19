@@ -604,12 +604,24 @@ export class DataStore {
   static readonly KEY_TERM_SCORES: string = 'cache_term_scores';
   static readonly KEY_EXAMS: string = 'cache_exams';
   static readonly KEY_ACADEMIC: string = 'cache_academic';
+  /** 总体成绩（累计统计 + 课程明细）缓存，移植自参考项目的成绩「总体」 */
+  static readonly KEY_OVERALL_GRADES: string = 'cache_overall_grades';
+  /** 抢课目标队列（GrabTarget[] JSON），对应参考项目 AcademicGrabQueueStore */
+  static readonly KEY_GRAB_QUEUE: string = 'grab_queue';
+  /** 抢课定时策略（GrabPolicy JSON）：间隔/最大轮次/成功后是否继续 */
+  static readonly KEY_GRAB_POLICY: string = 'grab_policy';
   static readonly KEY_NOTICES: string = 'cache_notices';
   static readonly KEY_NOTICES_JWC: string = 'cache_notices_jwc'; // 教务处官网通知（最新两条）
   static readonly KEY_TEACHING_CAL: string = 'cache_teaching_cal'; // 校历缓存 key（清理缓存时一并清除）
   static readonly KEY_JWC_CAL: string = 'cache_jwc_cal'; // 校历转换结果（含来源标记，变化才更新）
   static readonly KEY_PHOTO: string = 'cache_photo';
   static readonly KEY_CACHE_TIME: string = 'cache_time';
+  /**
+   * 课表最近一次成功拉取的标记：'<termId>|<yyyy-MM-dd>'。
+   * 用途：课表**每天只自动查询识别一次**（同一天内直接读缓存），
+   * 需要立即更新时由课表的刷新按钮强制重取。
+   */
+  static readonly KEY_COURSES_FETCH: string = 'cache_courses_fetch';
 
   /** 缓存学生信息到本地 */
   static cacheProfile(profile: UserProfile | null): void {

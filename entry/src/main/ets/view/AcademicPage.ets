@@ -13,7 +13,7 @@ import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { LogStore } from '../common/LogStore';
 import { AntiPeepManager } from '../common/AntiPeepManager';
-import { CourseItem, AcademicReport, CreditCategory, TermScore } from '../model/Models';
+import { CourseItem, AcademicReport, CreditCategory, OverallGradeStats, OverallGrades, ScoreItem, TermInfo, TermScore } from '../model/Models';
 import { EMPTY_REPORT } from '../model/Empty';
 import { LoadingTip, PageHeader, StatCell } from './common/UiKit';
 import { AntiPeepOverlay } from './common/AntiPeepOverlay';
@@ -37,6 +37,14 @@ export struct AcademicPage {
   @State report: AcademicReport = EMPTY_REPORT;
   @State courses: CourseItem[] = [];
   @State termScores: TermScore[] = [];
+  /** 总体成绩统计（移植自参考项目「成绩-总体」：累计绩点/已修学分/总课程 + 成绩分布） */
+  @State overallStats: OverallGradeStats | null = null;
+  /** 总体成绩 - 课程明细（含成绩/学分/绩点） */
+  @State overallCourses: ScoreItem[] = [];
+  /** 课程明细是否展开（默认只显示前 8 条） */
+  @State detailExpanded: boolean = false;
+  /** 学期名称缓存（termId → label，避免重复构建） */
+  private termLabels: TermInfo[] = [];
   @State loading: boolean = true;
   @State refreshing: boolean = false;
   @State isPeeped: boolean = false;
@@ -64,18 +72,32 @@ export struct AcademicPage {
       this.courses = cachedCourses;
     }
     this.termScores = JwApi.loadCachedTermScores();
+    // 总体成绩：先展示缓存
+    const cachedOverall: OverallGrades | null = JwApi.loadCachedOverallGrades();
+    if (cachedOverall !== null) {
+      this.overallStats = cachedOverall.stats;
+      this.overallCourses = cachedOverall.courses;
+    }
     // 日志调试：记录本地操作（先展示缓存）+ 实际反馈
     LogStore.log('学业', '页面加载', '开始',
       `先展示缓存 GPA=${cached.gpa} 课程${cachedCourses.length}节 成绩${this.termScores.length}学期`);
     try {
       const report: AcademicReport = await JwApi.getAcademic();
       this.report = report;
-      const courses: CourseItem[] = await JwApi.getCourses(AppState.term.id);
+      const courses: CourseItem[] = await JwApi.getCoursesSmart(AppState.term.id, false);
       this.courses = courses;
       const scores: TermScore[] = await JwApi.getTermScores();
       this.termScores = scores;
       LogStore.log('学业', '页面加载', '完成',
         `网络更新 GPA=${report.gpa} 课程${courses.length}节 成绩${scores.length}学期`);
+      // 总体成绩（累计绩点/已修学分/成绩分布/课程明细）：独立拉取，失败不影响其它数据
+      try {
+        const overall: OverallGrades = await JwApi.getOverallGrades();
+        this.overallStats = overall.stats;
+        this.overallCourses = overall.courses;
+      } catch (e2) {
+        LogStore.log('学业', '总体成绩', '异常', LogStore.errorOf(e2 as Object));
+      }
     } catch (e) {
       // 网络异常时保持缓存
       LogStore.log('学业', '页面加载', '网络异常', LogStore.errorOf(e as Object));
@@ -284,6 +306,297 @@ export struct AcademicPage {
   }
 
   /** 计算学分完成百分比（0-100，超 100 截断） */
+  /** 总体（累计）成绩卡片：累计绩点 / 已修学分 / 总课程 */
+  @Builder
+  overallCard() {
+    Column() {
+      Row() {
+        Text('总体成绩')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+        Blank()
+        Text(this.overallCourses.length > 0 ? `${this.overallCourses.length} 门` : '累计')
+          .fontSize(11)
+          .fontColor($r('app.color.text_tertiary'))
+      }
+      .width('100%')
+      .margin({ bottom: 12 })
+
+      Row() {
+        StatCell({
+          value: this.overallStats !== null ? this.overallStats.gpa : '--',
+          label: '累计绩点'
+        })
+        StatCell({
+          value: this.overallStats !== null ? this.overallStats.credits : '--',
+          label: '已修学分'
+        })
+        StatCell({
+          value: this.overallStats !== null ? `${this.overallStats.courseCount}` : '--',
+          label: '总课程'
+        })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Top)
+    }
+    .width('100%')
+    .padding(18)
+    .backgroundColor($r('app.color.bg_card'))
+    .borderRadius(18)
+    .margin({ top: 14 })
+  }
+
+  /** 成绩分布（优 ≥90 / 良 ≥80 / 中 ≥70 / 及 ≥60），移植自参考项目「成绩分布」 */
+  @Builder
+  distributionSection() {
+    Column() {
+      Row() {
+        Text('成绩分布')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+        Blank()
+        Text('按已统计课程划分')
+          .fontSize(11)
+          .fontColor($r('app.color.text_tertiary'))
+      }
+      .width('100%')
+      .margin({ bottom: 12 })
+
+      // 分段条：按门数占比
+      Row() {
+        if (this.distTotal() > 0) {
+          Row()
+            .layoutWeight(this.distCount(0) > 0 ? this.distCount(0) : 0.0001)
+            .height(8)
+            .backgroundColor($r('app.color.brand'))
+          Row()
+            .layoutWeight(this.distCount(1) > 0 ? this.distCount(1) : 0.0001)
+            .height(8)
+            .backgroundColor($r('app.color.accent_blue'))
+          Row()
+            .layoutWeight(this.distCount(2) > 0 ? this.distCount(2) : 0.0001)
+            .height(8)
+            .backgroundColor($r('app.color.accent_orange'))
+          Row()
+            .layoutWeight(this.distCount(3) > 0 ? this.distCount(3) : 0.0001)
+            .height(8)
+            .backgroundColor($r('app.color.accent_purple'))
+        } else {
+          Row()
+            .layoutWeight(1)
+            .height(8)
+            .backgroundColor($r('app.color.bg_chip'))
+        }
+      }
+      .width('100%')
+      .borderRadius(4)
+      .clip(true)
+      .margin({ bottom: 12 })
+
+      Row() {
+        this.distItem('优', this.distCount(0), $r('app.color.brand'))
+        this.distItem('良', this.distCount(1), $r('app.color.accent_blue'))
+        this.distItem('中', this.distCount(2), $r('app.color.accent_orange'))
+        this.distItem('及', this.distCount(3), $r('app.color.accent_purple'))
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .padding(18)
+    .backgroundColor($r('app.color.bg_card'))
+    .borderRadius(18)
+    .margin({ top: 14 })
+  }
+
+  /** 分布图例单项 */
+  @Builder
+  distItem(label: string, count: number, color: ResourceColor) {
+    Column() {
+      Row() {
+        Row()
+          .width(8)
+          .height(8)
+          .backgroundColor(color)
+          .borderRadius(4)
+        Text(label)
+          .fontSize(12)
+          .fontColor($r('app.color.text_secondary'))
+          .margin({ left: 5 })
+      }
+      .alignItems(VerticalAlign.Center)
+      Text(`${count} 门`)
+        .fontSize(13)
+        .fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.text_primary'))
+        .margin({ top: 4 })
+    }
+    .layoutWeight(1)
+    .alignItems(HorizontalAlign.Start)
+  }
+
+  /** 课程明细（成绩/学分/绩点），默认显示前 8 条 */
+  @Builder
+  courseDetailSection() {
+    Column() {
+      Row() {
+        Text('课程明细')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.text_primary'))
+        Blank()
+        Text(this.overallCourses.length > 0
+          ? `共 ${this.overallCourses.length} 门 · ${this.detailTermCount()} 个学期` : '暂无数据')
+          .fontSize(11)
+          .fontColor($r('app.color.text_tertiary'))
+      }
+      .width('100%')
+      .margin({ bottom: 10 })
+
+      if (this.overallCourses.length === 0) {
+        Text('暂无课程明细：需教务系统开放学业情况-课程修读数据')
+          .fontSize(12)
+          .fontColor($r('app.color.text_tertiary'))
+          .width('100%')
+      } else {
+        ForEach(this.detailList(), (item: ScoreItem) => {
+          Row() {
+            Column() {
+              Text(item.courseName)
+                .fontSize(13)
+                .fontColor($r('app.color.text_primary'))
+                .width('100%')
+              Text(`${this.termLabelOf(item.termId)}${item.kclbmc.length > 0 ? ` · ${item.kclbmc}` : (item.courseType.length > 0 ? ` · ${item.courseType}` : '')}`)
+                .fontSize(11)
+                .fontColor($r('app.color.text_tertiary'))
+                .width('100%')
+                .margin({ top: 2 })
+            }
+            .layoutWeight(1)
+            .alignItems(HorizontalAlign.Start)
+
+            Text(item.credit > 0 ? `${item.credit} 学分` : '')
+              .fontSize(11)
+              .fontColor($r('app.color.text_secondary'))
+              .margin({ right: 10 })
+            Text(item.gradePoint > 0 ? `绩点 ${item.gradePoint}` : '')
+              .fontSize(11)
+              .fontColor($r('app.color.text_secondary'))
+              .margin({ right: 10 })
+            Text(item.scoreText)
+              .fontSize(14)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.scoreTone(item.scoreText))
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+          .padding({ top: 7, bottom: 7 })
+        }, (item: ScoreItem) => `${item.courseName}-${item.termId}`)
+
+        if (this.overallCourses.length > 8) {
+          Text(this.detailExpanded ? '收起' : `展开全部 ${this.overallCourses.length} 门`)
+            .fontSize(12)
+            .fontColor(Theme.colorOf(this.themeColor))
+            .width('100%')
+            .textAlign(TextAlign.Center)
+            .padding({ top: 10 })
+            .onClick(() => {
+              this.detailExpanded = !this.detailExpanded;
+            })
+        }
+      }
+    }
+    .width('100%')
+    .padding(18)
+    .backgroundColor($r('app.color.bg_card'))
+    .borderRadius(18)
+    .margin({ top: 14 })
+  }
+
+  /** 明细展示列表（默认前 8 条） */
+  private detailList(): ScoreItem[] {
+    return this.detailExpanded ? this.overallCourses : this.overallCourses.slice(0, 8);
+  }
+
+  /** 明细覆盖的学期数（证明"全部学期"） */
+  private detailTermCount(): number {
+    const ids: string[] = [];
+    for (const c of this.overallCourses) {
+      if (c.termId.length > 0 && ids.indexOf(c.termId) < 0) {
+        ids.push(c.termId);
+      }
+    }
+    return ids.length;
+  }
+
+  /** 学期 id → 学期名称（如 2024-2025-1 → 2024-2025学年 第一学期） */
+  private termLabelOf(termId: string): string {
+    if (termId.length === 0) {
+      return '学期未知';
+    }
+    if (this.termLabels.length === 0) {
+      const terms: TermInfo[] = JwApi.buildLocalTerms();
+      for (const t of terms) {
+        this.termLabels.push(t);
+      }
+    }
+    for (const t of this.termLabels) {
+      if (t.id === termId) {
+        return t.label;
+      }
+    }
+    return termId;
+  }
+
+  /** 分布门数（0=优 1=良 2=中 3=及） */
+  private distCount(index: number): number {
+    const s: OverallGradeStats | null = this.overallStats;
+    if (s === null) {
+      return 0;
+    }
+    if (index === 0) {
+      return s.excellent;
+    }
+    if (index === 1) {
+      return s.good;
+    }
+    if (index === 2) {
+      return s.medium;
+    }
+    return s.pass;
+  }
+
+  /** 分布总门数 */
+  private distTotal(): number {
+    return this.distCount(0) + this.distCount(1) + this.distCount(2) + this.distCount(3);
+  }
+
+  /** 成绩文本 → 颜色（≥90 品牌色 / ≥80 蓝 / ≥70 橙 / 其它 紫） */
+  private scoreTone(text: string): ResourceColor {
+    let digits: string = '';
+    for (let i: number = 0; i < text.length; i++) {
+      const ch: string = text.charAt(i);
+      if (ch >= '0' && ch <= '9') {
+        digits += ch;
+      }
+    }
+    const n: number = digits.length > 0 ? Number(digits) : -1;
+    if (n >= 90) {
+      return $r('app.color.brand');
+    }
+    if (n >= 80) {
+      return $r('app.color.accent_blue');
+    }
+    if (n >= 70) {
+      return $r('app.color.accent_orange');
+    }
+    if (n >= 60) {
+      return $r('app.color.accent_purple');
+    }
+    return $r('app.color.text_secondary');
+  }
+
   private percent(earned: number, required: number): number {
     if (required <= 0) {
       return 0;
@@ -329,8 +642,11 @@ export struct AcademicPage {
                 .width('100%')
                 .height(this.getUIContext().px2vp(this.topInsetPx) + 60 + (this.barStyle === 'legacy' ? 14 : 0))
               this.gpaCard()
+              this.overallCard()
+              this.distributionSection()
               this.overviewRow()
               this.categorySection()
+              this.courseDetailSection()
               this.warningSection()
               Column()
                 .height(this.getUIContext().px2vp(this.bottomInsetPx) + 24)

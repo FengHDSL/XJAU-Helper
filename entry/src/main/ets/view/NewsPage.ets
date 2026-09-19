@@ -6,6 +6,7 @@ import { SheetUtil } from '../common/SheetUtil';
 import { image } from '@kit.ImageKit';
 import { webview } from '@kit.ArkWeb';
 import { promptAction, mediaquery } from '@kit.ArkUI';
+import { ResponsiveUtil } from '../common/ResponsiveUtil';
 import { Theme } from '../common/ThemeUtil';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
@@ -112,6 +113,11 @@ export struct NewsPage {
   /** 横屏标记（平板横屏下每个板块新闻分两列显示） */
   @State isLandscape: boolean = false;
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
+  /** 窗口宽度断点监听（PC 窗口缩放时切换布局） */
+  private wideListener: mediaquery.MediaQueryListener | null = null;
+  /** 当前窗口是否横向 / 是否宽 ≥ 600vp（两者组合出布局判定） */
+  private landscapeMq: boolean = false;
+  private wideMq: boolean = false;
 
   aboutToAppear(): void {
     this.listenLandscape();
@@ -121,15 +127,30 @@ export struct NewsPage {
   /** 页面消失：注销横竖屏监听 */
   aboutToDisappear(): void {
     this.landscapeListener = null;
+    this.wideListener = null;
   }
 
-  /** 监听屏幕方向变化（横屏时新闻分两列） */
+  /** 监听窗口尺寸/方向变化：窗口缩放或旋转时实时切换布局（判定规则见 ResponsiveUtil） */
   private listenLandscape(): void {
-    this.isLandscape = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)').matches;
-    this.landscapeListener = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
+    const mq = this.getUIContext().getMediaQuery();
+    this.landscapeMq = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE).matches;
+    this.wideMq = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE).matches;
+    this.applyLayout();
+    this.landscapeListener = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE);
     this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
-      this.isLandscape = res.matches;
+      this.landscapeMq = res.matches;
+      this.applyLayout();
     });
+    this.wideListener = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE);
+    this.wideListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.wideMq = res.matches;
+      this.applyLayout();
+    });
+  }
+
+  /** 组合出布局判定：宽 ≥ 600vp 且横向 → 大屏布局，否则手机端布局（见 ResponsiveUtil.isWideLayout） */
+  private applyLayout(): void {
+    this.isLandscape = ResponsiveUtil.isWideLayout(this.wideMq, this.landscapeMq);
   }
 
   /** 调试模式状态变化：功能浏览模式下开启调试 → 强制重新加载当前板块（清列表 + 加载态） */

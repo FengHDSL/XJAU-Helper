@@ -18,7 +18,7 @@
  *
  * 待完成：学业情况(xsxyqk 返回 911)；通知公告(HTML 解析)。
  */
-import { AcademicReport, CourseItem, CreditCategory, EmptyRoomCondition, EmptyRoomConditions, EmptyRoomItem, EmptyRoomQueryParams, EmptyRoomResult, ExamItem, LoginResult, NoticeItem, ScoreItem, SectionInfo, TermInfo, TermScore,
+import { AcademicReport, CourseItem, CreditCategory, OverallGradeStats, OverallGrades, EmptyRoomCondition, EmptyRoomConditions, EmptyRoomItem, EmptyRoomQueryParams, EmptyRoomResult, ExamItem, LoginResult, NoticeItem, ScoreItem, SectionInfo, TermInfo, TermScore,
   UserProfile, WeekInfo } from '../model/Models';
 import { TeachingCalendar } from '../model/TeachingCalendar';
 import { MockData } from '../mock/MockData';
@@ -33,6 +33,7 @@ import { RsaUtil } from '../common/RsaUtil';
 import { LogStore } from '../common/LogStore';
 import zlib from '@ohos.zlib';
 import { fileIo } from '@kit.CoreFileKit';
+import { CourseRawStore } from '../common/CourseRawStore';
 
 /** 正方下发的 RSA 公钥 */
 interface RsaPublicKey {
@@ -117,7 +118,12 @@ export class JwApi {
     return list;
   }
 
-  /** 把"1-5周,8-14周(双)"解析成周次数组与原文 */
+  /**
+   * 把"1-5周,8-14周(双)"解析成周次数组与原文。
+   * 同时兼容**单周写法**（"7周"、"9"）与混合列表（"3,5,7周"）——
+   * 旧实现只识别 "a-b" 区间，遇到单周写法会整条丢弃，
+   * 导致该类课程（含周末课程）在任何周都不显示。
+   */
   private static parseWeeks(zcd: string): WeekInfo {
     const text: string = zcd ?? '';
     const weeks: number[] = [];
@@ -125,14 +131,15 @@ export class JwApi {
       return { weeks: weeks, text: '' };
     }
     const segs: string[] = text.split(',');
-    const reg: RegExp = /(\d+)\s*-\s*(\d+)/;
+    const rangeReg: RegExp = /(\d+)\s*-\s*(\d+)/;
+    const singleReg: RegExp = /(\d+)/;
     for (const seg of segs) {
-      const m: ESObject | null = seg.match(reg);
+      const odd: boolean = seg.indexOf('单') >= 0;
+      const even: boolean = seg.indexOf('双') >= 0;
+      const m: ESObject | null = seg.match(rangeReg);
       if (m !== null) {
         const from: number = Number(m[1]);
         const to: number = Number(m[2]);
-        const odd: boolean = seg.indexOf('单') >= 0;
-        const even: boolean = seg.indexOf('双') >= 0;
         for (let w = from; w <= to; w++) {
           if (odd && w % 2 === 0) {
             continue;
@@ -140,10 +147,21 @@ export class JwApi {
           if (even && w % 2 === 1) {
             continue;
           }
-          weeks.push(w);
+          if (weeks.indexOf(w) < 0) {
+            weeks.push(w);
+          }
+        }
+      } else {
+        const s: ESObject | null = seg.match(singleReg);
+        if (s !== null) {
+          const w: number = Number(s[1]);
+          if (w > 0 && weeks.indexOf(w) < 0) {
+            weeks.push(w);
+          }
         }
       }
     }
+    weeks.sort((a: number, b: number) => a - b);
     return { weeks: weeks, text: text };
   }
 
@@ -161,10 +179,45 @@ export class JwApi {
     return { start: 1, end: 1 };
   }
 
+  /**
+   * 解析星期（1=周一 … 7=周日）：优先取数字字段 xqj；
+   * 若接口未返回或值非法，则按中文星期字段（xqjmc，如"星期日""星期天"）兜底，
+   * 避免周末课程因字段缺失被当成周一。
+   */
+  private static parseWeekday(raw: ESObject): number {
+    const n: number = Number(raw['xqj'] ?? 0);
+    if (n >= 1 && n <= 7) {
+      return n;
+    }
+    const mc: string = (raw['xqjmc'] as string) ?? '';
+    if (mc.indexOf('日') >= 0 || mc.indexOf('天') >= 0) {
+      return 7;
+    }
+    if (mc.indexOf('六') >= 0) {
+      return 6;
+    }
+    if (mc.indexOf('五') >= 0) {
+      return 5;
+    }
+    if (mc.indexOf('四') >= 0) {
+      return 4;
+    }
+    if (mc.indexOf('三') >= 0) {
+      return 3;
+    }
+    if (mc.indexOf('二') >= 0) {
+      return 2;
+    }
+    if (mc.indexOf('一') >= 0) {
+      return 1;
+    }
+    return 1;
+  }
+
   private static mapCourse(raw: ESObject): CourseItem {
     const zcd: string = (raw['zcd'] as string) ?? '';
     const jcs: string = (raw['jcs'] as string) ?? '1';
-    const xqj: number = Number(raw['xqj'] ?? 1);
+    const xqj: number = JwApi.parseWeekday(raw);
     const weeksInfo = JwApi.parseWeeks(zcd);
     const secInfo = JwApi.parseSections(jcs);
     const name: string = (raw['kcmc'] as string) ?? '未知课程';
@@ -804,18 +857,21 @@ export class JwApi {
     if (JwApi.USE_MOCK) {
       const list: CourseItem[] = MockData.courses();
       DataStore.cacheJSON(DataStore.KEY_COURSES, JSON.stringify(list));
+      // 功能浏览模式同样落一份"原文件"，便于预览该入口
+      CourseRawStore.save(termId, JSON.stringify({ source: 'mock', kbList: list }), 'MOCK', list.length);
+      JwApi.markCoursesFetched(termId);
       return JwApi.delay(list, 500);
     }
     const parts: string[] = termId.split('-');
     const xnm: string = parts[0];
     const xqm: string = JwApi.xqmOf(termId);
-    const res: HttpResult = await HttpClient.postForm('/jwglxt/kbcx/xskbcx_cxXsgrkb.html', { 'xnm': xnm, 'xqm': xqm });
+    const res: HttpResult = await HttpClient.postForm(JwApi.COURSE_URL, { 'xnm': xnm, 'xqm': xqm });
     let root: ESObject;
     try {
       root = JSON.parse(res.body);
     } catch (e) {
       LogStore.logNet('课表', '解析', '异常',
-        { url: '/jwglxt/kbcx/xskbcx_cxXsgrkb.html', status: `${res.code}`, error: LogStore.errorOf(e as Object), body: res.body, detail: `xnm=${xnm} xqm=${xqm}` });
+        { url: JwApi.COURSE_URL, status: `${res.code}`, error: LogStore.errorOf(e as Object), body: res.body, detail: `xnm=${xnm} xqm=${xqm}` });
       throw e as Error;
     }
     const kbList: ESObject[] = (root['kbList'] as ESObject[]) ?? [];
@@ -824,9 +880,50 @@ export class JwApi {
       list.push(JwApi.mapCourse(kbList[i]));
     }
     DataStore.cacheJSON(DataStore.KEY_COURSES, JSON.stringify(list));
+    // 保存"原始导入识别文件"：教务系统课表接口的原始响应体全文（课表页底部可查看）
+    CourseRawStore.save(termId, res.body, JwApi.COURSE_URL, list.length);
+    // 记录"今天已查询识别"，同一天内不再自动重复请求
+    JwApi.markCoursesFetched(termId);
     LogStore.logNet('课表', '获取', '成功',
-      { url: '/jwglxt/kbcx/xskbcx_cxXsgrkb.html', status: `${res.code}`, detail: `${list.length}节 xnm=${xnm} xqm=${xqm}` });
+      { url: JwApi.COURSE_URL, status: `${res.code}`, detail: `${list.length}节 xnm=${xnm} xqm=${xqm}` });
     return list;
+  }
+
+  /** 正方课表查询接口（同时作为"课表原文件"的来源标识） */
+  private static readonly COURSE_URL: string = '/jwglxt/kbcx/xskbcx_cxXsgrkb.html';
+
+  /** 标记"今天已成功查询识别课表"（学期 + 日期） */
+  private static markCoursesFetched(termId: string): void {
+    DataStore.put(DataStore.KEY_COURSES_FETCH, `${termId}|${DateUtil.format(new Date())}`);
+  }
+
+  /** 今天是否已成功查询识别过该学期课表（同一天内直接读缓存，每天只自动查询一次） */
+  static coursesFetchedToday(termId: string): boolean {
+    const raw: string = DataStore.get(DataStore.KEY_COURSES_FETCH);
+    if (raw.length === 0) {
+      return false;
+    }
+    const idx: number = raw.lastIndexOf('|');
+    if (idx < 0) {
+      return false;
+    }
+    const storedTerm: string = raw.substring(0, idx);
+    const storedDate: string = raw.substring(idx + 1);
+    return storedTerm === termId && storedDate === DateUtil.format(new Date());
+  }
+
+  /**
+   * 课表智能获取：默认**每天只查询识别一次**（当天已有成功记录 → 直接返回缓存，不再请求教务系统）；
+   * force=true 时强制重新查询识别（课表页刷新按钮、原文件缺失需要重取时）。
+   */
+  static async getCoursesSmart(termId: string, force: boolean): Promise<CourseItem[]> {
+    if (!force && JwApi.coursesFetchedToday(termId)) {
+      const cached: CourseItem[] = JwApi.loadCachedCourses();
+      if (cached.length > 0) {
+        return cached;
+      }
+    }
+    return JwApi.getCourses(termId);
   }
 
   /** 考试安排 */
@@ -1210,7 +1307,7 @@ export class JwApi {
     const h: Record<string, string> = { 'xnm': xnm, 'xqm': xqm };
 
     // 并行拉取
-    const taskCourses: Promise<CourseItem[]> = JwApi.getCourses(term.id);
+    const taskCourses: Promise<CourseItem[]> = JwApi.getCoursesSmart(term.id, false);
     const taskScores: Promise<TermScore[]> = JwApi.getTermScores();
     const taskExams: Promise<ExamItem[]> = JwApi.getExams(term.id);
     const taskAcademic: Promise<AcademicReport> = JwApi.getAcademic();
@@ -1466,6 +1563,336 @@ export class JwApi {
       }
     }
     return false;
+  }
+
+  // ══════════ 总体成绩（移植自参考项目 zhengfang-apk「成绩 - 总体」的读取方式）══════════
+
+  /** 学业情况索引页（总体成绩与课程修读同一入口页面） */
+  private static readonly ACADEMIC_INDEX_URL: string =
+    '/jwglxt/xsxy/xsxyqk_cxXsxyqkIndex.html?gnmkdm=N105515&layout=default';
+  /** 课程修读（逐 xfyqjd_id 拉取课程成绩明细） */
+  private static readonly ACADEMIC_PLAN_URL: string =
+    '/jwglxt/xsxy/xsxyqk_cxJxzxjhxfyqKcxx.html?gnmkdm=N105515';
+
+  /**
+   * 总体成绩（累计）：按参考项目的读取方式 ——
+   * ① GET 学业情况索引页 → 正则提取汇总（累计绩点 / 已修学分 / 课程门数）与 xfyqjd_id 列表、xh_id、cjlrxn、cjlrxq
+   * ② 逐个 xfyqjd_id POST「课程修读」接口 → 解析每门课（成绩 cj / 学分 xf / 绩点 jd）→ 按课程名去重合并
+   * ③ 统计成绩分布（≥90 优 / ≥80 良 / ≥70 中 / ≥60 及）；累计绩点优先用索引页提取值，缺失时按学分加权计算
+   */
+  static async getOverallGrades(): Promise<OverallGrades> {
+    if (JwApi.USE_MOCK) {
+      const mockCourses: ScoreItem[] = JwApi.mockOverallCourses();
+      const mockStats: OverallGradeStats = JwApi.buildOverallStats(mockCourses, '', 0, 0);
+      const mockOut: OverallGrades = { stats: mockStats, courses: mockCourses };
+      return JwApi.delay(mockOut, 400);
+    }
+    const res: HttpResult = await HttpClient.get(JwApi.ACADEMIC_INDEX_URL);
+    const html: string = res.body;
+    // 登录失效判断（与参考项目一致：出现登录页特征即视为会话过期）
+    if (html.indexOf('slogin.html') >= 0 || html.indexOf('notLogin') >= 0
+      || html.indexOf('用户登录') >= 0) {
+      throw new Error('登录状态已过期，请重新登录后再试');
+    }
+    const ids: string[] = JwApi.extractLoopIds(html);
+    const xhId: string = JwApi.hiddenValue(html, 'xh_id');
+    const cjlrxn: string = JwApi.hiddenValue(html, 'cjlrxn');
+    const cjlrxq: string = JwApi.hiddenValue(html, 'cjlrxq');
+    const bkcjlrxn: string = JwApi.hiddenValue(html, 'bkcjlrxn');
+    const bkcjlrxq: string = JwApi.hiddenValue(html, 'bkcjlrxq');
+    // 汇总值（参考项目正则）
+    const summaryGpa: string = JwApi.textOf(html, '\\(GPA\\)[：:]\\s*<font[^>]*>([\\d.]+)</font>');
+    const summaryCredits: number = JwApi.numberOf(html, '(?:已修|获得|总)\\s*学分[：:]\\s*([\\d.]+)');
+    const summaryCount: number = JwApi.numberOf(html, '(?:课程|门数)[：:]\\s*(\\d+)');
+
+    const courses: ScoreItem[] = [];
+    for (let i: number = 0; i < ids.length; i++) {
+      // 逐个培养方案分页拉取（避免只拿到第一页导致课程不全）
+      await JwApi.fetchPlanCourses(ids[i], xhId, cjlrxn, cjlrxq, bkcjlrxn, bkcjlrxq, courses);
+    }
+    // 明细必须覆盖**全部学期**：培养方案数据往往只含当前学期 → 若覆盖学期数 ≤ 1，遍历所有学期成绩补齐
+    JwApi.mergeScoreCourses(courses, JwApi.loadCachedTermScores());
+    if (JwApi.countDistinctTerms(courses) <= 1) {
+      await JwApi.fetchAllTermScoreCourses(courses);
+    }
+    const stats: OverallGradeStats = JwApi.buildOverallStats(courses, summaryGpa, summaryCredits, summaryCount);
+    const out: OverallGrades = { stats: stats, courses: courses };
+    if (courses.length > 0) {
+      DataStore.cacheJSON(DataStore.KEY_OVERALL_GRADES, JSON.stringify(out));
+    }
+    LogStore.log('学业', '总体成绩', '完成',
+      `课程${courses.length}门 绩点${stats.gpa} 学分${stats.credits} 优${stats.excellent}/良${stats.good}/中${stats.medium}/及${stats.pass}`);
+    return out;
+  }
+
+  /** 读取总体成绩缓存（无返回 null） */
+  static loadCachedOverallGrades(): OverallGrades | null {
+    if (JwApi.USE_MOCK) {
+      return null;
+    }
+    const raw: string = DataStore.loadJSON(DataStore.KEY_OVERALL_GRADES);
+    if (raw.length === 0) {
+      return null;
+    }
+    try {
+      return JSON.parse(raw) as OverallGrades;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** 提取所有 xfyqjd_id（培养方案/轮次 id），两种写法都尝试 */
+  private static extractLoopIds(html: string): string[] {
+    const out: string[] = [];
+    const pats: string[] = [
+      'xfyqjd_id=["\']?(\\w{6,})',
+      'name=["\']xfyqjd_id["\'][^>]*value=["\']([^"\']{6,})["\']'
+    ];
+    for (const p of pats) {
+      const re: RegExp = new RegExp(p, 'g');
+      let m: RegExpExecArray | null = re.exec(html);
+      while (m !== null) {
+        const v: string = m[1];
+        if (v.length > 0 && out.indexOf(v) < 0) {
+          out.push(v);
+        }
+        m = re.exec(html);
+      }
+    }
+    return out;
+  }
+
+  /** 读取页面隐藏域值（兼容 name/value 两种书写顺序） */
+  private static hiddenValue(html: string, name: string): string {
+    const p1: string = 'name=["\']' + name + '["\'][^>]*value=["\']([^"\']*)["\']';
+    const p2: string = 'value=["\']([^"\']*)["\'][^>]*name=["\']' + name + '["\']';
+    const v1: string = JwApi.textOf(html, p1);
+    if (v1.length > 0) {
+      return v1;
+    }
+    return JwApi.textOf(html, p2);
+  }
+
+  /** 正则取第一个捕获组文本（无匹配返回空串） */
+  private static textOf(text: string, pattern: string): string {
+    const re: RegExp = new RegExp(pattern, 'i');
+    const m: RegExpExecArray | null = re.exec(text);
+    return m !== null && m[1] !== undefined ? m[1] : '';
+  }
+
+  /** 正则取第一个捕获组数字（无匹配返回 0） */
+  private static numberOf(text: string, pattern: string): number {
+    const v: string = JwApi.textOf(text, pattern);
+    const n: number = Number(v);
+    return isNaN(n) ? 0 : n;
+  }
+
+  /** 解析课程修读接口返回的课程明细（成绩/学分/绩点），兼容 {items:[...]} 与纯数组两种结构 */
+  private static parseOverallItems(body: string, termId: string): ScoreItem[] {
+    const list: ScoreItem[] = [];
+    let root: ESObject;
+    try {
+      root = JSON.parse(body);
+    } catch (e) {
+      return list;
+    }
+    if (root === null || root === undefined) {
+      return list;
+    }
+    let items: ESObject[] = [];
+    if (Array.isArray(root)) {
+      items = root as ESObject[];
+    } else {
+      const maybe: ESObject = root['items'] as ESObject;
+      if (maybe !== undefined && maybe !== null && Array.isArray(maybe)) {
+        items = maybe as ESObject[];
+      }
+    }
+    for (let i: number = 0; i < items.length; i++) {
+      const raw: ESObject = items[i];
+      const name: string = (raw['kcmc'] as string) ?? '';
+      if (name.length === 0) {
+        continue;
+      }
+      const creditNum: number = Number(raw['xf'] ?? 0);
+      const jdNum: number = Number(raw['jd'] ?? 0);
+      const cjText: string = `${raw['cj'] ?? ''}`.trim();
+      const cjNum: number = Number(cjText);
+      const item: ScoreItem = {
+        id: `${name}_${raw['jxb_id'] ?? ''}`,
+        courseName: name,
+        credit: isNaN(creditNum) ? 0 : creditNum,
+        score: cjText.length > 0 && !isNaN(cjNum) ? cjNum : -1,
+        scoreText: cjText.length > 0 ? cjText : '--',
+        gradePoint: isNaN(jdNum) ? 0 : jdNum,
+        courseType: (raw['kcxzmc'] as string) ?? '',
+        examType: (raw['ksxz'] as string) ?? '',
+        teacher: (raw['jsxm'] as string) ?? '',
+        termId: termId,
+        kclbmc: (raw['kclbmc'] as string) ?? (raw['kcxzmc'] as string) ?? ''
+      };
+      list.push(item);
+    }
+    return list;
+  }
+
+  /**
+   * 拉取某个培养方案（xfyqjd_id）下的课程明细：**分页循环直到不足一页**。
+   * 正方列表接口支持 queryModel.showCount / queryModel.currentPage；
+   * 若接口忽略分页参数（一次性返回全部），则首屏即返回、不会多发请求。
+   */
+  private static async fetchPlanCourses(id: string, xhId: string, cjlrxn: string, cjlrxq: string,
+    bkcjlrxn: string, bkcjlrxq: string, out: ScoreItem[]): Promise<void> {
+    const pageSize: number = 100;
+    for (let page: number = 1; page <= 20; page++) {
+      const form: Record<string, string> = {};
+      form['xfyqjd_id'] = id;
+      form['xh_id'] = xhId;
+      form['cjlrxn'] = cjlrxn;
+      form['cjlrxq'] = cjlrxq;
+      form['bkcjlrxn'] = bkcjlrxn;
+      form['bkcjlrxq'] = bkcjlrxq;
+      form['xscjcxkz'] = '0';
+      form['cjcxkzzt'] = '2';
+      form['cjztkz'] = '0';
+      form['cjzt'] = '';
+      form['queryModel.showCount'] = `${pageSize}`;
+      form['queryModel.currentPage'] = `${page}`;
+      try {
+        const r: HttpResult = await HttpClient.postForm(JwApi.ACADEMIC_PLAN_URL, form);
+        const items: ScoreItem[] = JwApi.parseOverallItems(r.body, id);
+        for (const it of items) {
+          if (!JwApi.hasScoreCourse(out, it.courseName)) {
+            out.push(it);
+          }
+        }
+        if (items.length < pageSize) {
+          return;
+        }
+      } catch (e) {
+        // 单个方案/页失败跳过，不阻塞整体（与参考项目一致）
+        LogStore.logNet('学业', '总体成绩', '轮次失败',
+          { url: JwApi.ACADEMIC_PLAN_URL, status: '-', error: LogStore.errorOf(e as Object), detail: `id=${id} page=${page}` });
+        return;
+      }
+    }
+  }
+
+  /** 用成绩数据补齐课程明细（同名课程保留已有项） */
+  private static mergeScoreCourses(out: ScoreItem[], scores: TermScore[]): void {
+    for (const t of scores) {
+      for (const it of t.items) {
+        if (!JwApi.hasScoreCourse(out, it.courseName)) {
+          out.push(it);
+        }
+      }
+    }
+  }
+
+  /** 明细覆盖的学期数量（用于判断是否需要补齐其它学期） */
+  private static countDistinctTerms(courses: ScoreItem[]): number {
+    const ids: string[] = [];
+    for (const c of courses) {
+      if (c.termId.length > 0 && ids.indexOf(c.termId) < 0) {
+        ids.push(c.termId);
+      }
+    }
+    return ids.length;
+  }
+
+  /** 兜底：遍历本地学期列表逐个拉取成绩补齐课程明细（覆盖全部学期） */
+  private static async fetchAllTermScoreCourses(out: ScoreItem[]): Promise<void> {
+    const terms: TermInfo[] = JwApi.buildLocalTerms();
+    const limit: number = terms.length < 12 ? terms.length : 12;
+    for (let i: number = 0; i < limit; i++) {
+      try {
+        const list: TermScore[] = await JwApi.getTermScores(terms[i].id);
+        JwApi.mergeScoreCourses(out, list);
+      } catch (e) {
+        // 单个学期失败跳过
+      }
+    }
+    LogStore.log('学业', '总体成绩', '补齐',
+      `遍历 ${limit} 个学期后共 ${out.length} 门课程（覆盖 ${JwApi.countDistinctTerms(out)} 个学期）`);
+  }
+
+  /** 课程名去重判断 */
+  private static hasScoreCourse(list: ScoreItem[], name: string): boolean {
+    for (const it of list) {
+      if (it.courseName === name) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** 汇总统计（对应参考项目 updateOverallStats：学分加权绩点 + 90/80/70/60 分布） */
+  private static buildOverallStats(courses: ScoreItem[], summaryGpa: string,
+    summaryCredits: number, summaryCount: number): OverallGradeStats {
+    let totalCredits: number = 0;
+    let weightedGpa: number = 0;
+    let excellent: number = 0;
+    let good: number = 0;
+    let medium: number = 0;
+    let pass: number = 0;
+    for (const c of courses) {
+      totalCredits += c.credit;
+      weightedGpa += c.credit * c.gradePoint;
+      const score: number = JwApi.scoreDigits(c.scoreText);
+      if (score >= 90) {
+        excellent++;
+      } else if (score >= 80) {
+        good++;
+      } else if (score >= 70) {
+        medium++;
+      } else if (score >= 60) {
+        pass++;
+      }
+    }
+    const gpaText: string = summaryGpa.length > 0
+      ? summaryGpa
+      : (totalCredits > 0 ? (weightedGpa / totalCredits).toFixed(2) : '0.00');
+    const creditValue: number = summaryCredits > 0 ? summaryCredits : totalCredits;
+    const stats: OverallGradeStats = {
+      gpa: gpaText,
+      credits: creditValue.toFixed(1),
+      courseCount: courses.length > 0 ? courses.length : summaryCount,
+      excellent: excellent,
+      good: good,
+      medium: medium,
+      pass: pass
+    };
+    return stats;
+  }
+
+  /** 从成绩文本提取分数（"90"→90；"优秀"/"通过"等非数字→-1） */
+  private static scoreDigits(text: string): number {
+    let digits: string = '';
+    for (let i: number = 0; i < text.length; i++) {
+      const ch: string = text.charAt(i);
+      if (ch >= '0' && ch <= '9') {
+        digits += ch;
+      }
+    }
+    if (digits.length === 0) {
+      return -1;
+    }
+    const n: number = Number(digits);
+    return isNaN(n) ? -1 : n;
+  }
+
+  /** 功能浏览模式的总体成绩演示数据 */
+  private static mockOverallCourses(): ScoreItem[] {
+    const out: ScoreItem[] = [];
+    const scores: TermScore[] = MockData.termScores([AppState.term]);
+    for (const t of scores) {
+      for (const it of t.items) {
+        if (!JwApi.hasScoreCourse(out, it.courseName)) {
+          out.push(it);
+        }
+      }
+    }
+    return out;
   }
 
   /** 正则取第一个数字（规避 RegExpMatchArray 结构类型：用 RegExpExecArray） */

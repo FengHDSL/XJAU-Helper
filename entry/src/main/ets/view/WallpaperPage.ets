@@ -28,7 +28,7 @@ export struct WallpaperPage {
   /** URL 导入输入框内容 */
   @State urlText: string = '';
   @StorageProp('topInsetPx') topInsetPx: number = 0;
-  /** 顶栏主题色（'red' | 'blue' | 'green' | '#RRGGBB'） */
+  /** 顶栏主题色（'green' | 'red' | 'blue' | 'orange' | 'purple' | '#RRGGBB'） */
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 顶栏样式：new=渐变色（默认）/ legacy=毛玻璃 */
   @StorageProp('barStyle') barStyle: string = 'new';
@@ -62,6 +62,12 @@ export struct WallpaperPage {
     }
     if (t === 'blue') {
       return '天空蓝';
+    }
+    if (t === 'orange') {
+      return '落日橙';
+    }
+    if (t === 'purple') {
+      return '紫罗兰';
     }
     return '农大绿';
   }
@@ -431,11 +437,16 @@ export struct WallpaperPage {
       .width('100%')
       .margin({ bottom: 12 })
 
-      Row({ space: 18 }) {
+      // 5 个预置色一排、整体居中（紧凑间距，保证窄屏也能放下）
+      Row({ space: 12 }) {
         this.themeSwatch('red', '#C3272B', '中国红')
         this.themeSwatch('blue', '#3B82F6', '天空蓝')
         this.themeSwatch('green', '#079841', '农大绿')
+        this.themeSwatch('orange', '#E0603A', '落日橙')
+        this.themeSwatch('purple', '#7C5CE0', '紫罗兰')
       }
+      .width('100%')
+      .justifyContent(FlexAlign.Center)
       .margin({ bottom: 12 })
 
       // 自定义 rrggbb 输入

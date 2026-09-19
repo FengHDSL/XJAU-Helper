@@ -9,6 +9,7 @@ import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { image } from '@kit.ImageKit';
 import { fileIo } from '@kit.CoreFileKit';
 import { promptAction, display, mediaquery } from '@kit.ArkUI';
+import { ResponsiveUtil } from '../common/ResponsiveUtil';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const, SectionTime } from '../common/Constants';
@@ -41,6 +42,10 @@ export struct ScheduleView {
   @State selectedTermIndex: number = 0;
   @State viewWeek: number = 1;
   @State loading: boolean = true;
+  /** 手动刷新中（刷新按钮）：控制图标旋转与重复点击保护 */
+  @State refreshingCourses: boolean = false;
+  /** 刷新图标旋转角度（点刷新时 0→360） */
+  @State refreshAngle: number = 0;
   @State showSheet: boolean = false;
   @State showWeekSheet: boolean = false;
   @State showTermSheet: boolean = false;
@@ -61,6 +66,11 @@ export struct ScheduleView {
   /** 平板（大屏）标记：屏幕宽度 ≥600vp；竖屏时课程表底部显示点阵周次（手机不显示） */
   @State isTablet: boolean = false;
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
+  /** 窗口宽度断点监听（PC 窗口缩放时切换布局） */
+  private wideListener: mediaquery.MediaQueryListener | null = null;
+  /** 当前窗口是否横向 / 是否宽 ≥ 600vp（两者组合出布局判定） */
+  private landscapeMq: boolean = false;
+  private wideMq: boolean = false;
 
   /** 页面出现：计算当前周次并加载课表 + 恢复设置 */
   aboutToAppear(): void {
@@ -120,7 +130,7 @@ export struct ScheduleView {
     this.courses = [];
     this.loading = true;
     try {
-      const list: CourseItem[] = await JwApi.getCourses(AppState.term.id);
+      const list: CourseItem[] = await JwApi.getCoursesSmart(AppState.term.id, false);
       this.courses = list;
       const week: number = DateUtil.weekOfTerm(AppState.term, new Date());
       this.currentWeek = week < 1 ? 1 : week;
@@ -171,15 +181,15 @@ export struct ScheduleView {
         this.customTermStart = this.terms[this.selectedTermIndex]?.startDate ?? AppState.term.startDate;
       }
       const term: TermInfo = this.terms[this.selectedTermIndex] ?? AppState.term;
-      // 先用缓存（仅当前学期有缓存）
+      // 先展示缓存（有则立即上屏，避免空白）
       if (term.id === AppState.term.id) {
         const cached: CourseItem[] = JwApi.loadCachedCourses();
         if (cached.length > 0) {
           this.courses = cached;
         }
       }
-      // 强制刷新（无论缓存是否命中，非 mock 模式都去拉取真实数据）
-      const fresh: CourseItem[] = await JwApi.getCourses(term.id);
+      // 每天只自动查询识别一次：当天已有成功记录时 getCoursesSmart 直接返回缓存，不再请求教务系统
+      const fresh: CourseItem[] = await JwApi.getCoursesSmart(term.id, false);
       if (fresh.length > 0) {
         this.courses = fresh;
       } else if (term.id === AppState.term.id) {
@@ -203,6 +213,36 @@ export struct ScheduleView {
   /** 当前选中的学期对象 */
   private currentTerm(): TermInfo {
     return this.terms[this.selectedTermIndex] ?? AppState.term;
+  }
+
+  /**
+   * 刷新按钮：强制重新查询识别课表（忽略"每天一次"限制），并同步更新原文件与周次。
+   * 图标旋转 360° 作为反馈；失败时提示并可继续用缓存。
+   */
+  private async refreshCourses(): Promise<void> {
+    if (this.refreshingCourses) {
+      return;
+    }
+    this.refreshingCourses = true;
+    this.getUIContext().animateTo({ duration: 620, curve: Curve.EaseInOut }, () => {
+      this.refreshAngle += 360;
+    });
+    const term: TermInfo = this.currentTerm();
+    try {
+      const list: CourseItem[] = await JwApi.getCoursesSmart(term.id, true);
+      if (list.length > 0) {
+        this.courses = list;
+      }
+      const week: number = DateUtil.weekOfTerm(term, new Date());
+      this.currentWeek = week < 1 ? 1 : week;
+      this.getUIContext().getPromptAction().showToast({
+        message: list.length > 0 ? `课表已更新（${list.length} 节）` : '教务系统暂无课表数据'
+      });
+    } catch (e) {
+      this.getUIContext().getPromptAction().showToast({ message: '刷新失败，请检查网络后重试' });
+    } finally {
+      this.refreshingCourses = false;
+    }
   }
 
   /** 课程详情 sheet 中的"上课时间"行内容 */
@@ -245,12 +285,31 @@ export struct ScheduleView {
     return this.cfg.cellHeight;
   }
 
-  /** 显示的星期几列表（周六周日开关） */
+  /**
+   * 显示的星期几列表。
+   * 规则：周一~周五固定显示；周六 / 周日——
+   *  - 「显示周六周日」开关打开 → 显示；
+   *  - 开关关闭但**本学期数据里存在该周末日的课程（任意周）** → 仍然显示。
+   * 只要教务系统里有周末课，就一定会出现对应的列，不会因开关或周次判定被隐藏。
+   */
   private weekdays(): number[] {
-    if (this.cfg.showWeekend) {
-      return [1, 2, 3, 4, 5, 6, 7];
+    const out: number[] = [1, 2, 3, 4, 5];
+    for (let d: number = 6; d <= 7; d++) {
+      if (this.cfg.showWeekend || this.hasWeekendCourse(d)) {
+        out.push(d);
+      }
     }
-    return [1, 2, 3, 4, 5];
+    return out;
+  }
+
+  /** 数据中是否存在该周末日（周六/周日）的课程（不限定周次，避免漏课） */
+  private hasWeekendCourse(weekday: number): boolean {
+    for (const c of this.courses) {
+      if (c.weekday === weekday) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** 课程名 hash 索引 */
@@ -452,7 +511,7 @@ export struct ScheduleView {
       this.terms[this.selectedTermIndex] = term;
       AppState.term = term;
       this.customTermStart = term.startDate;
-      const list: CourseItem[] = await JwApi.getCourses(term.id);
+      const list: CourseItem[] = await JwApi.getCoursesSmart(term.id, false);
       this.courses = list;
       const week: number = DateUtil.weekOfTerm(term, new Date());
       this.currentWeek = week < 1 ? 1 : week;
@@ -510,6 +569,26 @@ export struct ScheduleView {
             .margin({ left: 8 })
             .onClick(() => {
               this.showSettingsSheet = true;
+            })
+            // 刷新按钮：强制重新查询识别课表（图标随刷新旋转）
+            Column() {
+              Image($r('app.media.refresh_arrow'))
+                .width(18)
+                .height(18)
+                .fillColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+                .opacity(0.9)
+                .rotate({ angle: this.refreshAngle })
+            }
+            .width(28)
+            .height(28)
+            .borderRadius(14)
+            .backgroundColor('#26FFFFFF')
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
+            .justifyContent(FlexAlign.Center)
+            .alignItems(HorizontalAlign.Center)
+            .margin({ left: 6 })
+            .onClick(() => {
+              this.refreshCourses();
             })
           }
           .alignItems(VerticalAlign.Center)
@@ -1137,15 +1216,30 @@ export struct ScheduleView {
   /** 页面消失：注销横竖屏监听 */
   aboutToDisappear(): void {
     this.landscapeListener = null;
+    this.wideListener = null;
   }
 
-  /** 监听屏幕方向变化（横屏时左列周数选择 + 右列课程表） */
+  /** 监听窗口尺寸/方向变化：窗口缩放或旋转时实时切换布局（判定规则见 ResponsiveUtil） */
   private listenLandscape(): void {
-    this.isLandscape = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)').matches;
-    this.landscapeListener = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
+    const mq = this.getUIContext().getMediaQuery();
+    this.landscapeMq = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE).matches;
+    this.wideMq = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE).matches;
+    this.applyLayout();
+    this.landscapeListener = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE);
     this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
-      this.isLandscape = res.matches;
+      this.landscapeMq = res.matches;
+      this.applyLayout();
     });
+    this.wideListener = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE);
+    this.wideListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.wideMq = res.matches;
+      this.applyLayout();
+    });
+  }
+
+  /** 组合出布局判定：宽 ≥ 600vp 且横向 → 大屏布局，否则手机端布局（见 ResponsiveUtil.isWideLayout） */
+  private applyLayout(): void {
+    this.isLandscape = ResponsiveUtil.isWideLayout(this.wideMq, this.landscapeMq);
   }
 
   /** 课程表主体（竖屏/横屏右列共用，保证渲染完全一致、区域大小不变） */
@@ -1167,6 +1261,17 @@ export struct ScheduleView {
             Text(`本周共 ${this.weekCourseCount()} 节课`)
               .fontSize(11)
               .fontColor(this.schedTextSec())
+            // 课表原文件：查看本次识别所用的原始导入文件（教务系统课表接口原始响应）
+            Text('课表原文件')
+              .fontSize(11)
+              .fontColor(Theme.colorOf(this.themeColor))
+              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+              .backgroundColor($r('app.color.bg_chip'))
+              .borderRadius(10)
+              .margin({ left: 8 })
+              .onClick(() => {
+                AppState.stack.pushPath({ name: Const.ROUTE_COURSE_RAW });
+              })
             Blank()
             Text('点击课程查看详情')
               .fontSize(11)

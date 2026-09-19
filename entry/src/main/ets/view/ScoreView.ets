@@ -18,6 +18,7 @@ import { AntiPeepOverlay } from './common/AntiPeepOverlay';
 import { AntiPeepManager } from '../common/AntiPeepManager';
 import { WebSurface } from './WebSurface';
 import { promptAction, mediaquery } from '@kit.ArkUI';
+import { ResponsiveUtil } from '../common/ResponsiveUtil';
 
 @Component
 export struct ScoreView {
@@ -43,6 +44,11 @@ export struct ScoreView {
   @State refreshing: boolean = false;
   @State isPeeped: boolean = false;
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
+  /** 窗口宽度断点监听（PC 窗口缩放时切换布局） */
+  private wideListener: mediaquery.MediaQueryListener | null = null;
+  /** 当前窗口是否横向 / 是否宽 ≥ 600vp（两者组合出布局判定） */
+  private landscapeMq: boolean = false;
+  private wideMq: boolean = false;
   private peepMgr: AntiPeepManager = new AntiPeepManager();
 
   /**
@@ -210,17 +216,31 @@ export struct ScoreView {
 
   aboutToDisappear(): void {
     this.landscapeListener = null;
+    this.wideListener = null;
     this.peepMgr.stop();
   }
 
-  /** 监听屏幕方向变化（横屏时拆分为两列铺满屏幕） */
+  /** 监听窗口尺寸/方向变化：窗口缩放或旋转时实时切换布局（判定规则见 ResponsiveUtil） */
   private listenLandscape(): void {
-    const mq: mediaquery.MediaQueryResult = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
-    this.isLandscape = mq.matches;
-    this.landscapeListener = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
+    const mq = this.getUIContext().getMediaQuery();
+    this.landscapeMq = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE).matches;
+    this.wideMq = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE).matches;
+    this.applyLayout();
+    this.landscapeListener = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE);
     this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
-      this.isLandscape = res.matches;
+      this.landscapeMq = res.matches;
+      this.applyLayout();
     });
+    this.wideListener = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE);
+    this.wideListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.wideMq = res.matches;
+      this.applyLayout();
+    });
+  }
+
+  /** 组合出布局判定：宽 ≥ 600vp 且横向 → 大屏布局，否则手机端布局（见 ResponsiveUtil.isWideLayout） */
+  private applyLayout(): void {
+    this.isLandscape = ResponsiveUtil.isWideLayout(this.wideMq, this.landscapeMq);
   }
 
   /** 首页顶栏切换学期后：同步选中学期并重新加载成绩 */

@@ -125,6 +125,162 @@ export interface TermGpa {
   gpa: number;
 }
 
+/**
+ * 总体成绩统计（移植自参考项目 zhengfang-apk 的「成绩-总体」）：
+ * 累计绩点 / 已修学分 / 总课程数 + 成绩分布（优 ≥90、良 ≥80、中 ≥70、及 ≥60 门数）。
+ */
+export interface OverallGradeStats {
+  /** 累计绩点（索引页提取值优先，缺失时按学分加权计算，保留 2 位） */
+  gpa: string;
+  /** 已修学分（索引页提取优先，缺失时按明细累加，保留 1 位） */
+  credits: string;
+  /** 总课程数 */
+  courseCount: number;
+  excellent: number;
+  good: number;
+  medium: number;
+  pass: number;
+}
+
+/** 总体成绩结果：统计 + 课程明细 */
+export interface OverallGrades {
+  stats: OverallGradeStats;
+  courses: ScoreItem[];
+}
+
+/** 可选教学班（快捷选课列表项） */
+export interface SelectableClass {
+  /** 课程代码 kch_id */
+  kchId: string;
+  /** 教学班号 jxb_id */
+  jxbId: string;
+  /** 加密教学班号 do_jxb_id（选课/退课优先使用） */
+  doJxbId: string;
+  courseName: string;
+  className: string;
+  teacher: string;
+  time: string;
+  location: string;
+  credit: string;
+  /** 容量上限 */
+  capacity: number;
+  /** 已选人数 */
+  selected: number;
+  /** 是否已选 */
+  chosen: boolean;
+  /**
+   * 提交选课时需要合并的**原始参数**（新正方：课程行字段 + 轮次参数；
+   * 教学班详情返回后追加教学班行字段）——对应参考项目 `course.raw + section.raw`。
+   */
+  raw: Record<string, string>;
+}
+
+/** 选课轮次（新正方：入口页每个 queryCourse 分类对应一个 scope，参数来自 Display 接口合并） */
+export interface SelectScope {
+  /** 内部 id（zf-<index>-<kklxdm>） */
+  id: string;
+  /** 显示名（kklxmc 或类别代码） */
+  label: string;
+  /** 学年学期（xkxnm-xkxqm，用于展示） */
+  term: string;
+  /** 该轮次的完整请求参数（隐藏域合并结果，提交列表/选课接口时按白名单取用） */
+  params: Record<string, string>;
+}
+
+
+/** 已选课程（快捷选课 - 已选列表；xkxnm/xkxqm 供退选提交使用） */
+export interface SelectedCourseItem {
+  kchId: string;
+  jxbId: string;
+  doJxbId: string;
+  courseName: string;
+  className: string;
+  teacher: string;
+  time: string;
+  location: string;
+  credit: string;
+  /** 选课学年（xkxnm） */
+  xkxnm: string;
+  /** 选课学期（xkxqm） */
+  xkxqm: string;
+}
+
+/** 选课首页隐藏参数（xkkz 等），供课程查询/选课/退课复用 */
+export interface SelectContext {
+  /** 轮次控制 ID（正方 V9 字段名为 xkkz_xh，旧版为 xkkz_id） */
+  xkkzId: string;
+  /** 轮次控制字段名（'xkkz_id' 或 'xkkz_xh'） */
+  xkkzKey: string;
+  kklxdm: string;
+  njdmId: string;
+  zyhId: string;
+  jgId: string;
+  xqhId: string;
+  xkxnm: string;
+  xkxqm: string;
+  xklc: string;
+  rwlx: string;
+}
+
+/**
+ * 抢课目标（队列项）—— 对应参考项目 AcademicGrabItem：
+ * 记录目标课程/教学班 + 匹配模式 + 运行状态，支持多个目标排队依次/并行抢。
+ */
+export interface GrabTarget {
+  /** 课程代码（唯一键之一） */
+  kchId: string;
+  courseName: string;
+  teacher: string;
+  time: string;
+  /** 教学班号（精确模式命中该教学班） */
+  jxbId: string;
+  /** 加密教学班号（优先用于提交） */
+  doJxbId: string;
+  /** 是否参与抢课 */
+  enabled: boolean;
+  /** 状态：waiting=待抢 / success=成功 / failed=失败 */
+  status: string;
+  /** 已尝试轮次 */
+  attempts: number;
+  /**
+   * 匹配模式：
+   *  - 'exact' 精确模式（只抢指定教学班）
+   *  - 'fuzzy' 模糊匹配（按课程名，任意教学班有空位就抢 —— 对应参考项目模糊匹配/捡漏）
+   */
+  matchMode: string;
+}
+
+/** 抢课运行策略（定时/并发/捡漏）—— 对应参考项目 GrabRunPolicy */
+export interface GrabPolicy {
+  /** 轮询间隔（秒，支持 0.5 起） */
+  intervalSec: number;
+  /** 最大轮次（0 = 不限） */
+  maxRounds: number;
+  /** 抢到一门后是否继续抢队列中的其它课程 */
+  continueAfterSuccess: boolean;
+  /** 并行处理的目标数（1=顺序模式；2/3=并行模式，对应参考项目 parallel mode） */
+  parallelWorkers: number;
+  /** 延时开始秒数（0=立即开始，对应参考项目"定时启动"） */
+  delaySec: number;
+  /**
+   * 捡漏模式：轮询中若发现"已选人数比上一轮减少"（有人退课），立即尝试抢占，
+   * 不再等下一个间隔。对应参考项目 fuzzy/捡漏的 selected < lastSelected 判定。
+   */
+  leakMode: boolean;
+}
+
+/** 教学班筛选条件（对应参考项目 AcademicCourseFilter） */
+export interface ClassFilter {
+  teacher: string;
+  time: string;
+  location: string;
+  credit: string;
+  onlyAvailable: boolean;
+}
+
+
+
+
 /** 登录结果 */
 export interface LoginResult {
   success: boolean;

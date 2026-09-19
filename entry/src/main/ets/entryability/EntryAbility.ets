@@ -1,6 +1,7 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
+import { display } from '@kit.ArkUI';
 import { fileIo } from '@kit.CoreFileKit';
 import { AppState } from '../common/AppState';
 import { DataStore } from '../common/DataStore';
@@ -11,6 +12,22 @@ import { NewsApi } from '../api/NewsApi';
 const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
+  /**
+   * 计算并广播"窗口化"状态到 AppStorage('winFloating')：
+   * 非全屏 且 窗口矩形小于屏幕（PC 上拖动缩放的浮动窗口）→ true。
+   * 全屏 / 最大化时窗口尺寸铺满屏幕，返回 false（底栏保持原有贴底样式）。
+   */
+  private static publishFloating(win: window.Window): void {
+    try {
+      const props: window.WindowProperties = win.getWindowProperties();
+      const d = display.getDefaultDisplaySync();
+      const smaller: boolean = props.windowRect.width < d.width || props.windowRect.height < d.height;
+      AppStorage.setOrCreate('winFloating', !props.isFullScreen && smaller);
+    } catch (err) {
+      AppStorage.setOrCreate('winFloating', false);
+    }
+  }
+
   /** Ability 创建：初始化数据存储、头像开关、深色模式监听 */
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
@@ -122,6 +139,12 @@ export default class EntryAbility extends UIAbility {
         } else if (data.type === window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR) {
           AppStorage.setOrCreate('bottomInsetPx', data.area.bottomRect.height);
         }
+      });
+      // 是否"窗口化"（PC 上拖动缩放的浮动窗口，非全屏/最大化）：
+      // 浮动窗口底部没有系统安全区，悬浮底栏固定贴底会显得过低 → 需要额外留白
+      EntryAbility.publishFloating(mainWindow);
+      mainWindow.on('windowStatusChange', () => {
+        EntryAbility.publishFloating(mainWindow);
       });
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'Failed to set full screen. Cause: %{public}s', JSON.stringify(err));

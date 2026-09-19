@@ -2,6 +2,7 @@
  * 我的：学业概览 + 常用功能 + 设置
  */
 import { promptAction, mediaquery } from '@kit.ArkUI';
+import { ResponsiveUtil } from '../common/ResponsiveUtil';
 import { common, contextConstant, ConfigurationConstant, Want } from '@kit.AbilityKit';
 import { storageStatistics, fileIo, picker, fileUri } from '@kit.CoreFileKit';
 import { webview } from '@kit.ArkWeb';
@@ -42,6 +43,11 @@ export struct MineView {
   /** 恢复备份：半模态面板 */
   @State showBackupSheet: boolean = false;
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
+  /** 窗口宽度断点监听（PC 窗口缩放时切换布局） */
+  private wideListener: mediaquery.MediaQueryListener | null = null;
+  /** 当前窗口是否横向 / 是否宽 ≥ 600vp（两者组合出布局判定） */
+  private landscapeMq: boolean = false;
+  private wideMq: boolean = false;
   onLogout: () => void = () => {
   };
   /** 前往登录页（不退出登录，从"我的"页退出弹窗第二项触发） */
@@ -59,6 +65,12 @@ export struct MineView {
     }
     if (t === 'blue') {
       return '天空蓝';
+    }
+    if (t === 'orange') {
+      return '落日橙';
+    }
+    if (t === 'purple') {
+      return '紫罗兰';
     }
     return '农大绿';
   }
@@ -105,16 +117,30 @@ export struct MineView {
 
   aboutToDisappear(): void {
     this.landscapeListener = null;
+    this.wideListener = null;
   }
 
-  /** 监听屏幕方向变化（横屏时拆分为两列铺满屏幕） */
+  /** 监听窗口尺寸/方向变化：窗口缩放或旋转时实时切换布局（判定规则见 ResponsiveUtil） */
   private listenLandscape(): void {
-    const mq: mediaquery.MediaQueryResult = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
-    this.isLandscape = mq.matches;
-    this.landscapeListener = this.getUIContext().getMediaQuery().matchMediaSync('(orientation: landscape)');
+    const mq = this.getUIContext().getMediaQuery();
+    this.landscapeMq = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE).matches;
+    this.wideMq = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE).matches;
+    this.applyLayout();
+    this.landscapeListener = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE);
     this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
-      this.isLandscape = res.matches;
+      this.landscapeMq = res.matches;
+      this.applyLayout();
     });
+    this.wideListener = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE);
+    this.wideListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.wideMq = res.matches;
+      this.applyLayout();
+    });
+  }
+
+  /** 组合出布局判定：宽 ≥ 600vp 且横向 → 大屏布局，否则手机端布局（见 ResponsiveUtil.isWideLayout） */
+  private applyLayout(): void {
+    this.isLandscape = ResponsiveUtil.isWideLayout(this.wideMq, this.landscapeMq);
   }
 
   /** 异步刷新缓存大小（MB）
@@ -297,7 +323,7 @@ export struct MineView {
             const n: number = DataStore.importAll(payload);
             // 主题色（旧字段，兼容）
             const theme0: string = obj['themeColor'] ?? '';
-            if (theme0 === 'red' || theme0 === 'blue' || theme0 === 'green') {
+            if (Theme.isBuiltin(theme0)) {
               Theme.apply(theme0);
             } else {
               Theme.restore();
@@ -321,7 +347,7 @@ export struct MineView {
             DataStore.put(DataStore.KEY_COURSE_COLOR_MAP, obj['courseColorMap'] ?? '');
             DataStore.setCourseCustomColors(obj['courseCustomColor'] ?? '');
             const theme: string = obj['themeColor'] ?? '';
-            if (theme === 'red' || theme === 'blue' || theme === 'green') {
+            if (Theme.isBuiltin(theme)) {
               Theme.apply(theme);
             }
             this.getUIContext().getPromptAction().showToast({ message: '恢复成功（旧版备份），重新进入课程表查看' });
@@ -748,6 +774,13 @@ export struct MineView {
                 AppState.stack.pushPath({ name: Const.ROUTE_ACADEMIC });
               }
             })
+            Divider().color($r('app.color.divider'))
+            // 快捷选课（BETA）：移植自参考项目 zhengfang-apk 的正方选课/抢课模块
+            SettingRow({
+              icon: '', title: '快捷选课', value: 'BETA', onTap: () => {
+                AppState.stack.pushPath({ name: Const.ROUTE_QUICK_SELECT });
+              }
+            })
           }
           .width('100%')
           .padding({ left: 16, right: 16 })
@@ -842,6 +875,8 @@ export struct MineView {
                     DataStore.remove(DataStore.KEY_JWC_CAL);
                     DataStore.remove(DataStore.KEY_PHOTO);
                     DataStore.remove(DataStore.KEY_CACHE_TIME);
+                    // 课表"每天只查询一次"标记：清除后下次进入课表会重新查询识别
+                    DataStore.remove(DataStore.KEY_COURSES_FETCH);
                     // 清 WebView DOM 存储（新闻等网页缓存），保留 Cookie（教务登录会话）
                     try {
                       webview.WebStorage.deleteAllData();
@@ -894,7 +929,7 @@ export struct MineView {
             Divider().color($r('app.color.divider'))
             // 8. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于应用', value: 'v1.3.6', onTap: () => {
+              icon: '', title: '关于应用', value: 'v1.3.8', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
@@ -1079,6 +1114,13 @@ export struct MineView {
           AppState.stack.pushPath({ name: Const.ROUTE_ACADEMIC });
         }
       })
+      Divider().color($r('app.color.divider'))
+      // 快捷选课（BETA）：移植自参考项目 zhengfang-apk 的正方选课/抢课模块
+      SettingRow({
+        icon: '', title: '快捷选课', value: 'BETA', onTap: () => {
+          AppState.stack.pushPath({ name: Const.ROUTE_QUICK_SELECT });
+        }
+      })
     }
     .width('100%')
     .padding({ left: 16, right: 16 })
@@ -1166,6 +1208,8 @@ export struct MineView {
               DataStore.remove(DataStore.KEY_JWC_CAL);
               DataStore.remove(DataStore.KEY_PHOTO);
               DataStore.remove(DataStore.KEY_CACHE_TIME);
+              // 课表"每天只查询一次"标记：清除后下次进入课表会重新查询识别
+              DataStore.remove(DataStore.KEY_COURSES_FETCH);
               try {
                 webview.WebStorage.deleteAllData();
               } catch (e) {
@@ -1215,7 +1259,7 @@ export struct MineView {
       Divider().color($r('app.color.divider'))
       // 8. 关于（打开独立页面）
       SettingRow({
-        icon: '', title: '关于应用', value: 'v1.3.6', onTap: () => {
+        icon: '', title: '关于应用', value: 'v1.3.8', onTap: () => {
           AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
         }
       })

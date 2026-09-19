@@ -31,6 +31,10 @@ import { PrivacyPage } from './PrivacyPage';
 import { TermsPage } from './TermsPage';
 import { ScheduleView } from './ScheduleView';
 import { ScoreView } from './ScoreView';
+import { ChangelogPage } from './ChangelogPage';
+import { CourseRawPage } from './CourseRawPage';
+import { QuickSelectPage } from './QuickSelectPage';
+import { ResponsiveUtil } from '../common/ResponsiveUtil';
 
 @Component
 export struct MainView {
@@ -44,6 +48,8 @@ export struct MainView {
   @StorageProp('wallpaperId') wallpaperId: string = 'none';
   /** 壁纸亮度（自动对比度适配用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  /** 是否 PC 窗口化（非全屏/最大化）：窗口底部无系统安全区，底栏需额外留白 */
+  @StorageProp('winFloating') winFloating: boolean = false;
   @State currentIndex: number = 0;
   private tabsController: HdsTabsController = new HdsTabsController();
   onLogout: () => void = () => {
@@ -51,6 +57,21 @@ export struct MainView {
   /** 前往登录页（不退出登录）：由 MineView 退出弹窗触发，向上传给 Index */
   onGotoLogin: () => void = () => {
   };
+
+  /**
+   * 悬浮底栏距窗口底部的距离（vp）。
+   * - 常规（手机 / 平板 / PC 全屏、最大化）：仅让出系统导航条安全区，尽量贴底；
+   * - PC 窗口化（浮动窗口）：窗口底部没有系统安全区，沿用"贴底"会显得过低，
+   *   故保底留出 16vp，与全屏观感一致。
+   */
+  private barBottomMargin(): number {
+    const inset: number = this.getUIContext().px2vp(this.bottomInsetPx);
+    const base: number = 4 + inset;
+    if (ResponsiveUtil.isDesktop() && this.winFloating) {
+      return Math.max(base, 16);
+    }
+    return base;
+  }
 
   /** 页面出现：处理桌面卡片点击跳转（AppState.openPageRequest） */
   aboutToAppear(): void {
@@ -115,6 +136,12 @@ export struct MainView {
       TermsPage()
     } else if (name === Const.ROUTE_ABOUT) {
       AboutPage()
+    } else if (name === Const.ROUTE_CHANGELOG) {
+      ChangelogPage()
+    } else if (name === Const.ROUTE_COURSE_RAW) {
+      CourseRawPage()
+    } else if (name === Const.ROUTE_QUICK_SELECT) {
+      QuickSelectPage()
     } else if (name === Const.ROUTE_EMPTY_ROOM) {
       KxjsPage()
     } else if (name === Const.ROUTE_NEWS_DETAIL) {
@@ -228,7 +255,7 @@ export struct MainView {
         .barFloatingStyle({
           barWidth: { smallWidth: 340, mediumWidth: 420, largeWidth: 500 },
           barSideMargin: 12, // 悬浮栏距屏幕左右边缘
-          barBottomMargin: 4 + this.getUIContext().px2vp(this.bottomInsetPx), // 距屏幕底部尽量小（贴近底部，含小白条安全区）
+          barBottomMargin: this.barBottomMargin(), // 距屏幕底部（PC 窗口化时自动多留白，见方法注释）
           adaptToHandedness: true, // 左右手自适应
           // 光效颜色跟随主题色（点光源与主题色一致）
           lightColor: Theme.rgba(Theme.colorOf(this.themeColor), this.isDarkMode ? 0.40 : 0.28),

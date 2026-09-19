@@ -149,7 +149,8 @@ export struct PrivacyGatePage {
       Button(primaryText)
         .fontSize(14)
         .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.brand_on'))
+        // 品牌绿上使用自动对比度文字色（浅色/深色品牌色均为深色文字，清晰可读）
+        .fontColor(Theme.onBrand())
         .backgroundColor($r('app.color.brand'))
         .height(42)
         .layoutWeight(1)
@@ -280,9 +281,14 @@ export struct PrivacyGatePage {
               Button('同意并继续')
                 .fontSize(14)
                 .fontWeight(FontWeight.Medium)
-                .fontColor($r('app.color.brand_on'))
-                .backgroundColor(Theme.colorOf(this.themeColor))
-                .opacity(this.agreeTerms && this.agreePrivacy ? 1 : 0.5)
+                // 文字色按背景亮度自动取深/浅（品牌绿上深色文字对比度更高）；
+                // 未勾选时改为「中性底 + 次级文字」，避免用半透明表达禁用导致文字看不清
+                .fontColor(this.agreeTerms && this.agreePrivacy
+                  ? Theme.onBrand()
+                  : $r('app.color.text_secondary'))
+                .backgroundColor(this.agreeTerms && this.agreePrivacy
+                  ? $r('app.color.brand')
+                  : $r('app.color.bg_chip'))
                 .height(42)
                 .layoutWeight(1)
                 .borderRadius(21)
