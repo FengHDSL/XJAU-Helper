@@ -398,6 +398,7 @@ export class JwApi {
         const result: LoginResult = await JwApi.loginReal(account, password, captcha);
         if (result.success) {
           DataStore.put(DataStore.KEY_LOGIN_SYSTEM, 'original'); // 教务登录
+          DataStore.put(DataStore.KEY_LOGIN_METHOD, 'pwd'); // 实际登录方式：教务系统密码直登
         }
         return result;
       } catch (e) {
@@ -440,6 +441,7 @@ export class JwApi {
       const result: LoginResult = await JwApi.loginReal(account, password, captcha);
       if (result.success) {
         DataStore.put(DataStore.KEY_LOGIN_SYSTEM, 'original'); // 教务登录
+        DataStore.put(DataStore.KEY_LOGIN_METHOD, 'pwd'); // 实际登录方式：教务系统密码直登
       }
       return result;
     } catch (e) {
@@ -460,6 +462,11 @@ export class JwApi {
   /** 当前登录阶段（日志诊断用）：getPage=取登录页 / getKey=取公钥 / encrypt=RSA加密 / submit=提交表单 / profile=验证资料 */
   private static loginStage: string = 'init';
 
+  /** 当前登录阶段（供 UI 判断登录是否已进入收尾：'profile' 表示会话已建立、正在校验资料） */
+  static stage(): string {
+    return JwApi.loginStage;
+  }
+
   /**
    * 统一身份认证（CAS）原生登录主链路。
    * - 成功：建立 jwglxt 会话、缓存资料、按需持久化 CASTGC（7天免登录），返回 LoginResult。
@@ -477,6 +484,8 @@ export class JwApi {
       // 注入教务系统会话给全站接口
       HttpClient.setCookie(res.cookie);
       DataStore.put(DataStore.KEY_SESSION_COOKIE, res.cookie);
+      // 会话已建立 → 进入收尾阶段（后续仅为资料校验）；UI 超时保护据此判定"登录实际已成功"
+      JwApi.loginStage = 'profile';
       // 服务大厅登录：始终持久化 CASTGC（冷启动从服务大厅重新桥接"新教务系统"刷新用）。
       // rememberMe（7天免登录）只影响服务端 TGT 有效期；本地持久化不依赖勾选。
       if (res.castgc.length > 0) {
@@ -587,6 +596,8 @@ export class JwApi {
 
     // ── 成功判定：进入主页 或 携带 JSESSIONID 且资料可获取（双保险，模仿 HiXD）──
     if (enteredHome || hasJsession) {
+      // 会话已建立 → 进入收尾阶段（后续仅为资料校验）；UI 超时保护据此判定"登录实际已成功"
+      JwApi.loginStage = 'profile';
       try {
         const profile: UserProfile = await JwApi.getProfile();
         if (profile.name.length > 0) {

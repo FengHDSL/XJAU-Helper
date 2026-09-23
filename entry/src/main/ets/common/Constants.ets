@@ -78,6 +78,10 @@ export class Const {
   static readonly ROUTE_SEARCH: string = 'SearchResultPage';
   static readonly ROUTE_WEB_PAGE: string = 'WebViewPage';
   static readonly ROUTE_WALLPAPER: string = 'WallpaperPage';
+  /** 背景裁剪页（外观设置 → 背景 → 更换背景，选图后裁剪缩放平移） */
+  static readonly ROUTE_BG_CROP: string = 'BackgroundCropPage';
+  /** 字体管理页（外观设置 → 字体 → 字体管理） */
+  static readonly ROUTE_FONT_MANAGE: string = 'FontManagePage';
 
   /** 教务系统网址（应用内 WebView 打开） */
   static readonly WEB_PORTAL_URL: string = 'https://jwxt.xjau.edu.cn/jwglxt/xtgl/index_initMenu.html';
@@ -94,7 +98,8 @@ export class Const {
   /** 服务大厅→新教务系统 跳转地址（authserver CAS，service=jziotlogin?gid_=...；用户 2026-08-19 提供，服务大厅点开新教务系统的真实地址） */
   static readonly JW_BRIDGE_FROM_HALL_URL: string =
     'https://authserver.xjau.edu.cn/authserver/login?service=http%3A%2F%2Fjwxt.xjau.edu.cn%2Fsso%2Fjziotlogin%3Fgid_%3DTWdOQ25Nbm5POW9pQ0NQQzVUZ3kzc2hxRlNHSFhrY3dvRnZqQ3liMVc0eEJjRERUWk84Sy9wS0ZZYTRwVUZxVkxKSGZEVTlHZ2xOak9veERKQktmSUE9PQ%26amp_sec_version_%3D1%26EMAP_LANG%3Dzh%26THEME%3D';
-  /** 服务大厅→教务系统桥接地址：网页版登录"服务大厅"模式登录成功后跳转，换取 jwglxt 会话 */
+  /** 【已废弃·勿用】服务大厅→教务系统桥接地址（裸 /sso/jziotlogin，无 gid_/ticket）
+   *  真机不可靠（项目已验证），网页版登录与冷启动重登统一改用 JW_BRIDGE_FROM_HALL_URL。 */
   static readonly JW_SSO_BRIDGE_URL: string = 'https://jwxt.xjau.edu.cn/sso/jziotlogin';
   /**
    * 服务大厅登录入口（authserver CAS 登录页，service 指向 rhmh）——

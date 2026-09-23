@@ -9,7 +9,7 @@ export class Immersive {
   /**
    * 通用背景模糊：开启时返回指定模糊档位，关闭时返回 BlurStyle.NONE
    * @param style 模糊档位（BlurStyle.Thin / Regular / Thick ...）
-   * @param on 应用内开关（个性主题 → 沉浸光感）
+   * @param on 应用内开关（外观设置 → 沉浸光感）
    */
   static blur(style: BlurStyle, on: boolean): BlurStyle {
     return on ? style : BlurStyle.NONE;

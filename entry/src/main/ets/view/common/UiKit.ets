@@ -1,8 +1,15 @@
 /**
  * 通用小组件：卡片标题、标签、空状态、加载中、统计格
+ *
+ * SectionHeader / SettingRow / BarTitle 的标题接入全局字体设置
+ * （移植自参考项目 miha_hm `pages/FontManagePage.ets` 的字体应用逻辑）：
+ *   fontWeightMode/fontWeightValue/fontFamilyZh/fontFamilyEn 变化即时刷新。
  */
 import { Theme } from '../../common/ThemeUtil';
+import { AppearanceStore } from '../../common/AppearanceStore';
 import { Immersive } from './Immersive';
+import { GlassMaterial } from '../../common/GlassMaterial';
+import { MaterialButton } from './MaterialButton';
 import { WallpaperTone } from '../../common/WallpaperTone';
 import { BackButton } from './BackButton';
 
@@ -14,6 +21,11 @@ export struct SectionHeader {
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('subtitleColor') subtitleColor: string = '';
+  // ── 字体管理联动（字体管理页设置后全局生效；这几个键用于登记依赖）──
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
+  @StorageProp('fontFamilyZh') ffZh: string = '';
+  @StorageProp('fontFamilyEn') ffEn: string = '';
   @Prop title: string = '';
   @Prop action: string = '';
   onAction: () => void = () => {
@@ -30,7 +42,8 @@ export struct SectionHeader {
           .margin({ right: 8 })
         Text(this.title)
           .fontSize(16)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(AppearanceStore.fontWeight(FontWeight.Bold))
+          .fontFamily(AppearanceStore.fontFamilyFor(this.title))
           .fontColor($r('app.color.text_primary'))
       }
 
@@ -43,7 +56,7 @@ export struct SectionHeader {
             .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
           Text('›')
             .fontSize(14)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
             .margin({ left: 2 })
         }
         .onClick(() => {
@@ -88,7 +101,7 @@ export struct EmptyTip {
       }
       Text(this.text)
         .fontSize(13)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
         .textAlign(TextAlign.Center)
     }
     .width('100%')
@@ -114,7 +127,7 @@ export struct LoadingTip {
         .color(Theme.colorOf(this.themeColor))
       Text(this.text)
         .fontSize(12)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
         .margin({ top: 10 })
         .textAlign(TextAlign.Center)
     }
@@ -139,7 +152,7 @@ export struct StatCell {
         .fontColor(this.color)
       Text(this.label)
         .fontSize(11)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
         .margin({ top: 4 })
     }
     .layoutWeight(1)
@@ -156,6 +169,11 @@ export struct SettingRow {
   @Prop showArrow: boolean = true;
   @Prop titleColor: Resource = $r('app.color.text_primary');
   @Prop valueColor: ResourceColor = $r('app.color.text_tertiary');
+  // ── 字体管理联动（登记依赖，字体管理页改动后本行实时刷新）──
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
+  @StorageProp('fontFamilyZh') ffZh: string = '';
+  @StorageProp('fontFamilyEn') ffEn: string = '';
   onTap: () => void = () => {
   };
 
@@ -168,15 +186,17 @@ export struct SettingRow {
       }
       Text(this.title)
         .fontSize(15)
+        .fontWeight(AppearanceStore.fontWeight(FontWeight.Normal))
+        .fontFamily(AppearanceStore.fontFamilyFor(this.title))
         .fontColor(this.titleColor)
       Blank()
       Text(this.value)
         .fontSize(13)
-        .fontColor(this.valueColor)
+        .fontColor(GlassMaterial.grayTertiary(this.valueColor))
       if (this.showArrow) {
         Text('›')
           .fontSize(16)
-          .fontColor(this.valueColor)
+          .fontColor(GlassMaterial.grayTertiary(this.valueColor))
           .margin({ left: 6 })
       }
     }
@@ -203,7 +223,7 @@ export struct PickRow {
     Row() {
       Text(this.label)
         .fontSize(13)
-        .fontColor($r('app.color.text_secondary'))
+        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
         .width(86)
       Blank()
       Text(this.value.length > 0 ? this.value : this.placeholder)
@@ -215,13 +235,19 @@ export struct PickRow {
         .textOverflow({ overflow: TextOverflow.MARQUEE })
       Text('›')
         .fontSize(16)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
         .margin({ left: 6 })
     }
     .width('100%')
     .height(46)
     .padding({ left: 10, right: 10 })
-    .backgroundColor($r('app.color.bg_chip'))
+    // 玻璃底（半透明，磨砂才可见；开关关闭时回落原 bg_chip 实色）
+    .backgroundColor(GlassMaterial.cardBg($r('app.color.bg_chip'), AppStorage.get<boolean>('isDarkMode') ?? false))
+    // 玻璃质感：磨砂 + 亮边 + 微阴影 + 圆角裁剪
+    .backgroundBlurStyle(GlassMaterial.cardBlur())
+    .border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
+    .shadow(GlassMaterial.cardShadowStyle())
+    .clip(true)
     .borderRadius(10)
     .margin({ bottom: 10 })
     .onClick(() => {
@@ -252,6 +278,11 @@ export struct BarTitle {
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（顶栏文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  // ── 字体管理联动（字体管理页设置后，各页顶栏标题实时刷新）──
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
+  @StorageProp('fontFamilyZh') ffZh: string = '';
+  @StorageProp('fontFamilyEn') ffEn: string = '';
 
   /** 顶栏文字颜色：始终按壁纸明暗自适应（两档顶栏样式均生效） */
   private titleColor(): ResourceColor {
@@ -262,7 +293,8 @@ export struct BarTitle {
     Column() {
       Text(this.title)
         .fontSize(20)
-        .fontWeight(FontWeight.Bold)
+        .fontWeight(AppearanceStore.fontWeight(FontWeight.Bold))
+        .fontFamily(AppearanceStore.fontFamilyFor(this.title))
         .fontColor(this.titleColor())
         .height(28)
         .lineHeight(28)
@@ -353,6 +385,7 @@ export struct PageHeader {
       Blank()
 
       // 右侧操作区：文字按钮（红底白字）与收集开关可并存（如日志页：清空 + 开关）
+      // 整体高 34 与左侧返回按钮一致 → 中心中线对齐
       if (this.showActionToggle) {
         Row() {
           Text(this.actionToggleLabel.length > 0 ? this.actionToggleLabel : (this.actionToggleOn ? '收集中' : '已暂停'))
@@ -365,21 +398,32 @@ export struct PageHeader {
               this.onActionToggle(on);
             })
         }
+        .height(34)
+        .alignItems(VerticalAlign.Center)
       }
       if (this.actionText.length > 0) {
-        Text(this.actionText)
-          .fontSize(13)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-          .padding({ left: 14, right: 14, top: 5, bottom: 5 })
-          .backgroundColor(this.actionTone === 'theme' ? Theme.colorOf(this.themeColor) :
-            (this.actionTone === 'glass' ? '#33FFFFFF' : '#DB5252'))
-          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-          .borderRadius(14)
-          .margin({ left: 10 })
-          .onClick(() => {
+        // 顶栏操作按钮：沉浸光感**常驻**（btnPersistent=true，不随全局开关/按压消失），
+        // 且保留原色语义：theme=主题色 / red=警示红（经 btnTint 叠层与材质共存，见 MaterialButton 注释）
+        MaterialButton({
+          btnRadius: 17,
+          btnPersistent: true,
+          btnTint: this.actionTone === 'theme' ? Theme.colorOf(this.themeColor) :
+            (this.actionTone === 'red' ? '#DB5252' : ''),
+          btnTintRatio: this.actionTone === 'glass' ? 0 : 0.85,
+          btnMargin: { left: 10 },
+          btnOnClick: (): void => {
             this.onAction();
-          })
+          }
+        }) {
+          Text(this.actionText)
+            .fontSize(13)
+            .fontWeight(FontWeight.Medium)
+            // 实底语义（主题色/警示红）用白字；玻璃底用顶栏自适应字色，保证可读
+            .fontColor(this.actionTone === 'glass' ? WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode) : Color.White)
+            .height(34)
+            .padding({ left: 14, right: 14 })
+            .textAlign(TextAlign.Center)
+        }
       }
     }
       .width('100%')

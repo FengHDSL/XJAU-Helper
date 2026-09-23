@@ -8,6 +8,7 @@ import { common } from '@kit.AbilityKit';
 import { DataStore } from './DataStore';
 import { DateUtil } from './DateUtil';
 import { WallpaperTone } from './WallpaperTone';
+import { Wallpaper } from './Wallpaper';
 
 export class DailyWallpaper {
   /** 防止同一时刻重复下载 */
@@ -43,7 +44,8 @@ export class DailyWallpaper {
       }
       try {
         const arr: ArrayBuffer = resp.result as ArrayBuffer;
-        const dstPath: string = `${context.filesDir}/wallpaper_user.dat`;
+        // 唯一命名：避免覆盖同一路径导致 Image 命中缓存而不刷新
+        const dstPath: string = Wallpaper.newUserWallpaperPath(context.filesDir);
         const file: fileIo.File = fileIo.openSync(dstPath,
           fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC | fileIo.OpenMode.READ_WRITE);
         fileIo.writeSync(file.fd, arr);
@@ -51,6 +53,8 @@ export class DailyWallpaper {
         DataStore.saveWallpaper(`c:${dstPath}`);
         DataStore.setWallpaperUrlDate(today);
         AppStorage.setOrCreate('wallpaperId', `c:${dstPath}`);
+        // 清理历史自定义壁纸文件（保留当前使用的）
+        Wallpaper.cleanupUserWallpapers(context.filesDir, dstPath);
         // 自动分析明暗并适配文字对比度
         WallpaperTone.analyze(arr).then((tone: number) => {
           WallpaperTone.save(tone);

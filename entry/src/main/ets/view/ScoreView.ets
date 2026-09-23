@@ -4,12 +4,23 @@
  *
  * 说明：两个 bindSheet（成绩详情 / 选择学期）分别挂在不同的内层容器上，
  * 因为 ArkUI 同一组件上多次 .bindSheet 只有最后一个生效。
+ *
+ * 卡片外观接入（照首页 HomeView / 关于页 AboutPage 的写法推广）：
+ *  - 卡片统一用 `MaterialCard` 承载（材质层在卡片内部、位于内容之下），材质生效时卡片自身的
+ *    底色/磨砂/亮边/阴影一并让出，每张卡只有一层视觉；关闭光感回落为原来的纯色/毛玻璃卡片；
+ *  - 原卡片上的 `.padding(...)` / `.borderRadius(...)` / `.margin(...)` / `.onClick(...)` 一律改走
+ *    `cardPadding` / `cardRadius` / `cardMargin` / `cardOnClick`（尾随闭包初始化的自定义组件之后
+ *    不能再链式加属性）；不对称的 padding（如 `{ top: 16, bottom: 16 }` 无法用 Length 表达）
+ *    挂到内部内容容器上，间距与原值逐张对齐；
+ *  - 弹窗内容套 `MaterialSheetPanel`，`bindSheet` 显式 `backgroundColor: Color.Transparent` +
+ *    `blurStyle: sheetBlurStyle()`；网页弹层（WebSurface）是网页内容本身、不是材质面板，保持原样。
  */
 import { SheetUtil } from '../common/SheetUtil';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { ScoreItem, TermInfo, TermScore } from '../model/Models';
@@ -19,6 +30,11 @@ import { AntiPeepManager } from '../common/AntiPeepManager';
 import { WebSurface } from './WebSurface';
 import { promptAction, mediaquery } from '@kit.ArkUI';
 import { ResponsiveUtil } from '../common/ResponsiveUtil';
+// 沉浸光感：卡片统一走 MaterialCard（材质承载层在卡片内容之下，材质生效时卡片底色/磨砂/亮边/阴影一并让出，
+// 每张卡只剩一层视觉），胶囊小按钮走 MaterialButton，半模态弹窗内容走 MaterialSheetPanel
+import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
+import { sheetBlurStyle } from '../common/SystemMaterial';
 
 @Component
 export struct ScoreView {
@@ -26,6 +42,11 @@ export struct ScoreView {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
@@ -123,6 +144,18 @@ export struct ScoreView {
   /** 顶部统计卡：按学校「课程及学分」方法自动计算的平均分与 GPA */
   @Builder
   statsCard() {
+    // MaterialCard 承载：材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片底色/磨砂/亮边/阴影让出；
+    // 原卡片上的 18vp 圆角走 cardRadius、12vp 下间距走 cardMargin；上下 16vp 内边距无法用 Length 表达，
+    // 挂到内部内容容器上（承载层才能铺满含 padding 的整块卡片）。
+    MaterialCard({
+      cardRadius: 18,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { bottom: 12 }
+    }) {
     Row() {
       Column() {
         Text(this.calcAvgScore(this.sortedItems()).toFixed(2))
@@ -131,7 +164,7 @@ export struct ScoreView {
           .fontColor($r('app.color.brand'))
         Text('平均分')
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .margin({ top: 4 })
       }
       .layoutWeight(1)
@@ -149,7 +182,7 @@ export struct ScoreView {
           .fontColor($r('app.color.brand'))
         Text('平均学分绩点 GPA')
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .margin({ top: 4 })
       }
       .layoutWeight(1)
@@ -167,7 +200,7 @@ export struct ScoreView {
           .fontColor($r('app.color.accent_orange'))
         Text('已修课程')
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .margin({ top: 4 })
       }
       .layoutWeight(1)
@@ -175,31 +208,38 @@ export struct ScoreView {
     }
     .width('100%')
     .padding({ top: 16, bottom: 16 })
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .margin({ bottom: 12 })
+    }
   }
 
   /** 绩点计算方法说明入口（网页） */
   @Builder
   calcInfoEntry() {
+    // MaterialCard 承载：原 14vp 内边距走 cardPadding、上下 12/16vp 间距走 cardMargin、
+    // 整卡点击走 cardOnClick（尾随闭包之后不能再链式写 .onClick）。
+    MaterialCard({
+      cardRadius: 14,
+      cardPadding: 14,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { top: 12, bottom: 16 },
+      cardOnClick: () => {
+        this.openCalcWeb();
+      }
+    }) {
     Row() {
       Text('GPA 按学校「课程及学分」办法计算，仅供参考')
         .fontSize(12)
-        .fontColor($r('app.color.text_secondary'))
+        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
         .layoutWeight(1)
       Text('查看 ›')
         .fontSize(12)
         .fontColor($r('app.color.brand'))
     }
     .width('100%')
-    .padding(14)
-    .backgroundColor($r('app.color.bg_chip'))
-    .borderRadius(14)
-    .margin({ top: 12, bottom: 16 })
-    .onClick(() => {
-      this.openCalcWeb();
-    })
+    }
   }
 
   /** 页面出现：加载成绩数据 */
@@ -458,7 +498,7 @@ export struct ScoreView {
           }
           Text(`${item.credit} 学分`)
             .fontSize(11)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
             .margin({ left: 8 })
         }
         .width('100%')
@@ -474,7 +514,7 @@ export struct ScoreView {
           .fontColor(this.scoreColor(item))
         Text(`绩点 ${item.gradePoint.toFixed(1)}`)
           .fontSize(10)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .margin({ top: 3 })
       }
       .alignItems(HorizontalAlign.End)
@@ -490,6 +530,12 @@ export struct ScoreView {
 
   @Builder
   detailSheet() {
+    // 弹窗内容套 MaterialSheetPanel：bindSheet 自身的 systemMaterial 挂在面板上、内容区不生效，
+    // 由 MaterialSheetPanel 的 Toggle 承载层渲染材质。配套硬要求（见 build 里的 bindSheet）：
+    // 显式 backgroundColor: Color.Transparent，否则默认白底会把材质整块盖住。
+    // 本弹窗高度随内容（SheetSize.FIT_CONTENT）→ panelFillHeight: false；
+    // 原内容的 20/8/24vp 内边距原样留在内层 Column 上（panelPadding: 0，间距不变）。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
     Column() {
       if (this.selectedItem !== null) {
         Row() {
@@ -517,7 +563,7 @@ export struct ScoreView {
             .margin({ right: 10 })
           Text('课程属性')
             .fontSize(13)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
             .width(72)
           Row() {
             TagChip({
@@ -542,21 +588,30 @@ export struct ScoreView {
         this.detailRow('考试性质', this.selectedItem.examType, this.courseAttrColor(this.selectedItem.courseType))
         this.detailRow('所属学期', this.currentTermLabel(), this.courseAttrColor(this.selectedItem.courseType))
 
-        Button('关闭')
-          .width('100%')
-          .height(44)
-          .fontSize(15)
-          .fontColor($r('app.color.brand'))
-          .backgroundColor($r('app.color.brand_light'))
-          .borderRadius(12)
-          .margin({ top: 18 })
-          .onClick(() => {
+        // 关闭按钮：材质走 MaterialButton 的 Toggle 承载层（普通 Button 直接挂材质真机不渲染）；
+        // 原 .width('100%')/.height(44)/.margin({ top: 18 })/.onClick 改由内容与 btnMargin/btnOnClick 承担，
+        // 点击行为与文案不变。原按钮是纯色底（无边框、无磨砂）→ 光感关闭时按原样回落（NONE / 无边）。
+        MaterialButton({
+          btnRadius: 12,
+          btnBg: $r('app.color.brand_light'),
+          btnBlur: BlurStyle.NONE,
+          btnMargin: { top: 18 },
+          btnOnClick: () => {
             this.showSheet = false;
-          })
+          }
+        }) {
+          Text('关闭')
+            .fontSize(15)
+            .fontColor($r('app.color.brand'))
+            .width('100%')
+            .height(44)
+            .textAlign(TextAlign.Center)
+        }
       }
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 8, bottom: 24 })
+    }
   }
 
   /** 课程属性配色（互不冲突）：必修=农大绿 / 选修=天空蓝 / 实践=橙 / 其他=灰 */
@@ -585,7 +640,7 @@ export struct ScoreView {
         .margin({ right: 10 })
       Text(label)
         .fontSize(13)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
         .width(72)
       Text(value)
         .fontSize(13)
@@ -599,17 +654,22 @@ export struct ScoreView {
 
   @Builder
   termPickerSheet() {
+    // 弹窗内容套 MaterialSheetPanel（同 detailSheet）：材质由 Toggle 承载层渲染，配套要求 bindSheet 显式透明底。
+    // 高度随内容（FIT_CONTENT）→ panelFillHeight: false；内层 Column 的 20/8/24vp 内边距原样保留。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
     Column() {
       if (this.terms.length === 0) {
         Text('暂无可查询的学期')
           .fontSize(13)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .width('100%')
           .textAlign(TextAlign.Center)
       } else {
         Scroll() {
           Column() {
             ForEach(this.terms, (term: TermInfo, index: number) => {
+              // 学期行保留实色底：选中态完全靠实色背景（选中=品牌色 / 未选中=浅灰）表达，
+              // 而沉浸光感材质会让出底色、把选中态吃掉，故此处不改为材质按钮。
               Row() {
                 Text(term.label)
                   .fontSize(14)
@@ -641,6 +701,7 @@ export struct ScoreView {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 8, bottom: 24 })
+    }
   }
 
   build() {
@@ -656,13 +717,23 @@ export struct ScoreView {
             Column()
               .width('100%')
               .height(this.getUIContext().px2vp(this.topInsetPx) + 72)
+            // MaterialCard 承载：原 97% 宽度走 cardWidth（不能写 .width('97%')）、18vp 圆角走 cardRadius；
+            // 上下 40vp 内边距挂内部内容容器（承载层铺满整块卡片）。
+            MaterialCard({
+              cardWidth: '97%',
+              cardRadius: 18,
+              cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+              cardBlur: GlassMaterial.cardBlur(),
+              cardBorderW: GlassMaterial.cardBorderWidth(),
+              cardBorderC: GlassMaterial.borderColor(),
+              cardShadow: GlassMaterial.cardShadowStyle()
+            }) {
             Column() {
               EmptyTip({ text: '本学期成绩尚未发布\n期末考试结束两周后可查询' })
             }
-            .width('97%')
-            .backgroundColor($r('app.color.bg_card'))
-            .borderRadius(18)
+            .width('100%')
             .padding({ top: 40, bottom: 40 })
+            }
           }
           .width('100%')
           .height('100%')
@@ -686,12 +757,18 @@ export struct ScoreView {
                   .width('100%')
                   .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
                 if (this.currentTermScore() === null || this.currentTermScore()!.items.length === 0) {
-                  Column() {
+                  // MaterialCard 承载：材质层在卡片内部底层，材质生效时卡片底色/磨砂/亮边/阴影让出；
+                  // 原卡片上的 18vp 圆角走 cardRadius（原卡片无内边距，EmptyTip 自带留白）。
+                  MaterialCard({
+                    cardRadius: 18,
+                    cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+                    cardBlur: GlassMaterial.cardBlur(),
+                    cardBorderW: GlassMaterial.cardBorderWidth(),
+                    cardBorderC: GlassMaterial.borderColor(),
+                    cardShadow: GlassMaterial.cardShadowStyle()
+                  }) {
                     EmptyTip({ text: '本学期成绩尚未发布\n期末考试结束两周后可查询' })
-                }
-                .width('100%')
-                .backgroundColor($r('app.color.bg_card'))
-                .borderRadius(18)
+                  }
               } else {
                 this.statsCard()
                 Row() {
@@ -710,6 +787,16 @@ export struct ScoreView {
                 .width('100%')
                 .margin({ top: 4, bottom: 6 })
 
+                // MaterialCard 承载：材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片底色让出；
+                // 原卡片上的 18vp 圆角走 cardRadius；左右 16vp 内边距（不对称）挂内部内容容器，间距不变。
+                MaterialCard({
+                  cardRadius: 18,
+                  cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+                  cardBlur: GlassMaterial.cardBlur(),
+                  cardBorderW: GlassMaterial.cardBorderWidth(),
+                  cardBorderC: GlassMaterial.borderColor(),
+                  cardShadow: GlassMaterial.cardShadowStyle()
+                }) {
                 Column() {
                   ForEach(this.sortedItems(), (item: ScoreItem, index: number) => {
                     Column() {
@@ -723,8 +810,7 @@ export struct ScoreView {
                 }
                 .width('100%')
                 .padding({ left: 16, right: 16 })
-                .backgroundColor($r('app.color.bg_card'))
-                .borderRadius(18)
+                }
 
                 this.calcInfoEntry()
               }
@@ -766,12 +852,16 @@ export struct ScoreView {
       .width('100%')
       .layoutWeight(1)
       // 悬浮底栏模式下 Scroll 内容区延伸到屏幕底部，靠内容自身 bottom 预留空间
+      // （网页弹层仍用不透明 bg_page——它承载的是 WebSurface 网页内容，不是材质面板，故不套 MaterialSheetPanel）
       .bindSheet($$this.showSheet, this.detailSheet(), {
         width: SheetUtil.sheetWidth(),
         preferType: SheetType.BOTTOM,
         height: SheetSize.FIT_CONTENT,
         dragBar: true,
-        backgroundColor: $r('app.color.bg_card'),
+        // 必须显式透明：BindOptions.backgroundColor 默认是 Color.White，
+        // 而沉浸光感的视觉层级位于 backgroundColor **之下**，白底会把 MaterialSheetPanel 的材质整块盖住。
+        backgroundColor: Color.Transparent,
+        blurStyle: sheetBlurStyle(),
         title: { title: '成绩详情' }
       })
     }
@@ -785,7 +875,9 @@ export struct ScoreView {
       preferType: SheetType.BOTTOM,
       height: SheetSize.FIT_CONTENT,
       dragBar: true,
-      backgroundColor: $r('app.color.bg_card'),
+      // 同 detailSheet：显式透明底 + 材质模糊，否则默认白底会盖住 MaterialSheetPanel 的材质
+      backgroundColor: Color.Transparent,
+      blurStyle: sheetBlurStyle(),
       title: { title: '选择学年-学期' }
     })
 
@@ -825,7 +917,9 @@ export struct ScoreView {
               preferType: SheetType.BOTTOM,
               height: SheetSize.FIT_CONTENT,
               dragBar: true,
-              backgroundColor: $r('app.color.bg_card'),
+              // 同竖屏成绩详情弹层：显式透明底 + 材质模糊（MaterialSheetPanel 才能透出材质）
+              backgroundColor: Color.Transparent,
+              blurStyle: sheetBlurStyle(),
               title: { title: '成绩详情' }
             })
           }
@@ -863,6 +957,15 @@ export struct ScoreView {
 
   @Builder
   scoreListColumn(items: ScoreItem[]) {
+    // MaterialCard 承载（横屏左右列各一张）：原 18vp 圆角走 cardRadius，左右 16vp 内边距挂内部内容容器。
+    MaterialCard({
+      cardRadius: 18,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle()
+    }) {
     Column() {
       ForEach(items, (item: ScoreItem, idx: number) => {
         Column() {
@@ -875,8 +978,7 @@ export struct ScoreView {
     }
     .width('100%')
     .padding({ left: 16, right: 16 })
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
+    }
   }
 
   @Builder

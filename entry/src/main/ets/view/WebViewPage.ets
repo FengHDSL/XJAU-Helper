@@ -13,11 +13,17 @@ import { webview } from '@kit.ArkWeb';
 import { WebSurface } from './WebSurface';
 import { AppState, SharedHistoryItem } from '../common/AppState';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { BarTitle } from './common/UiKit';
 import { BackButton } from './common/BackButton';
 import { JwApi } from '../api/JwApi';
+// 沉浸光感：顶栏胶囊按钮走 MaterialButton（常驻材质 btnPersistent）；历史条目卡片走 MaterialCard；
+// 历史记录半模态内容套 MaterialSheetPanel
+import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
+import { sheetBlurStyle } from '../common/SystemMaterial';
 
 /** 浏览器标识（UA）常量：桌面 / 手机 / 平板 */
 const DESKTOP_UA: string =
@@ -35,6 +41,11 @@ const UA_TABLET: number = 2;
 @Component
 export struct WebViewPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
@@ -272,19 +283,34 @@ export struct WebViewPage {
   /** 历史记录弹层（标题栏由系统 bindSheet 提供：左上角"历史记录"，右上角关闭按钮） */
   @Builder
   historySheet() {
+    // 半模态内容套 MaterialSheetPanel：bindSheet 自身的 systemMaterial 挂在面板上、内容区不生效，
+    // 由 MaterialSheetPanel 的 Toggle 承载层渲染材质。配套硬要求（见 build 里的 bindSheet）：
+    // 显式 backgroundColor: Color.Transparent，否则默认白底会把材质整块盖住。
+    // 原根节点的 bg_page 不透明底色必须去掉（兄弟节点画在材质之上，同样会盖掉材质）。
+    // 面板高度固定 MEDIUM → panelFillHeight 保持默认 true（承载层铺满整块面板）。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0 }) {
     Column() {
-      // 清空按钮：放在左上角标题下方（与系统关闭按钮分离）
+      // 清空按钮：原为淡红玻璃底（#14DB5252）+ 红字。材质走 MaterialButton；
+      // 材质生效时靠 btnTint（警示红）叠回底色语义（比例 0.5），光感关闭时回落原本的淡红玻璃底。
       Row() {
         if (this.historyItems.length > 0) {
-          Text('清空')
-            .fontSize(13)
-            .fontColor('#DB5252')
-            .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-            .borderRadius(12)
-            .backgroundColor('#14DB5252')
-            .onClick(() => {
+          MaterialButton({
+            btnRadius: 12,
+            btnBg: '#14DB5252',
+            btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+            btnBorderW: GlassMaterial.borderWidth(),
+            btnBorderC: GlassMaterial.borderColor(),
+            btnTint: '#DB5252',
+            btnTintRatio: 0.5,
+            btnOnClick: () => {
               this.clearHistoryAll();
-            })
+            }
+          }) {
+            Text('清空')
+              .fontSize(13)
+              .fontColor('#DB5252')
+              .padding({ left: 12, right: 12, top: 4, bottom: 4 })
+          }
         } else {
           Text('清空')
             .fontSize(13)
@@ -308,6 +334,17 @@ export struct WebViewPage {
         List({ space: 6 }) {
           ForEach(this.historyItems, (item: SharedHistoryItem) => {
             ListItem() {
+              // MaterialCard 承载：原 12vp 内边距挂内部内容容器，承载层才能铺满整块卡片；
+              // 12vp 圆角走 cardRadius；成排小卡片关掉材质自带投影（cardMaterialShadow: false）。
+              MaterialCard({
+                cardRadius: 12,
+                cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+                cardBlur: GlassMaterial.cardBlur(),
+                cardBorderW: GlassMaterial.cardBorderWidth(),
+                cardBorderC: GlassMaterial.borderColor(),
+                cardShadow: GlassMaterial.cardShadowStyle(),
+                cardMaterialShadow: false
+              }) {
               Column() {
                 Text(item.title)
                   .fontSize(14)
@@ -326,8 +363,7 @@ export struct WebViewPage {
               }
               .width('100%')
               .padding(12)
-              .backgroundColor($r('app.color.bg_card'))
-              .borderRadius(12)
+              }
             }
             .onClick(() => {
               this.jumpHistory(item);
@@ -342,7 +378,7 @@ export struct WebViewPage {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.bg_page'))
+    }
   }
 
   /** 是否服务大厅主页（仅此页面内部自带滚动容器，需页面级留白；其它外部链接保持穿透效果） */
@@ -355,6 +391,31 @@ export struct WebViewPage {
   static isZhihuiXuegong(url: string): boolean {
     return url.indexOf('wid=1238430490178043904') >= 0 || url.indexOf('xgxt') >= 0 ||
       url.indexOf('zhihui') >= 0 || url.indexOf('ServiceShow') >= 0;
+  }
+
+  /** 功能浏览模式下仍允许访问的链接（仅 GitHub 开源页面：关于页/开源仓库入口） */
+  static isMockAllowed(url: string): boolean {
+    return url.indexOf('github.com') >= 0 || url.indexOf('github.io') >= 0;
+  }
+
+  /** 功能浏览模式：拒绝服务提示（外部链接不可用；GitHub 开源页面除外） */
+  @Builder
+  mockBlocked() {
+    Column() {
+      Text('当前为功能浏览模式')
+        .fontSize(15)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.text_primary'))
+      Text('该外部链接不可用，请使用真实账号登录后访问')
+        .fontSize(12)
+        .fontColor($r('app.color.text_tertiary'))
+        .margin({ top: 8 })
+        .textAlign(TextAlign.Center)
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .justifyContent(FlexAlign.Center)
+    .padding({ left: 32, right: 32 })
   }
 
   build() {
@@ -376,25 +437,46 @@ export struct WebViewPage {
           BarTitle({ title: this.pageTitle, marquee: true })
             .margin({ left: 6 })
             .layoutWeight(1)
-          // 右上角胶囊按钮：分享
-          Text('分享')
-            .fontSize(12)
-            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-            .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-            .backgroundColor('#33FFFFFF')
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-            .borderRadius(14)
-            .onClick(() => { this.shareLink(); })
-          // 右上角胶囊按钮：更多（功能菜单，复刻 DailyNic_HMOS）
-          Text('更多')
-            .fontSize(12)
-            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-            .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-            .backgroundColor('#33FFFFFF')
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-            .borderRadius(14)
-            .margin({ left: 8 })
-            .bindMenu(this.moreMenu())
+          // 右上角胶囊按钮：分享（材质走 MaterialButton 的 Toggle 承载层，btnPersistent 常驻固定材质：
+          // 固定生效、不随按压才出现、也不因全局沉浸光感开关关闭而消失；原玻璃底在 btnBg 兜底）
+          MaterialButton({
+            btnRadius: 17,
+            btnPersistent: true,
+            btnBg: this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)',
+            btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+            btnBorderW: GlassMaterial.borderWidth(),
+            btnBorderC: GlassMaterial.borderColor(),
+            btnOnClick: () => {
+              this.shareLink();
+            }
+          }) {
+            Text('分享')
+              .fontSize(12)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .height(34)
+              .padding({ left: 14, right: 14 })
+              .textAlign(TextAlign.Center)
+          }
+          // 右上角胶囊按钮：更多（功能菜单，复刻 DailyNic_HMOS）。
+          // bindMenu 绑在内容 Text 上（CustomBuilder 重载无法作为参数传进 MaterialButton）；
+          // 材质同样走 MaterialButton 的 Toggle 承载层并常驻（btnPersistent）。
+          MaterialButton({
+            btnRadius: 17,
+            btnMargin: { left: 8 },
+            btnPersistent: true,
+            btnBg: this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)',
+            btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+            btnBorderW: GlassMaterial.borderWidth(),
+            btnBorderC: GlassMaterial.borderColor()
+          }) {
+            Text('更多')
+              .fontSize(12)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .height(34)
+              .padding({ left: 14, right: 14 })
+              .textAlign(TextAlign.Center)
+              .bindMenu(this.moreMenu())
+          }
         }
         .width('100%').alignItems(VerticalAlign.Top)
         .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
@@ -405,35 +487,41 @@ export struct WebViewPage {
         .position({ x: 0, y: 0 })
         .zIndex(2)
 
-        // 网页全屏：顶部让位顶栏、底部让位悬浮底栏；留白随网页滚动，上滑内容可穿入渐变底层
-        WebSurface({
-          onTitleChange: (t: string) => { this.pageTitle = t; },
-          onControllerReady: (ctrl: webview.WebviewController) => { this.ctrl = ctrl; },
-          desktopUa: WebViewPage.isZhihuiXuegong(AppState.webUrl),
-          onLoadEnd: () => {
-            const topVp: number = this.getUIContext().px2vp(this.topInsetPx) + 60;
-            const bottomVp: number = this.getUIContext().px2vp(this.bottomInsetPx) + 64;
-            if (this.ctrl === null) {
-              return;
+        // 功能浏览模式：外部链接一律拒绝服务（仅 GitHub 开源页面可用）
+        if (JwApi.USE_MOCK && !WebViewPage.isMockAllowed(AppState.webUrl)) {
+          this.mockBlocked()
+        } else {
+          // 网页全屏：顶部让位顶栏、底部让位悬浮底栏；留白随网页滚动，上滑内容可穿入渐变底层
+          WebSurface({
+            onTitleChange: (t: string) => { this.pageTitle = t; },
+            onControllerReady: (ctrl: webview.WebviewController) => { this.ctrl = ctrl; },
+            desktopUa: WebViewPage.isZhihuiXuegong(AppState.webUrl),
+            onLoadEnd: () => {
+              const topVp: number = this.getUIContext().px2vp(this.topInsetPx) + 60;
+              // 底部仅让位系统安全区（二级页无悬浮底栏，原先额外 +64 会在网页底部留出白条）
+              const bottomVp: number = this.getUIContext().px2vp(this.bottomInsetPx);
+              if (this.ctrl === null) {
+                return;
+              }
+              // 统一方案：给页面真正的滚动容器加内边距（body 滚动/内部容器滚动/平板横屏均适用），不插入 DOM 节点
+              this.ctrl.runJavaScript(
+                `(function(){` +
+                `function pick(){` +
+                `var best=null,area=0;` +
+                `var all=document.querySelectorAll('div,main,section,article');` +
+                `for(var i=0;i<all.length;i++){var e=all[i];var st=getComputedStyle(e);var oy=st.overflowY;` +
+                `if((oy==='auto'||oy==='scroll')&&e.clientHeight>200&&e.scrollHeight>e.clientHeight+10){` +
+                `var a=e.clientHeight*e.clientWidth;if(a>area){area=a;best=e;}}}` +
+                `return best||document.scrollingElement||document.documentElement;}` +
+                `function apply(){var s=pick();s.style.paddingTop='${topVp}px';s.style.paddingBottom='${bottomVp}px';}` +
+                `apply();setTimeout(apply,600);setTimeout(apply,1600);` +
+                `})()`, () => {
+                });
             }
-            // 统一方案：给页面真正的滚动容器加内边距（body 滚动/内部容器滚动/平板横屏均适用），不插入 DOM 节点
-            this.ctrl.runJavaScript(
-              `(function(){` +
-              `function pick(){` +
-              `var best=null,area=0;` +
-              `var all=document.querySelectorAll('div,main,section,article');` +
-              `for(var i=0;i<all.length;i++){var e=all[i];var st=getComputedStyle(e);var oy=st.overflowY;` +
-              `if((oy==='auto'||oy==='scroll')&&e.clientHeight>200&&e.scrollHeight>e.clientHeight+10){` +
-              `var a=e.clientHeight*e.clientWidth;if(a>area){area=a;best=e;}}}` +
-              `return best||document.scrollingElement||document.documentElement;}` +
-              `function apply(){var s=pick();s.style.paddingTop='${topVp}px';s.style.paddingBottom='${bottomVp}px';}` +
-              `apply();setTimeout(apply,600);setTimeout(apply,1600);` +
-              `})()`, () => {
-              });
-          }
-        })
-          .width('100%')
-          .layoutWeight(1)
+          })
+            .width('100%')
+            .layoutWeight(1)
+        }
 
       }
       .width('100%').height('100%')
@@ -445,7 +533,10 @@ export struct WebViewPage {
         dragBar: false,
         showClose: true,
         title: { title: '历史记录' },
-        backgroundColor: $r('app.color.bg_page')
+        // 必须显式透明：BindOptions.backgroundColor 默认是 Color.White，
+        // 而沉浸光感的视觉层级位于 backgroundColor **之下**，白底会把 MaterialSheetPanel 的材质整块盖住。
+        backgroundColor: Color.Transparent,
+        blurStyle: sheetBlurStyle()
       })
     }
     .hideTitleBar(true)

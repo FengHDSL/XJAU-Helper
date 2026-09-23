@@ -3,12 +3,20 @@
  * 隐藏调试入口：连点应用图标 5 次，输入密码 admin——
  *  - 功能浏览模式（USE_MOCK）：开启/关闭调试联网（debugNetwork）
  *  - 真实登录模式：开启/关闭日志调试（logEnabled）
+ *
+ * 卡片外观接入（照首页 HomeView 的写法推广）：
+ *  - 卡片统一用 `MaterialCard` 承载（材质层在卡片内部、位于内容之下），材质生效时卡片自身的
+ *    底色/磨砂/亮边/阴影一并让出，每张卡只有一层视觉；关闭光感回落为原来的纯色/毛玻璃卡片；
+ *  - 更新日志卡为共享组件 `ChangelogCard`（关于页「最近 5 条」与更新日志页共用），该组件已迁到
+ *    `MaterialCard`，两页的更新日志卡因此都带沉浸光感；
+ *  - 半模态弹窗（调试模式密码）内容套 `MaterialSheetPanel`，`bindSheet` 显式 `backgroundColor: Color.Transparent`。
  */
 import { SheetUtil } from '../common/SheetUtil';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { promptAction } from '@kit.ArkUI';
 import { AppState } from '../common/AppState';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { Const } from '../common/Constants';
 import { LogStore } from '../common/LogStore';
 import { JwApi } from '../api/JwApi';
@@ -18,12 +26,22 @@ import { WallpaperTone } from '../common/WallpaperTone';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
 import { ChangelogCard } from './common/ChangelogCard';
+// 沉浸光感：卡片统一走 MaterialCard（材质承载层在卡片内容之下，材质生效时卡片底色/磨砂/亮边/阴影一并让出，
+// 每张卡只剩一层视觉），胶囊按钮走 MaterialButton，半模态弹窗内容走 MaterialSheetPanel
+import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
+import { sheetBlurStyle } from '../common/SystemMaterial';
 import { CHANGELOG_ALL, CHANGELOG_MAX, ChangelogItem } from '../common/Changelog';
 
 
 @Component
 export struct AboutPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 壁纸亮度（文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
@@ -110,6 +128,20 @@ export struct AboutPage {
   /** 底部链接 + 开源等级 */
   @Builder
   footer() {
+    // MaterialCard 承载：材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片底色/磨砂/亮边/阴影让出；
+    // 原卡片上的 padding / alignItems / margin 改走 cardPadding / cardAlignItems / cardMargin
+    // （尾随闭包初始化的自定义组件之后不能再链式加属性）。
+    MaterialCard({
+      cardRadius: 16,
+      cardPadding: 16,
+      cardAlignItems: ItemAlign.Start,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { top: 0 }
+    }) {
     Column() {
       Text('项目链接')
         .fontSize(13)
@@ -124,17 +156,14 @@ export struct AboutPage {
 
       Text('开源等级: MIT License')
         .fontSize(12)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
         .width('100%')
         .textAlign(TextAlign.Center)
         .margin({ top: 18 })
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
-    .padding(16)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(16)
-    .margin({ top: 0 })
+    }
   }
 
   @Builder
@@ -142,7 +171,7 @@ export struct AboutPage {
     Row() {
       Text(title)
         .fontSize(13)
-        .fontColor($r('app.color.text_secondary'))
+        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
         .layoutWeight(1)
       Text(url.replace('https://github.com/', ''))
         .fontSize(12)
@@ -213,7 +242,7 @@ export struct AboutPage {
                 .width(88)
                 .height(88)
                 .borderRadius(20)
-                .backgroundColor('#FFFFFF')
+                .backgroundColor('#FFFFFF').backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
                 .onClick(() => {
                   this.onIconTapped();
                 })
@@ -222,7 +251,7 @@ export struct AboutPage {
                 .fontWeight(FontWeight.Bold)
                 .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 12 })
-              Text('版本 1.3.8')
+              Text('版本 1.3.9')
                 .fontSize(12)
                 .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 4 })
@@ -236,19 +265,28 @@ export struct AboutPage {
             .padding({ top: 10, bottom: 16 })
 
             // 应用简介（单独卡片）
+            // MaterialCard 承载：材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片底色让出；
+            // 原来的 16vp 内边距走 cardPadding、12vp 下间距走 cardMargin。
+            MaterialCard({
+              cardRadius: 16,
+              cardPadding: 16,
+              cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+              cardBlur: GlassMaterial.cardBlur(),
+              cardBorderW: GlassMaterial.cardBorderWidth(),
+              cardBorderC: GlassMaterial.borderColor(),
+              cardShadow: GlassMaterial.cardShadowStyle(),
+              cardMargin: { bottom: 12 }
+            }) {
             Column() {
               Text('新农助手（XJAU Helper）是一款专为新疆农业大学学生打造的校园工具，原生鸿蒙开发，完全开源，完全免费，轻量小巧，集成个人课表、成绩查询、考试安排、学业情况、教室查询等功能于一体！数据来源于学校网页，数据不经过也不保存于非学校官方服务器。新农助手，让你的校园生活更便利！')
                 .fontSize(12)
                 .lineHeight(20)
-                .fontColor($r('app.color.text_secondary'))
+                .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                 .textAlign(TextAlign.Center)
                 .width('100%')
             }
             .width('100%')
-            .padding(16)
-            .backgroundColor($r('app.color.bg_card'))
-            .borderRadius(16)
-            .margin({ bottom: 12 })
+            }
 
             // 更新日志：固定只显示最近 CHANGELOG_MAX（5）条；完整历史在「更新日志」页查看
             ForEach(CHANGELOG_ALL.slice(0, CHANGELOG_MAX), (e: ChangelogItem) => {
@@ -271,6 +309,17 @@ export struct AboutPage {
             this.footer()
 
             // 用户协议 & 隐私政策（居中，可分别查看）
+            // MaterialCard 承载（居中卡片同样走材质卡；内边距挂内部内容容器、上下间距走 cardMargin）
+            MaterialCard({
+              cardRadius: 16,
+              cardAlignItems: ItemAlign.Center,
+              cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+              cardBlur: GlassMaterial.cardBlur(),
+              cardBorderW: GlassMaterial.cardBorderWidth(),
+              cardBorderC: GlassMaterial.borderColor(),
+              cardShadow: GlassMaterial.cardShadowStyle(),
+              cardMargin: { top: 14, bottom: 12 }
+            }) {
             Column() {
               Row({ space: 22 }) {
                 Text('《用户协议》')
@@ -288,24 +337,30 @@ export struct AboutPage {
               }
               .margin({ top: 8 })
 
-              // 取消同意（胶囊按钮；功能浏览模式下不提供）
+              // 取消同意（胶囊按钮：材质走 MaterialButton 的 Toggle 承载层，点击行为不变；
+              // 原 .margin({ top: 12 }) 改走 btnMargin——尾随闭包之后不能再链式加属性）
               if (!JwApi.USE_MOCK) {
-                Text('取消同意并退出')
-                  .fontSize(12)
-                  .fontColor('#DB5252')
-                  .padding({ left: 16, right: 16, top: 6, bottom: 6 })
-                  .backgroundColor('rgba(219,82,82,0.10)')
-                  .borderRadius(14)
-                  .margin({ top: 12 })
-                  .onClick(() => { this.cancelAgreement(); })
+                MaterialButton({
+                  btnRadius: 14,
+                  btnBg: 'rgba(219,82,82,0.10)',
+                  btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? true),
+                  btnBorderW: GlassMaterial.borderWidth(),
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnMargin: { top: 12 },
+                  btnOnClick: () => {
+                    this.cancelAgreement();
+                  }
+                }) {
+                  Text('取消同意并退出')
+                    .fontSize(12)
+                    .fontColor('#DB5252')
+                    .padding({ left: 16, right: 16, top: 6, bottom: 6 })
+                }
               }
             }
             .width('100%')
             .padding({ top: 12, bottom: 12, left: 16, right: 16 })
-            .backgroundColor($r('app.color.bg_card'))
-            .borderRadius(16)
-            .alignItems(HorizontalAlign.Center)
-            .margin({ top: 14, bottom: 12 })
+            }
 
             Column()
               .height(this.getUIContext().px2vp(this.bottomInsetPx) + 24)
@@ -345,13 +400,20 @@ export struct AboutPage {
       height: SheetSize.FIT_CONTENT,
       dragBar: false,
       showClose: true,
-      backgroundColor: $r('app.color.bg_page')
+      // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，而沉浸光感材质的视觉层级位于
+      // backgroundColor **之下**，白底会把面板材质整块盖住（表现为「弹窗一点光感都没有」）。
+      backgroundColor: Color.Transparent,
+      blurStyle: sheetBlurStyle()
     })
   }
 
   /** 隐藏调试入口：输入密码开启对应模式的调试能力（功能浏览=联网；真实登录=日志） */
   @Builder
   debugSheet() {
+    // 弹窗内容套 MaterialSheetPanel：bindSheet 自身的 systemMaterial 挂在面板上、内容区不生效，
+    // 由 MaterialSheetPanel 的 Toggle 承载层渲染材质；配套要求是 bindSheet 显式 backgroundColor: Color.Transparent。
+    // 本弹窗高度随内容（SheetSize.FIT_CONTENT），传 panelFillHeight: false（不写 height('100%')，避免被撑成整屏）。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
     Column() {
       Text('调试模式')
         .fontSize(17)
@@ -362,7 +424,7 @@ export struct AboutPage {
 
       Text(JwApi.USE_MOCK ? '输入密码以开启功能浏览模式的联网能力' : '输入密码以开启日志调试（收集使用日志）')
         .fontSize(12)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
         .width('100%')
         .margin({ bottom: 12 })
 
@@ -381,21 +443,30 @@ export struct AboutPage {
           this.submitDebugPwd();
         })
 
-      Button('确认')
-        .fontSize(14)
-        .fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.brand_on'))
-        .backgroundColor($r('app.color.brand'))
-        .height(40)
-        .width('100%')
-        .borderRadius(20)
-        .margin({ top: 12, bottom: 16 })
-        .onClick(() => {
+      // 确认按钮：材质走 MaterialButton 的 Toggle 承载层（普通 Button 直接挂材质真机不渲染）；
+      // 原 .width('100%') / .height(40) / .margin 由内容与 btnMargin 承担，点击行为不变
+      MaterialButton({
+        btnRadius: 20,
+        btnBg: $r('app.color.brand'),
+        btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? true),
+        btnBorderW: GlassMaterial.borderWidth(),
+        btnBorderC: GlassMaterial.borderColor(),
+        btnMargin: { top: 12, bottom: 16 },
+        btnOnClick: () => {
           this.submitDebugPwd();
-        })
+        }
+      }) {
+        Text('确认')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.brand_on'))
+          .width('100%')
+          .height(40)
+          .textAlign(TextAlign.Center)
+      }
     }
     .width('100%')
     .padding({ left: 20, right: 20 })
-    .backgroundColor($r('app.color.bg_page'))
+    }
   }
 }

@@ -9,12 +9,18 @@ import { common } from '@kit.AbilityKit';
 import { UserProfile } from '../model/Models';
 import { DateUtil } from './DateUtil';
 
-/** 个性主题组合：背景壁纸 + 顶栏主题色 + 副标题颜色 */
+/** 外观设置组合：背景壁纸 + 顶栏主题色 + 副标题颜色 */
 export interface ThemeCombo {
   name: string;
   wallpaper: string;
   theme: string;
   subtitle: string;
+}
+
+/** 自定义字体条目：alias = 注册到系统字体库的别名，fileName = 应用沙箱内的文件名 */
+export interface CustomFontItem {
+  alias: string;
+  fileName: string;
 }
 
 export class DataStore {
@@ -82,6 +88,9 @@ export class DataStore {
     'schedule_bg', 'schedule_dashed', 'schedule_cfg', 'course_color_map', 'course_custom_color',
     'wallpaper_id', 'wallpaper_mask', 'wallpaper_url', 'wallpaper_url_date',
     'dark_mode', 'bar_style', 'immersive_effect', 'subtitle_color', 'theme_combos',
+    'card_tint', 'immersive_press_glow', 'card_glow_touch', 'custom_accent_full',
+    'font_mode', 'font_family_zh', 'font_family_en', 'font_weight_mode', 'font_weight_value',
+    'custom_fonts',
     'cache_profile', 'cache_courses', 'cache_term_scores', 'cache_exams', 'cache_academic',
     'cache_notices', 'cache_notices_jwc', 'cache_teaching_cal', 'cache_jwc_cal',
     'cache_photo', 'cache_time', 'news_favs', 'web_history'
@@ -131,6 +140,75 @@ export class DataStore {
   static readonly KEY_ACCOUNTS: string = 'login_accounts';
   static readonly KEY_LAST_ACCOUNT: string = 'last_account';
   static readonly KEY_SHOW_AVATAR: string = 'show_avatar';
+  /** 「记住密码」勾选状态（持久化：退出登录/重启后仍记住，自动填充已保存密码） */
+  static readonly KEY_REMEMBER: string = 'remember_pwd';
+
+  /** 保存「记住密码」勾选状态 */
+  static saveRemember(on: boolean): void {
+    DataStore.put(DataStore.KEY_REMEMBER, on ? '1' : '0');
+  }
+
+  /** 读取「记住密码」勾选状态（默认关闭，隐私优先） */
+  static loadRemember(): boolean {
+    return DataStore.get(DataStore.KEY_REMEMBER) === '1';
+  }
+
+  // ── 应用内字体大小（字体管理页调节，全局生效；启动时由 EntryAbility 恢复）──
+  static readonly KEY_FONT_SCALE: string = 'font_scale';
+
+  /** 保存字体缩放倍数（1.0 = 标准） */
+  static saveFontScale(v: number): void {
+    DataStore.put(DataStore.KEY_FONT_SCALE, `${v}`);
+  }
+
+  /** 读取字体缩放倍数（默认 1.0，范围 0.8~1.6 兜底） */
+  static loadFontScale(): number {
+    const raw: string = DataStore.get(DataStore.KEY_FONT_SCALE);
+    if (raw.length === 0) {
+      return 1.0;
+    }
+    const v: number = Number(raw);
+    return isNaN(v) ? 1.0 : Math.max(0.8, Math.min(1.6, v));
+  }
+
+  // ── 通透程度滑条（外观设置页可调：0~100，控制毛玻璃模糊强度与透明度）──
+  static readonly KEY_GLASS_STRENGTH: string = 'glass_strength';
+
+  /** 保存玻璃强度 */
+  static saveGlassStrength(v: number): void {
+    DataStore.put(DataStore.KEY_GLASS_STRENGTH, `${Math.max(0, Math.min(100, Math.round(v)))}`);
+  }
+
+  /** 读取玻璃强度（默认 70） */
+  static loadGlassStrength(): number {
+    const v: number = Number(DataStore.get(DataStore.KEY_GLASS_STRENGTH));
+    return isNaN(v) ? 70 : Math.max(0, Math.min(100, v));
+  }
+
+  // ── 灰色字体颜色覆盖（gray=默认灰 / white / black / custom）──
+  static readonly KEY_GRAY_MODE: string = 'gray_text_mode';
+  static readonly KEY_GRAY_CUSTOM: string = 'gray_text_custom';
+
+  /** 保存灰字模式 */
+  static saveGrayMode(mode: string): void {
+    DataStore.put(DataStore.KEY_GRAY_MODE, mode);
+  }
+
+  /** 读取灰字模式（默认 default） */
+  static loadGrayMode(): string {
+    const v: string = DataStore.get(DataStore.KEY_GRAY_MODE);
+    return (v === 'white' || v === 'black' || v === 'custom') ? v : 'default';
+  }
+
+  /** 保存自定义灰字颜色（rrggbb） */
+  static saveGrayCustom(color: string): void {
+    DataStore.put(DataStore.KEY_GRAY_CUSTOM, color);
+  }
+
+  /** 读取自定义灰字颜色（未设置返回空串） */
+  static loadGrayCustom(): string {
+    return DataStore.get(DataStore.KEY_GRAY_CUSTOM);
+  }
   // 当前学期 ID（全局设置，启动时优先恢复）
   static readonly KEY_DS_TERM: string = 'current_term_id';
   // 自定义开学时间：各学期 termId -> 自定义开学日(yyyy-MM-dd)，覆盖默认 9-01/3-01 推算；空串=未自定义
@@ -400,9 +478,9 @@ export class DataStore {
   // ── 沉浸光感（系统材质）开关：'1'=开（默认） / '0'=关 ──
   static readonly KEY_IMMERSIVE: string = 'immersive_effect';
 
-  /** 沉浸光感已改为默认开启（不再提供开关） */
+  /** 沉浸光感开关（外观设置主开关，默认开启；'0' 时关闭） */
   static immersiveOn(): boolean {
-    return true;
+    return DataStore.get(DataStore.KEY_IMMERSIVE) !== '0';
   }
 
   static setImmersive(on: boolean): void {
@@ -420,7 +498,7 @@ export class DataStore {
     DataStore.put(DataStore.KEY_SUBTITLE_COLOR, color);
   }
 
-  // ── 个性主题组合（背景 + 顶栏颜色 + 副标题颜色）──
+  // ── 外观设置组合（背景 + 顶栏颜色 + 副标题颜色）──
   static readonly KEY_THEME_COMBOS: string = 'theme_combos';
 
   /** 已保存的组合列表 */
@@ -647,6 +725,8 @@ export class DataStore {
 
   // 农大新闻收藏（title/url/date/thumb 的 JSON 数组，按收藏时间倒序）
   static readonly KEY_NEWS_FAVS: string = 'news_favs';
+  /** 收藏变化信号（AppStorage）：收藏/取消收藏后写入时间戳，新闻页「收藏」板块据此即时刷新 */
+  static readonly KEY_NEWS_FAV_VERSION: string = 'newsFavVersion';
 
   /** 读取收藏的新闻列表（NewsItem 序列化数组，按收藏时间倒序） */
   static loadNewsFavs(): string[] {
@@ -707,6 +787,8 @@ export class DataStore {
     const list: string[] = DataStore.loadNewsFavs();
     list.unshift(itemJson); // 新收藏置顶
     DataStore.saveNewsFavs(list);
+    // 收藏变化信号：通知新闻页「收藏」板块即时刷新（TabContent.onAppear 仅首次触发）
+    AppStorage.setOrCreate(DataStore.KEY_NEWS_FAV_VERSION, Date.now());
     return true;
   }
 
@@ -728,6 +810,8 @@ export class DataStore {
       }
     }
     DataStore.saveNewsFavs(filtered);
+    // 收藏变化信号（同上）
+    AppStorage.setOrCreate(DataStore.KEY_NEWS_FAV_VERSION, Date.now());
   }
 
   /** 以 JSON 字符串形式缓存数据 */
@@ -763,5 +847,155 @@ export class DataStore {
   /** 保存共享网页历史 JSON 数组（空串=清空） */
   static saveWebHistoryJson(json: string): void {
     DataStore.put(DataStore.KEY_WEB_HISTORY, json);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 外观设置（移植自参考项目 miha_hm：卡片沾色 / 主题色流光 /
+  // 卡片流光触感 / 高权限自定义主题色 / 字体管理）
+  // 对应参考文件：miha_hm `utils/DesignTokens.ets`（键名与默认值）+ `pages/AppearanceSettingsPage.ets`
+  // 全部为「开关型」或「字符串型」持久化，配合 AppStorage 实时联动。
+  // ══════════════════════════════════════════════════════════════
+
+  // ── 卡片沾色：开启后所有卡片底色混入 10% 主题色 ──
+  static readonly KEY_CARD_TINT: string = 'card_tint';
+
+  /** 卡片沾色是否开启（默认关闭） */
+  static cardTintOn(): boolean {
+    return DataStore.get(DataStore.KEY_CARD_TINT) === '1';
+  }
+
+  static setCardTint(on: boolean): void {
+    DataStore.put(DataStore.KEY_CARD_TINT, on ? '1' : '0');
+  }
+
+  // ── 主题色流光：开启后按压沉浸光感卡片的流光/光晕改用主题色 ──
+  static readonly KEY_PRESS_GLOW: string = 'immersive_press_glow';
+
+  /** 主题色流光是否开启（默认开启，与参考项目一致） */
+  static pressGlowOn(): boolean {
+    return DataStore.get(DataStore.KEY_PRESS_GLOW) !== '0';
+  }
+
+  static setPressGlow(on: boolean): void {
+    DataStore.put(DataStore.KEY_PRESS_GLOW, on ? '1' : '0');
+  }
+
+  // ── 卡片流光触感：关闭后按压卡片不再出现流光 ──
+  static readonly KEY_CARD_GLOW_TOUCH: string = 'card_glow_touch';
+
+  /** 卡片流光触感是否开启（默认开启） */
+  static cardGlowTouchOn(): boolean {
+    return DataStore.get(DataStore.KEY_CARD_GLOW_TOUCH) !== '0';
+  }
+
+  static setCardGlowTouch(on: boolean): void {
+    DataStore.put(DataStore.KEY_CARD_GLOW_TOUCH, on ? '1' : '0');
+  }
+
+  // ── 高权限自定义主题色：开启后自定义 hex 也参与页面背景染色 ──
+  static readonly KEY_CUSTOM_ACCENT_FULL: string = 'custom_accent_full';
+
+  /** 高权限自定义主题色是否开启（默认关闭：仅内置主题色染背景） */
+  static customAccentFullOn(): boolean {
+    return DataStore.get(DataStore.KEY_CUSTOM_ACCENT_FULL) === '1';
+  }
+
+  static setCustomAccentFull(on: boolean): void {
+    DataStore.put(DataStore.KEY_CUSTOM_ACCENT_FULL, on ? '1' : '0');
+  }
+
+  // ── 字体管理：字号 / 字重 / 中文族 / 英数族 / 已上传字体列表 ──
+  static readonly KEY_FONT_MODE: string = 'font_mode';
+  static readonly KEY_FONT_FAMILY_ZH: string = 'font_family_zh';
+  static readonly KEY_FONT_FAMILY_EN: string = 'font_family_en';
+  static readonly KEY_FONT_WEIGHT_MODE: string = 'font_weight_mode';
+  static readonly KEY_FONT_WEIGHT_VALUE: string = 'font_weight_value';
+  static readonly KEY_CUSTOM_FONTS: string = 'custom_fonts';
+
+  /** 保存字体方案（preset=跟随系统 / zh-en=中英分设 / custom=自定义） */
+  static saveFontMode(mode: string): void {
+    DataStore.put(DataStore.KEY_FONT_MODE, mode.length > 0 ? mode : 'preset');
+  }
+
+  /** 读取字体方案（默认 preset） */
+  static fontMode(): string {
+    const v: string = DataStore.get(DataStore.KEY_FONT_MODE);
+    return v.length > 0 ? v : 'preset';
+  }
+
+  /** 保存中文字体族（空串=跟随系统） */
+  static saveFontFamilyZh(name: string): void {
+    DataStore.put(DataStore.KEY_FONT_FAMILY_ZH, name);
+  }
+
+  /** 读取中文字体族（默认空串=跟随系统） */
+  static fontFamilyZh(): string {
+    return DataStore.get(DataStore.KEY_FONT_FAMILY_ZH);
+  }
+
+  /** 保存英数字体族（空串=跟随系统） */
+  static saveFontFamilyEn(name: string): void {
+    DataStore.put(DataStore.KEY_FONT_FAMILY_EN, name);
+  }
+
+  /** 读取英数字体族（默认空串=跟随系统） */
+  static fontFamilyEn(): string {
+    return DataStore.get(DataStore.KEY_FONT_FAMILY_EN);
+  }
+
+  /** 保存字重方案（follow/thin/light/regular/medium/bold） */
+  static saveFontWeightMode(mode: string): void {
+    DataStore.put(DataStore.KEY_FONT_WEIGHT_MODE, mode.length > 0 ? mode : 'follow');
+  }
+
+  /** 读取字重方案（默认 follow=跟随原本样式） */
+  static fontWeightMode(): string {
+    const v: string = DataStore.get(DataStore.KEY_FONT_WEIGHT_MODE);
+    return v.length > 0 ? v : 'follow';
+  }
+
+  /** 保存自定义字重数值（100~900，非法值回落 400） */
+  static saveFontWeightValue(v: number): void {
+    const n: number = isNaN(v) ? 400 : Math.max(100, Math.min(900, Math.round(v)));
+    DataStore.put(DataStore.KEY_FONT_WEIGHT_VALUE, `${n}`);
+  }
+
+  /** 读取自定义字重数值（默认 400） */
+  static fontWeightValue(): number {
+    const v: number = Number(DataStore.get(DataStore.KEY_FONT_WEIGHT_VALUE));
+    return isNaN(v) || v <= 0 ? 400 : Math.max(100, Math.min(900, v));
+  }
+
+  /** 保存已上传字体列表（JSON 数组） */
+  static saveCustomFonts(list: CustomFontItem[]): void {
+    DataStore.put(DataStore.KEY_CUSTOM_FONTS, JSON.stringify(list));
+  }
+
+  /** 读取已上传字体列表（解析失败返回空数组） */
+  static loadCustomFonts(): CustomFontItem[] {
+    const out: CustomFontItem[] = [];
+    const raw: string = DataStore.get(DataStore.KEY_CUSTOM_FONTS);
+    if (raw.length === 0) {
+      return out;
+    }
+    try {
+      const arr: CustomFontItem[] = JSON.parse(raw) as CustomFontItem[];
+      for (let i = 0; i < arr.length; i++) {
+        const it: CustomFontItem = arr[i];
+        if (it === null || it === undefined) {
+          continue;
+        }
+        const fileName: string = it.fileName === undefined ? '' : it.fileName;
+        if (fileName.length === 0) {
+          continue;
+        }
+        const alias: string = it.alias === undefined ? '' : it.alias;
+        const item: CustomFontItem = { alias: alias, fileName: fileName };
+        out.push(item);
+      }
+    } catch (e) {
+      return out;
+    }
+    return out;
   }
 }

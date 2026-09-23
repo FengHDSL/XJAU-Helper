@@ -14,6 +14,15 @@ import zlib from '@ohos.zlib';
 import { AppState } from '../common/AppState';
 import { LogStore, LogEntry } from '../common/LogStore';
 import { PageHeader } from './common/UiKit';
+import { GlassMaterial } from '../common/GlassMaterial';
+import { Immersive } from './common/Immersive';
+// 沉浸光感：日志卡片走 MaterialCard（含长按多选），操作栏胶囊按钮走 MaterialButton，
+// 分类筛选 chip 走「MaterialCardLayer 承载层 + 文字」（不用 MaterialButton：其内部 Stack 的 onClick
+// 会吃掉 Tabs 分类条自身的点击）
+import { MaterialCard } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
+import { MaterialCardLayer } from './common/MaterialCarrier';
+import { isApi26OrAbove, materialActive } from '../common/SystemMaterial';
 
 @Component
 export struct LogPage {
@@ -22,6 +31,13 @@ export struct LogPage {
   /** 内嵌模式下的返回回调（embedded=true 时使用；Navigation 模式忽略） */
   onBackCallback: () => void = () => {
   };
+  /** 沉浸光感：按钮磨砂背景随该开关（与其它按钮质感统一） */
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   /** 日志列表（全量） */
   @State logs: LogEntry[] = [];
   /** 收集开关状态（@StorageProp 同步 LogStore.collecting 对应 UI） */
@@ -427,6 +443,29 @@ export struct LogPage {
         List({ space: 8 }) {
           ForEach(this.visibleLogs(), (log: LogEntry, visIdx: number) => {
             ListItem() {
+              // 长按多选手势挂在 MaterialCard 的**外层容器**上：MaterialCard 已移除外壳上的
+              // LongPressGesture（父级长按手势会让卡内 TextInput 无法获得焦点，属公共组件的有意取舍），
+              // 日志卡无输入框不受影响，故在此包一层 Column 自行挂手势，恢复"长按进多选"。
+              Column() {
+              // MaterialCard 承载：原 12vp 内边距挂内部内容容器（承载层才能铺满整块卡片）；14vp 圆角走 cardRadius；
+              // 点击展开走 cardOnClick（原 .onClick 不能链式补写）。
+              // 选中态原为 brand_light 实底——材质生效时底色让出，改用 cardTintOverlay 叠回淡绿（比例 0.6）；
+              // 成排日志卡关掉材质自带投影（cardMaterialShadow: false），避免卡间缝隙叠出暗带。
+              MaterialCard({
+                cardRadius: 14,
+                cardBg: this.selectedIdx.indexOf(this.getRealIndex(visIdx)) >= 0
+                  ? $r('app.color.brand_light') : $r('app.color.bg_card'),
+                cardBlur: GlassMaterial.cardBlur(),
+                cardBorderW: GlassMaterial.cardBorderWidth(),
+                cardBorderC: GlassMaterial.borderColor(),
+                cardShadow: GlassMaterial.cardShadowStyle(),
+                cardMaterialShadow: false,
+                cardTintOverlay: this.selectedIdx.indexOf(this.getRealIndex(visIdx)) >= 0 ? '#E4F2EC' : '',
+                cardTintOverlayRatio: 0.6,
+                cardOnClick: () => {
+                  this.tapLog(this.getRealIndex(visIdx));
+                }
+              }) {
               Column() {
                 // 标题行：展开箭头/勾选 + 模块色块 + 结果徽章 + 动作 + 时间
                 Row() {
@@ -490,11 +529,9 @@ export struct LogPage {
               .width('100%')
               .alignItems(HorizontalAlign.Start)
               .padding(12)
-              .backgroundColor(this.selectedIdx.indexOf(this.getRealIndex(visIdx)) >= 0 ? $r('app.color.brand_light') : $r('app.color.bg_card'))
-              .borderRadius(14)
-              .onClick(() => {
-                this.tapLog(this.getRealIndex(visIdx));
-              })
+              }
+              }
+              // 外层 Column 挂长按手势（进入多选并勾选当前项）；与 MaterialCard 的 cardOnClick 点击互不影响
               .gesture(
                 LongPressGesture()
                   .onAction(() => {
@@ -516,13 +553,33 @@ export struct LogPage {
   /** 分类栏 tabBar（chips 样式，胶囊之间留 8 间距） */
   @Builder
   tabBarItem(name: string, index: number) {
-    Text(name)
-      .fontSize(12)
-      .fontColor(this.filterIdx === index ? $r('app.color.brand_on') : $r('app.color.text_secondary'))
-      .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-      .backgroundColor(this.filterIdx === index ? $r('app.color.brand') : $r('app.color.bg_chip'))
-      .borderRadius(14)
-      .margin({ right: 8 })
+    // 材质承载：这里刻意**不用 MaterialButton**——它内部 Stack 带 onClick，会吃掉 Tabs 分类条自身的点击
+    // （分类切换由 Tabs 组件在 bar 区域识别点击完成），可能造成「点分类不切换」。
+    // 故直接叠一层只画材质、不参与交互的 MaterialCardLayer，文字层保持原样、不带点击。
+    // 选中态原为品牌实底：材质生效时底色让出，改用一层半透明品牌色叠回（比例 0.85，承载白字）。
+    Stack() {
+      MaterialCardLayer({ layerRadius: 14, layerShadow: false })
+      if (this.filterIdx === index) {
+        Column()
+          .width(LayoutPolicy.matchParent)
+          .height(LayoutPolicy.matchParent)
+          .borderRadius(14)
+          .backgroundColor('#079841')
+          .opacity(0.85)
+          .hitTestBehavior(HitTestMode.None)
+          .accessibilityLevel('no')
+      }
+      Text(name)
+        .fontSize(12)
+        .fontColor(this.filterIdx === index ? $r('app.color.brand_on') : $r('app.color.text_secondary'))
+        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+    }
+    .borderRadius(14)
+    .margin({ right: 8 })
+    // 材质生效时让出底色（否则底色垫在材质之下叠出灰感），光感关闭回落原品牌实底 / 淡灰底
+    .backgroundColor(this.matOn() ? Color.Transparent
+      : (this.filterIdx === index ? $r('app.color.brand') : $r('app.color.bg_chip')))
+    .clip(true)
   }
 
   /** 日志详情展开区（对齐开发者工具网络面板信息量） */
@@ -587,6 +644,11 @@ export struct LogPage {
     .margin({ bottom: 4 })
   }
 
+  /** 材质是否生效（本页判定）：决定自绘胶囊的承载层是否让出底色、是否叠原色 */
+  private matOn(): boolean {
+    return this.immersiveEffect && isApi26OrAbove() && materialActive();
+  }
+
   /** 标题栏下方的操作栏：常驻显示。
    *   - 排序按钮（最新↓ / 最旧↑）随时可切
    *   - 普通模式：长按提示 + 全部导出
@@ -594,53 +656,80 @@ export struct LogPage {
   @Builder
   exportBar() {
     Row() {
-      // 时间排序切换（正 / 反）
-      Text(this.sortDesc ? '最新 ↓' : '最旧 ↑')
-        .fontSize(12)
-        .fontColor($r('app.color.text_secondary'))
-        .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-        .backgroundColor($r('app.color.bg_chip'))
-        .borderRadius(14)
-        .onClick(() => {
+      // 时间排序切换（正 / 反）：材质走 MaterialButton 的 Toggle 承载层，光感关闭回落原淡灰玻璃底
+      MaterialButton({
+        btnRadius: 14,
+        btnBg: $r('app.color.bg_chip'),
+        btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+        btnBorderW: GlassMaterial.borderWidth(),
+        btnBorderC: GlassMaterial.borderColor(),
+        btnOnClick: () => {
           this.toggleSort();
-        })
+        }
+      }) {
+        Text(this.sortDesc ? '最新 ↓' : '最旧 ↑')
+          .fontSize(12)
+          .fontColor($r('app.color.text_secondary'))
+          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+      }
       Text(this.selecting ? `已选 ${this.selectedIdx.length} 条` : '长按日志可多选导出')
         .fontSize(11)
         .fontColor($r('app.color.text_tertiary'))
         .margin({ left: 10 })
       Blank()
       if (this.selecting) {
-        Text('取消')
-          .fontSize(13)
-          .fontColor($r('app.color.text_secondary'))
-          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-          .backgroundColor($r('app.color.bg_chip'))
-          .borderRadius(16)
-          .onClick(() => {
+        // 「取消」淡灰玻璃底 → MaterialButton（光感关闭回落同款玻璃底）
+        MaterialButton({
+          btnRadius: 16,
+          btnBg: $r('app.color.bg_chip'),
+          btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnOnClick: () => {
             this.exitSelect();
-          })
-        Text('导出选中')
-          .fontSize(13)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.brand_on'))
-          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-          .backgroundColor($r('app.color.brand'))
-          .borderRadius(16)
-          .margin({ left: 10 })
-          .onClick(() => {
+          }
+        }) {
+          Text('取消')
+            .fontSize(13)
+            .fontColor($r('app.color.text_secondary'))
+            .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+        }
+        // 「导出选中」品牌绿实底 + 白字 → 材质生效时靠 btnTint 叠回品牌绿（比例 0.85，承载白字对比度）
+        MaterialButton({
+          btnRadius: 16,
+          btnMargin: { left: 10 },
+          btnBg: $r('app.color.brand'),
+          btnTint: '#079841',
+          btnTintRatio: 0.85,
+          btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+          btnOnClick: () => {
             this.exportSelected();
-          })
+          }
+        }) {
+          Text('导出选中')
+            .fontSize(13)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.brand_on'))
+            .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+        }
       } else {
-        Text('全部导出')
-          .fontSize(13)
-          .fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.brand_on'))
-          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-          .backgroundColor($r('app.color.brand'))
-          .borderRadius(16)
-          .onClick(() => {
+        // 「全部导出」品牌绿实底 + 白字（同上，btnTint 叠回品牌绿）
+        MaterialButton({
+          btnRadius: 16,
+          btnBg: $r('app.color.brand'),
+          btnTint: '#079841',
+          btnTintRatio: 0.85,
+          btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+          btnOnClick: () => {
             this.exportAll();
-          })
+          }
+        }) {
+          Text('全部导出')
+            .fontSize(13)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.brand_on'))
+            .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+        }
       }
     }
     .width('100%')

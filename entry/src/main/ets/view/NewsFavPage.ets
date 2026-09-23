@@ -15,6 +15,11 @@ import { WallpaperFill } from './common/WallpaperFill';
 @Component
 export struct NewsFavPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
@@ -106,10 +111,15 @@ export struct NewsFavPage {
           Text('刷新')
             .fontSize(12)
             .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-            .padding({ left: 12, right: 12, top: 4, bottom: 4 })
-            .backgroundColor('#33FFFFFF')
+            .height(34)
+            .padding({ left: 14, right: 14 })
+            // 统一按钮质感（同返回按钮：白玻璃底 + 细亮边 + 微阴影 + 磨砂）
+            .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)')
             .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-            .borderRadius(14)
+            .border({ width: 1, color: 'rgba(255,255,255,0.28)' })
+            .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+            .borderRadius(17)
+            .textAlign(TextAlign.Center)
             .onClick(() => { this.reload(); })
         }
         .width('100%').alignItems(VerticalAlign.Center)
@@ -149,7 +159,7 @@ export struct NewsFavPage {
                       .fontSize(12)
                       .fontColor('#DB5252')
                       .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-                      .backgroundColor('#14DB5252')
+                      .backgroundColor('#14DB5252').backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
                       .borderRadius(12)
                       .margin({ left: 8 })
                       .onClick(() => { this.removeFav(item); })

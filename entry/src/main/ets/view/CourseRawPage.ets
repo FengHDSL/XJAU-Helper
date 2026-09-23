@@ -11,8 +11,12 @@ import { CourseRawStore, CourseRawMeta } from '../common/CourseRawStore';
 import { CourseItem } from '../model/Models';
 import { JwApi } from '../api/JwApi';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
+// 沉浸光感：卡片统一走 MaterialCard，胶囊小按钮走 MaterialButton（含「材质 + 原色」共存的 btnTint）
+import { MaterialCard } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
 
 /** JSON 原文预览最多显示的字符数（完整内容可复制） */
 const PREVIEW_MAX: number = 20000;
@@ -20,8 +24,15 @@ const PREVIEW_MAX: number = 20000;
 @Component
 export struct CourseRawPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
+  /** 沉浸光感开关（登记依赖：拨动后小按钮的玻璃底/材质即时重渲染） */
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   /** JSON 原文件是否存在 */
   @State hasFile: boolean = false;
   /** JSON 原文（已按 PREVIEW_MAX 截断） */
@@ -141,7 +152,17 @@ export struct CourseRawPage {
               .width('100%')
               .height(this.getUIContext().px2vp(this.topInsetPx) + 72)
 
-            // 元信息 + 操作
+            // 元信息 + 操作（MaterialCard 承载：原 16vp 内边距挂内部内容容器，承载层才能铺满整块卡片；
+            // 16vp 圆角走 cardRadius；12vp 下间距走 cardMargin；材质生效时卡片底色/磨砂/亮边/阴影一并让出）
+            MaterialCard({
+              cardRadius: 16,
+              cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+              cardBlur: GlassMaterial.cardBlur(),
+              cardBorderW: GlassMaterial.cardBorderWidth(),
+              cardBorderC: GlassMaterial.borderColor(),
+              cardShadow: GlassMaterial.cardShadowStyle(),
+              cardMargin: { bottom: 12 }
+            }) {
             Column() {
               this.metaRow('学期', AppState.term.label)
               this.metaRow('抓取时间', this.metaTime)
@@ -151,25 +172,40 @@ export struct CourseRawPage {
               this.metaRow('来源接口', this.metaUrl)
 
               Row() {
-                Text(this.fetching ? '获取中…' : '重新获取')
-                  .fontSize(12)
-                  .fontColor(Color.White)
-                  .padding({ left: 14, right: 14, top: 7, bottom: 7 })
-                  .backgroundColor(Theme.colorOf(this.themeColor))
-                  .borderRadius(12)
-                  .onClick(() => {
+                // 「重新获取」原来是主题色实底 + 白字：材质生效时靠 btnTint 叠回主题色（比例 0.85，
+                // 因白字需要足够对比度）——材质照常可见、按钮配色也保留；光感关闭时回落 btnBg 原实底。
+                MaterialButton({
+                  btnRadius: 12,
+                  btnBg: Theme.colorOf(this.themeColor),
+                  btnTint: Theme.colorOf(this.themeColor),
+                  btnTintRatio: 0.85,
+                  btnOnClick: () => {
                     this.refetch();
-                  })
-                Text('复制原文')
-                  .fontSize(12)
-                  .fontColor($r('app.color.text_secondary'))
-                  .padding({ left: 14, right: 14, top: 7, bottom: 7 })
-                  .backgroundColor($r('app.color.bg_chip'))
-                  .borderRadius(12)
-                  .margin({ left: 10 })
-                  .onClick(() => {
+                  }
+                }) {
+                  Text(this.fetching ? '获取中…' : '重新获取')
+                    .fontSize(12)
+                    .fontColor(Color.White)
+                    .padding({ left: 14, right: 14, top: 7, bottom: 7 })
+                }
+                // 「复制原文」原有的淡灰玻璃底：材质走 MaterialButton 的 Toggle 承载层，
+                // 光感关闭时回落 bg_chip + 亮边 + 微阴影（原自绘玻璃写法）。
+                MaterialButton({
+                  btnRadius: 12,
+                  btnMargin: { left: 10 },
+                  btnBg: $r('app.color.bg_chip'),
+                  btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                  btnBorderW: GlassMaterial.borderWidth(),
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnOnClick: () => {
                     this.copyAll();
-                  })
+                  }
+                }) {
+                  Text('复制原文')
+                    .fontSize(12)
+                    .fontColor($r('app.color.text_secondary'))
+                    .padding({ left: 14, right: 14, top: 7, bottom: 7 })
+                }
               }
               .width('100%')
               .margin({ top: 10 })
@@ -177,14 +213,21 @@ export struct CourseRawPage {
             .width('100%')
             .alignItems(HorizontalAlign.Start)
             .padding(16)
-            .backgroundColor($r('app.color.bg_card'))
-            .borderRadius(16)
-            .margin({ bottom: 12 })
+            }
 
             // 课表预览卡片已移除（无数据时会出现空白卡片，且原文件页重点在"原始识别文件"）
 
             // 原始识别文件（教务系统接口原文）
             if (this.hasFile) {
+              // MaterialCard 承载：原 12vp 内边距挂内部内容容器；16vp 圆角走 cardRadius。
+              MaterialCard({
+                cardRadius: 16,
+                cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+                cardBlur: GlassMaterial.cardBlur(),
+                cardBorderW: GlassMaterial.cardBorderWidth(),
+                cardBorderC: GlassMaterial.borderColor(),
+                cardShadow: GlassMaterial.cardShadowStyle()
+              }) {
               Column() {
                 Row() {
                   Text(this.truncated
@@ -193,15 +236,22 @@ export struct CourseRawPage {
                     .fontSize(11)
                     .fontColor($r('app.color.text_tertiary'))
                     .layoutWeight(1)
-                  Text('复制全文')
-                    .fontSize(11)
-                    .fontColor(Theme.colorOf(this.themeColor))
-                    .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-                    .backgroundColor($r('app.color.bg_chip'))
-                    .borderRadius(9)
-                    .onClick(() => {
+                  // 「复制全文」淡灰玻璃底小胶囊：同上走 MaterialButton（光感关闭回落 bg_chip 玻璃底）
+                  MaterialButton({
+                    btnRadius: 9,
+                    btnBg: $r('app.color.bg_chip'),
+                    btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                    btnBorderW: GlassMaterial.borderWidth(),
+                    btnBorderC: GlassMaterial.borderColor(),
+                    btnOnClick: () => {
                       this.copyAll();
-                    })
+                    }
+                  }) {
+                    Text('复制全文')
+                      .fontSize(11)
+                      .fontColor(Theme.colorOf(this.themeColor))
+                      .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+                  }
                 }
                 .width('100%')
                 .margin({ bottom: 8 })
@@ -216,9 +266,17 @@ export struct CourseRawPage {
               .width('100%')
               .alignItems(HorizontalAlign.Start)
               .padding(12)
-              .backgroundColor($r('app.color.bg_card'))
-              .borderRadius(16)
+              }
             } else {
+              // MaterialCard 承载：原 16vp 内边距挂内部内容容器；16vp 圆角走 cardRadius。
+              MaterialCard({
+                cardRadius: 16,
+                cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+                cardBlur: GlassMaterial.cardBlur(),
+                cardBorderW: GlassMaterial.cardBorderWidth(),
+                cardBorderC: GlassMaterial.borderColor(),
+                cardShadow: GlassMaterial.cardShadowStyle()
+              }) {
               Column() {
                 Text('暂无课表原文件')
                   .fontSize(13)
@@ -233,8 +291,7 @@ export struct CourseRawPage {
               .width('100%')
               .alignItems(HorizontalAlign.Start)
               .padding(16)
-              .backgroundColor($r('app.color.bg_card'))
-              .borderRadius(16)
+              }
             }
           }
           .width('100%')

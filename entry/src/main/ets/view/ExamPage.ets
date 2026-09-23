@@ -1,5 +1,16 @@
 /**
  * 考试安排（二级页）：学年/学期选择 + 考试列表 + 点开查看详情 + 导入日历
+ *
+ * 卡片外观接入（照首页 HomeView / 关于页 AboutPage 的写法推广）：
+ *  - 页面级卡片（顶部提示卡 / 考试卡）统一用 `MaterialCard` 承载（材质层在卡片内部、位于内容之下），
+ *    材质生效时卡片自身的底色/磨砂/亮边/阴影一并让出，每张卡只有一层视觉；
+ *    关闭光感回落为原来的纯色/毛玻璃卡片；
+ *  - 原卡片上的 `.padding(...)` / `.borderRadius(...)` / `.margin(...)` / `.opacity(...)` / `.onClick(...)`
+ *    一律改走 `cardPadding` / `cardRadius` / `cardMargin` / `cardOpacity` / `cardOnClick`
+ *    （尾随闭包初始化的自定义组件之后不能再链式加属性）；
+ *  - 弹窗内容套 `MaterialSheetPanel`，`bindSheet` 显式 `backgroundColor: Color.Transparent` +
+ *    `blurStyle: sheetBlurStyle()`；弹窗**内部**的列表行保持原 Row 写法（面板本身已是材质，
+ *    再包 MaterialCard 会在同一区域叠第二层材质）。
  */
 import { SheetUtil } from '../common/SheetUtil';
 import { common } from '@kit.AbilityKit';
@@ -11,12 +22,18 @@ import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { ExamItem, TermInfo } from '../model/Models';
 import { EmptyTip, LoadingTip, TagChip } from './common/UiKit';
 import { BackButton } from './common/BackButton';
 import { WallpaperFill } from './common/WallpaperFill';
+// 沉浸光感：页面级卡片统一走 MaterialCard（材质承载层在卡片内容之下，材质生效时卡片底色/磨砂/亮边/阴影
+// 一并让出，每张卡只剩一层视觉），胶囊小按钮走 MaterialButton，半模态弹窗内容走 MaterialSheetPanel
+import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
+import { sheetBlurStyle } from '../common/SystemMaterial';
 
 @Component
 export struct ExamPage {
@@ -28,6 +45,11 @@ export struct ExamPage {
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  /** 响应式依赖：玻璃/灰字设置变化时即时刷新本页（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @State terms: TermInfo[] = [];
   @State selectedTermIndex: number = 0;
@@ -155,9 +177,9 @@ export struct ExamPage {
   }
 
   /** 倒计时 TagChip 文字颜色（按剩余天数分级：≤3天红紧急、≤7天黄中等、>7天绿充足；已结束灰） */
-  private daysTagColor(d: number): Resource {
+  private daysTagColor(d: number): ResourceColor {
     if (d < 0) {
-      return $r('app.color.text_tertiary');
+      return GlassMaterial.grayTertiary($r('app.color.text_tertiary'));
     }
     if (d <= 3) {
       return $r('app.color.state_danger');
@@ -192,23 +214,42 @@ export struct ExamPage {
 
   @Builder
   examCard(item: ExamItem) {
+    // MaterialCard 承载：材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片底色/磨砂/亮边/阴影让出；
+    // 原 14vp 内边距走 cardPadding、16vp 圆角走 cardRadius、12vp 下间距走 cardMargin、
+    // 已结束考试的 0.6 透明度走 cardOpacity、整卡点击走 cardOnClick
+    // （尾随闭包初始化的自定义组件之后不能再链式加属性）。
+    MaterialCard({
+      cardRadius: 16,
+      cardPadding: 14,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { bottom: 12 },
+      cardOpacity: this.daysLeft(item) < 0 ? 0.6 : 1,
+      cardOnClick: () => {
+        this.selectedExam = item;
+        this.showDetail = true;
+      }
+    }) {
     Row() {
       Column() {
         Text(`${DateUtil.parse(item.date).getMonth() + 1}`)
           .fontSize(11)
-          .fontColor(this.daysLeft(item) < 0 ? $r('app.color.text_tertiary') : $r('app.color.accent_orange'))
+          .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.grayTertiary($r('app.color.text_tertiary')) : $r('app.color.accent_orange'))
         Text(`${DateUtil.parse(item.date).getDate()}`)
           .fontSize(22)
           .fontWeight(FontWeight.Bold)
-          .fontColor(this.daysLeft(item) < 0 ? $r('app.color.text_tertiary') : $r('app.color.accent_orange'))
+          .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.grayTertiary($r('app.color.text_tertiary')) : $r('app.color.accent_orange'))
         Text(Const.WEEK_LABELS[DateUtil.weekdayOf(DateUtil.parse(item.date)) - 1])
           .fontSize(10)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .margin({ top: 2 })
       }
       .width(60)
       .padding({ top: 10, bottom: 10 })
-      .backgroundColor($r('app.color.bg_chip'))
+      .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
       .borderRadius(12)
 
       Column() {
@@ -216,12 +257,12 @@ export struct ExamPage {
           Text(item.courseName)
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
-            .fontColor(this.daysLeft(item) < 0 ? $r('app.color.text_secondary') : $r('app.color.text_primary'))
+            .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.graySecondary($r('app.color.text_secondary')) : $r('app.color.text_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
           if (this.daysLeft(item) < 0) {
-            TagChip({ text: '已结束', color: $r('app.color.text_tertiary'), bg: $r('app.color.bg_chip') })
+            TagChip({ text: '已结束', color: GlassMaterial.grayTertiary($r('app.color.text_tertiary')), bg: $r('app.color.bg_chip') })
           } else if (this.daysLeft(item) === 0) {
             TagChip({ text: '今天', color: $r('app.color.brand_on'), bg: $r('app.color.state_danger') })
           } else {
@@ -244,7 +285,7 @@ export struct ExamPage {
             .margin({ right: 5 })
           Text(item.timeRange)
             .fontSize(12)
-            .fontColor($r('app.color.text_secondary'))
+            .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
             .margin({ left: 4 })
           Column()
             .width(6)
@@ -254,7 +295,7 @@ export struct ExamPage {
             .margin({ left: 12, right: 5 })
           Text(item.location)
             .fontSize(12)
-            .fontColor($r('app.color.text_secondary'))
+            .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
             .margin({ left: 4 })
         }
         .width('100%')
@@ -264,7 +305,7 @@ export struct ExamPage {
           TagChip({ text: item.examType, color: Theme.colorOf(this.themeColor), bg: Theme.rgba(Theme.colorOf(this.themeColor), 0.12) })
           Text(`座位号 ${item.seat}`)
             .fontSize(11)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
             .margin({ left: 8 })
           Blank()
         }
@@ -276,19 +317,16 @@ export struct ExamPage {
       .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .padding(14)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(16)
-    .margin({ bottom: 12 })
-    .opacity(this.daysLeft(item) < 0 ? 0.6 : 1)
-    .onClick(() => {
-      this.selectedExam = item;
-      this.showDetail = true;
-    })
+    }
   }
 
   @Builder
   detailSheet() {
+    // 弹窗内容套 MaterialSheetPanel：bindSheet 自身的 systemMaterial 挂在面板上、内容区不生效，
+    // 由 MaterialSheetPanel 的 Toggle 承载层渲染材质；配套硬要求（见 build 的 bindSheet 选项）
+    // 是显式 backgroundColor: Color.Transparent（默认白底会把材质整块盖住）。
+    // 高度随内容（SheetSize.FIT_CONTENT）→ panelFillHeight: false；内层 20/8/24vp 内边距原样保留。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
     Column() {
       if (this.selectedExam !== null) {
         Row() {
@@ -314,30 +352,52 @@ export struct ExamPage {
         this.sheetRow('考试性质', this.selectedExam.examType, this.examTypeColor(this.selectedExam.examType))
 
         Row() {
-          Button('导入日历')
-            .fontSize(15)
-            .fontColor(Theme.colorOf(this.themeColor))
-            .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
-            .height(44)
-            .borderRadius(12)
-            .layoutWeight(1)
-            .onClick(() => {
-              if (this.selectedExam !== null) {
-                const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-                CalendarUtil.addExamToCalendar(this.selectedExam, ctx);
+          // 导入日历：材质走 MaterialButton 的 Toggle 承载层（普通 Button 直接挂材质真机不渲染）；
+          // MaterialButton 的 Stack 内部 layoutWeight 不生效 → 把 layoutWeight 移到外层 Column，
+          // 内容自己写 width('100%') / height(44) 把点击区撑满（与我的页备份弹窗同一写法）。
+          Column() {
+            MaterialButton({
+              btnRadius: 12,
+              btnBg: Theme.rgba(Theme.colorOf(this.themeColor), 0.12),
+              btnBlur: BlurStyle.NONE,
+              btnOnClick: () => {
+                if (this.selectedExam !== null) {
+                  const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+                  CalendarUtil.addExamToCalendar(this.selectedExam, ctx);
+                }
               }
-            })
-          Button('关闭')
-            .fontSize(15)
-            .fontColor($r('app.color.text_secondary'))
-            .backgroundColor($r('app.color.bg_chip'))
-            .height(44)
-            .borderRadius(12)
-            .layoutWeight(1)
-            .margin({ left: 12 })
-            .onClick(() => {
-              this.showDetail = false;
-            })
+            }) {
+              Text('导入日历')
+                .fontSize(15)
+                .fontColor(Theme.colorOf(this.themeColor))
+                .width('100%')
+                .height(44)
+                .textAlign(TextAlign.Center)
+            }
+          }
+          .layoutWeight(1)
+          Column() {
+            // 原按钮是「浅灰玻璃底 + 亮边 + 磨砂」，回落值按原值写（immersive 关时无磨砂、1vp 亮边）
+            MaterialButton({
+              btnRadius: 12,
+              btnBg: $r('app.color.bg_chip'),
+              btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE,
+              btnBorderW: 1,
+              btnBorderC: 'rgba(255,255,255,0.28)',
+              btnOnClick: () => {
+                this.showDetail = false;
+              }
+            }) {
+              Text('关闭')
+                .fontSize(15)
+                .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+                .width('100%')
+                .height(44)
+                .textAlign(TextAlign.Center)
+            }
+          }
+          .layoutWeight(1)
+          .margin({ left: 12 })
         }
         .width('100%')
         .margin({ top: 18 })
@@ -345,21 +405,27 @@ export struct ExamPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 8, bottom: 24 })
+    }
   }
 
   @Builder
   termPickerSheet() {
+    // 弹窗内容套 MaterialSheetPanel（同考试详情弹窗）：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底；
+    // 高度随内容（FIT_CONTENT）→ panelFillHeight: false；内层 20/8/24vp 内边距原样保留。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
     Column() {
       if (this.terms.length === 0) {
         Text('暂无可查询的学期')
           .fontSize(13)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .width('100%')
           .textAlign(TextAlign.Center)
       } else {
         Scroll() {
           Column() {
             ForEach(this.terms, (term: TermInfo, index: number) => {
+              // 学期行保留实色底：选中态靠实色背景（选中=主题色 / 未选中=浅灰）表达，
+              // 沉浸光感材质会让出底色、把选中态吃掉，故不改为材质按钮。
               Row() {
                 Text(term.label)
                   .fontSize(14)
@@ -391,6 +457,7 @@ export struct ExamPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 8, bottom: 24 })
+    }
   }
 
   @Builder
@@ -404,7 +471,7 @@ export struct ExamPage {
         .margin({ right: 10 })
       Text(label)
         .fontSize(13)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
         .width(72)
       Text(value)
         .fontSize(13)
@@ -436,16 +503,19 @@ export struct ExamPage {
    */
   @Builder
   pickExamSheet() {
+    // 弹窗内容套 MaterialSheetPanel（同详情/学期弹窗）：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底；
+    // 高度随内容（SheetSize.LARGE 固定高）→ 保持 panelFillHeight 默认 true，让材质裹住整块面板。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0 }) {
     Column() {
       // 顶部说明（去掉重复标题"桌面卡片倒计时"，sheet 自身 title 已显示）
       Text('选一场考试作为桌面卡片的倒计时对象')
         .fontSize(12)
-        .fontColor($r('app.color.text_secondary'))
+        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
         .width('100%')
         .margin({ bottom: 4 })
       Text('不选则自动显示最近一场未开始的考试')
         .fontSize(11)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
         .width('100%')
         .margin({ bottom: 14 })
 
@@ -453,26 +523,32 @@ export struct ExamPage {
       Row() {
         Text(this.pickedExamId.length === 0 ? '当前: 最近一场考试自动倒计时' : `当前: ${this.pickedExamName()}`)
           .fontSize(12)
-          .fontColor($r('app.color.text_secondary'))
+          .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .layoutWeight(1)
         if (this.pickedExamId.length > 0) {
-          Text('清除选择')
-            .fontSize(11)
-            .fontColor('#2C5FA8')
-            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-            .borderRadius(4)
-            .backgroundColor('rgba(44,95,168,0.10)')
-            .onClick(() => {
+          // 清除选择：胶囊小按钮，材质走 MaterialButton 的 Toggle 承载层（btnBg 保留原蓝色浅底；
+          // 原按钮无边框、无磨砂 → 光感关闭时按原样回落）
+          MaterialButton({
+            btnRadius: 4,
+            btnBg: 'rgba(44,95,168,0.10)',
+            btnBlur: BlurStyle.NONE,
+            btnOnClick: () => {
               this.pickExamForCard(null);
               this.showPickExam = false;
-            })
+            }
+          }) {
+            Text('清除选择')
+              .fontSize(11)
+              .fontColor('#2C5FA8')
+              .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+          }
         }
       }
       .width('100%')
       .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-      .backgroundColor($r('app.color.bg_chip'))
+      .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
       .borderRadius(10)
       .margin({ bottom: 12 })
 
@@ -482,7 +558,7 @@ export struct ExamPage {
           if (this.exams.length === 0) {
             Text('本学期暂无考试安排，刷新后重试')
               .fontSize(12)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
               .width('100%')
               .textAlign(TextAlign.Center)
               .padding(20)
@@ -499,7 +575,7 @@ export struct ExamPage {
                       .textOverflow({ overflow: TextOverflow.Ellipsis })
                     Text(`${item.date} ${item.timeRange} · ${item.location}`)
                       .fontSize(11)
-                      .fontColor($r('app.color.text_secondary'))
+                      .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                       .margin({ top: 4 })
                       .maxLines(1)
                       .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -509,32 +585,41 @@ export struct ExamPage {
                   .margin({ right: 8 })
 
                   if (this.pickedExamId === item.id) {
+                    // 「当前使用」是选中态标签（无点击）：保留实色底——选中态靠实色背景表达，
+                    // 材质会让出底色、把选中态吃掉，故不改为材质按钮。
                     Text('当前使用')
                       .fontSize(11)
                       .fontColor($r('app.color.brand_on'))
-                      .backgroundColor(Theme.colorOf(this.themeColor))
+                      .backgroundColor(Theme.colorOf(this.themeColor)).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
                       .height(24)
                       .padding({ left: 8, right: 8 })
                       .borderRadius(12)
                       .textAlign(TextAlign.Center)
                   } else {
-                    Text('用作倒计时')
-                      .fontSize(11)
-                      .fontColor(Theme.colorOf(this.themeColor))
-                      .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
-                      .height(24)
-                      .padding({ left: 8, right: 8 })
-                      .borderRadius(12)
-                      .textAlign(TextAlign.Center)
-                      .onClick(() => {
+                    // 用作倒计时：胶囊小按钮，材质走 MaterialButton 的 Toggle 承载层
+                    MaterialButton({
+                      btnRadius: 12,
+                      btnBg: Theme.rgba(Theme.colorOf(this.themeColor), 0.12),
+                      btnBlur: GlassMaterial.cardBlur(),
+                      btnBorderW: GlassMaterial.cardBorderWidth(),
+                      btnBorderC: GlassMaterial.borderColor(),
+                      btnOnClick: () => {
                         this.pickExamForCard(item);
                         this.showPickExam = false;
-                      })
+                      }
+                    }) {
+                      Text('用作倒计时')
+                        .fontSize(11)
+                        .fontColor(Theme.colorOf(this.themeColor))
+                        .height(24)
+                        .padding({ left: 8, right: 8 })
+                        .textAlign(TextAlign.Center)
+                    }
                   }
                 }
                 .width('100%')
                 .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-                .backgroundColor(this.pickedExamId === item.id ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : $r('app.color.bg_card'))
+                .backgroundColor(this.pickedExamId === item.id ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : GlassMaterial.homeCardBg($r('app.color.bg_card'))).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
                 .borderRadius(10)
                 .margin({ bottom: 6 })
               }
@@ -548,22 +633,35 @@ export struct ExamPage {
 
       // 底部关闭按钮
       Row() {
-        Button('关闭')
-          .fontSize(14)
-          .fontColor($r('app.color.text_secondary'))
-          .backgroundColor($r('app.color.bg_chip'))
-          .height(40)
-          .layoutWeight(1)
-          .borderRadius(10)
-          .onClick(() => {
-            this.showPickExam = false;
-          })
+        // 关闭：材质走 MaterialButton；原 Button 的 layoutWeight 移到外层 Column
+        // （MaterialButton 的 Stack 内部 layoutWeight 不生效），内容自己撑满点击区。
+        Column() {
+          MaterialButton({
+            btnRadius: 10,
+            btnBg: $r('app.color.bg_chip'),
+            btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE,
+            btnBorderW: 1,
+            btnBorderC: 'rgba(255,255,255,0.28)',
+            btnOnClick: () => {
+              this.showPickExam = false;
+            }
+          }) {
+            Text('关闭')
+              .fontSize(14)
+              .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+              .width('100%')
+              .height(40)
+              .textAlign(TextAlign.Center)
+          }
+        }
+        .layoutWeight(1)
       }
       .width('100%')
       .margin({ top: 14 })
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 8, bottom: 24 })
+    }
   }
 
   build() {
@@ -601,7 +699,7 @@ Row() {
               Image($r('app.media.list_bullet'))
                 .width(14)
                 .height(14)
-                .fillColor(this.subtitleColor.length > 0 ? this.subtitleColor : (this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? $r('app.color.text_tertiary') : '#CCFFFFFF')))
+                .fillColor(this.subtitleColor.length > 0 ? this.subtitleColor : (this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? GlassMaterial.grayTertiary($r('app.color.text_tertiary')) : '#CCFFFFFF')))
                 .margin({ left: 3 })
             }
             .height(15)
@@ -614,18 +712,27 @@ Row() {
           .margin({ left: 6 })
           .layoutWeight(1)
 
-          // 右上："桌面卡片"快捷按钮（纯文字，触发选考试弹窗）
-          Text('桌面卡片')
-            .fontSize(13)
-            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-            .height(28)
-            .padding({ left: 12, right: 12 })
-            .backgroundColor('#1AFFFFFF')
-            .borderRadius(14)
-            .textAlign(TextAlign.Center)
-            .onClick(() => {
+          // 右上："桌面卡片"快捷按钮（触发选考试弹窗）→ MaterialButton（Toggle 承载层，btnPersistent 常驻：
+          // 不随全局沉浸光感开关关闭而消失；光感关闭回落原白玻璃胶囊）。原 34 高胶囊由内容 Text height(34) 撑出，
+          // 视觉与左侧返回按钮统一；微阴影随材质统一让出。
+          MaterialButton({
+            btnRadius: 17,
+            btnPersistent: true,
+            btnBg: this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)',
+            btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+            btnBorderW: 1,
+            btnBorderC: 'rgba(255,255,255,0.28)',
+            btnOnClick: () => {
               this.showPickExam = true;
-            })
+            }
+          }) {
+            Text('桌面卡片')
+              .fontSize(13)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .height(34)
+              .padding({ left: 14, right: 14 })
+              .textAlign(TextAlign.Center)
+          }
         }
         .width('100%')
         .alignItems(VerticalAlign.Top)
@@ -647,6 +754,19 @@ Row() {
               Column() {
                 // 顶栏悬浮让位（正文默认从顶栏下方开始，上滑才滚入渐变下层）
                 Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+                // MaterialCard 承载：材质层是卡片内部底层，材质生效时卡片底色让出；
+                // 原 14vp 内边距走 cardPadding、16vp 圆角走 cardRadius、14vp 下间距走 cardMargin；
+                // 卡片底色是主题色淡底（材质不可用时回落它，观感与原卡片一致）
+                MaterialCard({
+                  cardRadius: 16,
+                  cardPadding: 14,
+                  cardBg: Theme.rgba(Theme.colorOf(this.themeColor), 0.12),
+                  cardBlur: GlassMaterial.cardBlur(),
+                  cardBorderW: GlassMaterial.cardBorderWidth(),
+                  cardBorderC: GlassMaterial.borderColor(),
+                  cardShadow: GlassMaterial.cardShadowStyle(),
+                  cardMargin: { bottom: 14 }
+                }) {
                 Row() {
                   Column() {
                     Text(this.nextExamText())
@@ -655,17 +775,14 @@ Row() {
                       .fontColor($r('app.color.text_primary'))
                     Text('考试须携带学生证与身份证，提前 15 分钟入场')
                       .fontSize(11)
-                      .fontColor($r('app.color.text_tertiary'))
+                      .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                       .margin({ top: 4 })
                   }
                   .alignItems(HorizontalAlign.Start)
                   .layoutWeight(1)
                 }
                 .width('100%')
-                .padding(14)
-                .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
-                .borderRadius(16)
-                .margin({ bottom: 14 })
+                }
 
                 if (this.exams.length === 0) {
                   EmptyTip({ text: '本学期暂无考试安排' })
@@ -698,7 +815,10 @@ Row() {
           preferType: SheetType.BOTTOM,
           height: SheetSize.FIT_CONTENT,
           dragBar: true,
-          backgroundColor: $r('app.color.bg_card'),
+          // 必须显式透明：BindOptions.backgroundColor 默认是 Color.White，
+          // 而沉浸光感的视觉层级位于 backgroundColor **之下**，白底会把 MaterialSheetPanel 的材质整块盖住。
+          backgroundColor: Color.Transparent,
+          blurStyle: sheetBlurStyle(),
           title: { title: '考试详情' }
         })
       }
@@ -711,7 +831,9 @@ Row() {
         preferType: SheetType.BOTTOM,
         height: SheetSize.FIT_CONTENT,
         dragBar: true,
-        backgroundColor: $r('app.color.bg_card'),
+        // 同考试详情弹窗：显式透明底 + 材质模糊（否则默认白底盖住 MaterialSheetPanel 的材质）
+        backgroundColor: Color.Transparent,
+        blurStyle: sheetBlurStyle(),
         title: { title: '选择学年-学期' }
       })
       }
@@ -723,7 +845,9 @@ Row() {
         preferType: SheetType.BOTTOM,
         height: SheetSize.LARGE,
         dragBar: true,
-        backgroundColor: $r('app.color.bg_card'),
+        // 同考试详情弹窗：显式透明底 + 材质模糊（否则默认白底盖住 MaterialSheetPanel 的材质）
+        backgroundColor: Color.Transparent,
+        blurStyle: sheetBlurStyle(),
         title: { title: '选择桌面卡片倒计时' }
       })
     }

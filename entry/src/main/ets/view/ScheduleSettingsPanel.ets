@@ -9,6 +9,12 @@ import { Const, SectionTime } from '../common/Constants';
 import { SectionUtil } from '../common/SectionUtil';
 import { DateUtil } from '../common/DateUtil';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
+// 沉浸光感：面板内胶囊/圆角按钮走 MaterialButton（有色按钮用 btnTint 叠回原色），
+// 节次编辑半模态内容套 MaterialSheetPanel
+import { MaterialSheetPanel } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
+import { sheetBlurStyle } from '../common/SystemMaterial';
 
 const BG_PALETTE: string[] = [
   '#FFFFFF', '#FAF9F6', '#F0F0F0', '#F5F0E1', '#E8F0FE', '#E3F9E5',
@@ -45,27 +51,41 @@ struct ColorPickCell {
           .border({ width: 1, color: '#CCCCCC' })
       }.width('100%').margin({ bottom: 4 })
       Row() {
+        // 十六进制色值输入框：TextInput 属表单控件，不能走 Toggle 承载层（材质只在按钮/选择类组件上可靠生效），
+        // 故保持自绘玻璃底（原 .systemMaterial 是恒 undefined 的无效旧写法，已移除，观感不变）。
         TextInput({ text: this.hex, placeholder: '#RRGGBB' })
           .fontSize(12).height(32).layoutWeight(1)
           .backgroundColor($r('app.color.bg_chip'))
+          .backgroundBlurStyle(GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? true))
+          .border({ width: GlassMaterial.borderWidth(), color: GlassMaterial.borderColor() })
+          .shadow(GlassMaterial.capsuleShadow()).clip(true).borderRadius(8)
           .onChange((v: string) => {
             if (v.length === 0 || /^#[0-9a-fA-F]{6}$/.test(v)) { this.hex = v; this.onChange(); }
           })
       }.width('100%').margin({ bottom: 10 })
 
       Flex({ wrap: FlexWrap.Wrap }) {
-        Column() {
-          Image($r('app.media.icon_restore')).width(18).height(18).fillColor($r('app.color.text_secondary'))
+        // 「恢复默认（无颜色）」圆钮：材质走 MaterialButton 的 Toggle 承载层（圆形=大圆角）。
+        // 选中态的描边（未选色时高亮 3vp）画在内容层上，材质生效时不会被让出的边框吃掉。
+        MaterialButton({
+          btnRadius: 17,
+          btnBg: $r('app.color.bg_chip'),
+          btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? true),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnMargin: { right: 12, top: 10 },
+          btnOnClick: () => { this.hex = ''; this.onChange(); }
+        }) {
+          Column() {
+            Image($r('app.media.icon_restore')).width(18).height(18).fillColor($r('app.color.text_secondary'))
+          }
+          .width(34).height(34).borderRadius(17)
+          .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
+          .border({
+            width: this.hex.length === 0 ? 3 : 1,
+            color: this.hex.length === 0 ? Theme.colorOf(this.themeColor) : '#CCCCCC'
+          })
         }
-        .width(34).height(34).borderRadius(17)
-        .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Center)
-        .backgroundColor($r('app.color.bg_chip'))
-        .border({
-          width: this.hex.length === 0 ? 3 : 1,
-          color: this.hex.length === 0 ? Theme.colorOf(this.themeColor) : '#CCCCCC'
-        })
-        .margin({ right: 12, top: 10 })
-        .onClick(() => { this.hex = ''; this.onChange(); })
 
         ForEach(this.palette, (p: string) => {
           Column()
@@ -85,6 +105,13 @@ struct ColorPickCell {
 @Component
 export struct ScheduleSettingsPanel {
   @StorageProp('themeColor') themeColor: string = 'green';
+  /** 沉浸光感开关（登记依赖：拨动后按钮的玻璃底/材质即时重渲染） */
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   cfg: ScheduleConfig = new ScheduleConfig();
   scheduleBg: string = '';
   onPickBg: () => void = () => {};
@@ -314,20 +341,36 @@ export struct ScheduleSettingsPanel {
     Column() {
       Row() {
         Text('课程节数').fontSize(14).fontColor($r('app.color.text_primary')).layoutWeight(1)
-        Text('－')
-          .fontSize(18).fontColor($r('app.color.text_primary'))
-          .width(34).height(30).textAlign(TextAlign.Center)
-          .backgroundColor($r('app.color.bg_chip')).borderRadius(8)
-          .onClick(() => { this.changeSecCount(-1); })
+        // 「－」减节数圆角小按钮：材质走 MaterialButton（光感关闭回落原淡灰玻璃底）
+        MaterialButton({
+          btnRadius: 8,
+          btnBg: $r('app.color.bg_chip'),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnOnClick: () => { this.changeSecCount(-1); }
+        }) {
+          Text('－')
+            .fontSize(18).fontColor($r('app.color.text_primary'))
+            .width(34).height(30).textAlign(TextAlign.Center)
+        }
         Text(`${this.secCount}`)
           .fontSize(15).fontWeight(FontWeight.Medium)
           .fontColor($r('app.color.text_primary'))
           .width(46).textAlign(TextAlign.Center)
-        Text('＋')
-          .fontSize(18).fontColor($r('app.color.text_primary'))
-          .width(34).height(30).textAlign(TextAlign.Center)
-          .backgroundColor($r('app.color.bg_chip')).borderRadius(8)
-          .onClick(() => { this.changeSecCount(1); })
+        // 「＋」加节数圆角小按钮：同上
+        MaterialButton({
+          btnRadius: 8,
+          btnBg: $r('app.color.bg_chip'),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnOnClick: () => { this.changeSecCount(1); }
+        }) {
+          Text('＋')
+            .fontSize(18).fontColor($r('app.color.text_primary'))
+            .width(34).height(30).textAlign(TextAlign.Center)
+        }
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
@@ -362,16 +405,38 @@ export struct ScheduleSettingsPanel {
       .divider({ strokeWidth: 0.5, color: $r('app.color.divider') })
 
       Row({ space: 12 }) {
-        Button('恢复默认')
-          .fontSize(14).fontColor(Theme.colorOf(this.themeColor))
-          .backgroundColor($r('app.color.bg_chip'))
-          .height(42).layoutWeight(1).borderRadius(21)
-          .onClick(() => { this.resetSectionEditor(); })
-        Button('保存')
-          .fontSize(14).fontWeight(FontWeight.Medium).fontColor(Color.White)
-          .backgroundColor(Theme.colorOf(this.themeColor))
-          .height(42).layoutWeight(1).borderRadius(21)
-          .onClick(() => { this.saveSectionEditor(); })
+        // 等宽双按钮：layoutWeight 放在外层 Column 上（MaterialButton 内部是 Stack，layoutWeight 需放外层）
+        Column() {
+          // 「恢复默认」：主题色文字 + 淡灰玻璃底 → MaterialButton（光感关闭回落同款玻璃底）
+          MaterialButton({
+            btnRadius: 21,
+            btnBg: $r('app.color.bg_chip'),
+            btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+            btnBorderW: GlassMaterial.borderWidth(),
+            btnBorderC: GlassMaterial.borderColor(),
+            btnOnClick: () => { this.resetSectionEditor(); }
+          }) {
+            Text('恢复默认')
+              .fontSize(14).fontColor(Theme.colorOf(this.themeColor))
+              .height(42).width('100%').textAlign(TextAlign.Center)
+          }
+        }
+        .layoutWeight(1)
+        Column() {
+          // 「保存」主题色实底 + 白字 → 材质生效时靠 btnTint 叠回主题色（比例 0.85，承载白字对比度）
+          MaterialButton({
+            btnRadius: 21,
+            btnBg: Theme.colorOf(this.themeColor),
+            btnTint: Theme.colorOf(this.themeColor),
+            btnTintRatio: 0.85,
+            btnOnClick: () => { this.saveSectionEditor(); }
+          }) {
+            Text('保存')
+              .fontSize(14).fontWeight(FontWeight.Medium).fontColor(Color.White)
+              .height(42).width('100%').textAlign(TextAlign.Center)
+          }
+        }
+        .layoutWeight(1)
       }
       .width('100%')
       .margin({ top: 12 })
@@ -407,18 +472,26 @@ export struct ScheduleSettingsPanel {
       Column() {
         Row() {
           Text('上课时间').fontSize(13).fontColor($r('app.color.text_secondary')).width(72)
+          // 时间输入框：TextInput 属表单控件、不能走 Toggle 承载层，保持自绘玻璃底（原无效的 .systemMaterial 旧写法已移除）
           TextInput({ text: (this.editTimes[this.editingIndex] ?? '').split('-')[0], placeholder: 'HH:MM' })
             .fontSize(14).height(40).layoutWeight(1)
-            .backgroundColor($r('app.color.bg_chip')).borderRadius(12)
+            .backgroundColor($r('app.color.bg_chip'))
+            .backgroundBlurStyle(GlassMaterial.bgBlur(this.immersiveEffect))
+            .border({ width: GlassMaterial.borderWidth(), color: GlassMaterial.borderColor() })
+            .shadow(GlassMaterial.capsuleShadow()).clip(true).borderRadius(12)
             .onChange((v: string) => { this.setEditTime(this.editingIndex, 0, v); })
         }
         .width('100%').margin({ top: 12 }).alignItems(VerticalAlign.Center)
 
         Row() {
           Text('下课时间').fontSize(13).fontColor($r('app.color.text_secondary')).width(72)
+          // 同「上课时间」输入框：保持自绘玻璃底
           TextInput({ text: (this.editTimes[this.editingIndex] ?? '').split('-')[1], placeholder: 'HH:MM' })
             .fontSize(14).height(40).layoutWeight(1)
-            .backgroundColor($r('app.color.bg_chip')).borderRadius(12)
+            .backgroundColor($r('app.color.bg_chip'))
+            .backgroundBlurStyle(GlassMaterial.bgBlur(this.immersiveEffect))
+            .border({ width: GlassMaterial.borderWidth(), color: GlassMaterial.borderColor() })
+            .shadow(GlassMaterial.capsuleShadow()).clip(true).borderRadius(12)
             .onChange((v: string) => { this.setEditTime(this.editingIndex, 1, v); })
         }
         .width('100%').margin({ top: 14 }).alignItems(VerticalAlign.Center)
@@ -427,16 +500,23 @@ export struct ScheduleSettingsPanel {
           .fontSize(11).fontColor($r('app.color.text_tertiary'))
           .width('100%').margin({ top: 10 })
 
-        Button('返回列表')
-          .fontSize(14).fontWeight(FontWeight.Medium).fontColor(Color.White)
-          .backgroundColor(Theme.colorOf(this.themeColor))
-          .height(42).width('100%').borderRadius(21)
-          .margin({ top: 20 })
-          .onClick(() => {
+        // 「返回列表」主题色实底 + 白字 → MaterialButton，btnTint 叠回主题色（比例 0.85）
+        MaterialButton({
+          btnRadius: 21,
+          btnMargin: { top: 20 },
+          btnBg: Theme.colorOf(this.themeColor),
+          btnTint: Theme.colorOf(this.themeColor),
+          btnTintRatio: 0.85,
+          btnOnClick: () => {
             this.getUIContext().animateTo({ duration: 320, curve: Curve.EaseOut }, () => {
               this.secPageFlag = false;
             });
-          })
+          }
+        }) {
+          Text('返回列表')
+            .fontSize(14).fontWeight(FontWeight.Medium).fontColor(Color.White)
+            .height(42).width('100%').textAlign(TextAlign.Center)
+        }
       }
       .width('100%')
       .layoutWeight(1)
@@ -449,6 +529,11 @@ export struct ScheduleSettingsPanel {
   /** 面板容器：两页叠加，用 translate + animateTo 实现同一面板内页面转换 */
   @Builder
   secSheet() {
+    // 半模态内容套 MaterialSheetPanel：bindSheet 自身的 systemMaterial 挂在面板上、内容区不生效，
+    // 由 MaterialSheetPanel 的 Toggle 承载层渲染材质。配套硬要求（见 build 里的 bindSheet）：
+    // 显式 backgroundColor: Color.Transparent。面板高度 detents [MEDIUM, LARGE] 为固定高度
+    // → panelFillHeight 保持默认 true（承载层铺满整块面板）。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0 }) {
     Stack() {
       Column() {
         this.secSheetMain()
@@ -470,6 +555,7 @@ export struct ScheduleSettingsPanel {
     .width('100%')
     .height('100%')
     .clip(true)
+    }
   }
 
   build() {
@@ -486,11 +572,18 @@ export struct ScheduleSettingsPanel {
           Text('自定义开学时间').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           if (this.currentTermStart.length > 0 && this.currentTermStart !== DateUtil.defaultTermStart(this.currentTermId)) {
-            Text('恢复默认')
-              .fontSize(12).fontColor('#F0524D')
-              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-              .backgroundColor('rgba(240,82,77,0.10)').borderRadius(4)
-              .onClick(() => { this.onTermStartChange(''); })
+            // 「恢复默认」淡红小胶囊：材质走 MaterialButton，btnTint 叠回警示红（比例 0.35，保持淡红观感）
+            MaterialButton({
+              btnRadius: 4,
+              btnBg: 'rgba(240,82,77,0.10)',
+              btnTint: '#F0524D',
+              btnTintRatio: 0.35,
+              btnOnClick: () => { this.onTermStartChange(''); }
+            }) {
+              Text('恢复默认')
+                .fontSize(12).fontColor('#F0524D')
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            }
           }
         }.width('100%').margin({ top: 4, bottom: 6 })
         Row() {
@@ -527,10 +620,18 @@ export struct ScheduleSettingsPanel {
           Text('背景图').fontSize(14).fontWeight(FontWeight.Medium)
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           if (this.scheduleBg.length > 0) {
-            Text('清除').fontSize(12).fontColor('#F0524D')
-              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-              .backgroundColor('rgba(240,82,77,0.10)').borderRadius(4)
-              .onClick(() => { this.onClearBg(); })
+            // 「清除」淡红小胶囊：同「恢复默认」，btnTint 叠回警示红（比例 0.35）
+            MaterialButton({
+              btnRadius: 4,
+              btnBg: 'rgba(240,82,77,0.10)',
+              btnTint: '#F0524D',
+              btnTintRatio: 0.35,
+              btnOnClick: () => { this.onClearBg(); }
+            }) {
+              Text('清除')
+                .fontSize(12).fontColor('#F0524D')
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            }
           }
         }.width('100%').margin({ top: 4, bottom: 6 })
         Row() {
@@ -538,10 +639,21 @@ export struct ScheduleSettingsPanel {
             Image(`data:image/jpeg;base64,${this.scheduleBg}`)
               .width(48).height(48).borderRadius(8).objectFit(ImageFit.Cover).margin({ right: 12 })
           }
-          Button(this.scheduleBg.length > 0 ? '更换图片' : '选择图片')
-            .fontSize(13).fontColor($r('app.color.brand_on')).backgroundColor(Theme.colorOf(this.themeColor))
-            .height(36).layoutWeight(1).borderRadius(10)
-            .onClick(() => { this.onPickBg(); })
+          // 「选择/更换图片」主题色实底 + brand_on 文字 → MaterialButton，btnTint 叠回主题色（比例 0.85）
+          Column() {
+            MaterialButton({
+              btnRadius: 10,
+              btnBg: Theme.colorOf(this.themeColor),
+              btnTint: Theme.colorOf(this.themeColor),
+              btnTintRatio: 0.85,
+              btnOnClick: () => { this.onPickBg(); }
+            }) {
+              Text(this.scheduleBg.length > 0 ? '更换图片' : '选择图片')
+                .fontSize(13).fontColor($r('app.color.brand_on'))
+                .height(36).width('100%').textAlign(TextAlign.Center)
+            }
+          }
+          .layoutWeight(1)
         }.width('100%')
 
         // 网格
@@ -823,10 +935,14 @@ export struct ScheduleSettingsPanel {
             .onChange((on: boolean) => { this.showTch = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
 
-        Button('恢复默认设置')
-          .width('100%').height(44).fontSize(15).fontColor('#F0524D')
-          .backgroundColor('rgba(240,82,77,0.10)').borderRadius(12).margin({ top: 20 })
-          .onClick(() => {
+        // 「恢复默认设置」：警示红文字 + 淡红玻璃底 → MaterialButton，btnTint 叠回警示红（比例 0.4）
+        MaterialButton({
+          btnRadius: 12,
+          btnMargin: { top: 20 },
+          btnBg: 'rgba(240,82,77,0.10)',
+          btnTint: '#F0524D',
+          btnTintRatio: 0.4,
+          btnOnClick: () => {
             this.cfg = new ScheduleConfig();
             const c = this.cfg;
             this.bgColor = c.bgColor; this.hdrColor = c.headerColor;
@@ -846,11 +962,23 @@ export struct ScheduleSettingsPanel {
             this.cfg.save();
             this.onCfgChange(this.cfg);
             this.getUIContext().getPromptAction().showToast({ message: '已恢复默认设置' });
-          })
-        Button('关闭')
-          .width('100%').height(44).fontSize(15).fontColor(Theme.colorOf(this.themeColor))
-          .backgroundColor($r('app.color.brand_light')).borderRadius(12).margin({ top: 10 })
-          .onClick(() => { this.onClose(); })
+          }
+        }) {
+          Text('恢复默认设置')
+            .width('100%').height(44).fontSize(15).fontColor('#F0524D').textAlign(TextAlign.Center)
+        }
+        // 「关闭」：主题色文字 + brand_light 淡绿底 → MaterialButton，btnTint 叠回 brand_light（比例 0.7）
+        MaterialButton({
+          btnRadius: 12,
+          btnMargin: { top: 10 },
+          btnBg: $r('app.color.brand_light'),
+          btnTint: '#E4F2EC',
+          btnTintRatio: 0.7,
+          btnOnClick: () => { this.onClose(); }
+        }) {
+          Text('关闭')
+            .width('100%').height(44).fontSize(15).fontColor(Theme.colorOf(this.themeColor)).textAlign(TextAlign.Center)
+        }
         Column().height(24)
       }
       .width('100%').padding({ left: 20, right: 20, top: 8 })
@@ -865,6 +993,10 @@ export struct ScheduleSettingsPanel {
       showClose: true,
       preferType: SheetType.BOTTOM,
       title: { title: '课程节数与上课时间' },
+      // 必须显式透明：BindOptions.backgroundColor 默认是 Color.White，
+      // 而沉浸光感的视觉层级位于 backgroundColor **之下**，白底会把 MaterialSheetPanel 的材质整块盖住。
+      backgroundColor: Color.Transparent,
+      blurStyle: sheetBlurStyle(),
       onDisappear: () => {
         this.secPageFlag = false;
       }

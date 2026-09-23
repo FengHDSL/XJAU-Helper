@@ -189,14 +189,27 @@ struct Index {
       this.autoRelogin = true;
       this.showLoginOnly = true;
       this.forceReloginLoading = true;
-      // 10 秒超时兜底
+      // 超时兜底（分两阶段，避免"服务大厅实际已登录、却提示登录失败"的状态冲突）：
+      // ① 20s 未完成但登录已进入收尾阶段（会话已建立，正在校验资料）→ 延长 30s 等待；
+      // ② 仍未完成 → 提示失败并回到主页用缓存。
       setTimeout(() => {
-        if (this.forceReloginLoading) {
-          this.forceReloginLoading = false;
-          this.getUIContext().getPromptAction().showToast({ message: '登录失败，请稍后再试', duration: 2000 });
-          this.showLoginOnly = false;
+        if (!this.forceReloginLoading) {
+          return;
         }
-      }, 10000);
+        if (JwApi.stage() === 'profile') {
+          setTimeout(() => {
+            if (this.forceReloginLoading) {
+              this.forceReloginLoading = false;
+              this.getUIContext().getPromptAction().showToast({ message: '登录收尾超时，请稍后再试', duration: 2000 });
+              this.showLoginOnly = false;
+            }
+          }, 30000);
+          return;
+        }
+        this.forceReloginLoading = false;
+        this.getUIContext().getPromptAction().showToast({ message: '登录失败，请稍后再试', duration: 2000 });
+        this.showLoginOnly = false;
+      }, 20000);
     }).catch(() => {
       // 弹窗失败时不做任何事
     });

@@ -8,6 +8,17 @@
  *
  * 数据来源：JwApi.getAcademic() 解析完正方学业页纯文本得到总体统计；
  * 课程分类与详情从成绩（ScoreItem.kclbmc）+ 课表数据组合产生。
+ *
+ * 卡片外观接入（照首页 HomeView / 关于页 AboutPage 的写法推广）：
+ *  - 7 张页面级卡片（GPA / 总体成绩 / 成绩分布 / 已修在读未修未通过 / 课程分类 / 课程明细 / 学业提醒）
+ *    统一用 `MaterialCard` 承载（材质层在卡片内部、位于内容之下），材质生效时卡片自身的
+ *    底色/磨砂/亮边/阴影一并让出，每张卡只有一层视觉；关闭光感回落为原来的纯色/毛玻璃卡片；
+ *  - 原卡片上的 `.padding(...)` / `.borderRadius(...)` / `.margin(...)` / `.alignItems(...)`
+ *    一律改走 `cardPadding` / `cardRadius` / `cardMargin` / `cardAlignItems`
+ *    （尾随闭包初始化的自定义组件之后不能再链式加属性）；不对称 padding（{ top: 18, bottom: 18 }）
+ *    挂到内部内容容器上，间距与原值逐张对齐；
+ *  - 「展开全部 / 收起」是纯文字链（无胶囊底），保持原写法不改为材质按钮；
+ *    卡片内部的子块（进度条、序号圆圈）同样保持原自绘玻璃写法（材质卡内部不再叠第二层材质）。
  */
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
@@ -19,11 +30,20 @@ import { LoadingTip, PageHeader, StatCell } from './common/UiKit';
 import { AntiPeepOverlay } from './common/AntiPeepOverlay';
 import { WallpaperFill } from './common/WallpaperFill';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
+// 沉浸光感：卡片统一走 MaterialCard（材质承载层在卡片内容之下，材质生效时卡片底色/磨砂/亮边/阴影
+// 一并让出，每张卡只剩一层视觉）
+import { MaterialCard } from './common/MaterialCard';
 
 @Component
 export struct AcademicPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 响应式依赖：玻璃/灰字设置变化时即时刷新本页（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（文字自适应用） */
@@ -130,10 +150,22 @@ export struct AcademicPage {
 
   @Builder
   gpaCard() {
+    // MaterialCard 承载：材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片底色/磨砂/亮边/阴影让出；
+    // 原 20vp 内边距走 cardPadding、18vp 圆角走 cardRadius、左对齐走 cardAlignItems。
+    MaterialCard({
+      cardRadius: 18,
+      cardPadding: 20,
+      cardAlignItems: ItemAlign.Start,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle()
+    }) {
     Column() {
       Text('平均学分绩点（GPA）')
         .fontSize(13)
-        .fontColor($r('app.color.text_secondary'))
+        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
       Row() {
         Text(this.currentGpa().toFixed(2))
           .fontSize(48)
@@ -141,7 +173,7 @@ export struct AcademicPage {
           .fontColor($r('app.color.brand'))
         Text('/ 5.0')
           .fontSize(16)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .margin({ left: 6, bottom: 8 })
       }
       .alignItems(VerticalAlign.Bottom)
@@ -153,14 +185,23 @@ export struct AcademicPage {
         .margin({ top: 4 })
     }
     .width('100%')
-    .padding(20)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
     .alignItems(HorizontalAlign.Start)
+    }
   }
 
   @Builder
   overviewRow() {
+    // MaterialCard 承载：原卡片上下 18vp 内边距（不对称）挂内部内容容器，18vp 圆角走 cardRadius、
+    // 14vp 上间距走 cardMargin。
+    MaterialCard({
+      cardRadius: 18,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { top: 14 }
+    }) {
     Row() {
       StatCell({
         value: `${this.report.totalEarned}`,
@@ -197,13 +238,22 @@ export struct AcademicPage {
     }
     .width('100%')
     .padding({ top: 18, bottom: 18 })
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .margin({ top: 14 })
+    }
   }
 
   @Builder
   categorySection() {
+    // MaterialCard 承载：原 18vp 内边距走 cardPadding、18vp 圆角走 cardRadius、14vp 上间距走 cardMargin
+    MaterialCard({
+      cardRadius: 18,
+      cardPadding: 18,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { top: 14 }
+    }) {
     Column() {
       Row() {
         Text('课程分类与修读情况')
@@ -223,7 +273,7 @@ export struct AcademicPage {
             Blank()
             Text(`${item.earned.toFixed(1)} / ${item.required.toFixed(1)}`)
               .fontSize(12)
-              .fontColor($r('app.color.text_secondary'))
+              .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
             Text(`  ${this.percent(item.earned, item.required)}%`)
               .fontSize(12)
               .fontColor(this.pctColor(this.percent(item.earned, item.required)))
@@ -234,7 +284,7 @@ export struct AcademicPage {
             Row()
               .width('100%')
               .height(7)
-              .backgroundColor($r('app.color.bg_chip'))
+              .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
               .borderRadius(4)
             Row()
               .width(`${this.percent(item.earned, item.required)}%`)
@@ -250,14 +300,23 @@ export struct AcademicPage {
       }, (item: CreditCategory) => item.name)
     }
     .width('100%')
-    .padding(18)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .margin({ top: 14 })
+    }
   }
 
   @Builder
   warningSection() {
+    // MaterialCard 承载：原 18vp 内边距走 cardPadding、18vp 圆角走 cardRadius、14vp 上间距走 cardMargin；
+    // 提醒条目里的序号圆圈（实色浅底）保留原写法（材质卡内部不再叠第二层材质）。
+    MaterialCard({
+      cardRadius: 18,
+      cardPadding: 18,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { top: 14 }
+    }) {
     Column() {
       Row() {
         Text('学业提醒')
@@ -279,7 +338,7 @@ export struct AcademicPage {
               .height(18)
               .lineHeight(18)
               .textAlign(TextAlign.Center)
-              .backgroundColor($r('app.color.bg_chip'))
+              .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
               .borderRadius(9)
           }
           .width(18)
@@ -290,7 +349,7 @@ export struct AcademicPage {
           Text(text)
             .fontSize(13)
             .lineHeight(21)
-            .fontColor($r('app.color.text_secondary'))
+            .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
             .margin({ left: 28 })
             .width('100%')
         }
@@ -299,16 +358,24 @@ export struct AcademicPage {
       }, (text: string) => text)
     }
     .width('100%')
-    .padding(18)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .margin({ top: 14 })
+    }
   }
 
   /** 计算学分完成百分比（0-100，超 100 截断） */
   /** 总体（累计）成绩卡片：累计绩点 / 已修学分 / 总课程 */
   @Builder
   overallCard() {
+    // MaterialCard 承载：原 18vp 内边距走 cardPadding、18vp 圆角走 cardRadius、14vp 上间距走 cardMargin
+    MaterialCard({
+      cardRadius: 18,
+      cardPadding: 18,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { top: 14 }
+    }) {
     Column() {
       Row() {
         Text('总体成绩')
@@ -318,7 +385,7 @@ export struct AcademicPage {
         Blank()
         Text(this.overallCourses.length > 0 ? `${this.overallCourses.length} 门` : '累计')
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
       }
       .width('100%')
       .margin({ bottom: 12 })
@@ -341,15 +408,23 @@ export struct AcademicPage {
       .alignItems(VerticalAlign.Top)
     }
     .width('100%')
-    .padding(18)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .margin({ top: 14 })
+    }
   }
 
   /** 成绩分布（优 ≥90 / 良 ≥80 / 中 ≥70 / 及 ≥60），移植自参考项目「成绩分布」 */
   @Builder
   distributionSection() {
+    // MaterialCard 承载：原 18vp 内边距走 cardPadding、18vp 圆角走 cardRadius、14vp 上间距走 cardMargin
+    MaterialCard({
+      cardRadius: 18,
+      cardPadding: 18,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { top: 14 }
+    }) {
     Column() {
       Row() {
         Text('成绩分布')
@@ -359,7 +434,7 @@ export struct AcademicPage {
         Blank()
         Text('按已统计课程划分')
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
       }
       .width('100%')
       .margin({ bottom: 12 })
@@ -387,7 +462,7 @@ export struct AcademicPage {
           Row()
             .layoutWeight(1)
             .height(8)
-            .backgroundColor($r('app.color.bg_chip'))
+            .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
         }
       }
       .width('100%')
@@ -404,10 +479,7 @@ export struct AcademicPage {
       .width('100%')
     }
     .width('100%')
-    .padding(18)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .margin({ top: 14 })
+    }
   }
 
   /** 分布图例单项 */
@@ -422,7 +494,7 @@ export struct AcademicPage {
           .borderRadius(4)
         Text(label)
           .fontSize(12)
-          .fontColor($r('app.color.text_secondary'))
+          .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
           .margin({ left: 5 })
       }
       .alignItems(VerticalAlign.Center)
@@ -439,6 +511,17 @@ export struct AcademicPage {
   /** 课程明细（成绩/学分/绩点），默认显示前 8 条 */
   @Builder
   courseDetailSection() {
+    // MaterialCard 承载：原 18vp 内边距走 cardPadding、18vp 圆角走 cardRadius、14vp 上间距走 cardMargin
+    MaterialCard({
+      cardRadius: 18,
+      cardPadding: 18,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { top: 14 }
+    }) {
     Column() {
       Row() {
         Text('课程明细')
@@ -449,7 +532,7 @@ export struct AcademicPage {
         Text(this.overallCourses.length > 0
           ? `共 ${this.overallCourses.length} 门 · ${this.detailTermCount()} 个学期` : '暂无数据')
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
       }
       .width('100%')
       .margin({ bottom: 10 })
@@ -457,7 +540,7 @@ export struct AcademicPage {
       if (this.overallCourses.length === 0) {
         Text('暂无课程明细：需教务系统开放学业情况-课程修读数据')
           .fontSize(12)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .width('100%')
       } else {
         ForEach(this.detailList(), (item: ScoreItem) => {
@@ -469,7 +552,7 @@ export struct AcademicPage {
                 .width('100%')
               Text(`${this.termLabelOf(item.termId)}${item.kclbmc.length > 0 ? ` · ${item.kclbmc}` : (item.courseType.length > 0 ? ` · ${item.courseType}` : '')}`)
                 .fontSize(11)
-                .fontColor($r('app.color.text_tertiary'))
+                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                 .width('100%')
                 .margin({ top: 2 })
             }
@@ -478,11 +561,11 @@ export struct AcademicPage {
 
             Text(item.credit > 0 ? `${item.credit} 学分` : '')
               .fontSize(11)
-              .fontColor($r('app.color.text_secondary'))
+              .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
               .margin({ right: 10 })
             Text(item.gradePoint > 0 ? `绩点 ${item.gradePoint}` : '')
               .fontSize(11)
-              .fontColor($r('app.color.text_secondary'))
+              .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
               .margin({ right: 10 })
             Text(item.scoreText)
               .fontSize(14)
@@ -495,6 +578,7 @@ export struct AcademicPage {
         }, (item: ScoreItem) => `${item.courseName}-${item.termId}`)
 
         if (this.overallCourses.length > 8) {
+          // 展开/收起是纯文字链（原本就没有胶囊底），保持原写法不改为材质按钮
           Text(this.detailExpanded ? '收起' : `展开全部 ${this.overallCourses.length} 门`)
             .fontSize(12)
             .fontColor(Theme.colorOf(this.themeColor))
@@ -508,10 +592,7 @@ export struct AcademicPage {
       }
     }
     .width('100%')
-    .padding(18)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .margin({ top: 14 })
+    }
   }
 
   /** 明细展示列表（默认前 8 条） */
@@ -594,7 +675,7 @@ export struct AcademicPage {
     if (n >= 60) {
       return $r('app.color.accent_purple');
     }
-    return $r('app.color.text_secondary');
+    return GlassMaterial.graySecondary($r('app.color.text_secondary'));
   }
 
   private percent(earned: number, required: number): number {

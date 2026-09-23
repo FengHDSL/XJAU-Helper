@@ -18,6 +18,7 @@ import { DataStore } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { ScheduleConfig, COURSE_BG_HEX, COURSE_FG_HEX } from '../common/ScheduleConfig';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { CourseItem, TermInfo } from '../model/Models';
@@ -25,6 +26,12 @@ import { EMPTY_COURSE } from '../model/Empty';
 import { LoadingTip } from './common/UiKit';
 import { ScheduleSettingsPanel } from './ScheduleSettingsPanel';
 import { CourseDetailPanel } from './CourseDetailPanel';
+// 沉浸光感：顶栏按钮走 MaterialButton（常驻材质），半模态弹窗内容走 MaterialSheetPanel，
+// 日期条/时间条改用 MaterialCardLayer 承载层（移除挂在 Row/Column 上的 systemMaterial 旧写法）
+import { MaterialButton } from './common/MaterialButton';
+import { MaterialSheetPanel } from './common/MaterialCard';
+import { MaterialCardLayer } from './common/MaterialCarrier';
+import { sheetBlurStyle } from '../common/SystemMaterial';
 
 @Component
 export struct ScheduleView {
@@ -32,6 +39,11 @@ export struct ScheduleView {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
@@ -551,45 +563,49 @@ export struct ScheduleView {
               .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
               .height(28)
               .lineHeight(28)
-            // 设置按钮：紧贴"课程表"标题右侧，圆形半透白底 + 齿轮图标
-            Column() {
+            // 设置按钮：紧贴"课程表"标题右侧 → MaterialButton（Toggle 承载层，btnPersistent 常驻：
+            // 不随全局沉浸光感开关关闭而消失；光感关闭回落原白玻璃圆底）。
+            // 原 28×28 圆形由内容 Image 20 + margin 4 撑出；原微阴影随材质统一让出。
+            MaterialButton({
+              btnRadius: 14,
+              btnPersistent: true,
+              btnBg: this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)',
+              btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+              btnBorderW: 1,
+              btnBorderC: 'rgba(255,255,255,0.28)',
+              btnMargin: { left: 8 },
+              btnOnClick: () => {
+                this.showSettingsSheet = true;
+              }
+            }) {
               Image($r('app.media.gearshape'))
                 .width(20)
                 .height(20)
                 .fillColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
                 .opacity(0.9)
+                .margin(4)
             }
-            .width(28)
-            .height(28)
-            .borderRadius(14)
-            .backgroundColor('#26FFFFFF')
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-            .justifyContent(FlexAlign.Center)
-            .alignItems(HorizontalAlign.Center)
-            .margin({ left: 8 })
-            .onClick(() => {
-              this.showSettingsSheet = true;
-            })
-            // 刷新按钮：强制重新查询识别课表（图标随刷新旋转）
-            Column() {
+            // 刷新按钮：强制重新查询识别课表（图标随刷新旋转）→ MaterialButton 常驻材质，写法同上
+            MaterialButton({
+              btnRadius: 14,
+              btnPersistent: true,
+              btnBg: this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)',
+              btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+              btnBorderW: 1,
+              btnBorderC: 'rgba(255,255,255,0.28)',
+              btnMargin: { left: 6 },
+              btnOnClick: () => {
+                this.refreshCourses();
+              }
+            }) {
               Image($r('app.media.refresh_arrow'))
                 .width(18)
                 .height(18)
                 .fillColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
                 .opacity(0.9)
                 .rotate({ angle: this.refreshAngle })
+                .margin(5)
             }
-            .width(28)
-            .height(28)
-            .borderRadius(14)
-            .backgroundColor('#26FFFFFF')
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-            .justifyContent(FlexAlign.Center)
-            .alignItems(HorizontalAlign.Center)
-            .margin({ left: 6 })
-            .onClick(() => {
-              this.refreshCourses();
-            })
           }
           .alignItems(VerticalAlign.Center)
 
@@ -619,51 +635,66 @@ export struct ScheduleView {
 
         // 右侧："回到本周" + 周次切换器，与"课程表"标题水平中线对齐
         if (this.viewWeek !== this.currentWeek) {
-          Text('回到本周')
-            .fontSize(11)
-            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-            .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-            .backgroundColor('#33FFFFFF')
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-            .borderRadius(12)
-            .margin({ right: 8 })
-            .onClick(() => {
+          // 回到本周 → MaterialButton 常驻材质（光感关闭回落原白玻璃胶囊底），间距右 8 保持原值
+          MaterialButton({
+            btnRadius: 12,
+            btnPersistent: true,
+            btnBg: this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)',
+            btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+            btnBorderW: 1,
+            btnBorderC: 'rgba(255,255,255,0.28)',
+            btnMargin: { right: 8 },
+            btnOnClick: () => {
               this.viewWeek = this.currentWeek;
-            })
+            }
+          }) {
+            Text('回到本周')
+              .fontSize(11)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+          }
         }
 
-        // 右侧：周次切换器。点击"第 N 周"弹出周次选择弹层（原 📅 按钮功能并入）
-        Row() {
-          Text('‹')
-            .fontSize(16)
-            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-            .width(22)
-            .textAlign(TextAlign.Center)
-            .onClick(() => {
-              this.changeWeek(-1);
-            })
-          Text(`第 ${this.viewWeek} 周`)
-            .fontSize(12)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-            .width(56)
-            .textAlign(TextAlign.Center)
-            .onClick(() => {
-              this.showWeekSheet = true;
-            })
-          Text('›')
-            .fontSize(16)
-            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-            .width(22)
-            .textAlign(TextAlign.Center)
-            .onClick(() => {
-              this.changeWeek(1);
-            })
+        // 右侧：周次切换器胶囊 → MaterialButton（常驻材质）。胶囊整体不响应点击（btnOnClick 空实现），
+        // 内部 ‹ / 周次文本 / › 保留各自 onClick（点击会冒泡到外层空回调，不影响原行为）。
+        // 原 #33FFFFFF 玻璃底走 btnBg、磨砂走 btnBlur、14vp 圆角走 btnRadius、上下 4vp 留白保留在内容 Row。
+        MaterialButton({
+          btnRadius: 14,
+          btnPersistent: true,
+          btnBg: '#33FFFFFF',
+          btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+          btnOnClick: (): void => {
+          }
+        }) {
+          Row() {
+            Text('‹')
+              .fontSize(16)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .width(22)
+              .textAlign(TextAlign.Center)
+              .onClick(() => {
+                this.changeWeek(-1);
+              })
+            Text(`第 ${this.viewWeek} 周`)
+              .fontSize(12)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .width(56)
+              .textAlign(TextAlign.Center)
+              .onClick(() => {
+                this.showWeekSheet = true;
+              })
+            Text('›')
+              .fontSize(16)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .width(22)
+              .textAlign(TextAlign.Center)
+              .onClick(() => {
+                this.changeWeek(1);
+              })
+          }
+          .padding({ top: 4, bottom: 4 })
         }
-        .backgroundColor('#33FFFFFF')
-        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-        .borderRadius(14)
-        .padding({ top: 4, bottom: 4 })
       }
       .width('100%')
       .alignItems(VerticalAlign.Center) // 右侧.alignItems(VerticalAlign.Top)"回到本周"/周次组件与"课程表"标题水平中线对齐
@@ -678,43 +709,61 @@ export struct ScheduleView {
 
   @Builder
   weekHeader() {
-    Row() {
-      Column() {
-        Text(`${this.dateOf(1).getMonth() + 1}月`)
-          .fontSize(11)
-          .fontColor(this.schedTextSec())
+    // 日期条改为 Stack 结构：MaterialCardLayer 承载层画沉浸材质（Toggle 承载在内容区可生效，
+    // 替代原先挂在 Row 上的 .systemMaterial 旧写法——那在内容区不生效）。
+    // 强制常驻（layerForce:true）对齐原 immersiveForce 语义：不随全局沉浸光感开关、
+    // 仅在用户自定义 headerColor（需要实色底）时不叠材质。材质生效时外壳让出磨砂/亮边/阴影。
+    Stack({ alignContent: Alignment.Start }) {
+      if (this.cfg.headerColor.length === 0 && GlassMaterial.immSupported()) {
+        MaterialCardLayer({ layerRadius: 12, layerForce: true })
       }
-      .width(40)
-      .justifyContent(FlexAlign.Center)
-
-      ForEach(this.weekdays(), (wd: number) => {
+      Row() {
         Column() {
-          Text(Const.WEEK_SHORT[wd - 1])
-            .fontSize(this.cfg.headerFontSize)
-            .fontWeight(this.isToday(wd) ? FontWeight.Bold : FontWeight.Normal)
-            .fontColor(this.isToday(wd) ? Theme.colorOf(this.themeColor) : this.schedTextSec())
-          Text(`${this.dateOf(wd).getMonth() + 1}/${this.dateOf(wd).getDate()}`)
+          Text(`${this.dateOf(1).getMonth() + 1}月`)
             .fontSize(11)
-            .fontColor(this.isToday(wd) ? Theme.colorOf(this.themeColor) : this.schedTextSec())
-            .margin({ top: 2 })
+            .fontColor(this.schedTextSec())
         }
-        .layoutWeight(1)
-        .margin({ left: 2, right: 2 })
-        .padding({ top: 7, bottom: 7 })
-        .backgroundColor(this.isToday(wd) ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : Color.Transparent)
-        .borderRadius(8)
-      }, (wd: number) => `w${wd}`)
+        .width(40)
+        .justifyContent(FlexAlign.Center)
+
+        ForEach(this.weekdays(), (wd: number) => {
+          Column() {
+            Text(Const.WEEK_SHORT[wd - 1])
+              .fontSize(this.cfg.headerFontSize)
+              .fontWeight(this.isToday(wd) ? FontWeight.Bold : FontWeight.Normal)
+              .fontColor(this.isToday(wd) ? Theme.colorOf(this.themeColor) : this.schedTextSec())
+            Text(`${this.dateOf(wd).getMonth() + 1}/${this.dateOf(wd).getDate()}`)
+              .fontSize(11)
+              .fontColor(this.isToday(wd) ? Theme.colorOf(this.themeColor) : this.schedTextSec())
+              .margin({ top: 2 })
+          }
+          .layoutWeight(1)
+          .margin({ left: 2, right: 2 })
+          .padding({ top: 7, bottom: 7 })
+          .backgroundColor(this.isToday(wd) ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : Color.Transparent)
+          .borderRadius(8)
+        }, (wd: number) => `w${wd}`)
+      }
+      .width('100%')
+      .padding({ top: 4, bottom: 4 })
     }
     .width('100%')
-    .padding({ top: 4, bottom: 4 })
-    // 日期栏毛玻璃条：低不透明度 + Regular 模糊 + 细描边，透出下层壁纸图案
-    // （用户自定义 headerColor 时沿用其自定义色）
     .backgroundColor(this.cfg.headerColor.length > 0
       ? this.cfg.headerColor
-      : (this.isDarkMode ? 'rgba(20,24,23,0.35)' : 'rgba(255,255,255,0.35)'))
-    .backgroundBlurStyle(Immersive.blur(BlurStyle.Regular, this.immersiveEffect))
-    .borderRadius(12)
-    .border({ width: 0.5, color: this.isDarkMode ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)' })
+      : GlassMaterial.homeCardBgForce(Color.Transparent))
+    .backgroundBlurStyle(this.cfg.headerColor.length === 0 && GlassMaterial.immSupported()
+      ? BlurStyle.NONE
+      : GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? true))
+    // 日期条圆角：左上/右上/右下；左下不圆——与下方时间条连接成整体
+    .borderRadius({ topLeft: 12, topRight: 12, bottomRight: 12, bottomLeft: 0 })
+    .border({
+      width: this.cfg.headerColor.length === 0 && GlassMaterial.immSupported() ? 0 : 1,
+      color: GlassMaterial.borderColor()
+    })
+    .shadow(this.cfg.headerColor.length === 0 && GlassMaterial.immSupported()
+      ? { radius: 0, color: 'rgba(0,0,0,0)', offsetX: 0, offsetY: 0 }
+      : GlassMaterial.capsuleShadow())
+    .clip(true)
   }
 
   /** 判断某星期几是否今天（同周同星期才高亮） */
@@ -826,36 +875,59 @@ export struct ScheduleView {
       preferType: SheetType.BOTTOM,
       width: this.sheetWidth,
       dragBar: true,
-      backgroundColor: $r('app.color.bg_card'),
+      // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
+      backgroundColor: Color.Transparent,
+      blurStyle: sheetBlurStyle(),
       title: { title: '点阵周次' }
     })
   }
 
   @Builder
   sectionColumn() {
-    Column() {
-      ForEach(SectionUtil.list(this.cfg), (item: SectionTime) => {
-        Column() {
-          Text(`${item.index}`)
-            .fontSize(13)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(this.schedTextSec())
-          if (this.cfg.showSectionTime) {
-            Text(item.start)
-              .fontSize(9)
+    // 时间条改为 Stack 结构：MaterialCardLayer 承载层画沉浸材质（同日期条，替代 Row 上的
+    // .systemMaterial 旧写法），layerForce 强制常驻；材质生效时外壳让出磨砂/亮边/阴影。
+    Stack({ alignContent: Alignment.Start }) {
+      if (GlassMaterial.immSupported()) {
+        MaterialCardLayer({ layerRadius: 12, layerForce: true })
+      }
+      Column() {
+        ForEach(SectionUtil.list(this.cfg), (item: SectionTime) => {
+          Column() {
+            Text(`${item.index}`)
+              .fontSize(13)
+              .fontWeight(FontWeight.Medium)
               .fontColor(this.schedTextSec())
-              .margin({ top: 2 })
-            Text(item.end)
-              .fontSize(9)
-              .fontColor(this.schedTextSec())
+            if (this.cfg.showSectionTime) {
+              Text(item.start)
+                .fontSize(9)
+                .fontColor(this.schedTextSec())
+                .margin({ top: 2 })
+              Text(item.end)
+                .fontSize(9)
+                .fontColor(this.schedTextSec())
+            }
           }
-        }
-        .width('100%')
-        .height(this.cellH())
-        .justifyContent(FlexAlign.Center)
-      }, (item: SectionTime) => `s${item.index}`)
+          .width('100%')
+          .height(this.cellH())
+          .justifyContent(FlexAlign.Center)
+        }, (item: SectionTime) => `s${item.index}`)
+      }
+      .width('100%')
     }
     .width(40)
+    .backgroundColor(GlassMaterial.homeCardBgForce(Color.Transparent))
+    .backgroundBlurStyle(GlassMaterial.immSupported()
+      ? BlurStyle.NONE
+      : GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? true))
+    .border({
+      width: GlassMaterial.immSupported() ? 0 : 1,
+      color: GlassMaterial.borderColor()
+    })
+    .shadow(GlassMaterial.immSupported()
+      ? { radius: 0, color: 'rgba(0,0,0,0)', offsetX: 0, offsetY: 0 }
+      : GlassMaterial.capsuleShadow())
+    .borderRadius({ topLeft: 0, topRight: 0, bottomRight: 12, bottomLeft: 12 })
+    .clip(true)
   }
 
   @Builder
@@ -960,23 +1032,6 @@ export struct ScheduleView {
     return { width: { bottom: w, right: w }, style: BorderStyle.Solid, color: $r('app.color.divider') } as BorderOptions;
   }
 
-  /** 课程详情弹窗（bindSheet 半屏）：内容为独立组件 CourseDetailPanel，本地 @State 镜像+回调实时刷新 */
-  @Builder
-  courseSheet() {
-    CourseDetailPanel({
-      selected: this.selected,
-      customColors: this.customColors,
-      courseNames: this.courseNameList(),
-      timeText: this.selectedTimeText(),
-      onClose: () => {
-        this.showSheet = false;
-      },
-      onColorsChange: (m: Record<string, string>) => {
-        this.customColors = m;
-      }
-    })
-  }
-
   /**
    * 选择并导入图片作为课程表背景：
    * 1) 调 photoAccessHelper 选图（图片选择器）
@@ -1047,82 +1102,117 @@ export struct ScheduleView {
 
   @Builder
   weekPickerSheet() {
-    Column() {
-      List({ space: 10 }) {
-        ForEach(this.weekList(), (w: number) => {
-          ListItem() {
-            this.weekItemCard(w, () => {
-              this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
-                this.viewWeek = w;
-              });
-              this.showWeekSheet = false;
-            })
-          }
-        }, (w: number) => `pick${w}`)
+    // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底（见 weekHeaderBar 的选项）。
+    // SheetSize.MEDIUM 固定高 → 保持 panelFillHeight 默认 true，材质裹住整块面板；内边距原样保留。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0 }) {
+      Column() {
+        List({ space: 10 }) {
+          ForEach(this.weekList(), (w: number) => {
+            ListItem() {
+              this.weekItemCard(w, () => {
+                this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
+                  this.viewWeek = w;
+                });
+                this.showWeekSheet = false;
+              })
+            }
+          }, (w: number) => `pick${w}`)
+        }
+        .width('100%')
+        .padding({ left: 16, right: 16 })
+        .scrollBar(BarState.Off)
       }
       .width('100%')
-      .padding({ left: 16, right: 16 })
-      .scrollBar(BarState.Off)
+      .height('100%')
+      .padding({ top: 8, bottom: 24 })
     }
-    .width('100%')
-    .height('100%')
-    .padding({ top: 8, bottom: 24 })
   }
 
   @Builder
   termPickerSheet() {
-    Column() {
-      if (this.terms.length === 0) {
-        Text('暂无可查询的学期')
-          .fontSize(13)
-          .fontColor($r('app.color.text_tertiary'))
-          .width('100%')
-          .textAlign(TextAlign.Center)
-          .margin({ top: 12 })
-      } else {
-        ForEach(this.terms, (term: TermInfo, index: number) => {
-          Row() {
-            Text(term.label)
-              .fontSize(14)
-              .fontColor(index === this.selectedTermIndex ? $r('app.color.brand_on') : $r('app.color.text_primary'))
-              .layoutWeight(1)
-            if (index === this.selectedTermIndex) {
-              Image($r('app.media.checkmark_circle'))
-                .width(16)
-                .height(16)
-                .fillColor($r('app.color.brand_on'))
+    // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底（见外层选项）。
+    // SheetSize.FIT_CONTENT（高度随内容）→ panelFillHeight: false（true 会把弹窗撑到最大高度）；
+    // 内层 20/8/24vp 内边距原样保留。学期行保留实色底：选中态靠实色背景表达，材质会吃掉选中态。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
+      Column() {
+        if (this.terms.length === 0) {
+          Text('暂无可查询的学期')
+            .fontSize(13)
+            .fontColor($r('app.color.text_tertiary'))
+            .width('100%')
+            .textAlign(TextAlign.Center)
+            .margin({ top: 12 })
+        } else {
+          ForEach(this.terms, (term: TermInfo, index: number) => {
+            Row() {
+              Text(term.label)
+                .fontSize(14)
+                .fontColor(index === this.selectedTermIndex ? $r('app.color.brand_on') : $r('app.color.text_primary'))
+                .layoutWeight(1)
+              if (index === this.selectedTermIndex) {
+                Image($r('app.media.checkmark_circle'))
+                  .width(16)
+                  .height(16)
+                  .fillColor($r('app.color.brand_on'))
+              }
             }
-          }
-          .width('100%')
-          .height(46)
-          .padding({ left: 16, right: 16 })
-          .backgroundColor(index === this.selectedTermIndex ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-          .borderRadius(10)
-          .margin({ bottom: 8 })
-          .onClick(() => {
-            this.selectTerm(index);
-          })
-        }, (term: TermInfo) => term.id)
+            .width('100%')
+            .height(46)
+            .padding({ left: 16, right: 16 })
+            .backgroundColor(index === this.selectedTermIndex ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
+            .borderRadius(10)
+            .margin({ bottom: 8 })
+            .onClick(() => {
+              this.selectTerm(index);
+            })
+          }, (term: TermInfo) => term.id)
+        }
       }
+      .width('100%')
+      .padding({ left: 20, right: 20, top: 8, bottom: 24 })
     }
-    .width('100%')
-    .padding({ left: 20, right: 20, top: 8, bottom: 24 })
   }
 
   /** 课程表设置弹窗（bindSheet 半屏）：内容为 ScheduleSettingsPanel 组件 */
   @Builder
   settingsSheet() {
-    ScheduleSettingsPanel({
-      cfg: this.cfg,
-      scheduleBg: this.scheduleBg,
-      onPickBg: () => { this.pickBackgroundImage(); },
-      onClearBg: () => { this.clearBackgroundImage(); },
-      onClose: () => { this.showSettingsSheet = false; },
-      onCfgChange: (c: ScheduleConfig) => { this.cfg = c; c.save(); },
-      currentTermId: AppState.term.id,
-      currentTermStart: this.customTermStart,
-      onTermStartChange: (d: string) => { this.onTermStartChanged(d); }
-    })
+    // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底（见外层选项）。
+    // SheetSize.MEDIUM 固定高 → 保持 panelFillHeight 默认 true；ScheduleSettingsPanel 根为 Stack、无底色。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0 }) {
+      ScheduleSettingsPanel({
+        cfg: this.cfg,
+        scheduleBg: this.scheduleBg,
+        onPickBg: () => { this.pickBackgroundImage(); },
+        onClearBg: () => { this.clearBackgroundImage(); },
+        onClose: () => { this.showSettingsSheet = false; },
+        onCfgChange: (c: ScheduleConfig) => { this.cfg = c; c.save(); },
+        currentTermId: AppState.term.id,
+        currentTermStart: this.customTermStart,
+        onTermStartChange: (d: string) => { this.onTermStartChanged(d); }
+      })
+    }
+  }
+
+  /** 课程详情弹窗（bindSheet 半屏）：内容为独立组件 CourseDetailPanel，本地 @State 镜像+回调实时刷新 */
+  @Builder
+  courseSheet() {
+    // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底
+    // （竖屏/横屏两处 bindSheet 选项均已改）。SheetSize.MEDIUM 固定高 → panelFillHeight 默认 true；
+    // CourseDetailPanel 根为 Scroll（自带滚动、无底色），不遮挡材质。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0 }) {
+      CourseDetailPanel({
+        selected: this.selected,
+        customColors: this.customColors,
+        courseNames: this.courseNameList(),
+        timeText: this.selectedTimeText(),
+        onClose: () => {
+          this.showSheet = false;
+        },
+        onColorsChange: (m: Record<string, string>) => {
+          this.customColors = m;
+        }
+      })
+    }
   }
 
   /** 课程表主体布局 */
@@ -1162,9 +1252,7 @@ export struct ScheduleView {
           }
           .width('100%')
           .layoutWeight(1)
-          // 大卡片圆角（竖屏课程表卡片）
-          .borderRadius(18)
-          .clip(true)
+          // 课程表区域：无圆角无裁剪（滑动时上下边缘不再出现圆角缺口）
           // 左右滑动切换上一周/下一周（水平滑动手势，不干扰表格内部垂直滚动）
           .gesture(
             SwipeGesture({ direction: SwipeDirection.Horizontal })
@@ -1182,14 +1270,15 @@ export struct ScheduleView {
             preferType: SheetType.BOTTOM,
             width: this.sheetWidth,
             dragBar: true,
-            backgroundColor: $r('app.color.bg_card'),
+            // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
+            backgroundColor: Color.Transparent,
+            blurStyle: sheetBlurStyle(),
             title: { title: '课程详情' }
           })
         }
       }
       .width('100%')
       .height('100%')
-      // 课程表保持自身不透明底色，不受全局壁纸影响（表格信息密度高，铺壁纸可读性差）
       // 背景透明：跟随全局壁纸/主题底色（与其它 Tab 一致）
       .backgroundColor(Color.Transparent)
       .bindSheet($$this.showTermSheet, this.termPickerSheet(), {
@@ -1197,7 +1286,9 @@ export struct ScheduleView {
         preferType: SheetType.BOTTOM,
         width: this.sheetWidth,
         dragBar: false,
-        backgroundColor: $r('app.color.bg_card'),
+        // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
+        backgroundColor: Color.Transparent,
+        blurStyle: sheetBlurStyle(),
         title: { title: '选择学年-学期' }
       })
     }
@@ -1208,7 +1299,9 @@ export struct ScheduleView {
       preferType: SheetType.BOTTOM,
       width: this.sheetWidth,
       dragBar: true,
-      backgroundColor: $r('app.color.bg_card'),
+      // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
+      backgroundColor: Color.Transparent,
+      blurStyle: sheetBlurStyle(),
       title: { title: '课程表设置' }
     })
   }
@@ -1266,7 +1359,7 @@ export struct ScheduleView {
               .fontSize(11)
               .fontColor(Theme.colorOf(this.themeColor))
               .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-              .backgroundColor($r('app.color.bg_chip'))
+              .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
               .borderRadius(10)
               .margin({ left: 8 })
               .onClick(() => {
@@ -1421,7 +1514,9 @@ export struct ScheduleView {
         preferType: SheetType.BOTTOM,
         width: this.sheetWidth,
         dragBar: true,
-        backgroundColor: $r('app.color.bg_card'),
+        // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
+        backgroundColor: Color.Transparent,
+        blurStyle: sheetBlurStyle(),
         title: { title: '课程详情' }
       })
     }
@@ -1429,9 +1524,7 @@ export struct ScheduleView {
     .height('100%')
     // 显式交叉轴拉伸：修复横屏右列高度塌缩（课程表 Scroll 视口过矮，节数多时底部"第九节"滚不上来）
     .alignSelf(ItemAlign.Stretch)
-    // 大卡片圆角（横屏右侧课程表卡片）
-    .borderRadius(18)
-    .clip(true)
+    // 课程表区域：无圆角无裁剪（与竖屏一致）
 
     .width('100%')
     .layoutWeight(1)

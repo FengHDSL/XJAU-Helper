@@ -1,8 +1,12 @@
 /**
  * WallpaperFill：二级页壁纸底层（与主界面 MainView 壁纸渲染同参数）
- * 置为 NavDestination 页最底下一层；无壁纸('none')时回落 bg_page 纯色——
+ * 置为 NavDestination 页最底下一层；无壁纸('none')时回落页面底色——
  * 既让二级页显示全局壁纸，又保持不透明背景（避免下层残留）。
+ *
+ * 页面底色由 `AppearanceStore.pageBackground()` 提供：
+ * 内置主题色始终染色；自定义主题色仅在「高权限自定义主题色」开启时染色（移植自参考项目）。
  */
+import { AppearanceStore } from '../../common/AppearanceStore';
 import { Wallpaper } from '../../common/Wallpaper';
 import { WallpaperTone } from '../../common/WallpaperTone';
 
@@ -10,6 +14,9 @@ import { WallpaperTone } from '../../common/WallpaperTone';
 export struct WallpaperFill {
   @StorageProp('wallpaperId') wallpaperId: string = 'none';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  @StorageProp('themeColor') themeColor: string = 'green';
+  /** 高权限自定义主题色开关（用于登记依赖：开关变化时本底色即时刷新） */
+  @StorageProp('customAccentFull') customAccentFull: boolean = false;
   /** 壁纸蒙版开关（关闭时不叠加可读性遮罩） */
   @StorageProp('wallpaperMask') wallpaperMask: boolean = true;
   /** 壁纸平均亮度（-1=未分析）；用于自动适配文字对比度 */
@@ -33,11 +40,11 @@ export struct WallpaperFill {
               : (this.isDarkMode ? 'rgba(8,10,10,0.38)' : 'rgba(255,255,255,0.18)'))
         }
       } else {
-        // 未启用壁纸：与原有页面底色一致（不透出下层）
+        // 未启用壁纸：页面底色（内置主题色染色；自定义 hex 需开启「高权限自定义主题色」）
         Column()
           .width('100%')
           .height('100%')
-          .backgroundColor($r('app.color.bg_page'))
+          .backgroundColor(AppearanceStore.pageBackground(this.isDarkMode, this.themeColor))
       }
     }
     .width('100%')

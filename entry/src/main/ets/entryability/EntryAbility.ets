@@ -4,6 +4,7 @@ import { window } from '@kit.ArkUI';
 import { display } from '@kit.ArkUI';
 import { fileIo } from '@kit.CoreFileKit';
 import { AppState } from '../common/AppState';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { DataStore } from '../common/DataStore';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Theme } from '../common/ThemeUtil';
@@ -47,20 +48,37 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('wallpaperId', wp.length > 0 ? wp : 'none');
     // 恢复顶栏主题色（中国红/天空蓝/农大绿/自定义 #RRGGBB）
     Theme.restore();
+    // 恢复应用内字体缩放（外观设置页可调；1.0 = 标准）
+    try {
+      this.context.getApplicationContext().setFontSizeScale(DataStore.loadFontScale());
+    } catch (e) {
+      hilog.error(DOMAIN, 'testTag', 'Failed to set fontSizeScale. Cause: %{public}s', JSON.stringify(e));
+    }
+    // 通透程度滑条（外观设置页可调：0~100 连续控制毛玻璃模糊强度与透明度）
+    AppStorage.setOrCreate('glassStrength', DataStore.loadGlassStrength());
+    // 灰色字体颜色覆盖（default/white/black/custom）
+    AppStorage.setOrCreate('grayTextMode', DataStore.loadGrayMode());
+    AppStorage.setOrCreate('grayTextColor', DataStore.loadGrayCustom());
     // 深色模式：默认为浅色（isDarkOn 返回 false 即表示浅色）
     AppStorage.setOrCreate('isDarkMode', DataStore.isDarkOn());
     // 顶栏样式：新版渐变（默认）/ 旧版实色
     AppStorage.setOrCreate('barStyle', DataStore.barStyle());
     // 顶栏副标题颜色（空=自动）
     AppStorage.setOrCreate('subtitleColor', DataStore.subtitleColor());
-    // 沉浸光感开关（个性主题可切换）
-    AppStorage.setOrCreate('immersiveEffect', true); // 沉浸光感默认开启（已移除开关）
+    // 全局沉浸光感（外观设置主开关，外观设置页可切换）：从持久化恢复，默认开启
+    AppStorage.setOrCreate('immersiveEffect', DataStore.immersiveOn());
     // 壁纸蒙版开关（默认为开）
     AppStorage.setOrCreate('wallpaperMask', DataStore.wallpaperMaskOn());
     // 新闻封面缩略图开关（默认开启）
     AppStorage.setOrCreate('newsThumb', DataStore.newsThumbOn());
     // 壁纸明暗（对比度自动适配用，-1=未分析）
     AppStorage.setOrCreate('wallpaperTone', WallpaperTone.load());
+
+    // ── 外观设置恢复（移植自参考项目：卡片沾色 / 主题色流光 / 卡片流光触感 /
+    //    高权限自定义主题色 / 字体管理与自定义字体注册）──
+    // 对应参考文件：miha_hm `pages/AppearanceSettingsPage.ets` + `utils/CustomFonts.ets`
+    // 在 DataStore.init + AppState.context 之后调用，保证自定义字体可读沙箱目录并完成注册。
+    AppearanceStore.init();
     try {
       this.context.getApplicationContext()
         .setColorMode(DataStore.isDarkOn() ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK

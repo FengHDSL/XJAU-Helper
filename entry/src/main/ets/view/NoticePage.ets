@@ -1,10 +1,19 @@
 /**
  * 消息：原"课程通知"，汇总显示教务通知（不做分类）
+ *
+ * 卡片外观接入（沉浸光感）：
+ * - 本页唯一的一张卡片（noticeCard，消息列表项）改由 MaterialCard 承载材质层：
+ *   材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片的底色/磨砂/亮边/阴影自动让出，
+ *   关闭光感时回落到原先的纯色/毛玻璃卡片外观。
+ * - 原写法为「Column + backgroundColor/backgroundBlurStyle/border/shadow/systemMaterial/borderRadius/padding/margin/onClick」
+ *   的整块卡片，现改为 MaterialCard 外壳，内边距走 cardPadding、圆角走 cardRadius、下间距走 cardMargin、整卡点击走 cardOnClick。
+ * - NoticeDetailPage（消息详情）只有文字与 Divider，无卡片/按钮/弹窗，本次不涉及。
  */
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { NoticeItem } from '../model/Models';
@@ -12,6 +21,7 @@ import { EMPTY_NOTICE } from '../model/Empty';
 import { BarTitle, EmptyTip, LoadingTip, TagChip } from './common/UiKit';
 import { BackButton } from './common/BackButton';
 import { WallpaperFill } from './common/WallpaperFill';
+import { MaterialCard } from './common/MaterialCard';
 
 @Component
 export struct NoticePage {
@@ -23,6 +33,11 @@ export struct NoticePage {
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @State notices: NoticeItem[] = [];
   @State loading: boolean = true;
 
@@ -67,6 +82,21 @@ export struct NoticePage {
 
   @Builder
   noticeCard(item: NoticeItem) {
+    // 材质层位于卡片内部底层、与卡片同尺寸同圆角；原 16vp 内边距→cardPadding、16vp 圆角→cardRadius、
+    // 12vp 下间距→cardMargin、整卡点击→cardOnClick（尾随闭包初始化的自定义组件之后不能再链式加属性）。
+    MaterialCard({
+      cardRadius: 16,
+      cardPadding: 16,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { bottom: 12 },
+      cardOnClick: () => {
+        this.openDetail(item);
+      }
+    }) {
     Column() {
       Row() {
         if (item.isTop) {
@@ -75,7 +105,7 @@ export struct NoticePage {
         }
         Text(item.source)
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .layoutWeight(1)
         if (!item.read) {
           Circle()
@@ -105,13 +135,7 @@ export struct NoticePage {
       .margin({ top: 10 })
     }
     .width('100%')
-    .padding(16)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(16)
-    .margin({ bottom: 12 })
-    .onClick(() => {
-      this.openDetail(item);
-    })
+    }
   }
 
   build() {
@@ -161,7 +185,7 @@ export struct NoticePage {
               EmptyTip({ text: '暂无消息' })
               Text('消息来源: 教务系统 /jwglxt/xtgl/index_cxDbsy.html?flag=1')
                 .fontSize(11)
-                .fontColor($r('app.color.text_tertiary'))
+                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                 .margin({ top: 16, bottom: 24 })
             }
             .width('100%')
@@ -263,10 +287,10 @@ export struct NoticeDetailPage {
               Row() {
                 Text(this.notice.source)
                   .fontSize(12)
-                  .fontColor($r('app.color.text_tertiary'))
+                  .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                 Text('·')
                   .fontSize(12)
-                  .fontColor($r('app.color.text_tertiary'))
+                  .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                   .margin({ left: 6, right: 6 })
                 Text(this.notice.date)
                   .fontSize(12)

@@ -6,9 +6,14 @@
  *   - barWidth 与内容卡片宽度对齐（340/420/500），5 个选项间距适中
  *   - systemMaterialEffect: IMMERSIVE/ADAPTIVE 沉浸毛玻璃光感，自动按深浅色反色
  *   - 内容区底部已加 padding，避免悬浮栏遮挡最后一项内容
+ *
+ * 页面底色：由 `AppearanceStore.pageBackground()` 派生（内置主题色染色；
+ * 自定义 hex 需开启「高权限自定义主题色」）——移植自参考项目 miha_hm 的页面底色染色。
+ * 新增页面路由：BackgroundCropPage（背景裁剪）/ FontManagePage（字体管理）。
  */
 import { HdsTabs, HdsTabsController, hdsMaterial } from '@kit.UIDesignKit';
 import { AppState } from '../common/AppState';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
 import { Wallpaper } from '../common/Wallpaper';
@@ -26,6 +31,8 @@ import { LogPage } from './LogPage';
 import { SearchResultPage } from './SearchResultPage';
 import { WebViewPage } from './WebViewPage';
 import { WallpaperPage } from './WallpaperPage';
+import { BackgroundCropPage } from './BackgroundCropPage';
+import { FontManagePage } from './FontManagePage';
 import { NoticeDetailPage, NoticePage } from './NoticePage';
 import { PrivacyPage } from './PrivacyPage';
 import { TermsPage } from './TermsPage';
@@ -43,6 +50,8 @@ export struct MainView {
   /** 壁纸蒙版开关（关闭时不叠加可读性遮罩） */
   @StorageProp('wallpaperMask') wallpaperMask: boolean = true;
   @StorageProp('themeColor') themeColor: string = 'green';
+  /** 高权限自定义主题色开关（登记依赖：切换后页面底色即时刷新） */
+  @StorageProp('customAccentFull') customAccentFull: boolean = false;
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   /** 全局壁纸 id（'b1'..'b6' 预置 / 'c:<path>' 自定义 / 'none'=未启用） */
   @StorageProp('wallpaperId') wallpaperId: string = 'none';
@@ -51,6 +60,8 @@ export struct MainView {
   /** 是否 PC 窗口化（非全屏/最大化）：窗口底部无系统安全区，底栏需额外留白 */
   @StorageProp('winFloating') winFloating: boolean = false;
   @State currentIndex: number = 0;
+  /** 主页页面平滑切换（外观设置）：开启后页签切换带页面滑动过渡 */
+  @StorageProp('smoothPageSwitch') smoothPageSwitch: boolean = true;
   private tabsController: HdsTabsController = new HdsTabsController();
   onLogout: () => void = () => {
   };
@@ -156,6 +167,10 @@ export struct MainView {
       WebViewPage()
     } else if (name === Const.ROUTE_WALLPAPER) {
       WallpaperPage()
+    } else if (name === Const.ROUTE_BG_CROP) {
+      BackgroundCropPage()
+    } else if (name === Const.ROUTE_FONT_MANAGE) {
+      FontManagePage()
     }
   }
 
@@ -179,11 +194,12 @@ export struct MainView {
 
   build() {
     Stack() {
-      // 页面底色：无壁纸时的默认纯色底（五个 Tab 页根背景已透明，由本层兜底）
+      // 页面底色：无壁纸时的默认底色（五个 Tab 页根背景已透明，由本层兜底）。
+      // 底色经 AppearanceStore 派生：内置主题色始终染色；自定义 hex 需开启「高权限自定义主题色」。
       Column()
         .width('100%')
         .height('100%')
-        .backgroundColor($r('app.color.bg_page'))
+        .backgroundColor(AppearanceStore.pageBackground(this.isDarkMode, this.themeColor))
         .hitTestBehavior(HitTestMode.None)
       // 全局壁纸（'none'=未启用不渲染）。壁纸始终清晰显示；
       // 可读性遮罩仅壁纸启用时叠加，避免默认观感变化。
@@ -243,8 +259,8 @@ export struct MainView {
           }
           .tabBar(this.tabItem('我的', $r('app.media.person'), 4))
         }
-        .scrollable(false)
-        .animationDuration(220) // 页面切换动画
+        .scrollable(this.smoothPageSwitch)
+        .animationDuration(this.smoothPageSwitch ? 240 : 0) // 平滑切换：开启时页面滑动过渡（移植自参考项目）
         .barMode(BarMode.Fixed)
         // 悬浮底栏（自适应长度 + 紧凑高度 + 沉浸光感）
         //  - barWidth 与上方内容卡片宽度对齐（手机约 300vp），5 个选项间距适中
@@ -260,7 +276,7 @@ export struct MainView {
           // 光效颜色跟随主题色（点光源与主题色一致）
           lightColor: Theme.rgba(Theme.colorOf(this.themeColor), this.isDarkMode ? 0.40 : 0.28),
           systemMaterialEffect: {
-            // 底栏沉浸光感固定开启（不受个性主题开关影响）
+            // 底栏沉浸光感固定开启（不受外观设置开关影响）
             materialType: this.safeMaterialType(),
             materialLevel: this.safeMaterialLevel() // 随系统沉浸光感强弱自适应
           }

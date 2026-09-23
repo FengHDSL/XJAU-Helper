@@ -12,12 +12,19 @@ import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
+import { GlassMaterial } from '../common/GlassMaterial';
+import { MaterialCard } from './common/MaterialCard';
 import { BackButton } from './common/BackButton';
 import { WallpaperFill } from './common/WallpaperFill';
 
 @Component
 export struct NewsDetailPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
@@ -147,9 +154,12 @@ export struct NewsDetailPage {
 
   build() {
     NavDestination() {
-      // 二级页壁纸底层（无壁纸回 bg_page，不透下层）
-      Stack({ alignContent: Alignment.TopStart }) {
-        WallpaperFill()
+  /** 顶部装饰层（背景为整页纯色底，见根 Stack） */
+  Stack({ alignContent: Alignment.TopStart }) {
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor($r('app.color.bg_page'))
       Column() {
         // 顶栏（两层）：内容(底)/主题渐变(顶)；模糊层已取消
         Stack({ alignContent: Alignment.TopStart }) {
@@ -169,21 +179,31 @@ export struct NewsDetailPage {
             .margin({ left: 6 })
             .layoutWeight(1)
           // 右上角：加入收藏 / 取消收藏（分享按钮左边）
+          // 统一按钮质感（同返回按钮：白玻璃底 + 细亮边 + 微阴影 + 磨砂）；收藏态保留主题色实底以示激活
           Text(this.faved ? '取消收藏' : '收藏')
             .fontSize(13)
-            .fontColor(this.faved ? '#FFD9A8' : (this.isDarkMode ? $r('app.color.text_primary') : Color.White))
-            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-            .backgroundColor(this.faved ? '#33DB5252' : (this.isDarkMode ? $r('app.color.bg_chip') : '#33FFFFFF'))
+            .fontColor(this.faved ? Color.White : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+            .height(34)
+            .padding({ left: 14, right: 14 })
+            .backgroundColor(this.faved ? Theme.colorOf(this.themeColor) :
+              (this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)'))
             .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-            .borderRadius(14)
+            .border({ width: 1, color: 'rgba(255,255,255,0.28)' })
+            .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+            .borderRadius(17)
+            .textAlign(TextAlign.Center)
             .onClick(() => { this.toggleFav(); })
           Text('分享')
             .fontSize(13)
             .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-            .backgroundColor(this.isDarkMode ? $r('app.color.bg_chip') : '#33FFFFFF')
+            .height(34)
+            .padding({ left: 14, right: 14 })
+            .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)')
             .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-            .borderRadius(14)
+            .border({ width: 1, color: 'rgba(255,255,255,0.28)' })
+            .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+            .borderRadius(17)
+            .textAlign(TextAlign.Center)
             .margin({ left: 8 })
             .onClick(() => { this.shareNews(); })
         }
@@ -199,12 +219,12 @@ export struct NewsDetailPage {
         if (this.loading) {
           Column() {
             LoadingProgress().width(32).height(32).color(Theme.colorOf(this.themeColor))
-            Text('加载中').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 10 })
+            Text('加载中').fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary'))).margin({ top: 10 })
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else if (this.detail === null) {
           Column() {
-            Text('加载失败').fontSize(14).fontColor($r('app.color.text_tertiary'))
+            Text('加载失败').fontSize(14).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else {
@@ -212,7 +232,23 @@ export struct NewsDetailPage {
           Refresh({ refreshing: $$this.refreshing }) {
             Scroll() {
               Column() {
-                Text(this.detail.title)
+                // 顶栏让位（悬浮顶栏之下才开始正文卡片）
+                Column()
+                  .width('100%')
+                  .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
+                // 标题 + 正文卡片背景（便于预读；沉浸光感开启时为玻璃卡）
+                MaterialCard({
+                  cardRadius: 16,
+                  cardPadding: 16,
+                  cardMargin: { left: 14, right: 14, bottom: 40 },
+                  cardAlignItems: ItemAlign.Start,
+                  cardBg: $r('app.color.bg_card'),
+                  cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                  cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+                  cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+                }) {
+                  Column() {
+                    Text(this.detail.title)
                   .fontSize(20).fontWeight(FontWeight.Bold)
                   .fontColor($r('app.color.text_primary')).width('100%')
                   .margin({ bottom: 12 })
@@ -220,14 +256,14 @@ export struct NewsDetailPage {
                 // 元信息：日期 / 来源 / 浏览量（来源过长自动换行）
                 Column() {
                   Row() {
-                    Text(this.detail.date).fontSize(12).fontColor($r('app.color.text_tertiary'))
+                    Text(this.detail.date).fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                     if (this.detail.views.length > 0) {
-                      Text(`  浏览 ${this.detail.views}`).fontSize(12).fontColor($r('app.color.text_tertiary'))
+                      Text(`  浏览 ${this.detail.views}`).fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                     }
                   }.width('100%')
                   if (this.detail.source.length > 0) {
                     Text(`来源: ${this.detail.source}`)
-                      .fontSize(12).fontColor($r('app.color.text_tertiary'))
+                      .fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                       .width('100%').margin({ top: 4 })
                   }
                 }
@@ -235,7 +271,7 @@ export struct NewsDetailPage {
 
                 if (this.detail.author.length > 0) {
                   Text(`作者: ${this.detail.author}`).fontSize(12)
-                    .fontColor($r('app.color.text_tertiary')).width('100%').margin({ bottom: 16 })
+                    .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary'))).width('100%').margin({ bottom: 16 })
                 }
 
                 ForEach(this.detail.blocks, (b: ContentBlock, i: number) => {
@@ -256,12 +292,14 @@ export struct NewsDetailPage {
                 if (this.detail.editor.length > 0) {
                   Divider().color($r('app.color.divider')).margin({ top: 16, bottom: 12 })
                   Text(this.detail.editor)
-                    .fontSize(12).fontColor($r('app.color.text_tertiary')).width('100%')
+                    .fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary'))).width('100%')
                 }
 
-                Column().height(40)
+                Column().height(20)
+                  }
+                }
               }
-              .width('100%').padding({ left: 20, right: 20, top: this.getUIContext().px2vp(this.topInsetPx) + 60, bottom: 100 })
+              .width('100%')
             }
             .width('100%').layoutWeight(1).scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring)

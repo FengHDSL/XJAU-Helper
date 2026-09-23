@@ -10,12 +10,18 @@ import { ResponsiveUtil } from '../common/ResponsiveUtil';
 import { Theme } from '../common/ThemeUtil';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { BarTitle } from './common/UiKit';
 import { AppState } from '../common/AppState';
 import { DataStore } from '../common/DataStore';
 import { Const } from '../common/Constants';
 import { NewsApi, NewsItem } from '../api/NewsApi';
 import { JwApi } from '../api/JwApi';
+// 沉浸光感：顶栏自绘按钮走 MaterialButton（常驻材质），分类标签用 btnTint 保留选中态，
+// 半模态弹窗内容走 MaterialSheetPanel（WebSurface/Web 内容弹窗例外，保持 bg_page 不透底）
+import { MaterialButton } from './common/MaterialButton';
+import { MaterialSheetPanel } from './common/MaterialCard';
+import { sheetBlurStyle } from '../common/SystemMaterial';
 
 @Component
 struct NewsRow {
@@ -74,7 +80,13 @@ export struct NewsPage {
   @StorageProp('barStyle') barStyle: string = 'new';
   /** 壁纸亮度（顶栏文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  /** 沉浸光感：标签胶囊磨砂背景随该开关（与其它按钮质感统一） */
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  /** 灰字覆盖响应（grayTextMode 变化时触发本页重渲染，取值经 GlassMaterial 读取） */
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
+  /** 卡片材质响应（开关变化时触发本页重渲染） */
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
   /** 调试模式（AppStorage 响应式）：开启后功能浏览模式允许加载新闻 */
   @StorageProp('debugNetwork') @Watch('onDebugNetworkChanged') debugNetwork: boolean = false;
   /** 新闻设置面板显隐 */
@@ -105,8 +117,12 @@ export struct NewsPage {
   private loadedTabs: boolean[] = [false, false, false, false];
   /** 真实新闻板块（用于 Tabs 内容，避免为"收藏"创建空 TabContent） */
   private newsTabs: string[] = ['要闻', '综合', '科研', '媒体'];
-  /** 板块栏标签（最后一项为"收藏"，点击跳转收藏页） */
+  /** 板块栏标签（最后一项为"收藏"，与其它板块一致：点击或左右滑动均可进入） */
   private tabs: string[] = ['要闻', '综合', '科研', '媒体', '收藏'];
+  /** 收藏板块列表（本地读取，滑入该板块时刷新） */
+  @State favs: NewsItem[] = [];
+  /** 收藏变化信号（AppStorage）：详情页收藏/取消后即时刷新收藏板块 */
+  @StorageProp('newsFavVersion') @Watch('onFavVersionChanged') newsFavVersion: number = 0;
   /** 板块切换控制器：自绘板块栏点击 / 列表滑动联动 Tabs 切页 */
   private tabsController: TabsController = new TabsController();
   controller: webview.WebviewController = new webview.WebviewController();
@@ -254,6 +270,110 @@ export struct NewsPage {
     }
   }
 
+  /** 收藏变化（详情页收藏/取消）→ 即时刷新收藏板块 */
+  private onFavVersionChanged(): void {
+    this.reloadFavs();
+  }
+
+  /** 收藏板块：从本地读取收藏并解析为 NewsItem（每次滑入该板块刷新） */
+  private reloadFavs(): void {
+    const raws: string[] = DataStore.loadNewsFavs();
+    const list: NewsItem[] = [];
+    for (let i = 0; i < raws.length; i++) {
+      try {
+        const o: Record<string, string> = JSON.parse(raws[i]) as Record<string, string>;
+        const it: NewsItem = new NewsItem();
+        it.title = o['title'] ?? '';
+        it.url = o['url'] ?? '';
+        it.date = o['date'] ?? '';
+        it.thumb = o['thumb'] ?? '';
+        if (it.url.length > 0) {
+          list.push(it);
+        }
+      } catch (e) {
+        // ignore：单条解析失败不影响其它
+      }
+    }
+    this.favs = list;
+  }
+
+  /** 取消收藏（带确认），成功后刷新收藏板块 */
+  private removeFav(item: NewsItem): void {
+    this.getUIContext().getPromptAction().showDialog({
+      title: '取消收藏',
+      message: '确定将该新闻从收藏中移除吗？',
+      buttons: [
+        { text: '取消', color: '#888888' },
+        { text: '取消收藏', color: '#DB5252', primary: true }
+      ]
+    }).then((res: promptAction.ShowDialogSuccessResponse) => {
+      if (res.index === 1) {
+        DataStore.removeNewsFav(item.url);
+        this.getUIContext().getPromptAction().showToast({ message: '已取消收藏' });
+        this.reloadFavs();
+      }
+    });
+  }
+
+  /** 收藏板块列表：可左右滑动进入（无需点击跳转）；左滑可取消收藏，点击进详情 */
+  @Builder
+  favList() {
+    if (this.favs.length === 0) {
+      Column() {
+        // 悬浮顶栏让位（与其它板块一致，避免内容被渐变顶栏遮挡）
+        Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60 + 44)
+        Text('暂无收藏')
+          .fontSize(14)
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+        Text('在新闻详情页点击「收藏」即可加入')
+          .fontSize(11)
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .margin({ top: 8 })
+        Column().height(this.getUIContext().px2vp(this.bottomInsetPx) + 16)
+      }
+      .width('100%').height('100%')
+      .alignItems(HorizontalAlign.Center)
+    } else {
+      List() {
+        ListItem() {
+          Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60 + 44)
+        }
+        ForEach(this.favs, (item: NewsItem) => {
+          ListItem() {
+            Column() {
+              NewsRow({
+                item: item,
+                showThumb: true,
+                onTap: () => { this.openDetail(item); }
+              })
+              Divider().color($r('app.color.divider')).margin({ left: 16, right: 16 })
+            }
+          }
+          .swipeAction({ end: this.favDeleteBtn(item) })
+        }, (item: NewsItem) => item.url)
+        ListItem() {
+          Column().height(this.getUIContext().px2vp(this.bottomInsetPx) + 120)
+        }
+      }
+      .width('100%').height('100%')
+    }
+  }
+
+  /** 收藏项左滑「取消收藏」按钮 */
+  @Builder
+  favDeleteBtn(item: NewsItem) {
+    Text('取消收藏')
+      .fontSize(13)
+      .fontColor(Color.White)
+      .backgroundColor('#DB5252')
+      .height('100%')
+      .padding({ left: 18, right: 18 })
+      .textAlign(TextAlign.Center)
+      .onClick(() => {
+        this.removeFav(item);
+      })
+  }
+
   /** 站内搜索：跳转搜索结果页（原生页面，点击结果进详情） */
   private doSearch(): void {
     const kw: string = this.keyword.trim();
@@ -262,25 +382,24 @@ export struct NewsPage {
     AppState.stack.pushPath({ name: Const.ROUTE_SEARCH });
   }
 
-  /** 自绘板块按钮（视觉同原 Tabs bar：选中白胶囊/主题色字；点击/滑动共用 TabsController 切换）。
-   *  颜色固定浅色观感，不受深色模式影响（新闻页自身为白字/主题渐变风格） */
+  /** 自绘板块按钮（视觉同原 Tabs bar：选中主题色/白字；点击/滑动共用 TabsController 切换）。
+   *  颜色固定浅色观感，不受深色模式影响（新闻页自身为白字/主题渐变风格）。
+   *  → MaterialButton（Toggle 承载层）：选中态改走 btnTint 叠主题色（比例 0.85，承载白字对比度），
+   *    未选中比例 0（材质+玻璃胶囊，无色叠层）。不能用实色底——材质生效时底色让出会把选中态吃掉。
+   *  原胶囊微阴影随材质统一让出（材质生效即无自绘投影）。 */
   @Builder tabPill(index: number, name: string) {
-    Text(name)
-      .fontSize(14)
-      .fontWeight(this.currentTab === index ? FontWeight.Bold : FontWeight.Normal)
-      // 胶囊板块：未选=黑/白（随深浅）+chip 底；选中=主题色底 + 白字
-      .fontColor(this.currentTab === index ? Color.White : $r('app.color.text_primary'))
-      .padding({ left: 16, right: 16, top: 6, bottom: 6 })
-      .borderRadius(16)
-      .backgroundColor(this.currentTab === index ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-      .margin({ right: 8 })
-      .onClick(() => {
-        // 最后一个标签「收藏」：跳转到收藏页（不切换板块）
-        if (name === '收藏') {
-          AppState.stack.pushPath({ name: Const.ROUTE_NEWS_FAV });
-          this.setTabsHidden(false);
-          return;
-        }
+    MaterialButton({
+      btnRadius: 16,
+      btnMargin: { right: 8 },
+      // 未选中：原玻璃胶囊底（光感关闭回落）；选中：材质生效时 btnTint 叠主题色 0.85
+      btnBg: GlassMaterial.surface(this.isDarkMode),
+      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: Theme.colorOf(this.themeColor),
+      btnTintRatio: this.currentTab === index ? 0.85 : 0,
+      btnOnClick: () => {
+        // 「收藏」为最后一个板块：与其它板块一致，点击或左右滑动均可进入（不再跳转独立页）
         if (this.currentTab !== index) {
           this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
             this.currentTab = index;
@@ -288,42 +407,57 @@ export struct NewsPage {
           this.tabsController.changeIndex(index);
         }
         this.setTabsHidden(false); // 点击板块：展开板块栏
-      })
+      }
+    }) {
+      Text(name)
+        .fontSize(14)
+        .fontWeight(this.currentTab === index ? FontWeight.Bold : FontWeight.Normal)
+        .fontColor(this.currentTab === index ? Color.White
+          : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+        .padding({ left: 16, right: 16, top: 6, bottom: 6 })
+    }
   }
 
   @Builder webSheet() {
+    // ⚠ bindSheet 例外（保持 $r('app.color.bg_page') 不透底）：本弹窗内容为 Web 组件（网页端浏览），
+    // Web 需要不透明底色渲染，沉浸材质面板对网页无意义且透底会出现白屏闪烁，故不套 MaterialSheetPanel。
     Web({ src: AppState.webUrl, controller: this.controller })
       .width('100%').height('100%').javaScriptAccess(true).domStorageAccess(true)
   }
 
   /** 新闻设置面板：封面缩略图开关 */
   @Builder newsSettingSheet() {
-    Column() {
-      Row() {
-        Column() {
-          Text('获取新闻封面缩略图')
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.text_primary'))
-          Text('关闭后列表不再加载封面图片，可节省流量、加快加载')
-            .fontSize(11)
-            .fontColor($r('app.color.text_tertiary'))
-            .margin({ top: 2 })
+    // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染；配套硬要求（见 build 的 bindSheet 选项）
+    // 是显式 backgroundColor: Color.Transparent（默认白底会把材质整块盖住）。
+    // SheetSize.FIT_CONTENT（高度随内容）→ panelFillHeight: false；内边距原样保留。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
+      Column() {
+        Row() {
+          Column() {
+            Text('获取新闻封面缩略图')
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor($r('app.color.text_primary'))
+            Text('关闭后列表不再加载封面图片，可节省流量、加快加载')
+              .fontSize(11)
+              .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+              .margin({ top: 2 })
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+          Toggle({ type: ToggleType.Switch, isOn: this.newsThumb })
+            .selectedColor(Theme.colorOf(this.themeColor))
+            .onChange((on: boolean) => {
+              AppStorage.setOrCreate('newsThumb', on);
+              DataStore.setNewsThumb(on);
+            })
         }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-        Toggle({ type: ToggleType.Switch, isOn: this.newsThumb })
-          .selectedColor(Theme.colorOf(this.themeColor))
-          .onChange((on: boolean) => {
-            AppStorage.setOrCreate('newsThumb', on);
-            DataStore.setNewsThumb(on);
-          })
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
       }
       .width('100%')
-      .alignItems(VerticalAlign.Center)
+      .padding({ left: 20, right: 20, top: 12, bottom: 26 })
     }
-    .width('100%')
-    .padding({ left: 20, right: 20, top: 12, bottom: 26 })
   }
 
   /** 通用新闻列表（index = 板块下标），支持下拉刷新；
@@ -333,20 +467,20 @@ export struct NewsPage {
       Column() {
         Text('当前模式禁止使用')
           .fontSize(14)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
       }
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.listLoading[index]) {
       Column() {
         LoadingProgress().width(32).height(32).color(Theme.colorOf(this.themeColor))
-        Text('加载中').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 10 })
+        Text('加载中').fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary'))).margin({ top: 10 })
       }
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.lists[index].length === 0) {
       Column() {
         Text(this.listLoading[index] ? '加载中' : '暂无新闻')
           .fontSize(14)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
       }
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
       .onAppear(() => {
@@ -416,11 +550,11 @@ export struct NewsPage {
             Column() {
               if (this.loadingMore[index]) {
                 LoadingProgress().width(22).height(22).color(Theme.colorOf(this.themeColor)).margin({ top: 14 })
-                Text('加载中…').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 6 })
+                Text('加载中…').fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary'))).margin({ top: 6 })
               } else if (!this.hasMore[index]) {
-                Text('已加载全部新闻').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 14 })
+                Text('已加载全部新闻').fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary'))).margin({ top: 14 })
               } else {
-                Text('上拉加载更多').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 14 })
+                Text('上拉加载更多').fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary'))).margin({ top: 14 })
               }
               Text('数据来源: 新疆农业大学新闻网')
                 .fontSize(11).fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
@@ -506,25 +640,39 @@ export struct NewsPage {
           height: SheetSize.FIT_CONTENT,
           showClose: true,
           preferType: SheetType.BOTTOM,
+          // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
+          backgroundColor: Color.Transparent,
+          blurStyle: sheetBlurStyle(),
           title: { title: '新闻设置' }
         })
-        Text('设置').fontSize(12).fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-          .height(32)
-          .textAlign(TextAlign.Center)
-          .padding({ left: 14, right: 14 })
-          .backgroundColor('#33FFFFFF').borderRadius(16)
-          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-          .onClick(() => {
+        // 设置按钮 → MaterialButton（Toggle 承载层，btnPersistent 常驻：不随全局沉浸光感开关关闭而消失；
+        // 光感关闭回落原白玻璃胶囊）。原 32 高胶囊由内容 Text height(32) 撑出；微阴影随材质统一让出。
+        MaterialButton({
+          btnRadius: 16,
+          btnPersistent: true,
+          btnBg: this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)',
+          btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+          btnBorderW: 1,
+          btnBorderC: 'rgba(255,255,255,0.28)',
+          btnOnClick: () => {
             this.showNewsSetting = true;
-          })
-        Text('网页端').fontSize(12).fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-          .height(32)
-          .textAlign(TextAlign.Center)
-          .padding({ left: 14, right: 14 })
-          .backgroundColor('#33FFFFFF').borderRadius(16)
-          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-          .margin({ left: 8 })
-          .onClick(() => {
+          }
+        }) {
+          Text('设置').fontSize(12).fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+            .height(32)
+            .textAlign(TextAlign.Center)
+            .padding({ left: 14, right: 14 })
+        }
+        // 网页端按钮 → MaterialButton（同上，btnMargin left 8 保持原间距）
+        MaterialButton({
+          btnRadius: 16,
+          btnPersistent: true,
+          btnBg: this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)',
+          btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+          btnBorderW: 1,
+          btnBorderC: 'rgba(255,255,255,0.28)',
+          btnMargin: { left: 8 },
+          btnOnClick: () => {
             // 功能浏览模式默认禁止；调试模式开启后允许
             if (JwApi.USE_MOCK && !this.debugNetwork) {
               this.getUIContext().getPromptAction().showToast({ message: '当前模式禁止使用' });
@@ -533,7 +681,13 @@ export struct NewsPage {
             AppState.webUrl = 'https://news.xjau.edu.cn/main.htm';
             AppState.webTitle = '农大新闻 · 网页端';
             AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
-          })
+          }
+        }) {
+          Text('网页端').fontSize(12).fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+            .height(32)
+            .textAlign(TextAlign.Center)
+            .padding({ left: 14, right: 14 })
+        }
       }
       .width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60)
       .padding({ left: 16, right: 16, bottom: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 12 })
@@ -579,6 +733,9 @@ export struct NewsPage {
           TabContent() { this.tabNewsList(index) }
             .onAppear(() => { this.ensureLoaded(index); })
         }, (name: string) => name)
+        // 第 5 个板块「收藏」：与其它板块并列，左右滑动即可进入（无需点击跳转）
+        TabContent() { this.favList() }
+          .onAppear(() => { this.reloadFavs(); })
       }
       .vertical(false).barMode(BarMode.Fixed).barWidth('100%')
       .barHeight(0) // 系统 tabBar 已隐藏：板块栏由上方自绘栏承担
@@ -589,11 +746,16 @@ export struct NewsPage {
           this.currentTab = index;
         });
         this.setTabsHidden(false); // 切换板块：展开板块栏
+        // 收藏板块（第 5 个）：每次滑入/切页刷新一次（TabContent.onAppear 仅首次触发）
+        if (index === 4) {
+          this.reloadFavs();
+        }
       })
       .layoutWeight(1).width('100%')
     }
     .width('100%').height('100%')
     // 跟随全局主题（透明：透出主框架壁纸/底色；深色时随 bg_page 兜底）
+    // ⚠ 此 sheet 例外保持 bg_page 不透底：内容为 Web 组件（网页端），需不透明底渲染（见 webSheet 注释）
     .bindSheet($$this.showWeb, this.webSheet(), {
       width: SheetUtil.sheetWidth(),
       preferType: SheetType.BOTTOM,

@@ -1,5 +1,15 @@
 /**
  * 我的：学业概览 + 常用功能 + 设置
+ *
+ * 卡片外观接入（照首页 HomeView 的写法推广）：
+ *  - 卡片统一用 `MaterialCard` 承载，材质层在卡片内部、位于内容之下；材质生效时卡片自身的
+ *    底色/磨砂/亮边/阴影一并让出，因此每张卡片只有一层视觉（就是沉浸光感材质本身），
+ *    关闭光感则回落为原来的纯色/毛玻璃卡片；
+ *  - 卡片之间的间距走 `cardMargin`（迁移前挂在卡片自身的 margin），卡片内边距走 `cardPadding`
+ *    或内部内容容器的 padding（承载层才能铺满整张卡片）；
+ *  - 设置行整卡（外观设置 / 常用功能 / 校园服务 / 设置）各作为一张材质卡，行与行之间的
+ *    Divider 与 SettingRow 点击行为原样保留；
+ *  - 半模态弹窗（恢复备份）内容套 `MaterialSheetPanel`，`bindSheet` 显式 `backgroundColor: Color.Transparent`。
  */
 import { promptAction, mediaquery } from '@kit.ArkUI';
 import { ResponsiveUtil } from '../common/ResponsiveUtil';
@@ -11,11 +21,17 @@ import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { AcademicReport, UserProfile } from '../model/Models';
 import { EMPTY_REPORT } from '../model/Empty';
 import { BarTitle, SettingRow } from './common/UiKit';
+// 沉浸光感：卡片统一走 MaterialCard（材质承载层在卡片内容之下，材质生效时卡片底色/磨砂/亮边/阴影一并让出，
+// 所以每张卡只有一层视觉），胶囊按钮走 MaterialButton，半模态弹窗内容走 MaterialSheetPanel
+import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
+import { sheetBlurStyle } from '../common/SystemMaterial';
 
 @Component
 export struct MineView {
@@ -23,6 +39,11 @@ export struct MineView {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（文字自适应用） */
@@ -87,7 +108,7 @@ export struct MineView {
     return `内置 ${id.substring(1)}`;
   }
 
-  /** 个性主题行右侧摘要：主题色 · 壁纸状态（未设置壁纸时只显示主题色） */
+  /** 外观设置行右侧摘要：主题色 · 壁纸状态（未设置壁纸时只显示主题色） */
   private personaValueText(): string {
     const wp: string = this.wallpaperValueText();
     if (wp === '未设置') {
@@ -429,14 +450,45 @@ export struct MineView {
     }
   }
 
-  /** 弹出退出登录确认框：取消 / 前往登录页（不退出）/ 退出 */
+  /** 当前登录方式文案（退出登录弹窗提示用）：教务登录 / 服务大厅登录 / 功能浏览模式 / 登录超时（异常）
+   *  判定以「实际登录方式」loginMethod 为准（pwd=教务直登 / cas=服务大厅 CAS / web=网页版），
+   *  缺失时回退登录系统标记（KEY_LOGIN_SYSTEM），均无则视为会话异常。 */
+  private loginMethodText(): string {
+    // 功能浏览模式（mock 数据、无真实会话）：统一显示"功能浏览模式"
+    if (JwApi.USE_MOCK) {
+      return '功能浏览模式';
+    }
+    const method: string = DataStore.getLoginMethod();
+    if (method === 'cas') {
+      return '服务大厅登录';
+    }
+    if (method === 'pwd') {
+      return '教务登录';
+    }
+    if (method === 'web') {
+      // 网页版登录：按登录目标归类（教务系统 / 服务大厅）
+      return DataStore.get(DataStore.KEY_LOGIN_SYSTEM) === 'original' ? '教务登录' : '服务大厅登录';
+    }
+    // 回退：登录方式未记录时按登录系统标记归类（冷启动自动重登等场景）
+    const sys: string = DataStore.get(DataStore.KEY_LOGIN_SYSTEM);
+    if (sys === 'original') {
+      return '教务登录';
+    }
+    if (sys === 'service') {
+      return '服务大厅登录';
+    }
+    // 无有效登录方式记录：会话异常或登录态已过期
+    return '登录超时（异常）';
+  }
+
+  /** 弹出退出登录确认框：取消 / 前往登录页（不退出）/ 退出；并提示当前登录方式 */
   private confirmLogout(): void {
     this.getUIContext().getPromptAction().showDialog({
       title: '退出登录',
-      message: '退出后需要重新使用学号密码登录，确定退出吗？',
+      message: `当前登录方式：${this.loginMethodText()}\n\n退出后需要重新使用学号密码登录，确定退出吗？`,
       buttons: [
         { text: '取消', color: '#888888' },
-        { text: '前往登录页', color: '#888888' },
+        { text: '前往登录页', color: '#079841' },
         { text: '退出', color: '#F0524D' }
       ]
     }).then((result: promptAction.ShowDialogSuccessResponse) => {
@@ -445,6 +497,14 @@ export struct MineView {
         this.onGotoLogin();
       } else if (result.index === 2) {
         JwApi.logout();
+        // 同步清除 WebView 登录痕迹（Cookie + 站点存储）：
+        // 否则退出登录后网页版/服务大厅仍显示已登录，与应用"已退出"状态冲突
+        try {
+          webview.WebCookieManager.clearAllCookiesSync(false);
+          webview.WebStorage.deleteAllData();
+        } catch (e) {
+          // ignore：清理失败不影响退出流程
+        }
         AppState.clear();
         this.onLogout();
       }
@@ -507,7 +567,18 @@ export struct MineView {
 
   @Builder
   avatarCard() {
-    // 头像卡片：showAvatar 仅控制圆形头像的显示/隐藏，其余信息 + 右侧退出按钮始终显示
+    // 头像卡片（MaterialCard 承载：材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片底色让出，
+    // 关闭光感则回落为原来的纯色/毛玻璃卡片）：
+    // showAvatar 仅控制圆形头像的显示/隐藏，其余信息 + 右侧退出按钮始终显示
+    MaterialCard({
+      cardRadius: 16,
+      cardPadding: 16,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlurSolid(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle()
+    }) {
     Row() {
       if (this.showAvatar) {
         if (this.photo.length > 0) {
@@ -516,15 +587,18 @@ export struct MineView {
             .height(52)
             .borderRadius(26)
             .objectFit(ImageFit.Cover)
-            .backgroundColor($r('app.color.bg_chip'))
+            // 圆形头像底：原 .systemMaterial(GlassMaterial.sysMaterial()) 是恒 undefined 的无效旧写法、
+            // GlassMaterial.withMaterial() 恒返回传入色——两者均为死代码，已移除，观感不变
+            // （头像在 MaterialCard 内部、非点击元素，不需要再叠 Toggle 承载层）。
+            .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
         } else if (JwApi.USE_MOCK) {
-          // 功能浏览模式：使用默认占位头像
+          // 功能浏览模式：使用默认占位头像（死代码清理同上，观感不变）
           Image($r('app.media.default_avatar'))
             .width(52)
             .height(52)
             .borderRadius(26)
             .objectFit(ImageFit.Cover)
-            .backgroundColor($r('app.color.bg_chip'))
+            .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
         } else {
           Text(AppState.avatarText())
             .fontSize(17)
@@ -533,7 +607,7 @@ export struct MineView {
             .width(52)
             .height(52)
             .borderRadius(26)
-            .backgroundColor($r('app.color.bg_chip'))
+            .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
             .textAlign(TextAlign.Center)
         }
       }
@@ -545,7 +619,7 @@ export struct MineView {
           .fontColor($r('app.color.text_primary'))
         Text(this.identityLine())
           .fontSize(12)
-          .fontColor($r('app.color.text_secondary'))
+          .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
           .margin({ top: 4 })
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -557,6 +631,8 @@ export struct MineView {
       Blank()
 
       // 右侧：红色圆形退出登录按钮（用 退出.png 图标）
+      // 刻意保留原生 Button（不改走 MaterialButton）：它是实色警示按钮，材质生效时会让出底色而丢掉
+      // 红色语义；且它挂有 LongPressGesture 长按提示，MaterialButton 只支持 onClick，改过去会丢交互。
       Button() {
         Image($r('app.media.power'))
           .width(20)
@@ -565,7 +641,7 @@ export struct MineView {
       }
       .width(44)
       .height(44)
-      .backgroundColor($r('app.color.state_danger'))
+      .backgroundColor($r('app.color.state_danger')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
       .borderRadius(22)
       .onClick(() => {
         this.confirmLogout();
@@ -580,9 +656,7 @@ export struct MineView {
     }
     .width('100%')
     .alignItems(VerticalAlign.Center)
-    .padding(16)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(16)
+    }
   }
 
   /** 学号 · 学院 · 班级 */
@@ -603,6 +677,19 @@ export struct MineView {
 
   @Builder
   academicCard() {
+    // 学业概览卡（MaterialCard 承载；原卡片自身的 .onClick 改走 cardOnClick——尾随闭包之后不能再链式加属性）
+    MaterialCard({
+      cardRadius: 18,
+      cardPadding: 16,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlurSolid(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardOnClick: () => {
+        AppState.stack.pushPath({ name: Const.ROUTE_ACADEMIC });
+      }
+    }) {
     Row() {
       Column() {
         Text(this.loaded ? `${this.report.totalEarned}` : '--')
@@ -611,7 +698,7 @@ export struct MineView {
           .fontColor(Theme.colorOf(this.themeColor))
         Text('已修学分')
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .margin({ top: 3 })
       }
       .layoutWeight(1)
@@ -623,67 +710,91 @@ export struct MineView {
           .fontColor($r('app.color.accent_blue'))
         Text('平均绩点')
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .margin({ top: 3 })
       }
       .layoutWeight(1)
 
       Text('›')
         .fontSize(18)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
     }
     .width('100%')
-    .padding(16)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .onClick(() => {
-      AppState.stack.pushPath({ name: Const.ROUTE_ACADEMIC });
-    })
+    }
   }
 
   /** 恢复备份：半模态面板（说明 + 导出/导入） */
   @Builder
   backupSheet() {
+    // 弹窗内容套 MaterialSheetPanel：bindSheet 自身的 systemMaterial 挂在面板上、内容区不生效，
+    // 由 MaterialSheetPanel 的 Toggle 承载层渲染材质；配套要求是 bindSheet 显式 backgroundColor: Color.Transparent。
+    // 本弹窗高度随内容（SheetSize.FIT_CONTENT），故 panelFillHeight: false（不写 height('100%')，避免被撑成整屏）。
+    MaterialSheetPanel({ panelRadius: 24, panelPadding: 0, panelFillHeight: false }) {
     Column() {
       Text('备份包含：课程表、成绩、考试、学业情况、消息与新闻缓存，以及课表设置、主题颜色、深色模式、壁纸、日历与收藏等全部应用信息。\n'
         + '出于安全考虑，备份文件不包含账号、密码与登录 Cookie。导入会覆盖当前对应数据，请确认后再恢复。')
         .fontSize(12)
         .lineHeight(19)
-        .fontColor($r('app.color.text_secondary'))
+        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
         .width('100%')
         .margin({ top: 10 })
 
       Row({ space: 12 }) {
-        Button('导出备份')
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(Color.White)
-          .backgroundColor(Theme.colorOf(this.themeColor))
-          .height(42)
-          .layoutWeight(1)
-          .borderRadius(21)
-          .onClick(() => {
-            this.showBackupSheet = false;
-            this.exportBackup();
-          })
-        Button('导入备份')
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(Theme.colorOf(this.themeColor))
-          .backgroundColor($r('app.color.bg_chip'))
-          .height(42)
-          .layoutWeight(1)
-          .borderRadius(21)
-          .onClick(() => {
-            this.showBackupSheet = false;
-            this.importBackup();
-          })
+        // 胶囊按钮：材质走 MaterialButton 的 Toggle 承载层（普通 Button 直接挂材质真机不渲染）。
+        // 原 Button 的 layoutWeight 移到外层 Column（MaterialButton 的 Stack 内部不支持 layoutWeight），
+        // 内容自己写 width('100%') 把点击区撑满。
+        Column() {
+          MaterialButton({
+            btnRadius: 21,
+            btnBg: Theme.colorOf(this.themeColor),
+            btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+            btnBorderW: GlassMaterial.borderWidth(),
+            btnBorderC: GlassMaterial.borderColor(),
+            btnOnClick: () => {
+              this.showBackupSheet = false;
+              this.exportBackup();
+            }
+          }) {
+            Text('导出备份')
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(Color.White)
+              .width('100%')
+              .height(42)
+              .textAlign(TextAlign.Center)
+          }
+        }
+        .layoutWeight(1)
+        // 胶囊按钮：与「导出备份」同款（材质走 MaterialButton 的 Toggle 承载层）
+        Column() {
+          MaterialButton({
+            btnRadius: 21,
+            btnBg: $r('app.color.bg_chip'),
+            btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+            btnBorderW: GlassMaterial.borderWidth(),
+            btnBorderC: GlassMaterial.borderColor(),
+            btnOnClick: () => {
+              this.showBackupSheet = false;
+              this.importBackup();
+            }
+          }) {
+            Text('导入备份')
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(Theme.colorOf(this.themeColor))
+              .width('100%')
+              .height(42)
+              .textAlign(TextAlign.Center)
+          }
+        }
+        .layoutWeight(1)
       }
       .width('100%')
       .margin({ top: 18 })
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 6, bottom: 26 })
+    }
   }
 
   build() {
@@ -708,10 +819,21 @@ export struct MineView {
 
           this.academicCard()
 
-          // 个性主题（主题色/全局壁纸）→ 深色模式 → 头像显示
+          // 外观设置（主题色/全局壁纸）→ 深色模式 → 头像显示
+          // MaterialCard 承载：材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片底色/磨砂/亮边/阴影一并让出；
+          // 卡片内边距（左右 16）改挂在内部内容容器上（承载层才能铺满整张卡片），原 14vp 上间距走 cardMargin。
+          MaterialCard({
+            cardRadius: 18,
+            cardMargin: { top: 14 },
+            cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+            cardBlur: GlassMaterial.cardBlurSolid(),
+            cardBorderW: GlassMaterial.cardBorderWidth(),
+            cardBorderC: GlassMaterial.borderColor(),
+            cardShadow: GlassMaterial.cardShadowStyle()
+          }) {
           Column() {
             SettingRow({
-              icon: '', title: '个性主题', value: this.personaValueText(), onTap: () => {
+              icon: '', title: '外观设置', value: this.personaValueText(), onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_WALLPAPER });
               }
             })
@@ -751,11 +873,19 @@ export struct MineView {
           }
           .width('100%')
           .padding({ left: 16, right: 16 })
-          .backgroundColor($r('app.color.bg_card'))
-          .borderRadius(18)
-          .margin({ top: 14 })
+          }
 
           // 常用功能：空闲教室查询 / 考试查询 / 学业情况
+          // MaterialCard 承载（设置行整卡作为一张材质卡；间距/内边距承载方式同上）
+          MaterialCard({
+            cardRadius: 18,
+            cardMargin: { top: 14 },
+            cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+            cardBlur: GlassMaterial.cardBlurSolid(),
+            cardBorderW: GlassMaterial.cardBorderWidth(),
+            cardBorderC: GlassMaterial.borderColor(),
+            cardShadow: GlassMaterial.cardShadowStyle()
+          }) {
           Column() {
             SettingRow({
               icon: '', title: '教室查询', onTap: () => {
@@ -784,11 +914,19 @@ export struct MineView {
           }
           .width('100%')
           .padding({ left: 16, right: 16 })
-          .backgroundColor($r('app.color.bg_card'))
-          .borderRadius(18)
-          .margin({ top: 14 })
+          }
 
           // 校园服务（网页端教务系统 / 服务大厅 / 智慧学工 / 学校官网，独立卡片避免设置区臃肿）
+          // MaterialCard 承载（设置行整卡作为一张材质卡；间距/内边距承载方式同上）
+          MaterialCard({
+            cardRadius: 18,
+            cardMargin: { top: 14 },
+            cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+            cardBlur: GlassMaterial.cardBlurSolid(),
+            cardBorderW: GlassMaterial.cardBorderWidth(),
+            cardBorderC: GlassMaterial.borderColor(),
+            cardShadow: GlassMaterial.cardShadowStyle()
+          }) {
           Column() {
             // 1. 网页端教务系统
             SettingRow({
@@ -838,11 +976,19 @@ export struct MineView {
           }
           .width('100%')
           .padding({ left: 16, right: 16 })
-          .backgroundColor($r('app.color.bg_card'))
-          .borderRadius(18)
-          .margin({ top: 14 })
+          }
 
           // 设置（数据同步 → 清除缓存 → 恢复备份 → 清空数据 → 隐私协议 → 关于）
+          // MaterialCard 承载（设置行整卡作为一张材质卡；间距/内边距承载方式同上）
+          MaterialCard({
+            cardRadius: 18,
+            cardMargin: { top: 14 },
+            cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+            cardBlur: GlassMaterial.cardBlurSolid(),
+            cardBorderW: GlassMaterial.cardBorderWidth(),
+            cardBorderC: GlassMaterial.borderColor(),
+            cardShadow: GlassMaterial.cardShadowStyle()
+          }) {
           Column() {
             // 1. 数据同步
             SettingRow({
@@ -929,7 +1075,7 @@ export struct MineView {
             Divider().color($r('app.color.divider'))
             // 8. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于应用', value: 'v1.3.8', onTap: () => {
+              icon: '', title: '关于应用', value: 'v1.3.9', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
@@ -950,9 +1096,7 @@ export struct MineView {
           }
           .width('100%')
           .padding({ left: 16, right: 16 })
-          .backgroundColor($r('app.color.bg_card'))
-          .borderRadius(18)
-          .margin({ top: 14 })
+          }
 
         // 数据来源（Scroll 大 Column 内部）
         Column() {
@@ -991,7 +1135,11 @@ export struct MineView {
       height: SheetSize.FIT_CONTENT,
       dragBar: true,
       showClose: true,
-      title: { title: '恢复备份' }
+      title: { title: '恢复备份' },
+      // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，而沉浸光感材质的视觉层级位于
+      // backgroundColor **之下**，白底会把面板材质整块盖住（表现为「弹窗一点光感都没有」）。
+      backgroundColor: Color.Transparent,
+      blurStyle: sheetBlurStyle()
     })
   }
 
@@ -1049,10 +1197,20 @@ export struct MineView {
 
     this.academicCard()
 
-    // 个性主题（主题色/全局壁纸）→ 深色模式 → 头像显示
+    // 外观设置（主题色/全局壁纸）→ 深色模式 → 头像显示
+    // MaterialCard 承载（横屏列同样走材质卡；内边距挂内部内容容器、上间距走 cardMargin）
+    MaterialCard({
+      cardRadius: 18,
+      cardMargin: { top: 14 },
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlurSolid(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle()
+    }) {
     Column() {
       SettingRow({
-        icon: '', title: '个性主题', value: this.personaValueText(), onTap: () => {
+        icon: '', title: '外观设置', value: this.personaValueText(), onTap: () => {
           AppState.stack.pushPath({ name: Const.ROUTE_WALLPAPER });
         }
       })
@@ -1091,11 +1249,19 @@ export struct MineView {
     }
     .width('100%')
     .padding({ left: 16, right: 16 })
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .margin({ top: 14 })
+    }
 
     // 常用功能：空闲教室查询 / 考试查询 / 学业情况
+    // MaterialCard 承载（横屏列同样走材质卡；内边距挂内部内容容器、上间距走 cardMargin）
+    MaterialCard({
+      cardRadius: 18,
+      cardMargin: { top: 14 },
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlurSolid(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle()
+    }) {
     Column() {
       SettingRow({
         icon: '', title: '教室查询', onTap: () => {
@@ -1124,13 +1290,22 @@ export struct MineView {
     }
     .width('100%')
     .padding({ left: 16, right: 16 })
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .margin({ top: 14 })
+    }
   }
 
   @Builder
   mineSettingsSection() {
+    // MaterialCard 承载：横屏右侧列（校园服务 + 设置）整卡作为一张材质卡；
+    // 内边距（左右 16）挂内部内容容器，原 14vp 上间距走 cardMargin。
+    MaterialCard({
+      cardRadius: 18,
+      cardMargin: { top: 14 },
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlurSolid(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle()
+    }) {
     Column() {
       // 1. 网页端教务系统（最顶上）
       SettingRow({
@@ -1259,7 +1434,7 @@ export struct MineView {
       Divider().color($r('app.color.divider'))
       // 8. 关于（打开独立页面）
       SettingRow({
-        icon: '', title: '关于应用', value: 'v1.3.8', onTap: () => {
+        icon: '', title: '关于应用', value: 'v1.3.9', onTap: () => {
           AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
         }
       })
@@ -1280,8 +1455,6 @@ export struct MineView {
     }
     .width('100%')
     .padding({ left: 16, right: 16 })
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
-    .margin({ top: 14 })
+    }
   }
 }

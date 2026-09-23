@@ -13,15 +13,24 @@
 import { webview } from '@kit.ArkWeb';
 import { privacyManager } from '@kit.AppGalleryKit';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { Immersive } from './common/Immersive';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { DeclarationSection, DEVELOPER_DECLARATION } from '../common/PrivacyText';
 import { DataStore } from '../common/DataStore';
 import { common } from '@kit.AbilityKit';
+// 沉浸光感：按钮走 MaterialButton（有色主按钮用 btnTint 叠回品牌绿），正文卡片走 MaterialCard
+import { MaterialCard } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
 
 @Component
 export struct PrivacyGatePage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
@@ -138,25 +147,52 @@ export struct PrivacyGatePage {
   actionBar(secondaryText: string, primaryText: string,
     onSecondary: () => void, onPrimary: () => void) {
     Row() {
-      Button(secondaryText)
-        .fontSize(14)
-        .fontColor($r('app.color.text_secondary'))
-        .backgroundColor($r('app.color.bg_chip'))
-        .height(42)
-        .layoutWeight(1)
-        .borderRadius(21)
-        .onClick(onSecondary)
-      Button(primaryText)
-        .fontSize(14)
-        .fontWeight(FontWeight.Medium)
-        // 品牌绿上使用自动对比度文字色（浅色/深色品牌色均为深色文字，清晰可读）
-        .fontColor(Theme.onBrand())
-        .backgroundColor($r('app.color.brand'))
-        .height(42)
-        .layoutWeight(1)
-        .borderRadius(21)
-        .margin({ left: 12 })
-        .onClick(onPrimary)
+      // 次要按钮：等宽（layoutWeight 放在外层 Column 上——MaterialButton 内部是 Stack，layoutWeight 需放外层）。
+      // 材质走 MaterialButton 的 Toggle 承载层；原淡灰玻璃底在 btnBg 兜底（光感关闭时回落同款玻璃底）。
+      Column() {
+        MaterialButton({
+          btnRadius: 21,
+          btnBg: $r('app.color.bg_chip'),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnOnClick: () => {
+            onSecondary();
+          }
+        }) {
+          Text(secondaryText)
+            .fontSize(14)
+            .fontColor($r('app.color.text_secondary'))
+            .height(42)
+            .width('100%')
+            .textAlign(TextAlign.Center)
+        }
+      }
+      .layoutWeight(1)
+
+      // 品牌主按钮：材质生效时靠 btnTint 叠回品牌绿（比例 0.8，保证 Theme.onBrand() 深色文字对比度），
+      // 既看到沉浸光感、也保留品牌色语义；光感关闭时回落 btnBg 品牌实底。
+      Column() {
+        MaterialButton({
+          btnRadius: 21,
+          btnBg: $r('app.color.brand'),
+          btnTint: '#079841',
+          btnTintRatio: 0.8,
+          btnOnClick: () => {
+            onPrimary();
+          }
+        }) {
+          Text(primaryText)
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(Theme.onBrand())
+            .height(42)
+            .width('100%')
+            .textAlign(TextAlign.Center)
+        }
+      }
+      .layoutWeight(1)
+      .margin({ left: 12 })
     }
     .width('100%')
   }
@@ -270,30 +306,55 @@ export struct PrivacyGatePage {
               .margin({ top: 8, bottom: 8 })
 
             Row({ space: 12 }) {
-              Button('不同意')
-                .fontSize(14)
-                .fontColor($r('app.color.text_secondary'))
-                .backgroundColor($r('app.color.bg_chip'))
-                .height(42)
-                .layoutWeight(1)
-                .borderRadius(21)
-                .onClick(() => { this.declineAgreement(); })
-              Button('同意并继续')
-                .fontSize(14)
-                .fontWeight(FontWeight.Medium)
-                // 文字色按背景亮度自动取深/浅（品牌绿上深色文字对比度更高）；
-                // 未勾选时改为「中性底 + 次级文字」，避免用半透明表达禁用导致文字看不清
-                .fontColor(this.agreeTerms && this.agreePrivacy
-                  ? Theme.onBrand()
-                  : $r('app.color.text_secondary'))
-                .backgroundColor(this.agreeTerms && this.agreePrivacy
-                  ? $r('app.color.brand')
-                  : $r('app.color.bg_chip'))
-                .height(42)
-                .layoutWeight(1)
-                .borderRadius(21)
-                .enabled(this.agreeTerms && this.agreePrivacy)
-                .onClick(() => { this.onAgreePrivacy(); })
+              // 「不同意」：淡灰玻璃底小按钮，材质走 MaterialButton（光感关闭回落同款玻璃底）
+              Column() {
+                MaterialButton({
+                  btnRadius: 21,
+                  btnBg: $r('app.color.bg_chip'),
+                  btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                  btnBorderW: GlassMaterial.borderWidth(),
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnOnClick: () => {
+                    this.declineAgreement();
+                  }
+                }) {
+                  Text('不同意')
+                    .fontSize(14)
+                    .fontColor($r('app.color.text_secondary'))
+                    .height(42)
+                    .width('100%')
+                    .textAlign(TextAlign.Center)
+                }
+              }
+              .layoutWeight(1)
+
+              // 「同意并继续」：勾选后是品牌绿实底（深色文字）、未勾选是中性灰底（禁用）。
+              // 材质生效时靠 btnTint 叠回品牌绿（比例 0.8），保留品牌色语义；未勾选时 btnTint 为空、不叠色。
+              Column() {
+                MaterialButton({
+                  btnRadius: 21,
+                  btnEnabled: this.agreeTerms && this.agreePrivacy,
+                  btnBg: this.agreeTerms && this.agreePrivacy ? $r('app.color.brand') : $r('app.color.bg_chip'),
+                  btnTint: this.agreeTerms && this.agreePrivacy ? '#079841' : '',
+                  btnTintRatio: 0.8,
+                  btnOnClick: () => {
+                    this.onAgreePrivacy();
+                  }
+                }) {
+                  Text('同意并继续')
+                    .fontSize(14)
+                    .fontWeight(FontWeight.Medium)
+                    // 文字色按背景亮度自动取深/浅（品牌绿上深色文字对比度更高）；
+                    // 未勾选时改为「中性底 + 次级文字」，避免用半透明表达禁用导致文字看不清
+                    .fontColor(this.agreeTerms && this.agreePrivacy
+                      ? Theme.onBrand()
+                      : $r('app.color.text_secondary'))
+                    .height(42)
+                    .width('100%')
+                    .textAlign(TextAlign.Center)
+                }
+              }
+              .layoutWeight(1)
             }
             .width('100%')
           }
@@ -348,6 +409,16 @@ export struct PrivacyGatePage {
         Column() {
           // 正文区域：铺满剩余空间并整体居中（聚焦提示内容）
           Column() {
+            // MaterialCard 承载：原 20vp 内边距挂内部内容容器（承载层才能铺满整块卡片）；16vp 圆角走 cardRadius。
+            // 材质生效时卡片底色/磨砂/亮边/阴影一并让出，光感关闭回落原 bg_card 纯色卡。
+            MaterialCard({
+              cardRadius: 16,
+              cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+              cardBlur: GlassMaterial.cardBlur(),
+              cardBorderW: GlassMaterial.cardBorderWidth(),
+              cardBorderC: GlassMaterial.borderColor(),
+              cardShadow: GlassMaterial.cardShadowStyle()
+            }) {
             Column() {
               Text('请勿频繁登录与退出教务系统，以免导致账号风控无法使用！' +
                 '建议将应用锁定在后台，以免被清除。\n\n' +
@@ -362,8 +433,7 @@ export struct PrivacyGatePage {
             }
             .width('100%')
             .padding(20)
-            .backgroundColor($r('app.color.bg_card'))
-            .borderRadius(16)
+            }
           }
           .width('100%')
           .layoutWeight(1)

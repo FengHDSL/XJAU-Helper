@@ -9,18 +9,44 @@
  *  - **抢课队列**（多目标排队）+ **定时策略**（轮询间隔、最大轮次、成功后是否继续）+ **开始/停止按钮**
  *
  * 说明：选课需学校开放选课轮次，且不同版本正方字段略有差异；本实现按参考项目移植，未经真机验证。
+ *
+ * 卡片外观接入（照首页 HomeView / 关于页 AboutPage 的写法推广）：
+ *  - 页面级卡片（状态说明 / 抢课队列+定时策略 / 课程查询 / 已选课程 / 运行日志）与结果卡片
+ *    （教学班卡片）统一用 `MaterialCard` 承载（材质层在卡片内部、位于内容之下），材质生效时卡片自身的
+ *    底色/磨砂/亮边/阴影一并让出，每张卡只有一层视觉；关闭光感回落为原来的纯色/毛玻璃卡片；
+ *  - 教学班卡片是**相邻列表卡**（卡间 10vp）→ 传 `cardMaterialShadow: false`（防投影在卡间叠成暗带）；
+ *  - 原卡片上的 `.padding(...)` / `.borderRadius(...)` / `.margin(...)` / `.alignItems(...)`
+ *    一律改走 `cardPadding` / `cardRadius` / `cardMargin` / `cardAlignItems`
+ *    （尾随闭包初始化的自定义组件之后不能再链式加属性）；
+ *  - 胶囊小按钮（选课/入队/退选/查询/筛选/清空/停用/移除/开始抢课…）改走 `MaterialButton`；
+ *    **带选中态的档位胶囊保持实色**（重试间隔 / 最大重试次数 / 并行处理 / 轮次分类切换）——
+ *    选中态完全靠实色背景表达，材质会让出底色、把选中态吃掉；
+ *    输入框（TextInput）与列表行内子容器保持原自绘玻璃写法（材质卡内部不再叠第二层材质）。
  */
 import { AppState } from '../common/AppState';
 import { Theme } from '../common/ThemeUtil';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { LogStore } from '../common/LogStore';
 import { ClassFilter, GrabPolicy, GrabTarget, SelectableClass, SelectedCourseItem, SelectContext, SelectScope } from '../model/Models';
 import { SelectApi, SelectResult } from '../api/SelectApi';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
+// 沉浸光感：卡片统一走 MaterialCard（材质承载层在卡片内容之下，材质生效时卡片底色/磨砂/亮边/阴影
+// 一并让出，每张卡只剩一层视觉），胶囊小按钮走 MaterialButton
+import { MaterialCard } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
+import { MaterialCardLayer } from './common/MaterialCarrier';
+import { materialAvailable } from '../common/SystemMaterial';
 
 @Component
 export struct QuickSelectPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 响应式依赖：玻璃/灰字设置变化时即时刷新本页（取值经 GlassMaterial 静态方法读取） */
+  @StorageProp('glassStrength') glassStrength: number = 70;
+  @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 选课上下文是否就绪 */
@@ -502,12 +528,27 @@ export struct QuickSelectPage {
     if (status === 'failed') {
       return $r('app.color.accent_orange');
     }
-    return $r('app.color.text_tertiary');
+    return GlassMaterial.grayTertiary($r('app.color.text_tertiary'));
   }
 
   /** 单个教学班卡片 */
   @Builder
   classCard(cls: SelectableClass) {
+    // MaterialCard 承载：材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片底色/磨砂/亮边/阴影让出；
+    // 原 12vp 内边距走 cardPadding、12vp 圆角走 cardRadius、10vp 下间距走 cardMargin、
+    // 左对齐走 cardAlignItems；相邻列表卡 → cardMaterialShadow: false 防投影在卡间叠成暗带。
+    MaterialCard({
+      cardRadius: 12,
+      cardPadding: 12,
+      cardAlignItems: ItemAlign.Start,
+      cardBg: $r('app.color.bg_chip'),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { bottom: 10 },
+      cardMaterialShadow: false
+    }) {
     Column() {
       Row() {
         Text(cls.courseName)
@@ -517,35 +558,35 @@ export struct QuickSelectPage {
           .layoutWeight(1)
         Text(cls.credit.length > 0 ? `${cls.credit} 学分` : '')
           .fontSize(11)
-          .fontColor($r('app.color.text_secondary'))
+          .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
       }
       .width('100%')
 
       if (cls.className.length > 0) {
         Text(cls.className)
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .width('100%')
           .margin({ top: 2 })
       }
       if (cls.teacher.length > 0) {
         Text(`教师：${cls.teacher}`)
           .fontSize(11)
-          .fontColor($r('app.color.text_secondary'))
+          .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
           .width('100%')
           .margin({ top: 4 })
       }
       if (cls.time.length > 0) {
         Text(cls.time)
           .fontSize(11)
-          .fontColor($r('app.color.text_secondary'))
+          .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
           .width('100%')
           .margin({ top: 2 })
       }
       if (cls.location.length > 0) {
         Text(cls.location)
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .width('100%')
           .margin({ top: 2 })
       }
@@ -556,45 +597,65 @@ export struct QuickSelectPage {
           : `已选 ${cls.selected}`)
           .fontSize(11)
           .fontColor(cls.capacity > 0 && cls.selected >= cls.capacity
-            ? '#DB5252' : $r('app.color.text_tertiary'))
+            ? '#DB5252' : GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .layoutWeight(1)
         if (cls.chosen) {
+          // 「已选」是状态标签（无点击）：保留实色底
           Text('已选')
             .fontSize(11)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
             .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-            .backgroundColor($r('app.color.bg_chip'))
+            .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
             .borderRadius(10)
         } else {
-          Text('选课')
-            .fontSize(12)
-            .fontColor(Color.White)
-            .padding({ left: 14, right: 14, top: 6, bottom: 6 })
-            .backgroundColor(Theme.colorOf(this.themeColor))
-            .borderRadius(12)
-            .onClick(() => {
+          // 结果项里的小按钮：材质走 MaterialButton 的 Toggle 承载层（普通 Button/Text 挂材质真机不渲染）
+          MaterialButton({
+            btnRadius: 12,
+            btnBg: Theme.colorOf(this.themeColor),
+            btnBlur: GlassMaterial.cardBlur(),
+            btnBorderW: GlassMaterial.cardBorderWidth(),
+            btnBorderC: GlassMaterial.borderColor(),
+            btnOnClick: () => {
               this.doChoose(cls);
-            })
-          Text('精确入队')
-            .fontSize(12)
-            .fontColor(Theme.colorOf(this.themeColor))
-            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-            .backgroundColor($r('app.color.bg_chip'))
-            .borderRadius(12)
-            .margin({ left: 8 })
-            .onClick(() => {
+            }
+          }) {
+            Text('选课')
+              .fontSize(12)
+              .fontColor(Color.White)
+              .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+          }
+          MaterialButton({
+            btnRadius: 12,
+            btnBg: $r('app.color.bg_chip'),
+            btnBlur: GlassMaterial.cardBlur(),
+            btnBorderW: GlassMaterial.cardBorderWidth(),
+            btnBorderC: GlassMaterial.borderColor(),
+            btnMargin: { left: 8 },
+            btnOnClick: () => {
               this.doEnqueue(cls, 'exact');
-            })
-          Text('模糊入队')
-            .fontSize(12)
-            .fontColor($r('app.color.text_secondary'))
-            .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-            .backgroundColor($r('app.color.bg_chip'))
-            .borderRadius(12)
-            .margin({ left: 6 })
-            .onClick(() => {
+            }
+          }) {
+            Text('精确入队')
+              .fontSize(12)
+              .fontColor(Theme.colorOf(this.themeColor))
+              .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          }
+          MaterialButton({
+            btnRadius: 12,
+            btnBg: $r('app.color.bg_chip'),
+            btnBlur: GlassMaterial.cardBlur(),
+            btnBorderW: GlassMaterial.cardBorderWidth(),
+            btnBorderC: GlassMaterial.borderColor(),
+            btnMargin: { left: 6 },
+            btnOnClick: () => {
               this.doEnqueue(cls, 'fuzzy');
-            })
+            }
+          }) {
+            Text('模糊入队')
+              .fontSize(12)
+              .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+              .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          }
         }
       }
       .width('100%')
@@ -603,10 +664,7 @@ export struct QuickSelectPage {
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
-    .padding(12)
-    .backgroundColor($r('app.color.bg_chip'))
-    .borderRadius(12)
-    .margin({ bottom: 10 })
+    }
   }
 
   build() {
@@ -622,6 +680,18 @@ export struct QuickSelectPage {
               .height(this.getUIContext().px2vp(this.topInsetPx) + 72)
 
             // 状态 + BETA 说明
+            // MaterialCard 承载：材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片底色/磨砂/亮边/阴影让出；
+            // 原 16vp 内边距走 cardPadding、18vp 圆角走 cardRadius、左对齐走 cardAlignItems
+            MaterialCard({
+              cardRadius: 18,
+              cardPadding: 16,
+              cardAlignItems: ItemAlign.Start,
+              cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+              cardBlur: GlassMaterial.cardBlur(),
+              cardBorderW: GlassMaterial.cardBorderWidth(),
+              cardBorderC: GlassMaterial.borderColor(),
+              cardShadow: GlassMaterial.cardShadowStyle()
+            }) {
             Column() {
               Row() {
                 Text('BETA')
@@ -639,7 +709,7 @@ export struct QuickSelectPage {
               .width('100%')
               Text(this.ctxInfo)
                 .fontSize(11)
-                .fontColor($r('app.color.text_tertiary'))
+                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                 .width('100%')
                 .margin({ top: 8 })
               if (this.busy) {
@@ -652,18 +722,27 @@ export struct QuickSelectPage {
               if (this.successCount > 0 || this.retryCount > 0) {
                 Text(`运行统计：成功 ${this.successCount} 门 · 未成功 ${this.failCount} 门 · 累计尝试 ${this.retryCount} 次`)
                   .fontSize(11)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                   .width('100%')
                   .margin({ top: 6 })
               }
             }
             .width('100%')
             .alignItems(HorizontalAlign.Start)
-            .padding(16)
-            .backgroundColor($r('app.color.bg_card'))
-            .borderRadius(18)
+            }
 
             // ══════ 抢课队列 + 定时策略 + 开始按钮 ══════
+            // MaterialCard 承载：原 16vp 内边距走 cardPadding、18vp 圆角走 cardRadius、12vp 上间距走 cardMargin
+            MaterialCard({
+              cardRadius: 18,
+              cardPadding: 16,
+              cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+              cardBlur: GlassMaterial.cardBlur(),
+              cardBorderW: GlassMaterial.cardBorderWidth(),
+              cardBorderC: GlassMaterial.borderColor(),
+              cardShadow: GlassMaterial.cardShadowStyle(),
+              cardMargin: { top: 12 }
+            }) {
             Column() {
               Row() {
                 Text('抢课队列')
@@ -673,18 +752,25 @@ export struct QuickSelectPage {
                 Blank()
                 Text(`${this.queue.length} 门`)
                   .fontSize(11)
-                  .fontColor($r('app.color.text_tertiary'))
+                  .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                 if (this.queue.length > 0 && !this.grabbing) {
-                  Text('清空')
-                    .fontSize(11)
-                    .fontColor($r('app.color.text_secondary'))
-                    .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-                    .backgroundColor($r('app.color.bg_chip'))
-                    .borderRadius(9)
-                    .margin({ left: 8 })
-                    .onClick(() => {
+                  // 「清空」胶囊小按钮：材质走 MaterialButton 的 Toggle 承载层
+                  MaterialButton({
+                    btnRadius: 9,
+                    btnBg: $r('app.color.bg_chip'),
+                    btnBlur: GlassMaterial.cardBlur(),
+                    btnBorderW: GlassMaterial.cardBorderWidth(),
+                    btnBorderC: GlassMaterial.borderColor(),
+                    btnMargin: { left: 8 },
+                    btnOnClick: () => {
                       this.clearQueue();
-                    })
+                    }
+                  }) {
+                    Text('清空')
+                      .fontSize(11)
+                      .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+                      .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+                  }
                 }
               }
               .width('100%')
@@ -693,7 +779,7 @@ export struct QuickSelectPage {
               if (this.queue.length === 0) {
                 Text('队列为空：先在下方查询课程，点「加入队列」把要抢的课程排队')
                   .fontSize(12)
-                  .fontColor($r('app.color.text_tertiary'))
+                  .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                   .width('100%')
               } else {
                 ForEach(this.queue, (item: GrabTarget) => {
@@ -708,7 +794,7 @@ export struct QuickSelectPage {
                         + ` · ${item.matchMode === 'fuzzy' ? '模糊' : '精确'}`
                         + ` · 第 ${item.attempts} 次`)
                         .fontSize(11)
-                        .fontColor($r('app.color.text_tertiary'))
+                        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                         .width('100%')
                         .margin({ top: 2 })
                     }
@@ -719,25 +805,38 @@ export struct QuickSelectPage {
                       .fontSize(11)
                       .fontColor(this.statusColor(item.status))
                       .margin({ right: 8 })
-                    Text(item.enabled ? '停用' : '启用')
-                      .fontSize(11)
-                      .fontColor($r('app.color.text_secondary'))
-                      .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-                      .backgroundColor($r('app.color.bg_chip'))
-                      .borderRadius(9)
-                      .onClick(() => {
+                    // 停用/启用 + 移除：结果项小按钮 → MaterialButton（材质走 Toggle 承载层）
+                    MaterialButton({
+                      btnRadius: 9,
+                      btnBg: $r('app.color.bg_chip'),
+                      btnBlur: GlassMaterial.cardBlur(),
+                      btnBorderW: GlassMaterial.cardBorderWidth(),
+                      btnBorderC: GlassMaterial.borderColor(),
+                      btnOnClick: () => {
                         this.toggleEnabled(item);
-                      })
-                    Text('移除')
-                      .fontSize(11)
-                      .fontColor('#DB5252')
-                      .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-                      .backgroundColor('rgba(219,82,82,0.10)')
-                      .borderRadius(9)
-                      .margin({ left: 6 })
-                      .onClick(() => {
+                      }
+                    }) {
+                      Text(item.enabled ? '停用' : '启用')
+                        .fontSize(11)
+                        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+                        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+                    }
+                    MaterialButton({
+                      btnRadius: 9,
+                      btnBg: 'rgba(219,82,82,0.10)',
+                      btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE,
+                      btnBorderW: 1,
+                      btnBorderC: 'rgba(255,255,255,0.28)',
+                      btnMargin: { left: 6 },
+                      btnOnClick: () => {
                         this.doDequeue(item);
-                      })
+                      }
+                    }) {
+                      Text('移除')
+                        .fontSize(11)
+                        .fontColor('#DB5252')
+                        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+                    }
                   }
                   .width('100%')
                   .alignItems(VerticalAlign.Center)
@@ -756,36 +855,49 @@ export struct QuickSelectPage {
               Row() {
                 Text('启动时间')
                   .fontSize(12)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                 Blank()
                 Text(this.startAtText.length > 0 ? this.startAtText : '立即开始')
                   .fontSize(12)
                   .fontColor(this.startAtText.length > 0
-                    ? Theme.colorOf(this.themeColor) : $r('app.color.text_secondary'))
-                Text('选择')
-                  .fontSize(12)
-                  .fontColor(Color.White)
-                  .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-                  .backgroundColor(Theme.colorOf(this.themeColor))
-                  .borderRadius(10)
-                  .margin({ left: 10 })
-                  .onClick(() => {
+                    ? Theme.colorOf(this.themeColor) : GlassMaterial.graySecondary($r('app.color.text_secondary')))
+                // 「选择」「清除」：胶囊小按钮 → MaterialButton（材质走 Toggle 承载层）
+                MaterialButton({
+                  btnRadius: 10,
+                  btnBg: Theme.colorOf(this.themeColor),
+                  btnBlur: GlassMaterial.cardBlur(),
+                  btnBorderW: GlassMaterial.cardBorderWidth(),
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnMargin: { left: 10 },
+                  btnOnClick: () => {
                     this.pickStartTime();
-                  })
-                if (this.startAtText.length > 0) {
-                  Text('清除')
+                  }
+                }) {
+                  Text('选择')
                     .fontSize(12)
-                    .fontColor($r('app.color.text_secondary'))
-                    .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-                    .backgroundColor($r('app.color.bg_chip'))
-                    .borderRadius(10)
-                    .margin({ left: 6 })
-                    .onClick(() => {
+                    .fontColor(Color.White)
+                    .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                }
+                if (this.startAtText.length > 0) {
+                  MaterialButton({
+                    btnRadius: 10,
+                    btnBg: $r('app.color.bg_chip'),
+                    btnBlur: GlassMaterial.cardBlur(),
+                    btnBorderW: GlassMaterial.cardBorderWidth(),
+                    btnBorderC: GlassMaterial.borderColor(),
+                    btnMargin: { left: 6 },
+                    btnOnClick: () => {
                       this.startAtMs = 0;
                       this.startAtText = '';
                       this.delaySec = 0;
                       this.savePolicy();
-                    })
+                    }
+                  }) {
+                    Text('清除')
+                      .fontSize(12)
+                      .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+                      .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+                  }
                 }
               }
               .width('100%')
@@ -801,12 +913,14 @@ export struct QuickSelectPage {
               Row() {
                 Text('重试间隔')
                   .fontSize(12)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                   .layoutWeight(1)
+                // 档位胶囊保留实色底：选中态靠实色背景（选中=主题色 / 未选中=浅灰）+ 白字表达，
+                // 沉浸光感材质会让出底色、把选中态吃掉，故这一组不改为材质按钮。
                 ForEach([0.5, 1, 2, 3, 5], (sec: number) => {
                   Text(`${sec}s`)
                     .fontSize(12)
-                    .fontColor(this.intervalSec === sec ? Color.White : $r('app.color.text_secondary'))
+                    .fontColor(this.intervalSec === sec ? Color.White : GlassMaterial.graySecondary($r('app.color.text_secondary')))
                     .padding({ left: 11, right: 11, top: 5, bottom: 5 })
                     .backgroundColor(this.intervalSec === sec
                       ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
@@ -823,12 +937,13 @@ export struct QuickSelectPage {
               Row() {
                 Text('最大重试次数')
                   .fontSize(12)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                   .layoutWeight(1)
+                // 档位胶囊保留实色底（选中态靠实色背景表达，原因同「重试间隔」）
                 ForEach([50, 200, 500, 0], (r: number) => {
                   Text(r === 0 ? '不限' : `${r}`)
                     .fontSize(12)
-                    .fontColor(this.maxRounds === r ? Color.White : $r('app.color.text_secondary'))
+                    .fontColor(this.maxRounds === r ? Color.White : GlassMaterial.graySecondary($r('app.color.text_secondary')))
                     .padding({ left: 12, right: 12, top: 5, bottom: 5 })
                     .backgroundColor(this.maxRounds === r
                       ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
@@ -846,12 +961,13 @@ export struct QuickSelectPage {
               Row() {
                 Text('并行处理')
                   .fontSize(12)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                   .layoutWeight(1)
+                // 档位胶囊保留实色底（选中态靠实色背景表达，原因同「重试间隔」）
                 ForEach([1, 2, 3], (w: number) => {
                   Text(w === 1 ? '顺序' : `${w} 路`)
                     .fontSize(12)
-                    .fontColor(this.parallelWorkers === w ? Color.White : $r('app.color.text_secondary'))
+                    .fontColor(this.parallelWorkers === w ? Color.White : GlassMaterial.graySecondary($r('app.color.text_secondary')))
                     .padding({ left: 12, right: 12, top: 5, bottom: 5 })
                     .backgroundColor(this.parallelWorkers === w
                       ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
@@ -869,7 +985,7 @@ export struct QuickSelectPage {
               Row() {
                 Text('捡漏模式（有人退课立即抢）')
                   .fontSize(12)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                   .layoutWeight(1)
                 Toggle({ type: ToggleType.Switch, isOn: this.leakMode })
                   .selectedColor(Theme.colorOf(this.themeColor))
@@ -885,7 +1001,7 @@ export struct QuickSelectPage {
               Row() {
                 Text('抢到后继续抢队列其它课程')
                   .fontSize(12)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                   .layoutWeight(1)
                 Toggle({ type: ToggleType.Switch, isOn: this.continueAfterSuccess })
                   .selectedColor(Theme.colorOf(this.themeColor))
@@ -900,22 +1016,29 @@ export struct QuickSelectPage {
 
               // 开始 / 停止
               Row() {
-                Text(this.grabbing ? '停止抢课' : '开始抢课')
-                  .fontSize(15)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor(Color.White)
-                  .textAlign(TextAlign.Center)
-                  .width('100%')
-                  .padding({ top: 12, bottom: 12 })
-                  .backgroundColor(this.grabbing ? '#DB5252' : Theme.colorOf(this.themeColor))
-                  .borderRadius(14)
-                  .onClick(() => {
+                // 整宽主按钮：材质走 MaterialButton 的 Toggle 承载层；
+                // 原底色表达运行状态（运行中=红 / 待机=主题色），改走 btnBg；
+                // 原按钮无边框、无磨砂 → 光感关闭时按原样回落。
+                MaterialButton({
+                  btnRadius: 14,
+                  btnBg: this.grabbing ? '#DB5252' : Theme.colorOf(this.themeColor),
+                  btnBlur: BlurStyle.NONE,
+                  btnOnClick: () => {
                     if (this.grabbing) {
                       this.stopGrab();
                     } else {
                       this.startGrab();
                     }
-                  })
+                  }
+                }) {
+                  Text(this.grabbing ? '停止抢课' : '开始抢课')
+                    .fontSize(15)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(Color.White)
+                    .textAlign(TextAlign.Center)
+                    .width('100%')
+                    .padding({ top: 12, bottom: 12 })
+                }
               }
               .width('100%')
               .margin({ top: 14 })
@@ -924,67 +1047,90 @@ export struct QuickSelectPage {
                 ? `运行中：每 ${this.intervalSec} 秒一轮 · ${this.maxRounds > 0 ? `最多 ${this.maxRounds} 轮` : '不限轮次'}`
                 : '点击「开始抢课」后按上述定时策略轮询空位并自动提交；抢课期间请保持页面打开')
                 .fontSize(11)
-                .fontColor($r('app.color.text_tertiary'))
+                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                 .width('100%')
                 .margin({ top: 8 })
             }
             .width('100%')
-            .padding(16)
-            .backgroundColor($r('app.color.bg_card'))
-            .borderRadius(18)
-            .margin({ top: 12 })
+            }
 
             // 课程查询
-            Column() {
+            // 最小光感卡结构：Stack{ 材质承载层(常驻) + 内容列 }——含 TextInput，绕开 MaterialCard
+            // 包装对输入焦点的影响；原 16vp 内边距走内容列 padding、18vp 圆角走外壳 borderRadius、
+            // 12vp 上间距走外壳 margin，间距不变。
+            Stack({ alignContent: Alignment.TopStart }) {
+              if (materialAvailable()) {
+                MaterialCardLayer({ layerRadius: 18, layerShadow: false, layerForce: true })
+              }
+              Column() {
               Row() {
                 TextInput({ placeholder: '输入课程名或课程代码', text: this.keyword })
                   .fontSize(13)
                   .height(40)
                   .layoutWeight(1)
-                  .backgroundColor($r('app.color.bg_chip'))
+                  .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
                   .borderRadius(10)
                   .onChange((v: string) => {
                     this.keyword = v;
                   })
-                Text(this.querying ? '查询中…' : '查询')
-                  .fontSize(13)
-                  .fontColor(Color.White)
-                  .padding({ left: 18, right: 18, top: 10, bottom: 10 })
-                  .backgroundColor(Theme.colorOf(this.themeColor))
-                  .borderRadius(10)
-                  .margin({ left: 10 })
-                  .onClick(() => {
+                // 「查询」：胶囊小按钮 → MaterialButton（材质走 Toggle 承载层）
+                MaterialButton({
+                  btnRadius: 10,
+                  btnBg: Theme.colorOf(this.themeColor),
+                  btnBlur: GlassMaterial.cardBlur(),
+                  btnBorderW: GlassMaterial.cardBorderWidth(),
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnMargin: { left: 10 },
+                  btnOnClick: () => {
                     this.doQuery();
-                  })
+                  }
+                }) {
+                  Text(this.querying ? '查询中…' : '查询')
+                    .fontSize(13)
+                    .fontColor(Color.White)
+                    .padding({ left: 18, right: 18, top: 10, bottom: 10 })
+                }
               }
               .width('100%')
 
               // 筛选 / 模糊入队
               Row() {
-                Text(this.showFilter ? '收起筛选' : '筛选')
-                  .fontSize(12)
-                  .fontColor($r('app.color.text_secondary'))
-                  .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-                  .backgroundColor($r('app.color.bg_chip'))
-                  .borderRadius(10)
-                  .onClick(() => {
+                MaterialButton({
+                  btnRadius: 10,
+                  btnBg: $r('app.color.bg_chip'),
+                  btnBlur: GlassMaterial.cardBlur(),
+                  btnBorderW: GlassMaterial.cardBorderWidth(),
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnOnClick: () => {
                     this.showFilter = !this.showFilter;
-                  })
-                Text('按课程名模糊入队')
-                  .fontSize(12)
-                  .fontColor(Theme.colorOf(this.themeColor))
-                  .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-                  .backgroundColor($r('app.color.bg_chip'))
-                  .borderRadius(10)
-                  .margin({ left: 8 })
-                  .onClick(() => {
+                  }
+                }) {
+                  Text(this.showFilter ? '收起筛选' : '筛选')
+                    .fontSize(12)
+                    .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+                    .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                }
+                MaterialButton({
+                  btnRadius: 10,
+                  btnBg: $r('app.color.bg_chip'),
+                  btnBlur: GlassMaterial.cardBlur(),
+                  btnBorderW: GlassMaterial.cardBorderWidth(),
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnMargin: { left: 8 },
+                  btnOnClick: () => {
                     this.enqueueByKeyword();
-                  })
+                  }
+                }) {
+                  Text('按课程名模糊入队')
+                    .fontSize(12)
+                    .fontColor(Theme.colorOf(this.themeColor))
+                    .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                }
                 Blank()
                 if (this.scopes.length > 0) {
                   Text(`轮次 ${this.roundIndex + 1}/${this.scopes.length}`)
                     .fontSize(11)
-                    .fontColor($r('app.color.text_tertiary'))
+                    .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                 }
               }
               .width('100%')
@@ -994,10 +1140,11 @@ export struct QuickSelectPage {
               // 轮次/分类切换（新正方：入口页每个分类一个 scope）
               if (this.scopes.length > 1) {
                 Row() {
+                  // 轮次胶囊保留实色底：当前轮次靠实色背景 + 白字表达（材质会让出底色、吃掉选中态）
                   ForEach(this.scopes, (scope: SelectScope, index: number) => {
                     Text(scope.label)
                       .fontSize(12)
-                      .fontColor(this.roundIndex === index ? Color.White : $r('app.color.text_secondary'))
+                      .fontColor(this.roundIndex === index ? Color.White : GlassMaterial.graySecondary($r('app.color.text_secondary')))
                       .padding({ left: 12, right: 12, top: 5, bottom: 5 })
                       .backgroundColor(this.roundIndex === index
                         ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
@@ -1025,7 +1172,7 @@ export struct QuickSelectPage {
                       .fontSize(12)
                       .height(36)
                       .layoutWeight(1)
-                      .backgroundColor($r('app.color.bg_chip'))
+                      .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
                       .borderRadius(9)
                       .onChange((v: string) => {
                         this.fTeacher = v;
@@ -1034,7 +1181,7 @@ export struct QuickSelectPage {
                       .fontSize(12)
                       .height(36)
                       .layoutWeight(1)
-                      .backgroundColor($r('app.color.bg_chip'))
+                      .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
                       .borderRadius(9)
                       .margin({ left: 8 })
                       .onChange((v: string) => {
@@ -1047,7 +1194,7 @@ export struct QuickSelectPage {
                       .fontSize(12)
                       .height(36)
                       .layoutWeight(1)
-                      .backgroundColor($r('app.color.bg_chip'))
+                      .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
                       .borderRadius(9)
                       .onChange((v: string) => {
                         this.fLoc = v;
@@ -1056,7 +1203,7 @@ export struct QuickSelectPage {
                       .fontSize(12)
                       .height(36)
                       .layoutWeight(1)
-                      .backgroundColor($r('app.color.bg_chip'))
+                      .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
                       .borderRadius(9)
                       .margin({ left: 8 })
                       .onChange((v: string) => {
@@ -1068,7 +1215,7 @@ export struct QuickSelectPage {
                   Row() {
                     Text('仅看有空位')
                       .fontSize(12)
-                      .fontColor($r('app.color.text_secondary'))
+                      .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                       .layoutWeight(1)
                     Toggle({ type: ToggleType.Switch, isOn: this.onlyAvailable })
                       .selectedColor(Theme.colorOf(this.themeColor))
@@ -1081,7 +1228,7 @@ export struct QuickSelectPage {
                   .margin({ top: 10 })
                   Text('筛选在本次查询结果上生效，改条件后点「查询」重新过滤')
                     .fontSize(11)
-                    .fontColor($r('app.color.text_tertiary'))
+                    .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                     .width('100%')
                     .margin({ top: 6 })
                 }
@@ -1098,14 +1245,30 @@ export struct QuickSelectPage {
                 .width('100%')
                 .margin({ top: 12 })
               }
+              }
+              .width(LayoutPolicy.matchParent)
+              .padding(16)
             }
             .width('100%')
-            .padding(16)
-            .backgroundColor($r('app.color.bg_card'))
             .borderRadius(18)
+            .clip(true)
+            .backgroundColor(materialAvailable() ? Color.Transparent : GlassMaterial.homeCardBg($r('app.color.bg_card')))
+            .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.cardBlur())
+            .border({ width: materialAvailable() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
             .margin({ top: 12 })
 
             // 已选课程
+            // MaterialCard 承载：原 16vp 内边距走 cardPadding、18vp 圆角走 cardRadius、12vp 上间距走 cardMargin
+            MaterialCard({
+              cardRadius: 18,
+              cardPadding: 16,
+              cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+              cardBlur: GlassMaterial.cardBlur(),
+              cardBorderW: GlassMaterial.cardBorderWidth(),
+              cardBorderC: GlassMaterial.borderColor(),
+              cardShadow: GlassMaterial.cardShadowStyle(),
+              cardMargin: { top: 12 }
+            }) {
             Column() {
               Row() {
                 Text('已选课程')
@@ -1115,7 +1278,7 @@ export struct QuickSelectPage {
                 Blank()
                 Text(`${this.chosen.length} 门`)
                   .fontSize(11)
-                  .fontColor($r('app.color.text_tertiary'))
+                  .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
               }
               .width('100%')
               .margin({ bottom: 10 })
@@ -1123,7 +1286,7 @@ export struct QuickSelectPage {
               if (this.chosen.length === 0) {
                 Text('暂无已选课程（或当前不在选课期）')
                   .fontSize(12)
-                  .fontColor($r('app.color.text_tertiary'))
+                  .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                   .width('100%')
               } else {
                 ForEach(this.chosen, (item: SelectedCourseItem) => {
@@ -1135,22 +1298,29 @@ export struct QuickSelectPage {
                         .width('100%')
                       Text(`${item.teacher}${item.time.length > 0 ? ` · ${item.time}` : ''}`)
                         .fontSize(11)
-                        .fontColor($r('app.color.text_tertiary'))
+                        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
                         .width('100%')
                         .margin({ top: 2 })
                     }
                     .layoutWeight(1)
                     .alignItems(HorizontalAlign.Start)
 
-                    Text('退选')
-                      .fontSize(12)
-                      .fontColor('#DB5252')
-                      .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-                      .backgroundColor('rgba(219,82,82,0.10)')
-                      .borderRadius(12)
-                      .onClick(() => {
+                    // 「退选」：结果项小按钮 → MaterialButton（原为浅红玻璃底 + 亮边 + 磨砂，回落值按原值写）
+                    MaterialButton({
+                      btnRadius: 12,
+                      btnBg: 'rgba(219,82,82,0.10)',
+                      btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE,
+                      btnBorderW: 1,
+                      btnBorderC: 'rgba(255,255,255,0.28)',
+                      btnOnClick: () => {
                         this.doDrop(item);
-                      })
+                      }
+                    }) {
+                      Text('退选')
+                        .fontSize(12)
+                        .fontColor('#DB5252')
+                        .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+                    }
                   }
                   .width('100%')
                   .alignItems(VerticalAlign.Center)
@@ -1159,13 +1329,23 @@ export struct QuickSelectPage {
               }
             }
             .width('100%')
-            .padding(16)
-            .backgroundColor($r('app.color.bg_card'))
-            .borderRadius(18)
-            .margin({ top: 12 })
+            }
 
             // 运行日志
             if (this.logText.length > 0) {
+              // MaterialCard 承载：原 12vp 内边距走 cardPadding、16vp 圆角走 cardRadius、
+              // 12vp 上间距走 cardMargin、左对齐走 cardAlignItems
+              MaterialCard({
+                cardRadius: 16,
+                cardPadding: 12,
+                cardAlignItems: ItemAlign.Start,
+                cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+                cardBlur: GlassMaterial.cardBlur(),
+                cardBorderW: GlassMaterial.cardBorderWidth(),
+                cardBorderC: GlassMaterial.borderColor(),
+                cardShadow: GlassMaterial.cardShadowStyle(),
+                cardMargin: { top: 12 }
+              }) {
               Column() {
                 Row() {
                   Text('运行日志')
@@ -1174,15 +1354,22 @@ export struct QuickSelectPage {
                     .fontColor($r('app.color.text_primary'))
                     .layoutWeight(1)
                   if (this.grabbing) {
-                    Text('停止抢课')
-                      .fontSize(11)
-                      .fontColor('#DB5252')
-                      .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-                      .backgroundColor('rgba(219,82,82,0.10)')
-                      .borderRadius(9)
-                      .onClick(() => {
+                    // 「停止抢课」：小按钮 → MaterialButton（浅红玻璃底，回落值按原值写）
+                    MaterialButton({
+                      btnRadius: 9,
+                      btnBg: 'rgba(219,82,82,0.10)',
+                      btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE,
+                      btnBorderW: 1,
+                      btnBorderC: 'rgba(255,255,255,0.28)',
+                      btnOnClick: () => {
                         this.stopGrab();
-                      })
+                      }
+                    }) {
+                      Text('停止抢课')
+                        .fontSize(11)
+                        .fontColor('#DB5252')
+                        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+                    }
                   }
                 }
                 .width('100%')
@@ -1190,15 +1377,12 @@ export struct QuickSelectPage {
                 Text(this.logText)
                   .fontSize(10)
                   .lineHeight(15)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                   .width('100%')
               }
               .width('100%')
               .alignItems(HorizontalAlign.Start)
-              .padding(12)
-              .backgroundColor($r('app.color.bg_card'))
-              .borderRadius(16)
-              .margin({ top: 12 })
+              }
             }
 
             Column()
