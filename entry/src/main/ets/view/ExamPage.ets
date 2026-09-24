@@ -341,7 +341,7 @@ export struct ExamPage {
     // 由 MaterialSheetPanel 的 Toggle 承载层渲染材质；配套硬要求（见 build 的 bindSheet 选项）
     // 是显式 backgroundColor: Color.Transparent（默认白底会把材质整块盖住）。
     // 高度随内容（SheetSize.FIT_CONTENT）→ panelFillHeight: false；内层 20/8/24vp 内边距原样保留。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showDetail = false; } }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelTitle: '考试详情', panelShowClose: true, panelOnClose: (): void => { this.showDetail = false; } }) {
     Column() {
       if (this.selectedExam !== null) {
         Row() {
@@ -427,7 +427,7 @@ export struct ExamPage {
   termPickerSheet() {
     // 弹窗内容套 MaterialSheetPanel（同考试详情弹窗）：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底；
     // 高度随内容（FIT_CONTENT）→ panelFillHeight: false；内层 20/8/24vp 内边距原样保留。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showTermSheet = false; } }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelTitle: '选择学年-学期', panelShowClose: true, panelOnClose: (): void => { this.showTermSheet = false; } }) {
     Column() {
       if (this.terms.length === 0) {
         Text('暂无可查询的学期')
@@ -520,7 +520,7 @@ export struct ExamPage {
   pickExamSheet() {
     // 弹窗内容套 MaterialSheetPanel（同详情/学期弹窗）：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底；
     // 高度随内容（SheetSize.LARGE 固定高）→ 保持 panelFillHeight 默认 true，让材质裹住整块面板。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelShowClose: true, panelOnClose: (): void => { this.showPickExam = false; } }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelTitle: '选择桌面卡片倒计时', panelShowClose: true, panelOnClose: (): void => { this.showPickExam = false; } }) {
     Column() {
       // 顶部说明（去掉重复标题"桌面卡片倒计时"，sheet 自身 title 已显示）
       Text('选一场考试作为桌面卡片的倒计时对象')
@@ -835,8 +835,7 @@ Row() {
           // 必须显式透明：BindOptions.backgroundColor 默认是 Color.White，
           // 而沉浸光感的视觉层级位于 backgroundColor **之下**，白底会把 MaterialSheetPanel 的材质整块盖住。
           backgroundColor: Color.Transparent,
-          blurStyle: sheetBlurStyle(),
-          title: { title: '考试详情' }
+          blurStyle: sheetBlurStyle()
         })
       }
       .width('100%')
@@ -852,8 +851,7 @@ Row() {
         showClose: false,
         // 同考试详情弹窗：显式透明底 + 材质模糊（否则默认白底盖住 MaterialSheetPanel 的材质）
         backgroundColor: Color.Transparent,
-        blurStyle: sheetBlurStyle(),
-        title: { title: '选择学年-学期' }
+        blurStyle: sheetBlurStyle()
       })
       }
       // pickSheet 挂在最外 Stack 上，独立组件避免与 showTermSheet/showDetail 互相覆盖
@@ -868,8 +866,7 @@ Row() {
         showClose: false,
         // 同考试详情弹窗：显式透明底 + 材质模糊（否则默认白底盖住 MaterialSheetPanel 的材质）
         backgroundColor: Color.Transparent,
-        blurStyle: sheetBlurStyle(),
-        title: { title: '选择桌面卡片倒计时' }
+        blurStyle: sheetBlurStyle()
       })
     }
     .backgroundColor($r('app.color.bg_page'))

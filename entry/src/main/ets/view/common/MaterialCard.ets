@@ -592,9 +592,17 @@ export struct MaterialSheetPanel {
   /** 光感关闭按钮点击回调（通常写 `this.xxxSheet = false`） */
   panelOnClose: () => void = (): void => {
   };
+  /**
+   * 面板内自绘标题（左上角）。传入后面板顶部渲染「标题 + 关闭按钮」一行——
+   * 标题画在面板材质**之内**，替代系统 bindSheet `title:`（系统标题画在面板材质之外）。
+   * 宿主传了 panelTitle 后应同时删除 bindSheet 的 `title:` 选项，避免出现两个标题。
+   */
+  @Prop panelTitle: string = '';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 灰字广播订阅（关闭按钮字色随灰字设置实时刷新；表达式读 this.grayTick 才登记依赖） */
   @StorageProp('grayTick') grayTick: number = 0;
+  /** 全局字重订阅（面板内标题加粗时跟随字体管理设置） */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @BuilderParam panelContent: () => void = this.emptyPanel;
 
   @Builder
@@ -645,32 +653,80 @@ export struct MaterialSheetPanel {
     }
   }
 
+  /** 面板内标题栏：左上角标题 + 右侧关闭按钮（✕ 为 MaterialButton，自带跟手光斑/拖拽光感） */
+  @Builder
+  panelTitleBar() {
+    Row() {
+      Text(this.panelTitle)
+        .fontSize(17)
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
+        .fontColor($r('app.color.text_primary'))
+        .layoutWeight(1)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+      if (this.panelShowClose) {
+        MaterialButton({
+          btnRadius: 15,
+          btnBg: $r('app.color.bg_chip'),
+          btnBlur: BlurStyle.Thin,
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnMargin: { top: 0, right: 0, bottom: 0, left: 8 },
+          btnOnClick: (): void => {
+            this.panelOnClose();
+          }
+        }) {
+          Text('✕')
+            .fontSize(13)
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+            .width(30)
+            .height(30)
+            .textAlign(TextAlign.Center)
+        }
+      }
+    }
+    .width('100%')
+    .alignItems(VerticalAlign.Center)
+    .padding({ left: 20, right: 12, top: 12, bottom: 4 })
+  }
+
   @Builder
   panelBody(fill: boolean) {
     if (this.materialEffective()) {
       MaterialCardLayer({ layerRadius: this.panelRadius, layerShadow: false })
     }
-    // 内容与关闭按钮同层：TopEnd 对齐使关闭按钮落在内容首行右侧（= 面板标题栏）
+    // 内容与关闭按钮同层：TopEnd 对齐使关闭按钮落在内容首行右侧（= 面板标题栏）；
+    // 传入 panelTitle 时标题栏由面板自绘（标题进面板），关闭按钮内联在标题行右侧
     if (fill) {
       Stack({ alignContent: Alignment.TopEnd }) {
         Column() {
+          if (this.panelTitle.length > 0) {
+            this.panelTitleBar()
+          }
           this.panelContent()
         }
         .width('100%')
         .height('100%')
         .padding(this.panelPadding)
-        this.panelCloseButton()
+        if (this.panelTitle.length === 0) {
+          this.panelCloseButton()
+        }
       }
       .width('100%')
       .height('100%')
     } else {
       Stack({ alignContent: Alignment.TopEnd }) {
         Column() {
+          if (this.panelTitle.length > 0) {
+            this.panelTitleBar()
+          }
           this.panelContent()
         }
         .width('100%')
         .padding(this.panelPadding)
-        this.panelCloseButton()
+        if (this.panelTitle.length === 0) {
+          this.panelCloseButton()
+        }
       }
       .width('100%')
     }

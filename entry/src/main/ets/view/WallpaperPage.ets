@@ -1071,8 +1071,11 @@ export struct WallpaperPage {
       btnTint: this.fontSizeMode === mode ? Theme.colorOf(this.themeColor) : '',
       btnTintRatio: 0.85,
       btnOnClick: (): void => {
-        AppearanceStore.setFontSizeMode(mode);
-        AppearanceStore.applyFontSizeScale();
+        // 在 animateTo 里改模式，下方自定义字号滑条才能播放 .transition 弹出/收回动效
+        this.getUIContext().animateTo({ duration: 220, curve: Curve.Friction }, () => {
+          AppearanceStore.setFontSizeMode(mode);
+          AppearanceStore.applyFontSizeScale();
+        });
       }
     }) {
       Text(label)
@@ -1188,6 +1191,10 @@ export struct WallpaperPage {
           .width('100%')
           .alignItems(VerticalAlign.Center)
           .margin({ top: 10 })
+          // 自定义字号滑条：切「自定义」时淡入下移、切走时收回
+          .transition(TransitionEffect.OPACITY
+            .combine(TransitionEffect.translate({ y: 8 }))
+            .animation({ duration: 220, curve: Curve.Friction }))
         }
       }
       .width('100%')
