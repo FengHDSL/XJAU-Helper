@@ -593,6 +593,8 @@ export struct MaterialSheetPanel {
   panelOnClose: () => void = (): void => {
   };
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
+  /** 灰字广播订阅（关闭按钮字色随灰字设置实时刷新；表达式读 this.grayTick 才登记依赖） */
+  @StorageProp('grayTick') grayTick: number = 0;
   @BuilderParam panelContent: () => void = this.emptyPanel;
 
   @Builder
@@ -609,7 +611,12 @@ export struct MaterialSheetPanel {
     return this.materialEffective() ? Color.Transparent : $r('app.color.bg_card');
   }
 
-  /** 右上角沉浸光感关闭按钮（position + markAnchor 定位到面板右上角，只占按钮自身命中区域，不挡内容） */
+  /**
+   * 面板标题栏右上角的沉浸光感关闭按钮。
+   *
+   * 位置：**面板内容首行（即面板上方标题那一栏）的右侧**——与内容同层 Stack(TopEnd) 对齐，
+   * 随内容流排布（不再用 position/markAnchor 浮在面板右上角，避免与标题行错位、盖住内容）。
+   */
   @Builder
   panelCloseButton() {
     if (this.panelShowClose) {
@@ -626,15 +633,13 @@ export struct MaterialSheetPanel {
         }) {
           Text('✕')
             .fontSize(13)
-            .fontColor($r('app.color.text_secondary'))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
             .width(30)
             .height(30)
             .textAlign(TextAlign.Center)
         }
       }
-      .padding({ right: 10 })
-      .position({ x: '100%', y: 10 })
-      .markAnchor({ x: '100%', y: 0 })
+      .padding({ right: 12, top: 12 })
     }
   }
 
@@ -643,21 +648,30 @@ export struct MaterialSheetPanel {
     if (this.materialEffective()) {
       MaterialCardLayer({ layerRadius: this.panelRadius, layerShadow: false })
     }
+    // 内容与关闭按钮同层：TopEnd 对齐使关闭按钮落在内容首行右侧（= 面板标题栏）
     if (fill) {
-      Column() {
-        this.panelContent()
+      Stack({ alignContent: Alignment.TopEnd }) {
+        Column() {
+          this.panelContent()
+        }
+        .width('100%')
+        .height('100%')
+        .padding(this.panelPadding)
+        this.panelCloseButton()
       }
       .width('100%')
       .height('100%')
-      .padding(this.panelPadding)
     } else {
-      Column() {
-        this.panelContent()
+      Stack({ alignContent: Alignment.TopEnd }) {
+        Column() {
+          this.panelContent()
+        }
+        .width('100%')
+        .padding(this.panelPadding)
+        this.panelCloseButton()
       }
       .width('100%')
-      .padding(this.panelPadding)
     }
-    this.panelCloseButton()
   }
 
   build() {
