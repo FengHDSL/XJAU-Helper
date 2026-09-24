@@ -24,6 +24,7 @@ import { WallpaperFill } from './common/WallpaperFill';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { isApi26OrAbove, materialAvailable, materialDiagnostics } from '../common/SystemMaterial';
 import { MaterialCardLayer } from './common/MaterialCarrier';
+import { MaterialCard } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
 
 @Component
@@ -83,18 +84,55 @@ export struct WallpaperPage {
   }
 
   /**
-   * 本页卡片底色（接入「卡片沾色」开关，让设置在本页立即可见）：
-   * 材质让出（materialAvailable）时——沾色开=保留沾色底（材质半透明可透出）/ 关=透明让材质渲染；
-   * 材质不可用时——沾色开=沾色底 / 关=原卡片色兜底。
+   * 本页手写卡（含 TextInput，不能走 MaterialCard）的材质是否生效。
+   *
+   * **必须受全局沉浸光感开关控制**：`this.immersiveEffect`（@StorageProp 订阅）+ materialAvailable()。
+   * 旧写法只判 materialAvailable()（常驻），开关关掉后材质仍在——修复点。
+   * 方法内读组件响应式属性：build 的属性表达式调用本方法时依赖会登记，拨开关整页重算。
+   */
+  private matOn(): boolean {
+    return this.immersiveEffect && materialAvailable();
+  }
+
+  /**
+   * 手写卡的沾色叠层颜色（空串=不铺）。
+   *
+   * 沾色**必须叠在材质之上**（参考项目 MaterialCard.cardBody 铁律）：材质的视觉层级在
+   * backgroundColor 之下，把不透明沾色垫在外壳底色会被玻璃滤镜压黑——修复点。
+   * 颜色取半透明主题色（与 MaterialCard.tintLayerColor 同源），材质透过它仍可见。
+   */
+  private tintLayer(): string {
+    if (!this.cardTint || !this.matOn()) {
+      return '';
+    }
+    return AppearanceStore.cardTintLayer(this.themeColor);
+  }
+
+  /**
+   * 本页卡片底色（含输入框的手写卡用；无输入框卡已换 MaterialCard 不再走这里）：
+   * 材质生效（受开关控制）→ 透明让材质渲染，沾色由 tintLayer 独立成层叠在材质之上；
+   * 材质不可用 → 沾色开=沾色底 / 关=原卡片色兜底。
    */
   private cardBg(orig: ResourceColor): ResourceColor {
-    // 必须读 this.cardTint（@StorageProp 订阅）而不是 AppearanceStore.cardTintOn()：
-    // ArkUI 按属性表达式登记依赖，静态函数内读 AppStorage 不登记，拨开关本页不会重算。
-    const tintOn: boolean = this.cardTint;
-    if (materialAvailable()) {
-      return tintOn ? AppearanceStore.cardBackground(this.isDarkMode, this.themeColor) : Color.Transparent;
+    if (this.matOn()) {
+      return Color.Transparent;
     }
+    const tintOn: boolean = this.cardTint;
     return tintOn ? AppearanceStore.cardBackground(this.isDarkMode, this.themeColor) : orig;
+  }
+
+  /** 手写卡的沾色叠层：压在材质承载层之上、内容之下（对齐 MaterialCard.cardBody 排层） */
+  @Builder
+  tintOverlayLayer() {
+    if (this.tintLayer().length > 0) {
+      Column()
+        .width(LayoutPolicy.matchParent)
+        .height(LayoutPolicy.matchParent)
+        .borderRadius(16)
+        .backgroundColor(this.tintLayer())
+        .hitTestBehavior(HitTestMode.None)
+        .accessibilityLevel('no')
+    }
   }
 
   /** 跳转壁纸裁剪页（选图 → 缩放/平移 → 按屏幕比例裁切应用） */
@@ -357,9 +395,11 @@ export struct WallpaperPage {
   @Builder
   themeSection() {
     Stack({ alignContent: Alignment.TopStart }) {
-      if (materialAvailable()) {
-        MaterialCardLayer({ layerRadius: 16, layerShadow: false, layerForce: true })
+      if (this.matOn()) {
+        MaterialCardLayer({ layerRadius: 16, layerShadow: false })
       }
+      // 沾色叠层：压在材质之上（不透明沾色垫底色会被材质滤镜压黑）
+      this.tintOverlayLayer()
     Column() {
       Row() {
         Text('顶栏主题色')
@@ -505,15 +545,15 @@ export struct WallpaperPage {
           })
       }
       .width('100%')
-      .padding(16)
       }
+      .padding(16)
     }
     .width('100%')
     .borderRadius(16)
     .clip(true)
     .backgroundColor(this.cardBg($r('app.color.bg_card')))
-    .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
-    .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
+    .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+    .border({ width: this.matOn() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
     .margin({ top: 14 })
   }
 
@@ -521,10 +561,15 @@ export struct WallpaperPage {
   @Builder
   immersiveSection() {
     if (isApi26OrAbove()) {
-      Stack({ alignContent: Alignment.TopStart }) {
-        if (materialAvailable()) {
-          MaterialCardLayer({ layerRadius: 16, layerShadow: false, layerForce: true })
-        }
+      MaterialCard({
+        cardPadding: 16,
+        cardRadius: 16,
+        cardMargin: { top: 14, right: 0, bottom: 0, left: 0 },
+        cardBg: $r('app.color.bg_card'),
+        cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+        cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+        cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+      }) {
         Column() {
           Row() {
             Column({ space: 3 }) {
@@ -558,15 +603,8 @@ export struct WallpaperPage {
               .margin({ top: 10 })
           }
         }
-        .padding(16)
+        .width('100%')
       }
-      .width('100%')
-      .borderRadius(16)
-      .clip(true)
-      .backgroundColor(this.cardBg($r('app.color.bg_card')))
-      .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
-      .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
-      .margin({ top: 14 })
     }
   }
 
@@ -574,10 +612,15 @@ export struct WallpaperPage {
   @Builder
   glowExtraSection() {
     if (isApi26OrAbove()) {
-      Stack({ alignContent: Alignment.TopStart }) {
-        if (materialAvailable()) {
-          MaterialCardLayer({ layerRadius: 16, layerShadow: false, layerForce: true })
-        }
+      MaterialCard({
+        cardPadding: 16,
+        cardRadius: 16,
+        cardMargin: { top: 14, right: 0, bottom: 0, left: 0 },
+        cardBg: $r('app.color.bg_card'),
+        cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+        cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+        cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+      }) {
         Column() {
           Row() {
             Column({ space: 3 }) {
@@ -679,15 +722,8 @@ export struct WallpaperPage {
           .width('100%')
           .alignItems(VerticalAlign.Center)
         }
-        .padding(16)
+        .width('100%')
       }
-      .width('100%')
-      .borderRadius(16)
-      .clip(true)
-      .backgroundColor(this.cardBg($r('app.color.bg_card')))
-      .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
-      .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
-      .margin({ top: 14 })
     }
   }
 
@@ -723,10 +759,15 @@ export struct WallpaperPage {
   /** 字体节：字体管理入口 + 字重模式 + 字号大小（跟随系统 / 自定义 Slider） */
   @Builder
   fontSection() {
-    Stack({ alignContent: Alignment.TopStart }) {
-      if (materialAvailable()) {
-        MaterialCardLayer({ layerRadius: 16, layerShadow: false, layerForce: true })
-      }
+    MaterialCard({
+      cardPadding: 16,
+      cardRadius: 16,
+      cardMargin: { top: 14, right: 0, bottom: 0, left: 0 },
+      cardBg: $r('app.color.bg_card'),
+      cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+      cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+    }) {
       Column() {
         // 字体管理入口（上传 / 选择中英文字体 / 删除）
         Row() {
@@ -823,24 +864,22 @@ export struct WallpaperPage {
           .margin({ top: 10 })
         }
       }
-      .padding(16)
+      .width('100%')
     }
-    .width('100%')
-    .borderRadius(16)
-    .clip(true)
-    .backgroundColor(this.cardBg($r('app.color.bg_card')))
-    .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
-    .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
-    .margin({ top: 14 })
   }
 
   /** 交互细节节：主页页面平滑切换 */
   @Builder
   toggleSection() {
-    Stack({ alignContent: Alignment.TopStart }) {
-      if (materialAvailable()) {
-        MaterialCardLayer({ layerRadius: 16, layerShadow: false, layerForce: true })
-      }
+    MaterialCard({
+      cardPadding: 16,
+      cardRadius: 16,
+      cardMargin: { top: 14, right: 0, bottom: 0, left: 0 },
+      cardBg: $r('app.color.bg_card'),
+      cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+      cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+    }) {
       Column() {
         Row() {
           Column({ space: 3 }) {
@@ -864,15 +903,8 @@ export struct WallpaperPage {
         .width('100%')
         .alignItems(VerticalAlign.Center)
       }
-      .padding(16)
+      .width('100%')
     }
-    .width('100%')
-    .borderRadius(16)
-    .clip(true)
-    .backgroundColor(this.cardBg($r('app.color.bg_card')))
-    .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
-    .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
-    .margin({ top: 14 })
   }
 
 
@@ -897,7 +929,14 @@ export struct WallpaperPage {
 
 
             // ── 壁纸（卡片）：选择 / 取消 / 蒙版 / 图像地址 ──
-            Column() {
+            // 含 TextInput（URL 导入），保留 Stack 手写结构（MaterialCard 的 onTouch
+            // 写 @State 会打断输入框焦点），材质判定走 matOn()（受全局开关控制）。
+            Stack({ alignContent: Alignment.TopStart }) {
+              if (this.matOn()) {
+                MaterialCardLayer({ layerRadius: 16, layerShadow: false })
+              }
+              this.tintOverlayLayer()
+              Column() {
               Text('全局壁纸')
                 .fontSize(15)
                 .fontWeight(FontWeight.Bold)
@@ -1026,8 +1065,13 @@ export struct WallpaperPage {
             }
             .width('100%')
             .padding(16)
-            .backgroundColor(this.cardBg($r('app.color.bg_card')))
+            }
+            .width('100%')
             .borderRadius(16)
+            .clip(true)
+            .backgroundColor(this.cardBg($r('app.color.bg_card')))
+            .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+            .border({ width: this.matOn() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
             .margin({ top: 14 })
 
             // ── 字体（字体管理入口 + 字重 + 字号）──
@@ -1037,7 +1081,13 @@ export struct WallpaperPage {
             this.toggleSection()
 
             // ── 主题组合（卡片）──
-            Column() {
+            // 含 TextInput（组合名称），同壁纸卡：Stack 手写结构 + 受开关控制的承载层。
+            Stack({ alignContent: Alignment.TopStart }) {
+              if (this.matOn()) {
+                MaterialCardLayer({ layerRadius: 16, layerShadow: false })
+              }
+              this.tintOverlayLayer()
+              Column() {
             // ── 主题组合：保存/应用（背景 + 顶栏颜色 + 副标题颜色）──
             Text('主题组合')
               .fontSize(15)
@@ -1154,8 +1204,13 @@ export struct WallpaperPage {
             }
             .width('100%')
             .padding(16)
-            .backgroundColor(this.cardBg($r('app.color.bg_card')))
+            }
+            .width('100%')
             .borderRadius(16)
+            .clip(true)
+            .backgroundColor(this.cardBg($r('app.color.bg_card')))
+            .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+            .border({ width: this.matOn() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
             .margin({ top: 14 })
 
           }
