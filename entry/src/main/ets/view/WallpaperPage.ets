@@ -257,8 +257,14 @@ export struct WallpaperPage {
       return;
     }
     this.applyTheme(hex);
-    this.hexInput = '';
-    this.hexOk = false;
+    // 保留输入内容与合法态：应用后输入框与「应用」按钮仍以该色显示，便于对照参考
+  }
+
+  /** 输入框/「应用」按钮的实时参考色：输入合法时用输入色，否则用当前主题色（边输边预览） */
+  private hexPreviewColor(): ResourceColor {
+    const raw: string = this.hexInput.trim();
+    const hex: string = raw.startsWith('#') ? raw : `#${raw}`;
+    return Theme.isHex(hex) ? hex : Theme.colorOf(this.themeColor);
   }
 
   /** 校验输入是否可能为合法 hex（辅助按钮可用态） */
@@ -626,7 +632,8 @@ export struct WallpaperPage {
             .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
             .caretStyle({ color: $r('sys.color.font_emphasize') })
             .type(InputType.Normal)
-            .fontColor('rgba(0, 85, 255, 1.0)')
+            // 输入框文本实时跟随输入的颜色（提供参考；不合法时回落主题色）
+            .fontColor(this.hexPreviewColor())
             .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
             .width('100%')
             .onChange((v: string) => {
@@ -634,14 +641,15 @@ export struct WallpaperPage {
             })
         }
         .layoutWeight(1)
-        // 顶栏主题色「应用」：材质按钮（默认可点，输入不合法时点击 toast 提示）
+        // 顶栏主题色「应用」：材质按钮（默认可点，输入不合法时点击 toast 提示）；
+        // 底色/叠色实时跟随输入的颜色，边输边看效果
         MaterialButton({
           btnRadius: 18,
-          btnBg: Theme.colorOf(this.themeColor),
+          btnBg: this.hexPreviewColor(),
           btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
           btnBorderW: GlassMaterial.borderWidth(),
           btnBorderC: GlassMaterial.borderColor(),
-          btnTint: Theme.colorOf(this.themeColor),
+          btnTint: this.hexPreviewColor(),
           btnTintRatio: 0.55,
           btnMargin: { top: 0, right: 0, bottom: 0, left: 10 },
           btnOnClick: (): void => {
@@ -857,7 +865,7 @@ export struct WallpaperPage {
                 .fontSize(15)
                 .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor($r('app.color.text_primary'))
-              Text('开启后卡片与按钮使用沉浸光感材质，关闭后回退为毛玻璃效果')
+              Text('沉浸光感需鸿蒙7及以上版本，开启后提升美观度，搭配壁纸更佳！注：开启后会导致掉帧卡顿和发热，请谨慎选择开启。')
                 .fontSize(11)
                 .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             }
