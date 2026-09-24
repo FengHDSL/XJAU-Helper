@@ -36,7 +36,7 @@ export struct CourseRawPage {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 沉浸光感开关（登记依赖：拨动后小按钮的玻璃底/材质即时重渲染） */
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** JSON 原文件是否存在 */
   @State hasFile: boolean = false;
   /** JSON 原文（已按 PREVIEW_MAX 截断） */

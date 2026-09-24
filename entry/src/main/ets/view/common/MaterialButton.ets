@@ -83,7 +83,7 @@ export struct MaterialButton {
    */
   @Prop btnPersistent: boolean = false;
   /** 全局沉浸光感开关（登记依赖：拨动开关后已画出的按钮立即重渲染） */
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
 
   /** 对应原有按钮上的 `.onClick()`；空实现即纯展示胶囊 */
   btnOnClick: () => void = (): void => {

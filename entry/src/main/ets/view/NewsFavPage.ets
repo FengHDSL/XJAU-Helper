@@ -26,7 +26,7 @@ export struct NewsFavPage {
   @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（顶栏文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
@@ -163,7 +163,7 @@ export struct NewsFavPage {
                       .fontSize(12)
                       .fontColor('#DB5252')
                       .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-                      .backgroundColor('#14DB5252').backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+                      .backgroundColor('#14DB5252').backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
                       .borderRadius(12)
                       .margin({ left: 8 })
                       .onClick(() => { this.removeFav(item); })

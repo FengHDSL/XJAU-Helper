@@ -53,7 +53,7 @@ export struct WebViewPage {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（顶栏文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
@@ -70,8 +70,8 @@ export struct WebViewPage {
 
   aboutToAppear(): void {
     this.pageTitle = AppState.webTitle.length > 0 ? AppState.webTitle : '网页';
-    // 功能浏览模式默认禁止使用外部链接页（所有入口统一拦截）；调试模式开启后放行
-    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+    // 功能浏览模式默认禁止使用外部链接页（GitHub 开源页面白名单除外）；调试模式开启后放行
+    if (JwApi.USE_MOCK && !AppState.debugNetwork && !WebViewPage.isMockAllowed(AppState.webUrl)) {
       this.getUIContext().getPromptAction().showToast({ message: '当前模式禁止使用' });
       setTimeout(() => {
         AppState.stack.pop();

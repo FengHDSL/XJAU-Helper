@@ -38,7 +38,7 @@ export struct PrivacyGatePage {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（顶栏文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;

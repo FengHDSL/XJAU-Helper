@@ -43,7 +43,7 @@ export struct WallpaperPage {
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 顶栏样式：new=渐变色（默认）/ legacy=毛玻璃 */
   @StorageProp('barStyle') barStyle: string = 'new';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 跟随系统深色（只读展示用） */
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（文字自适应用） */
@@ -65,6 +65,9 @@ export struct WallpaperPage {
   @StorageProp('cardGlowTouch') cardGlowTouch: boolean = true;
   /** 高权限自定义主题色：自定义 hex 也参与页面背景染色 */
   @StorageProp('customAccentFull') customAccentFull: boolean = false;
+  /** 灰体文本显示增强（default=自动 / gray / black / white / custom）与自定义色 */
+  @StorageProp('grayTextMode') grayTextMode: string = 'default';
+  @StorageProp('grayTextColor') grayTextColor: string = '';
   /** 字重方案（follow/thin/light/regular/medium/bold） */
   @StorageProp('fontWeightMode') fontWeightMode: string = 'follow';
   /** 字号方案（follow=跟随系统 / custom=自定义） */
@@ -84,6 +87,23 @@ export struct WallpaperPage {
   private setImmersive(on: boolean): void {
     AppStorage.setOrCreate('immersiveEffect', on);
     DataStore.setImmersive(on);
+  }
+
+  /** 首次开启沉浸光感前的风险确认弹窗（确认一次后不再提示；取消时 Toggle 受控回弹） */
+  private confirmImmersive(): void {
+    this.getUIContext().getPromptAction().showDialog({
+      title: '开启沉浸光感',
+      message: '该效果依赖鸿蒙7（API26+），请确保设备升级至鸿蒙7及以上版本，同时该效果可能导致设备发热、使用应用时卡顿掉帧、部分界面可读性严重降低，请酌情考虑开启！满血沉浸光感需设备为麒麟9020/T92及以上版本的处理器。',
+      buttons: [
+        { text: '仍要开启', color: Theme.colorOf(this.themeColor) },
+        { text: '取消', color: '#666666' }
+      ]
+    }).then((res) => {
+      if (res.index === 0) {
+        this.setImmersive(true);
+        DataStore.markImmersiveHintShown();
+      }
+    });
   }
 
   /**
@@ -570,6 +590,108 @@ export struct WallpaperPage {
     .margin({ top: 14 })
   }
 
+  /** 灰体文本显示增强节：全站次要/辅助灰字统一替换（自动 / 灰 / 黑 / 白 / 自定义，custom 含输入框走手写卡） */
+  @Builder
+  grayTextSection() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      if (this.matOn()) {
+        MaterialCardLayer({ layerRadius: 16, layerShadow: false })
+      }
+      // 沾色叠层：压在材质之上（不透明沾色垫底色会被材质滤镜压黑）
+      this.tintOverlayLayer()
+      Column() {
+        Row() {
+          Text('灰体文本显示增强')
+            .fontSize(15)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
+            .fontColor($r('app.color.text_primary'))
+          Blank()
+          if (this.grayTextMode !== 'default') {
+            Text('已覆盖')
+              .fontSize(11)
+              .fontColor(Theme.colorOf(this.themeColor))
+          }
+        }
+        .width('100%')
+
+        Text('将全站次要/辅助灰色文字统一替换为所选颜色（自动=跟随深浅色主题）')
+          .fontSize(11)
+          .fontColor($r('app.color.text_tertiary'))
+          .width('100%')
+          .margin({ top: 3 })
+
+        Row({ space: 6 }) {
+          this.grayChip('自动', 'default')
+          this.grayChip('灰', 'gray')
+          this.grayChip('黑', 'black')
+          this.grayChip('白', 'white')
+          this.grayChip('自定义', 'custom')
+        }
+        .width('100%')
+        .margin({ top: 12 })
+
+        if (this.grayTextMode === 'custom') {
+          Row() {
+            TextInput({ text: this.grayTextColor, placeholder: 'RRGGBB（如 9AA0A6）' })
+              .height(48)
+              .enterKeyType(EnterKeyType.Done)
+              .borderRadius($r('sys.float.corner_radius_level12'))
+              .fontSize($r('sys.float.Body_L'))
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
+              .backgroundColor($r('sys.color.comp_background_tertiary'))
+              .caretStyle({ color: $r('sys.color.font_emphasize') })
+              .type(InputType.Normal)
+              .fontColor('rgba(0, 85, 255, 1.0)')
+              .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+              .layoutWeight(1)
+              .onChange((v: string) => {
+                this.grayTextColor = v;
+                AppStorage.setOrCreate('grayTextColor', v);
+                DataStore.saveGrayCustom(v);
+              })
+          }
+          .width('100%')
+          .margin({ top: 12 })
+        }
+      }
+      .width('100%')
+      .padding(16)
+    }
+    .width('100%')
+    .borderRadius(16)
+    .clip(true)
+    .backgroundColor(this.cardBg($r('app.color.bg_card')))
+    .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+    .border({ width: this.matOn() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
+    .margin({ top: 14 })
+  }
+
+  /** 灰字模式胶囊：MaterialButton（选中=主题色叠层白字，未选中=bg_chip 玻璃胶囊，与字重胶囊同款） */
+  @Builder
+  grayChip(label: string, mode: string) {
+    MaterialButton({
+      btnRadius: 12,
+      btnBg: this.grayTextMode === mode ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'),
+      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: this.grayTextMode === mode ? Theme.colorOf(this.themeColor) : '',
+      btnTintRatio: 0.85,
+      btnOnClick: (): void => {
+        if (this.grayTextMode !== mode) {
+          this.grayTextMode = mode;
+          AppStorage.setOrCreate('grayTextMode', mode);
+          DataStore.saveGrayMode(mode);
+        }
+      }
+    }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.grayTextMode === mode ? Color.White : $r('app.color.text_primary'))
+        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+    }
+  }
+
   /** 沉浸光感节：全局开关 + 真机诊断行（API≥26 才显示；开关写入后全站卡片/按钮跟随切换） */
   @Builder
   immersiveSection() {
@@ -600,7 +722,12 @@ export struct WallpaperPage {
             Toggle({ type: ToggleType.Switch, isOn: this.immersiveEffect })
               .selectedColor(Theme.colorOf(this.themeColor))
               .onChange((on: boolean) => {
-                this.setImmersive(on);
+                // 首次开启前弹风险确认（确认一次后不再提示）
+                if (on && !DataStore.immersiveHintShown()) {
+                  this.confirmImmersive();
+                } else {
+                  this.setImmersive(on);
+                }
               })
           }
           .width('100%')
@@ -955,6 +1082,9 @@ export struct WallpaperPage {
 
             // 沉浸光感增强（卡片沾色 / 主题色流光 / 卡片流光触感 / 高权限自定义主题色）
             this.glowExtraSection()
+
+            // 灰体文本显示增强（自动 / 灰 / 黑 / 白 / 自定义）
+            this.grayTextSection()
 
 
             // ── 壁纸（卡片）：选择 / 取消 / 蒙版 / 图像地址 ──

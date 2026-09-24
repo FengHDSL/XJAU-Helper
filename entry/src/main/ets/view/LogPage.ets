@@ -33,7 +33,7 @@ export struct LogPage {
   onBackCallback: () => void = () => {
   };
   /** 沉浸光感：按钮磨砂背景随该开关（与其它按钮质感统一） */
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;

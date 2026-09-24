@@ -45,7 +45,7 @@ export struct ScheduleView {
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（顶栏文字自适应用） */
@@ -757,7 +757,7 @@ export struct ScheduleView {
       : GlassMaterial.homeCardBgForce(Color.Transparent))
     .backgroundBlurStyle(this.cfg.headerColor.length === 0 && GlassMaterial.immSupported()
       ? BlurStyle.NONE
-      : GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? true))
+      : GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? false))
     // 日期条圆角：左上/右上/右下；左下不圆——与下方时间条连接成整体
     .borderRadius({ topLeft: 12, topRight: 12, bottomRight: 12, bottomLeft: 0 })
     .border({
@@ -924,7 +924,7 @@ export struct ScheduleView {
     .backgroundColor(GlassMaterial.homeCardBgForce(Color.Transparent))
     .backgroundBlurStyle(GlassMaterial.immSupported()
       ? BlurStyle.NONE
-      : GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? true))
+      : GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? false))
     .border({
       width: GlassMaterial.immSupported() ? 0 : 1,
       color: GlassMaterial.borderColor()
@@ -1393,7 +1393,7 @@ export struct ScheduleView {
               .fontSize(11)
               .fontColor(Theme.colorOf(this.themeColor))
               .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-              .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+              .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
               .borderRadius(10)
               .margin({ left: 8 })
               .onClick(() => {

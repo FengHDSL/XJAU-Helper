@@ -54,7 +54,7 @@ const SYSTEM_FONT_LIMIT: number = 300;
 struct SectionCard {
   @Prop title: string = '';
   @Prop subtitle: string = '';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;

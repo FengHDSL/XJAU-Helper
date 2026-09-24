@@ -5,6 +5,7 @@
  */
 import { promptAction } from '@kit.ArkUI';
 import { ScheduleConfig } from '../common/ScheduleConfig';
+import { DataStore } from '../common/DataStore';
 import { Const, SectionTime } from '../common/Constants';
 import { SectionUtil } from '../common/SectionUtil';
 import { DateUtil } from '../common/DateUtil';
@@ -89,7 +90,7 @@ struct ColorPickCell {
         MaterialButton({
           btnRadius: 17,
           btnBg: $r('app.color.bg_chip'),
-          btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? true),
+          btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? false),
           btnBorderW: GlassMaterial.borderWidth(),
           btnBorderC: GlassMaterial.borderColor(),
           btnMargin: { right: 12, top: 10 },
@@ -125,7 +126,7 @@ struct ColorPickCell {
 export struct ScheduleSettingsPanel {
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 沉浸光感开关（登记依赖：拨动后按钮的玻璃底/材质即时重渲染） */
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
@@ -303,6 +304,24 @@ export struct ScheduleSettingsPanel {
     this.onCfgChange(this.cfg);
     this.showSecSheet = false;
     this.getUIContext().getPromptAction().showToast({ message: '课程节数与上课时间已保存' });
+  }
+
+  /** 首次开启沉浸光感前的风险确认弹窗（与全局沉浸光感共用"已确认"标记，确认一次后不再提示） */
+  private confirmCellMaterial(): void {
+    this.getUIContext().getPromptAction().showDialog({
+      title: '开启沉浸光感',
+      message: '该效果依赖鸿蒙7（API26+），请确保设备升级至鸿蒙7及以上版本，同时该效果可能导致设备发热、使用应用时卡顿掉帧、部分界面可读性严重降低，请酌情考虑开启！满血沉浸光感需设备为麒麟9020/T92及以上版本的处理器。',
+      buttons: [
+        { text: '仍要开启', color: Theme.colorOf(this.themeColor) },
+        { text: '取消', color: '#666666' }
+      ]
+    }).then((res) => {
+      if (res.index === 0) {
+        this.cellMaterial = true;
+        this.apply();
+        DataStore.markImmersiveHintShown();
+      }
+    });
   }
 
   private apply(): void {
@@ -845,7 +864,15 @@ export struct ScheduleSettingsPanel {
           .alignItems(HorizontalAlign.Start)
           Toggle({ type: ToggleType.Switch, isOn: this.cellMaterial })
             .selectedColor(Theme.colorOf(this.themeColor))
-            .onChange((on: boolean) => { this.cellMaterial = on; this.apply(); })
+            .onChange((on: boolean) => {
+              // 首次开启前弹风险确认（确认一次后不再提示）；取消时 isOn 受控回弹
+              if (on && !DataStore.immersiveHintShown()) {
+                this.confirmCellMaterial();
+              } else {
+                this.cellMaterial = on;
+                this.apply();
+              }
+            })
         }.width('100%').margin({ top: 14, bottom: 14 })
 
         Divider().color($r('app.color.divider'))

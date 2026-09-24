@@ -78,7 +78,7 @@ export struct KxjsPage {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   // 学年学期（本地生成）
   @State terms: TermInfo[] = [];

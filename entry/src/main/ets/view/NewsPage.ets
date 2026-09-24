@@ -86,7 +86,7 @@ export struct NewsPage {
   /** 壁纸亮度（顶栏文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   /** 沉浸光感：标签胶囊磨砂背景随该开关（与其它按钮质感统一） */
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 灰字覆盖响应（grayTextMode 变化时触发本页重渲染，取值经 GlassMaterial 读取） */
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';

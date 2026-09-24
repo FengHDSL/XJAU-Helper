@@ -48,7 +48,7 @@ export struct ScoreView {
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（顶栏文字/图标自适应用） */
@@ -902,71 +902,66 @@ export struct ScoreView {
   @Builder
   scoreLandscape() {
     Column() {
-      // 横屏：平均分栏宽度收窄 5%（Column 默认水平居中 → 左右各留 2.5%），并给顶栏留一点间距
-      Column() {
-        this.statsCard()
-      }
-      .width('97%')
-      // 顶栏让位：横屏大屏下统计卡不进入顶栏区域
-      .margin({ top: this.getUIContext().px2vp(this.topInsetPx) + 72 })
       Row() {
-          // 左列
-          Refresh({ refreshing: $$this.refreshing }) {
-            Scroll() {
-              Column() {
-                this.scoreListColumn(this.sortedItems().filter((_item: ScoreItem, i: number) => i % 2 === 0))
-              }
-              .width('100%')
-              .padding({ left: 16, right: 8, top: 14, bottom: 100 })
+        // 左列：统计卡随列一起滚动（修：统计卡固定占位过高时平板横屏下方列表区被挤没、整页无法滑动）
+        Refresh({ refreshing: $$this.refreshing }) {
+          Scroll() {
+            Column() {
+              this.statsCard()
+              this.scoreListColumn(this.sortedItems().filter((_item: ScoreItem, i: number) => i % 2 === 0))
             }
-            .layoutWeight(1)
-            .height('100%')
-            .scrollBar(BarState.Off)
-            .align(Alignment.Top)
-            .edgeEffect(EdgeEffect.Spring)
-            .bindSheet($$this.showSheet, this.detailSheet(), {
-              width: SheetUtil.sheetWidth(),
-              preferType: SheetType.BOTTOM,
-              height: SheetSize.FIT_CONTENT,
-              dragBar: true,
-              // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
-              showClose: false,
-              // 同竖屏成绩详情弹层：显式透明底 + 材质模糊（MaterialSheetPanel 才能透出材质）
-              backgroundColor: Color.Transparent,
-              blurStyle: sheetBlurStyle(),
-              title: { title: '成绩详情' }
-            })
+            .width('100%')
+            // 顶栏让位随内容滚走（与竖屏一致），底部预留悬浮底栏高度
+            .padding({ left: 16, right: 8, top: this.getUIContext().px2vp(this.topInsetPx) + 86, bottom: 100 })
           }
           .layoutWeight(1)
           .height('100%')
-          .onRefreshing(() => { this.onRefresh(); })
-
-          // 右列
-          Refresh({ refreshing: $$this.refreshing }) {
-            Scroll() {
-              Column() {
-                this.scoreListColumn(this.sortedItems().filter((_item: ScoreItem, i: number) => i % 2 === 1))
-                this.calcInfoEntry()
-              }
-              .width('100%')
-              .padding({ left: 8, right: 16, top: 14, bottom: 100 })
-            }
-            .layoutWeight(1)
-            .height('100%')
-            .scrollBar(BarState.Off)
-            .align(Alignment.Top)
-            .edgeEffect(EdgeEffect.Spring)
-          }
-          .layoutWeight(1)
-          .height('100%')
-          .onRefreshing(() => { this.onRefresh(); })
+          .scrollBar(BarState.Off)
+          .align(Alignment.Top)
+          .edgeEffect(EdgeEffect.Spring)
+          .bindSheet($$this.showSheet, this.detailSheet(), {
+            width: SheetUtil.sheetWidth(),
+            preferType: SheetType.BOTTOM,
+            height: SheetSize.FIT_CONTENT,
+            dragBar: true,
+            // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+            showClose: false,
+            // 同竖屏成绩详情弹层：显式透明底 + 材质模糊（MaterialSheetPanel 才能透出材质）
+            backgroundColor: Color.Transparent,
+            blurStyle: sheetBlurStyle(),
+            title: { title: '成绩详情' }
+          })
         }
         .layoutWeight(1)
-        .align(Alignment.Top)
-      }
-        .width('100%')
+        .height('100%')
+        .onRefreshing(() => { this.onRefresh(); })
+
+        // 右列
+        Refresh({ refreshing: $$this.refreshing }) {
+          Scroll() {
+            Column() {
+              this.scoreListColumn(this.sortedItems().filter((_item: ScoreItem, i: number) => i % 2 === 1))
+              this.calcInfoEntry()
+            }
+            .width('100%')
+            .padding({ left: 8, right: 16, top: this.getUIContext().px2vp(this.topInsetPx) + 86, bottom: 100 })
+          }
+          .layoutWeight(1)
+          .height('100%')
+          .scrollBar(BarState.Off)
+          .align(Alignment.Top)
+          .edgeEffect(EdgeEffect.Spring)
+        }
         .layoutWeight(1)
-        .align(Alignment.Top)
+        .height('100%')
+        .onRefreshing(() => { this.onRefresh(); })
+      }
+      .layoutWeight(1)
+      .align(Alignment.Top)
+    }
+    .width('100%')
+    .layoutWeight(1)
+    .align(Alignment.Top)
   }
 
   @Builder

@@ -403,6 +403,9 @@ export class GlassMaterial {
   /** 按模式解析覆盖色；返回 undefined 表示不覆盖（用默认灰色） */
   private static grayOverride(): string | undefined {
     const mode: string | undefined = AppStorage.get<string>(GlassMaterial.KEY_GRAY_MODE);
+    if (mode === 'gray') {
+      return '#9AA0A6';
+    }
     if (mode === 'white') {
       return '#FFFFFF';
     }

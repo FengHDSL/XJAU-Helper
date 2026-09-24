@@ -48,7 +48,7 @@ export struct ExamPage {
   @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 响应式依赖：玻璃/灰字设置变化时即时刷新本页（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
@@ -255,7 +255,7 @@ export struct ExamPage {
       }
       .width(60)
       .padding({ top: 10, bottom: 10 })
-      .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+      .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
       .borderRadius(12)
 
       Column() {
@@ -387,7 +387,7 @@ export struct ExamPage {
             MaterialButton({
               btnRadius: 12,
               btnBg: $r('app.color.bg_chip'),
-              btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE,
+              btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE,
               btnBorderW: 1,
               btnBorderC: 'rgba(255,255,255,0.28)',
               btnOnClick: () => {
@@ -554,7 +554,7 @@ export struct ExamPage {
       }
       .width('100%')
       .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-      .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+      .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
       .borderRadius(10)
       .margin({ bottom: 12 })
 
@@ -596,7 +596,7 @@ export struct ExamPage {
                     Text('当前使用')
                       .fontSize(11)
                       .fontColor($r('app.color.brand_on'))
-                      .backgroundColor(Theme.colorOf(this.themeColor)).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+                      .backgroundColor(Theme.colorOf(this.themeColor)).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
                       .height(24)
                       .padding({ left: 8, right: 8 })
                       .borderRadius(12)
@@ -645,7 +645,7 @@ export struct ExamPage {
           MaterialButton({
             btnRadius: 10,
             btnBg: $r('app.color.bg_chip'),
-            btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE,
+            btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE,
             btnBorderW: 1,
             btnBorderC: 'rgba(255,255,255,0.28)',
             btnOnClick: () => {

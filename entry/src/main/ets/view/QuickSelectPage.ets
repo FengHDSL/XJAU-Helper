@@ -49,7 +49,7 @@ export struct QuickSelectPage {
   @StorageProp('cardTintBg') tintBg: string = '';
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
@@ -830,7 +830,7 @@ export struct QuickSelectPage {
                     MaterialButton({
                       btnRadius: 9,
                       btnBg: 'rgba(219,82,82,0.10)',
-                      btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE,
+                      btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE,
                       btnBorderW: 1,
                       btnBorderC: 'rgba(255,255,255,0.28)',
                       btnMargin: { left: 6 },
@@ -1346,7 +1346,7 @@ export struct QuickSelectPage {
                     MaterialButton({
                       btnRadius: 12,
                       btnBg: 'rgba(219,82,82,0.10)',
-                      btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE,
+                      btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE,
                       btnBorderW: 1,
                       btnBorderC: 'rgba(255,255,255,0.28)',
                       btnOnClick: () => {
@@ -1395,7 +1395,7 @@ export struct QuickSelectPage {
                     MaterialButton({
                       btnRadius: 9,
                       btnBg: 'rgba(219,82,82,0.10)',
-                      btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE,
+                      btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE,
                       btnBorderW: 1,
                       btnBorderC: 'rgba(255,255,255,0.28)',
                       btnOnClick: () => {

@@ -17,7 +17,7 @@ export struct BackButton {
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   /** 沉浸光感：材质不可用时的磨砂回落随该开关 */
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 返回回调（默认 pop，由调用页决定） */
   onBack: () => void = () => {
   };

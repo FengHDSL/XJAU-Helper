@@ -158,7 +158,7 @@ export struct MaterialCard {
 
   // ── 订阅（决定本卡片是否需要重渲染）──
   /** 全局沉浸光感开关（外观设置主开关） */
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /**
    * 主题色流光开关（只用来建立依赖）。
    *
@@ -592,7 +592,7 @@ export struct MaterialSheetPanel {
   /** 光感关闭按钮点击回调（通常写 `this.xxxSheet = false`） */
   panelOnClose: () => void = (): void => {
   };
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @BuilderParam panelContent: () => void = this.emptyPanel;
 
   @Builder

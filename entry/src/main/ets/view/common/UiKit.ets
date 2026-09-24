@@ -368,7 +368,7 @@ export struct PageHeader {
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @StorageProp('themeColor') themeColor: string = 'green';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @Prop title: string = '';

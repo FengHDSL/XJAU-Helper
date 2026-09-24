@@ -34,7 +34,7 @@ export struct NoticePage {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
@@ -238,7 +238,7 @@ export struct NoticeDetailPage {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   @State notice: NoticeItem = AppState.currentNotice !== null ? AppState.currentNotice : EMPTY_NOTICE;

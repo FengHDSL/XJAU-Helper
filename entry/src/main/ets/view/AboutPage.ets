@@ -12,7 +12,7 @@
  *  - 半模态弹窗（调试模式密码）内容套 `MaterialSheetPanel`，`bindSheet` 显式 `backgroundColor: Color.Transparent`。
  */
 import { SheetUtil } from '../common/SheetUtil';
-import { pasteboard } from '@kit.BasicServicesKit';
+import { http } from '@kit.NetworkKit';
 import { promptAction } from '@kit.ArkUI';
 import { AppState } from '../common/AppState';
 import { Theme } from '../common/ThemeUtil';
@@ -21,7 +21,7 @@ import { Const } from '../common/Constants';
 import { LogStore } from '../common/LogStore';
 import { JwApi } from '../api/JwApi';
 import { DataStore } from '../common/DataStore';
-import { common } from '@kit.AbilityKit';
+import { common, Want } from '@kit.AbilityKit';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
@@ -57,6 +57,10 @@ export struct AboutPage {
   /** 调试模式密码输入弹窗开关 */
   @State showDebugSheet: boolean = false;
   @State debugPwd: string = '';
+  /** 当前应用版本（与界面「版本」文本保持同步，发版时两处一起改） */
+  private readonly currentVersion: string = '1.3.9';
+  /** 检查更新请求进行中 */
+  @State checkingUpdate: boolean = false;
   /** 连点计时器（超时重置计数） */
   private iconTapTimer: number = -1;
 
@@ -154,7 +158,7 @@ export struct AboutPage {
         .fontColor($r('app.color.text_primary'))
         .width('100%')
         .margin({ bottom: 10 })
-      this.linkRow('XJAU-Helper（本项目）', 'https://github.com/FengHDSL/XJAU-Helper', true)
+      this.linkRow('XJAU-Helper（本项目）', 'https://github.com/FengHDSL/XJAU-Helper')
       this.linkRow('miha_hm（参考）', 'https://github.com/MrCashmere/miha_hm')
       this.linkRow('zhengfang-apk（参考）', 'https://github.com/znjhahaha/zhengfang-apk')
       this.linkRow('HiXD（参考）', 'https://github.com/PollenWang6/HiXD')
@@ -172,8 +176,158 @@ export struct AboutPage {
     }
   }
 
+  /** 检查更新：拉取 HAP 资源站页面，解析版本徽标（fa-code-branch 后的 vX.Y.Z）并比对当前版本 */
+  private checkUpdate(): void {
+    if (this.checkingUpdate) {
+      return;
+    }
+    this.checkingUpdate = true;
+    // 超时保护：8 秒未返回按超时提示（网络不可达/域名解析失败等）
+    let finished = false;
+    const timer = setTimeout(() => {
+      if (!finished) {
+        finished = true;
+        this.checkingUpdate = false;
+        this.getUIContext().getPromptAction().showToast({ message: '检查更新超时，请稍后再试' });
+      }
+    }, 8000);
+    const httpRequest = http.createHttp();
+    httpRequest.request('https://www.sydxky.cn/detail.php?id=796', {
+      method: http.RequestMethod.GET,
+      connectTimeout: 8000,
+      readTimeout: 8000,
+      header: { 'User-Agent': 'Mozilla/5.0 (HarmonyOS) XJAU-Helper' }
+    }).then((resp: http.HttpResponse) => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      clearTimeout(timer);
+      httpRequest.destroy();
+      this.checkingUpdate = false;
+      const html: string = typeof resp.result === 'string' ? resp.result : '';
+      const remote: string = this.parseRemoteVersion(html);
+      if (remote.length === 0) {
+        this.getUIContext().getPromptAction().showToast({ message: '检查更新失败，请稍后再试' });
+        return;
+      }
+      const cmp: number = this.compareVersion(this.currentVersion, remote);
+      if (cmp < 0) {
+        this.getUIContext().getPromptAction().showDialog({
+          title: '发现新版本',
+          message: `发现新版本：v${remote}，请前往AppTest或前往HAP资源站更新！`,
+          buttons: [
+            { text: '前往更新', color: Theme.colorOf(this.themeColor) },
+            { text: '关闭', color: '#666666' }
+          ]
+        }).then((res) => {
+          if (res.index === 0) {
+            this.openUpdateSite();
+          }
+        });
+      } else if (cmp > 0) {
+        this.getUIContext().getPromptAction().showDialog({
+          title: '版本超前',
+          message: `当前版本（v${this.currentVersion}）比已发布版本（v${remote}）更高`,
+          buttons: [
+            { text: '知道了', color: '#666666' }
+          ]
+        });
+      } else {
+        this.getUIContext().getPromptAction().showToast({ message: `已是最新版本（v${this.currentVersion}）` });
+      }
+    }).catch(() => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      clearTimeout(timer);
+      httpRequest.destroy();
+      this.checkingUpdate = false;
+      this.getUIContext().getPromptAction().showToast({ message: '检查更新超时，请稍后再试' });
+    });
+  }
+
+  /** 从资源站 HTML 解析最新版本号（优先版本徽标锚点，兜底全页第一个 span vX.Y.Z；取不到返回空串） */
+  private parseRemoteVersion(html: string): string {
+    const anchor: number = html.indexOf('fa-code-branch');
+    if (anchor >= 0) {
+      const seg: string = html.substring(anchor, Math.min(anchor + 400, html.length));
+      const m: RegExpMatchArray | null = seg.match(/<span>v(\d+\.\d+(?:\.\d+)?)<\/span>/);
+      if (m !== null && m.length > 1) {
+        return m[1];
+      }
+    }
+    const m2: RegExpMatchArray | null = html.match(/<span>v(\d+\.\d+(?:\.\d+)?)<\/span>/);
+    if (m2 !== null && m2.length > 1) {
+      return m2[1];
+    }
+    return '';
+  }
+
+  /** 版本号比较：a>b 返回 1，a<b 返回 -1，相等返回 0（按数字段逐段比较） */
+  private compareVersion(a: string, b: string): number {
+    const pa: string[] = a.split('.');
+    const pb: string[] = b.split('.');
+    const n: number = Math.max(pa.length, pb.length);
+    for (let i = 0; i < n; i++) {
+      const x: number = i < pa.length ? parseInt(pa[i], 10) : 0;
+      const y: number = i < pb.length ? parseInt(pb[i], 10) : 0;
+      if (x !== y) {
+        return x > y ? 1 : -1;
+      }
+    }
+    return 0;
+  }
+
+  /** 用系统浏览器打开 HAP 资源站更新页 */
+  private openUpdateSite(): void {
+    try {
+      const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+      const want: Want = {
+        action: 'ohos.want.action.viewData',
+        entities: ['entity.system.browsable'],
+        uri: 'https://www.sydxky.cn/detail.php?id=796'
+      };
+      ctx.startAbility(want);
+    } catch (e) {
+      this.getUIContext().getPromptAction().showToast({ message: '打开浏览器失败' });
+    }
+  }
+
+  /** 检查更新胶囊：主题色液态玻璃（材质开=主题色叠层玻璃绿，关=主题色实底绿） */
   @Builder
-  linkRow(title: string, url: string, openInApp: boolean = false) {
+  checkUpdateChip() {
+    MaterialButton({
+      btnRadius: 18,
+      btnBg: Theme.colorOf(this.themeColor),
+      btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? false),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: Theme.colorOf(this.themeColor),
+      btnTintRatio: 0.55,
+      btnOnClick: (): void => {
+        this.checkUpdate();
+      }
+    }) {
+      Row({ space: 5 }) {
+        if (this.checkingUpdate) {
+          LoadingProgress()
+            .width(14)
+            .height(14)
+            .color(Color.White)
+        }
+        Text(this.checkingUpdate ? '检查中…' : '检查更新')
+          .fontSize(13)
+          .fontColor(Color.White)
+      }
+      .alignItems(VerticalAlign.Center)
+      .padding({ left: 18, right: 18, top: 8, bottom: 8 })
+    }
+  }
+
+  @Builder
+  linkRow(title: string, url: string) {
     Row() {
       Text(title)
         .fontSize(13)
@@ -191,16 +345,10 @@ export struct AboutPage {
     .padding({ left: 4, right: 4 })
     .borderRadius(8)
     .onClick(() => {
-      if (openInApp) {
-        // 本项目的链接：打开应用内"外部链接"页面（WebView）直接访问
-        AppState.webUrl = url;
-        AppState.webTitle = '项目链接';
-        AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
-      } else {
-        // 参考链接：复制到剪贴板，方便用户在浏览器中打开
-        pasteboard.getSystemPasteboard().setDataSync(pasteboard.createPlainTextData(url));
-        this.getUIContext().getPromptAction().showToast({ message: '链接已复制' });
-      }
+      // 所有开源链接直接用应用内网页打开（GitHub 页面在功能浏览模式下也可访问）
+      AppState.webUrl = url;
+      AppState.webTitle = title;
+      AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
     })
   }
 
@@ -248,7 +396,7 @@ export struct AboutPage {
                 .width(88)
                 .height(88)
                 .borderRadius(20)
-                .backgroundColor('#FFFFFF').backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+                .backgroundColor('#FFFFFF').backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
                 .onClick(() => {
                   this.onIconTapped();
                 })
@@ -257,7 +405,7 @@ export struct AboutPage {
                 .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 12 })
-              Text('版本 1.3.9')
+              Text(`版本 ${this.currentVersion}`)
                 .fontSize(12)
                 .fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 4 })
@@ -269,6 +417,14 @@ export struct AboutPage {
             .width('100%')
             .alignItems(HorizontalAlign.Center)
             .padding({ top: 10, bottom: 16 })
+
+            // 检查更新胶囊（应用介绍上方）
+            Row() {
+              this.checkUpdateChip()
+            }
+            .width('100%')
+            .justifyContent(FlexAlign.Center)
+            .padding({ top: 2, bottom: 12 })
 
             // 应用简介（单独卡片）
             // MaterialCard 承载：材质层是卡片内部底层、与卡片同尺寸同圆角，材质生效时卡片底色让出；
@@ -349,7 +505,7 @@ export struct AboutPage {
                 MaterialButton({
                   btnRadius: 14,
                   btnBg: 'rgba(219,82,82,0.10)',
-                  btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? true),
+                  btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? false),
                   btnBorderW: GlassMaterial.borderWidth(),
                   btnBorderC: GlassMaterial.borderColor(),
                   btnMargin: { top: 12 },
@@ -469,7 +625,7 @@ export struct AboutPage {
       MaterialButton({
         btnRadius: 20,
         btnBg: $r('app.color.brand'),
-        btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? true),
+        btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? false),
         btnBorderW: GlassMaterial.borderWidth(),
         btnBorderC: GlassMaterial.borderColor(),
         btnMargin: { top: 12, bottom: 16 },

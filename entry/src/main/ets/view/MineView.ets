@@ -45,7 +45,7 @@ export struct MineView {
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
@@ -598,7 +598,7 @@ export struct MineView {
             // 圆形头像底：原 .systemMaterial(GlassMaterial.sysMaterial()) 是恒 undefined 的无效旧写法、
             // GlassMaterial.withMaterial() 恒返回传入色——两者均为死代码，已移除，观感不变
             // （头像在 MaterialCard 内部、非点击元素，不需要再叠 Toggle 承载层）。
-            .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+            .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
         } else if (JwApi.USE_MOCK) {
           // 功能浏览模式：使用默认占位头像（死代码清理同上，观感不变）
           Image($r('app.media.default_avatar'))
@@ -606,7 +606,7 @@ export struct MineView {
             .height(52)
             .borderRadius(26)
             .objectFit(ImageFit.Cover)
-            .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+            .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
         } else {
           Text(AppState.avatarText())
             .fontSize(17)
@@ -615,7 +615,7 @@ export struct MineView {
             .width(52)
             .height(52)
             .borderRadius(26)
-            .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+            .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
             .textAlign(TextAlign.Center)
         }
       }

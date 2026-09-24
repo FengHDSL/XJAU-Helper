@@ -54,7 +54,7 @@ export struct MainView {
   @StorageProp('customAccentFull') customAccentFull: boolean = false;
   /** 页面背景色（广播键）：沾色/主题/深色/高权限开关变化时由 AppearanceStore.broadcastDerived() 重写 */
   @StorageProp('pageBackground') pageBgBc: string = '';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 全局壁纸 id（'b1'..'b6' 预置 / 'c:<path>' 自定义 / 'none'=未启用） */
   @StorageProp('wallpaperId') wallpaperId: string = 'none';
   /** 壁纸亮度（自动对比度适配用） */

@@ -185,7 +185,7 @@ export class DataStore {
     return isNaN(v) ? 70 : Math.max(0, Math.min(100, v));
   }
 
-  // ── 灰色字体颜色覆盖（gray=默认灰 / white / black / custom）──
+  // ── 灰色字体颜色覆盖（default=自动跟随深浅 / gray=固定灰 / white / black / custom）──
   static readonly KEY_GRAY_MODE: string = 'gray_text_mode';
   static readonly KEY_GRAY_CUSTOM: string = 'gray_text_custom';
 
@@ -197,7 +197,7 @@ export class DataStore {
   /** 读取灰字模式（默认 default） */
   static loadGrayMode(): string {
     const v: string = DataStore.get(DataStore.KEY_GRAY_MODE);
-    return (v === 'white' || v === 'black' || v === 'custom') ? v : 'default';
+    return (v === 'gray' || v === 'white' || v === 'black' || v === 'custom') ? v : 'default';
   }
 
   /** 保存自定义灰字颜色（rrggbb） */
@@ -475,12 +475,23 @@ export class DataStore {
     DataStore.put(DataStore.KEY_BAR_STYLE, style === 'legacy' ? 'legacy' : 'new');
   }
 
-  // ── 沉浸光感（系统材质）开关：'1'=开（默认） / '0'=关 ──
+  // ── 沉浸光感（系统材质）开关：'1'=开 / '0'=关（默认关：效果依赖 API26+，且可能发热/掉帧）──
   static readonly KEY_IMMERSIVE: string = 'immersive_effect';
 
-  /** 沉浸光感开关（外观设置主开关，默认开启；'0' 时关闭） */
+  /** 沉浸光感开关（外观设置主开关，默认关闭；仅 '1' 时开启） */
   static immersiveOn(): boolean {
-    return DataStore.get(DataStore.KEY_IMMERSIVE) !== '0';
+    return DataStore.get(DataStore.KEY_IMMERSIVE) === '1';
+  }
+
+  /** 沉浸光感风险提示已确认（首次开启弹窗确认过一次后不再提示） */
+  static readonly KEY_IMMERSIVE_HINT: string = 'immersive_hint_shown';
+
+  static immersiveHintShown(): boolean {
+    return DataStore.get(DataStore.KEY_IMMERSIVE_HINT) === '1';
+  }
+
+  static markImmersiveHintShown(): void {
+    DataStore.put(DataStore.KEY_IMMERSIVE_HINT, '1');
   }
 
   static setImmersive(on: boolean): void {

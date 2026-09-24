@@ -60,7 +60,7 @@ export struct HomeView {
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
-  @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 灰字覆盖响应（grayTextMode/grayTextColor 变化时触发本页重渲染，取值经 GlassMaterial 读取） */
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
@@ -651,7 +651,7 @@ export struct HomeView {
             .height(52)
             .borderRadius(26)
             .objectFit(ImageFit.Cover)
-            .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+            .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
         } else if (JwApi.USE_MOCK) {
           // 功能浏览模式：默认头像使用内置资源
           Image($r('app.media.default_avatar'))
@@ -659,7 +659,7 @@ export struct HomeView {
             .height(52)
             .borderRadius(26)
             .objectFit(ImageFit.Cover)
-            .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+            .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
         } else {
           Text(AppState.avatarText())
             .fontSize(17)
@@ -668,7 +668,7 @@ export struct HomeView {
             .width(52)
             .height(52)
             .borderRadius(26)
-            .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+            .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
             .textAlign(TextAlign.Center)
         }
       }
@@ -783,7 +783,7 @@ export struct HomeView {
                 Text('课').fontSize(13).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium)).fontColor(Theme.colorOf(this.themeColor))
               }
               .padding(10)
-              .backgroundColor(this.subBg(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+              .backgroundColor(this.subBg(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
               .justifyContent(FlexAlign.Center)
               .alignItems(HorizontalAlign.Center)
               .borderRadius({ topLeft: 16, bottomLeft: 16 })
@@ -872,7 +872,7 @@ export struct HomeView {
                 Text('课').fontSize(13).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium)).fontColor(Theme.colorOf(this.themeColor))
               }
               .padding(10)
-              .backgroundColor(this.subBg(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+              .backgroundColor(this.subBg(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
               .justifyContent(FlexAlign.Center)
               .alignItems(HorizontalAlign.Center)
               .borderRadius({ topLeft: 16, bottomLeft: 16 })
@@ -1119,7 +1119,7 @@ export struct HomeView {
               }
               .width(54)
               .padding({ top: 8, bottom: 8 })
-              .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+              .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
               .borderRadius(10)
 
               Column() {
@@ -1703,7 +1703,7 @@ export struct HomeView {
           .fontSize(13)
           .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
           .padding({ left: 16, right: 16, top: 8, bottom: 8 })
-          .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+          .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
           .borderRadius(10)
           .margin({ left: 10 })
           .onClick(() => {
@@ -1727,7 +1727,7 @@ export struct HomeView {
           .fontSize(12)
           .fontColor(Theme.colorOf(this.themeColor))
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-          .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+          .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
           .borderRadius(10)
       }
       .width('100%')
@@ -1750,7 +1750,7 @@ export struct HomeView {
           .fontSize(12)
           .fontColor(Theme.colorOf(this.themeColor))
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-          .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+          .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
           .borderRadius(10)
       }
       .width('100%')
@@ -1764,7 +1764,7 @@ export struct HomeView {
         .fontSize(13)
         .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
         .padding({ left: 16, right: 16, top: 8, bottom: 8 })
-        .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+        .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
         .borderRadius(10)
         .margin({ top: 10 })
         .onClick(() => {
@@ -2025,7 +2025,7 @@ export struct HomeView {
         }
         .width('100%')
         .padding(12)
-          .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+          .backgroundColor(this.subBg($r('app.color.bg_chip'))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
           .borderRadius(12)
           .margin({ top: 6 })
         }
