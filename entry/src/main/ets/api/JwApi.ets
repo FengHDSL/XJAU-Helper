@@ -49,9 +49,9 @@ interface JwcCalCacheStore {
 }
 
 export class JwApi {
-  /** demo 开关：true = 使用本地模拟数据。默认 false（直连真实教务系统）。
-   *  登录页底部"Demo 体验"入口会临时置为 true；真实登录时会复位为 false。 */
-  static USE_MOCK: boolean = false;
+  /** demo 开关：true = 使用本地模拟数据。默认 true（开发期直接看模拟数据）。
+   *  登录页底部"Demo 体验"入口会置为 true；真实登录成功会复位为 false（直连真实教务系统）。 */
+  static USE_MOCK: boolean = true;
 
   private static term: TermInfo = DateUtil.buildCurrentTerm();
 

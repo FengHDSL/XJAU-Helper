@@ -598,6 +598,10 @@ export struct MaterialSheetPanel {
    * 宿主传了 panelTitle 后应同时删除 bindSheet 的 `title:` 选项，避免出现两个标题。
    */
   @Prop panelTitle: string = '';
+  /** 关闭按钮底色（如警示红 '#DB5252'；空串=默认玻璃/材质底） */
+  @Prop panelCloseFill: string = '';
+  /** 关闭图标颜色（空串=默认次要文字色；可传 sys.color.font_primary 做黑白自适应） */
+  @Prop panelCloseTint: ResourceColor = '';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 全局字重订阅（面板内标题加粗时跟随字体管理设置） */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
@@ -658,12 +662,14 @@ export struct MaterialSheetPanel {
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       if (this.panelShowClose) {
         // 关闭图标：SymbolGlyph xmark（不再用文字 ✕）；IconCircleButton 自带
-        // 按压弹性形变 + 跟手流光（拖拽光感），样式与 miha_hm 一致
+        // 按压弹性形变 + 跟手流光（拖拽光感），样式与 miha_hm 一致；
+        // panelCloseFill/panelCloseTint 支持按面板定制（如考试倒计时面板的红色关闭钮）
         IconCircleButton({
           symbol: $r('sys.symbol.xmark'),
           buttonSize: 30,
           iconSize: 14,
-          tint: $r('app.color.text_secondary'),
+          tint: this.panelCloseTint === '' ? $r('app.color.text_secondary') : this.panelCloseTint,
+          fill: this.panelCloseFill,
           buttonInteractive: true,
           onAction: (): void => {
             this.panelOnClose();

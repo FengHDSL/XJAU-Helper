@@ -87,6 +87,12 @@ export struct MaterialButton {
    * 顶栏按钮、登录页主按钮等传 true；其余按钮默认 false（随全局开关回落毛玻璃/纯色）。
    */
   @Prop btnPersistent: boolean = false;
+  /**
+   * 交互材质（按压弹性形变 + 跟手流光通道）：**默认开启**——按钮/胶囊都是小尺寸控件，
+   * 类 HdsTab 的灵动反馈全量应用（含各页标题栏按钮与胶囊）。设备不支持 interactive
+   * （现象：按钮材质整体消失）时由调用方传 false 降级。
+   */
+  @Prop btnInteractive: boolean = true;
   /** 全局沉浸光感开关（登记依赖：拨动开关后已画出的按钮立即重渲染） */
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 主题色（跟手光斑取色用；订阅以便切主题色后光斑即时换色） */
@@ -214,7 +220,10 @@ export struct MaterialButton {
         MaterialCardLayer({
           layerRadius: this.btnRadius,
           layerShadow: this.btnMaterialShadow,
-          layerForce: this.btnPersistent
+          layerForce: this.btnPersistent,
+          // 弹性形变 + 材质自带跟手流光（颜色随主题色/「主题色流光」开关）
+          layerInteractive: this.btnInteractive,
+          layerLightColor: this.glowAccent()
         })
       }
       // 原色叠层：压在材质之上、内容之下，材质照常可见、颜色语义得以保留（比例见 btnTintRatio）

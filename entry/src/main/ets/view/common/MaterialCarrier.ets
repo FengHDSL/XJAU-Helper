@@ -53,6 +53,15 @@ export struct MaterialCardLayer {
    * （语义见 `SystemMaterial.materialAvailable()`）。默认 false，行为与改动前完全一致。
    */
   @Prop layerForce: boolean = false;
+  /**
+   * **交互材质**：true 时下发的材质带 `interactive`（按压弹性形变，松手自动恢复）
+   * 与 `lightEffect` 跟手流光通道（颜色经 layerLightColor 下发）。
+   * 用于标题栏按钮/胶囊等小尺寸控件（类 HdsTab 的灵动反馈）；大卡片保持 false 省算力。
+   * 若设备不支持 interactive，材质会整体消失——此时把对应按钮的该参数传 false 降级。
+   */
+  @Prop layerInteractive: boolean = false;
+  /** 跟手流光颜色（仅 layerInteractive=true 时有意义；空串 = 系统默认白光） */
+  @Prop layerLightColor: string = '';
 
   build() {
     Toggle({ type: ToggleType.Button, isOn: false })
@@ -69,7 +78,7 @@ export struct MaterialCardLayer {
       // 所以这里 fallbackBlur 传 false，避免与外壳的 backgroundBlurStyle 叠加。
       .attributeModifier({
         applyNormalAttribute: (instance: ToggleAttribute): void => {
-          applyMaterialCarrier(instance, false, false, this.layerShadow, '', this.layerForce);
+          applyMaterialCarrier(instance, false, this.layerInteractive, this.layerShadow, this.layerLightColor, this.layerForce);
         }
       })
   }

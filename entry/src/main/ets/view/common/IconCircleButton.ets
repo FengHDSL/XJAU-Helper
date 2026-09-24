@@ -49,6 +49,11 @@ export struct IconCircleButton {
   @Prop buttonInteractive: boolean = true;
   /** 材质常驻：true 时不随应用内「全局沉浸光感」开关关闭而消失 */
   @Prop buttonForce: boolean = false;
+  /**
+   * 按钮底色（如警示红 '#DB5252'）。非空时在承载层下垫一层同尺寸圆，
+   * 材质呈红玻璃观感、材质不可用时为实色红底；空串 = 无底色（默认玻璃/材质）。
+   */
+  @Prop fill: string = '';
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('immersivePressGlow') pressGlowSwitch: boolean = true;
   /** 刷新类按钮：true 时图标持续旋转表示加载中 */
@@ -114,6 +119,13 @@ export struct IconCircleButton {
 
   build() {
     Stack() {
+      // 底色层（fill 非空时）：垫在承载层之下，材质盖在上面呈彩色玻璃
+      if (this.fill.length > 0) {
+        Circle()
+          .width(this.buttonSize)
+          .height(this.buttonSize)
+          .fill(this.fill)
+      }
       // 材质 + 交互层：ToggleType.Button
       Toggle({ type: ToggleType.Button, isOn: false })
         .width(this.buttonSize)

@@ -520,7 +520,7 @@ export struct ExamPage {
   pickExamSheet() {
     // 弹窗内容套 MaterialSheetPanel（同详情/学期弹窗）：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底；
     // 高度随内容（SheetSize.LARGE 固定高）→ 保持 panelFillHeight 默认 true，让材质裹住整块面板。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelTitle: '选择桌面卡片倒计时', panelShowClose: true, panelOnClose: (): void => { this.showPickExam = false; } }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelTitle: '选择桌面卡片倒计时', panelShowClose: true, panelCloseFill: '#DB5252', panelCloseTint: $r('sys.color.font_primary'), panelOnClose: (): void => { this.showPickExam = false; } }) {
     Column() {
       // 顶部说明（去掉重复标题"桌面卡片倒计时"，sheet 自身 title 已显示）
       Text('选一场考试作为桌面卡片的倒计时对象')
@@ -860,7 +860,8 @@ Row() {
       .bindSheet($$this.showPickExam, this.pickExamSheet(), {
         width: SheetUtil.sheetWidth(),
         preferType: SheetType.BOTTOM,
-        height: SheetSize.LARGE,
+        // 高度自适应内容（此前 LARGE 固定高，内容少时面板下半截空一大块）
+        height: SheetSize.FIT_CONTENT,
         dragBar: true,
         // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
         showClose: false,
