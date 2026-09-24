@@ -38,7 +38,7 @@ import { GlassMaterial } from '../../common/GlassMaterial';
 import { Theme } from '../../common/ThemeUtil';
 import { AppearanceStore } from '../../common/AppearanceStore';
 import { MaterialCardLayer } from './MaterialCarrier';
-import { MaterialButton } from './MaterialButton';
+import { IconCircleButton } from './IconCircleButton';
 
 /**
  * 流光光晕的半径（vp）。
@@ -599,8 +599,6 @@ export struct MaterialSheetPanel {
    */
   @Prop panelTitle: string = '';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
-  /** 灰字广播订阅（关闭按钮字色随灰字设置实时刷新；表达式读 this.grayTick 才登记依赖） */
-  @StorageProp('grayTick') grayTick: number = 0;
   /** 全局字重订阅（面板内标题加粗时跟随字体管理设置） */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @BuilderParam panelContent: () => void = this.emptyPanel;
@@ -629,23 +627,17 @@ export struct MaterialSheetPanel {
   panelCloseButton() {
     if (this.panelShowClose) {
       Row() {
-        MaterialButton({
-          btnRadius: 15,
-          btnBg: $r('app.color.bg_chip'),
-          btnBlur: BlurStyle.Thin,
-          btnBorderW: GlassMaterial.borderWidth(),
-          btnBorderC: GlassMaterial.borderColor(),
-          btnOnClick: (): void => {
+        // 关闭图标：SymbolGlyph xmark（不再用文字 ✕）+ IconCircleButton 跟手光感
+        IconCircleButton({
+          symbol: $r('sys.symbol.xmark'),
+          buttonSize: 30,
+          iconSize: 14,
+          tint: $r('app.color.text_secondary'),
+          buttonInteractive: true,
+          onAction: (): void => {
             this.panelOnClose();
           }
-        }) {
-          Text('✕')
-            .fontSize(13)
-            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
-            .width(30)
-            .height(30)
-            .textAlign(TextAlign.Center)
-        }
+        })
       }
       // 上边距 6：让 30vp 高的关闭按钮垂直中心（≈21）对齐面板内容首行标题的中心
       // （各面板标题上边距 8~16 → 标题中心约 20~28），即「与左上角标题同一高度」
@@ -653,7 +645,7 @@ export struct MaterialSheetPanel {
     }
   }
 
-  /** 面板内标题栏：左上角标题 + 右侧关闭按钮（✕ 为 MaterialButton，自带跟手光斑/拖拽光感） */
+  /** 面板内标题栏：左上角标题 + 右侧关闭按钮（IconCircleButton：SymbolGlyph xmark，自带跟手流光/拖拽光感） */
   @Builder
   panelTitleBar() {
     Row() {
@@ -665,24 +657,18 @@ export struct MaterialSheetPanel {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       if (this.panelShowClose) {
-        MaterialButton({
-          btnRadius: 15,
-          btnBg: $r('app.color.bg_chip'),
-          btnBlur: BlurStyle.Thin,
-          btnBorderW: GlassMaterial.borderWidth(),
-          btnBorderC: GlassMaterial.borderColor(),
-          btnMargin: { top: 0, right: 0, bottom: 0, left: 8 },
-          btnOnClick: (): void => {
+        // 关闭图标：SymbolGlyph xmark（不再用文字 ✕）；IconCircleButton 自带
+        // 按压弹性形变 + 跟手流光（拖拽光感），样式与 miha_hm 一致
+        IconCircleButton({
+          symbol: $r('sys.symbol.xmark'),
+          buttonSize: 30,
+          iconSize: 14,
+          tint: $r('app.color.text_secondary'),
+          buttonInteractive: true,
+          onAction: (): void => {
             this.panelOnClose();
           }
-        }) {
-          Text('✕')
-            .fontSize(13)
-            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
-            .width(30)
-            .height(30)
-            .textAlign(TextAlign.Center)
-        }
+        })
       }
     }
     .width('100%')

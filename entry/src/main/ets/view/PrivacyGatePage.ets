@@ -15,6 +15,7 @@ import { privacyManager } from '@kit.AppGalleryKit';
 import { Theme } from '../common/ThemeUtil';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { Immersive } from './common/Immersive';
+import { IconCircleButton } from './common/IconCircleButton';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { DeclarationSection, DEVELOPER_DECLARATION } from '../common/PrivacyText';
 import { DataStore } from '../common/DataStore';
@@ -474,13 +475,15 @@ export struct PrivacyGatePage {
               .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor($r('app.color.text_primary'))
               .layoutWeight(1)
-            Text('✕')
-              .fontSize(18)
-              .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
-              .width(36)
-              .height(36)
-              .textAlign(TextAlign.Center)
-              .onClick(() => { this.showDoc = ''; })
+            IconCircleButton({
+              symbol: $r('sys.symbol.xmark'),
+              buttonSize: 34,
+              iconSize: 16,
+              tint: $r('app.color.text_secondary'),
+              onAction: (): void => {
+                this.showDoc = '';
+              }
+            })
           }
           .width('100%')
           .height(52)
