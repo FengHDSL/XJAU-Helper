@@ -636,21 +636,34 @@ export struct MineView {
       Blank()
 
       // 右侧：红色圆形退出登录按钮（用 退出.png 图标）
-      // 刻意保留原生 Button（不改走 MaterialButton）：它是实色警示按钮，材质生效时会让出底色而丢掉
-      // 红色语义；且它挂有 LongPressGesture 长按提示，MaterialButton 只支持 onClick，改过去会丢交互。
-      Button() {
-        Image($r('app.media.power'))
-          .width(20)
-          .height(20)
-          .fillColor('#FFFFFF')
+      // → MaterialButton（Toggle 承载层）：材质生效时 btnTint（半透明警示红）叠在材质之上保住红色语义，
+      //   材质关闭回落 state_danger 实底；长按提示手势挂外壳 Row
+      //   （MaterialButton 尾随闭包后不能链式属性，gesture 只能挂外层容器）。
+      Row() {
+        MaterialButton({
+          btnRadius: 22,
+          btnBg: $r('app.color.state_danger'),
+          btnBlur: (this.immersiveEffect) ? BlurStyle.Thin : BlurStyle.NONE,
+          btnBorderW: 1,
+          btnBorderC: 'rgba(255,255,255,0.28)',
+          btnTint: this.isDarkMode ? '#EE7B7B' : '#F0524D',
+          btnTintRatio: 0.55,
+          btnOnClick: (): void => {
+            this.confirmLogout();
+          }
+        }) {
+          Row() {
+            Image($r('app.media.power'))
+              .width(20)
+              .height(20)
+              .fillColor('#FFFFFF')
+          }
+          .width(44)
+          .height(44)
+          .justifyContent(FlexAlign.Center)
+          .alignItems(VerticalAlign.Center)
+        }
       }
-      .width(44)
-      .height(44)
-      .backgroundColor($r('app.color.state_danger')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
-      .borderRadius(22)
-      .onClick(() => {
-        this.confirmLogout();
-      })
       // 长按提示当前登录方式（密码登录 / 网页登录）
       .gesture(
         LongPressGesture()
