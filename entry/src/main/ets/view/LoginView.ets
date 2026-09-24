@@ -402,7 +402,9 @@ export struct LoginView {
     this.showWeb = true;
   }
 
-  /** 网页登录标题栏切换目标（服务大厅 ↔ 教务系统）：更新目标并让 WebView 重新加载对应网址 */
+  /** 网页登录标题栏切换目标（服务大厅 ↔ 教务系统）：更新目标状态即可，
+   *  WebView 重载由 WebSurface 的 targetMode @Watch 驱动（此前依赖外层 webCtrl.loadUrl，
+   *  controller 时序不对时出现「切换没反应，重开面板才生效」） */
   private switchWebTarget(target: string): void {
     if (this.webLoginTarget === target) {
       return;
@@ -410,9 +412,6 @@ export struct LoginView {
     this.webLoginTarget = target;
     AppState.webLoginTarget = target;
     AppState.webUrl = target === 'hall' ? Const.CAS_LOGIN_URL : Const.WEB_LOGIN_URL;
-    if (this.webCtrl !== null) {
-      this.webCtrl.loadUrl(AppState.webUrl);
-    }
   }
 
   /** 当前重登方式文案（自动重登 / 手动重登） */
@@ -1533,6 +1532,8 @@ export struct LoginView {
   webSheet() {
     WebSurface({
       scanTrigger: this.webScanSeq,
+      // 登录目标：@Watch 驱动 WebView 重载（不再依赖外层 controller 时序）
+      targetMode: this.webLoginTarget,
       onLoadFail: (): void => {
         // 主文档加载失败：给出可行动的提示
         this.getUIContext().getPromptAction().showToast({

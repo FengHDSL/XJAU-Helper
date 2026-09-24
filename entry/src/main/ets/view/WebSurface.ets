@@ -40,6 +40,13 @@ export struct WebSurface {
    * 兜底场景：轮询漏判/登录成功没反应时，用户点「手动识别登录」按钮手动完成判定。
    */
   @Prop @Watch('onManualScanChanged') scanTrigger: number = 0;
+  /**
+   * 网页登录目标（hall/jw）：外部切换 服务大厅 ↔ 教务系统 时经 @Watch **由本组件自己重载**——
+   * 此前靠外层 webCtrl.loadUrl，时机不对（controller 未就绪等）会出现「切换没反应，
+   * 关闭面板重开才生效」。以 lastLoaded 去重避免重复加载。
+   */
+  @Prop @Watch('onTargetChanged') targetMode: string = '';
+  private lastLoaded: string = '';
   /** 是否使用电脑端 UA（智慧学工默认开启） */
   desktopUa: boolean = false;
   private controller: webview.WebviewController = new webview.WebviewController();
@@ -69,6 +76,8 @@ export struct WebSurface {
     this.bridgeAttempts = 0;
     this.silentTried = false;
     this.lastTarget = AppState.webLoginTarget;
+    // 初始 src 已是当前目标地址：记录 lastLoaded，避免 @Watch 首次触发重复加载
+    this.lastLoaded = AppState.webUrl;
     // 校园 SSO 域名注入会话 Cookie（教务系统 + 统一认证/服务大厅；外部链接如 GitHub 不注入，避免隐私泄漏）
     if (AppState.webUrl.indexOf('xjau.edu.cn') >= 0) {
       WebSurface.injectCookies(AppState.webUrl);
@@ -85,6 +94,27 @@ export struct WebSurface {
     if (this.scanTrigger > 0 && !this.loggedIn) {
       this.tryGrabSession().catch(() => {
       });
+    }
+  }
+
+  /** 登录目标切换：重置桥接状态并加载对应登录页 */
+  onTargetChanged(): void {
+    if (this.targetMode.length === 0 || this.loggedIn) {
+      return;
+    }
+    const url: string = this.targetMode === 'hall' ? Const.CAS_LOGIN_URL : Const.WEB_LOGIN_URL;
+    if (url === this.lastLoaded) {
+      return;
+    }
+    this.lastLoaded = url;
+    this.bridging = false;
+    this.bridgeAttempts = 0;
+    this.silentTried = false;
+    this.pageLoading = true;
+    try {
+      this.controller.loadUrl(url);
+    } catch (e) {
+      // controller 尚未挂载（极端时序）：忽略，页面自身的 src/轮询会继续兜底
     }
   }
 
