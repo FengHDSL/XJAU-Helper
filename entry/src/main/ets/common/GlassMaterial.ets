@@ -441,14 +441,47 @@ export class GlassMaterial {
     return undefined;
   }
 
-  /** 按模式解析覆盖色；返回 undefined 表示不覆盖（用默认灰色）。每页单独色优先于全局。 */
-  private static grayOverride(): string | undefined {
-    // 每页单独色：活动页面 key 命中 map 时优先生效
-    const pk: string = AppStorage.get<string>(GlassMaterial.KEY_GRAY_PAGE_ACTIVE) ?? '';
-    if (pk !== '') {
-      const pc: string | undefined = GlassMaterial.grayPageMap.get(pk);
-      if (pc !== undefined && pc.length >= 6) {
-        return pc.startsWith('#') ? pc : `#${pc}`;
+  /**
+   * 文本角色码：与 graySecondary / grayTertiary 一一对应。
+   * 高级调整支持「每页 × 角色」粒度：map 键为 `页面key|角色`（角色粒度）或 `页面key`（整页）。
+   * 解析优先级：角色 → 整页 → 全局灰字模式。
+   */
+  static readonly GRAY_ROLE_SECONDARY: string = 'secondary';
+  static readonly GRAY_ROLE_TERTIARY: string = 'tertiary';
+
+  /** 归一化 rrggbb → #rrggbb（非法返回 undefined） */
+  private static normColor(c: string): string | undefined {
+    if (c === undefined || c.length < 6) {
+      return undefined;
+    }
+    return c.startsWith('#') ? c : `#${c}`;
+  }
+
+  /** 组合键：页面 key + 角色（高级调整的细粒度覆盖键） */
+  static grayKeyOf(pageKey: string, role: string): string {
+    return `${pageKey}|${role}`;
+  }
+
+  /** 读取「页面 × 角色」覆盖色（rrggbb 原文；未设置为空串）——高级调整面板显示用 */
+  static grayRoleColor(pageKey: string, role: string): string {
+    return GlassMaterial.grayPageMap.get(GlassMaterial.grayKeyOf(pageKey, role)) ?? '';
+  }
+
+  /**
+   * 解析指定页面 + 角色的覆盖色：角色 → 整页 → 全局；
+   * 返回 undefined 表示完全不覆盖（用默认灰色）。
+   */
+  private static resolveFor(pageKey: string, role: string): string | undefined {
+    if (pageKey !== '') {
+      const rc: string | undefined = GlassMaterial.grayPageMap.get(GlassMaterial.grayKeyOf(pageKey, role));
+      const rn: string | undefined = rc === undefined ? undefined : GlassMaterial.normColor(rc);
+      if (rn !== undefined) {
+        return rn;
+      }
+      const pc: string | undefined = GlassMaterial.grayPageMap.get(pageKey);
+      const pn: string | undefined = pc === undefined ? undefined : GlassMaterial.normColor(pc);
+      if (pn !== undefined) {
+        return pn;
       }
     }
     // 全局：广播缓存（broadcastGray 维护）；缓存未初始化时现算兜底
@@ -457,6 +490,20 @@ export class GlassMaterial {
       return eff;
     }
     return GlassMaterial.globalGrayOverride();
+  }
+
+  /** 按角色解析覆盖色（app 内实际渲染路径：活动页上下文 + 角色） */
+  private static grayOverride(role: string): string | undefined {
+    const pk: string = AppStorage.get<string>(GlassMaterial.KEY_GRAY_PAGE_ACTIVE) ?? '';
+    return GlassMaterial.resolveFor(pk, role);
+  }
+
+  /**
+   * 预览指定页面（可能是非活动页）某角色的灰字色——供「灰字高级调整」页的完整界面预览使用。
+   * 与 app 内渲染同一套解析逻辑，保证「预览所见 = 实际所得」。
+   */
+  static grayTextFor(pageKey: string, role: string, defaultColor: ResourceColor): ResourceColor {
+    return GlassMaterial.resolveFor(pageKey, role) ?? defaultColor;
   }
 
   /** 重算全局覆盖色并广播（灰字设置变化时调用；订阅 grayTick 的页面即时刷新） */
@@ -512,7 +559,7 @@ export class GlassMaterial {
    * @param defaultColor 传入 $r('app.color.text_secondary') 作为未覆盖时的默认值
    */
   static graySecondary(defaultColor: ResourceColor): ResourceColor {
-    return GlassMaterial.grayOverride() ?? defaultColor;
+    return GlassMaterial.grayOverride(GlassMaterial.GRAY_ROLE_SECONDARY) ?? defaultColor;
   }
 
   /**
@@ -520,6 +567,6 @@ export class GlassMaterial {
    * @param defaultColor 传入 $r('app.color.text_tertiary') 作为未覆盖时的默认值
    */
   static grayTertiary(defaultColor: ResourceColor): ResourceColor {
-    return GlassMaterial.grayOverride() ?? defaultColor;
+    return GlassMaterial.grayOverride(GlassMaterial.GRAY_ROLE_TERTIARY) ?? defaultColor;
   }
 }

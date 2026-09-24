@@ -115,11 +115,15 @@ export struct WallpaperPage {
     this.getUIContext().getPromptAction().showToast({ message: '已应用自定义灰字色' });
   }
 
-  /** 高级调整入口摘要：已单独设色的页面名（逗号连接）；无则「未设置」 */
+  /** 高级调整入口摘要：已单独设色的页面名（整页或按文本角色设置均计入）；无则「未设置」 */
   private grayAdvSummary(): string {
     const names: string[] = [];
     for (let i = 0; i < GRAY_ADV_PAGES.length; i++) {
-      if (GlassMaterial.grayPageColor(GRAY_ADV_PAGES[i].key) !== '') {
+      const k: string = GRAY_ADV_PAGES[i].key;
+      const touched: boolean = GlassMaterial.grayPageColor(k) !== ''
+        || GlassMaterial.grayRoleColor(k, GlassMaterial.GRAY_ROLE_SECONDARY) !== ''
+        || GlassMaterial.grayRoleColor(k, GlassMaterial.GRAY_ROLE_TERTIARY) !== '';
+      if (touched) {
         names.push(GRAY_ADV_PAGES[i].name);
       }
     }
