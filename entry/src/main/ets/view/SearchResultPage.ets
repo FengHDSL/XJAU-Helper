@@ -11,10 +11,14 @@ import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { BackButton } from './common/BackButton';
 import { WallpaperFill } from './common/WallpaperFill';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 @Component
 struct SearchRow {
   @Prop item: SearchItem | null = null;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @Prop showThumb: boolean = true;
   @State thumb: image.PixelMap | null = null;
   onTap: () => void = () => {};
@@ -43,7 +47,7 @@ struct SearchRow {
           }
         }
         Column() {
-          Text(this.item.title).fontSize(15).fontWeight(FontWeight.Medium)
+          Text(this.item.title).fontSize(15).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.text_primary')).maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
           // 分类（过长截断，占剩余空间）+ 日期（完整显示，不超出屏幕）
@@ -70,6 +74,9 @@ struct SearchRow {
 @Component
 export struct SearchResultPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
@@ -158,7 +165,7 @@ export struct SearchResultPage {
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
           Text('搜索结果')
-            .fontSize(18).fontWeight(FontWeight.Bold)
+            .fontSize(18).fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .margin({ left: 6 })
           if (this.keyword.length > 0) {

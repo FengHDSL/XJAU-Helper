@@ -55,6 +55,9 @@ struct SectionCard {
   @Prop title: string = '';
   @Prop subtitle: string = '';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @BuilderParam content: () => void = this.emptyContent;
 
   @Builder
@@ -78,7 +81,7 @@ struct SectionCard {
           Row() {
             Text(this.title)
               .fontSize(15)
-              .fontWeight(FontWeight.Bold)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor($r('app.color.text_primary'))
             Blank()
             if (this.subtitle.length > 0) {
@@ -106,6 +109,9 @@ struct SectionCard {
 @Component
 export struct FontManagePage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 已上传字体别名列表（AppStorage 实时联动：上传/删除后列表立即刷新） */
@@ -392,7 +398,7 @@ export struct FontManagePage {
         Row() {
           Text(this.pickTarget === 'zh' ? '选择中文字体' : '选择英数字体')
             .fontSize(16)
-            .fontWeight(FontWeight.Bold)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor($r('app.color.text_primary'))
           Blank()
           Text('关闭')
