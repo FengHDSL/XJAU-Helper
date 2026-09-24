@@ -25,6 +25,7 @@
  */
 import { AppState } from '../common/AppState';
 import { Theme } from '../common/ThemeUtil';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { LogStore } from '../common/LogStore';
 import { ClassFilter, GrabPolicy, GrabTarget, SelectableClass, SelectedCourseItem, SelectContext, SelectScope } from '../model/Models';
@@ -49,6 +50,9 @@ export struct QuickSelectPage {
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 选课上下文是否就绪 */
@@ -555,7 +559,7 @@ export struct QuickSelectPage {
       Row() {
         Text(cls.courseName)
           .fontSize(14)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor($r('app.color.text_primary'))
           .layoutWeight(1)
         Text(cls.credit.length > 0 ? `${cls.credit} 学分` : '')
@@ -704,7 +708,7 @@ export struct QuickSelectPage {
                   .borderRadius(8)
                 Text('快捷选课')
                   .fontSize(15)
-                  .fontWeight(FontWeight.Bold)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                   .fontColor($r('app.color.text_primary'))
                   .margin({ left: 8 })
               }
@@ -749,7 +753,7 @@ export struct QuickSelectPage {
               Row() {
                 Text('抢课队列')
                   .fontSize(16)
-                  .fontWeight(FontWeight.Bold)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                   .fontColor($r('app.color.text_primary'))
                 Blank()
                 Text(`${this.queue.length} 门`)
@@ -850,7 +854,7 @@ export struct QuickSelectPage {
               Divider().color($r('app.color.divider')).margin({ top: 4, bottom: 10 })
               Text('定时设置')
                 .fontSize(13)
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .fontColor($r('app.color.text_primary'))
                 .width('100%')
                 .margin({ bottom: 8 })
@@ -908,7 +912,7 @@ export struct QuickSelectPage {
               // 高级设置
               Text('高级设置')
                 .fontSize(13)
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .fontColor($r('app.color.text_primary'))
                 .width('100%')
                 .margin({ top: 16, bottom: 8 })
@@ -1035,7 +1039,7 @@ export struct QuickSelectPage {
                 }) {
                   Text(this.grabbing ? '停止抢课' : '开始抢课')
                     .fontSize(15)
-                    .fontWeight(FontWeight.Medium)
+                    .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                     .fontColor(Color.White)
                     .textAlign(TextAlign.Center)
                     .width('100%')
@@ -1071,7 +1075,7 @@ export struct QuickSelectPage {
                   .enterKeyType(EnterKeyType.Done)
                   .borderRadius($r('sys.float.corner_radius_level12'))
                   .fontSize($r('sys.float.Body_L'))
-                  .fontWeight(FontWeight.Regular)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
                   .backgroundColor($r('sys.color.comp_background_tertiary'))
                   .caretStyle({ color: $r('sys.color.font_emphasize') })
                   .type(InputType.Normal)
@@ -1181,7 +1185,7 @@ export struct QuickSelectPage {
                       .enterKeyType(EnterKeyType.Done)
                       .borderRadius($r('sys.float.corner_radius_level12'))
                       .fontSize($r('sys.float.Body_L'))
-                      .fontWeight(FontWeight.Regular)
+                      .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
                       .backgroundColor($r('sys.color.comp_background_tertiary'))
                       .caretStyle({ color: $r('sys.color.font_emphasize') })
                       .type(InputType.Normal)
@@ -1196,7 +1200,7 @@ export struct QuickSelectPage {
                       .enterKeyType(EnterKeyType.Done)
                       .borderRadius($r('sys.float.corner_radius_level12'))
                       .fontSize($r('sys.float.Body_L'))
-                      .fontWeight(FontWeight.Regular)
+                      .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
                       .backgroundColor($r('sys.color.comp_background_tertiary'))
                       .caretStyle({ color: $r('sys.color.font_emphasize') })
                       .type(InputType.Normal)
@@ -1215,7 +1219,7 @@ export struct QuickSelectPage {
                       .enterKeyType(EnterKeyType.Done)
                       .borderRadius($r('sys.float.corner_radius_level12'))
                       .fontSize($r('sys.float.Body_L'))
-                      .fontWeight(FontWeight.Regular)
+                      .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
                       .backgroundColor($r('sys.color.comp_background_tertiary'))
                       .caretStyle({ color: $r('sys.color.font_emphasize') })
                       .type(InputType.Normal)
@@ -1230,7 +1234,7 @@ export struct QuickSelectPage {
                       .enterKeyType(EnterKeyType.Done)
                       .borderRadius($r('sys.float.corner_radius_level12'))
                       .fontSize($r('sys.float.Body_L'))
-                      .fontWeight(FontWeight.Regular)
+                      .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
                       .backgroundColor($r('sys.color.comp_background_tertiary'))
                       .caretStyle({ color: $r('sys.color.font_emphasize') })
                       .type(InputType.Normal)
@@ -1306,7 +1310,7 @@ export struct QuickSelectPage {
               Row() {
                 Text('已选课程')
                   .fontSize(16)
-                  .fontWeight(FontWeight.Bold)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                   .fontColor($r('app.color.text_primary'))
                 Blank()
                 Text(`${this.chosen.length} 门`)
@@ -1383,7 +1387,7 @@ export struct QuickSelectPage {
                 Row() {
                   Text('运行日志')
                     .fontSize(13)
-                    .fontWeight(FontWeight.Medium)
+                    .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                     .fontColor($r('app.color.text_primary'))
                     .layoutWeight(1)
                   if (this.grabbing) {
