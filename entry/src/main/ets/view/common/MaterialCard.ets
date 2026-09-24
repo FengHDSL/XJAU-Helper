@@ -34,9 +34,11 @@
  */
 import { LengthMetrics } from '@kit.ArkUI';
 import { isApi26OrAbove, materialActive, materialAvailable, pressLightColor } from '../../common/SystemMaterial';
+import { GlassMaterial } from '../../common/GlassMaterial';
 import { Theme } from '../../common/ThemeUtil';
 import { AppearanceStore } from '../../common/AppearanceStore';
 import { MaterialCardLayer } from './MaterialCarrier';
+import { MaterialButton } from './MaterialButton';
 
 /**
  * 流光光晕的半径（vp）。
@@ -579,6 +581,17 @@ export struct MaterialSheetPanel {
    * 传 false 后承载层仍用 matchParent，随内容实测高度走。
    */
   @Prop panelFillHeight: boolean = true;
+  /**
+   * 是否在面板右上角绘制**沉浸光感关闭按钮**（默认 false）。
+   *
+   * bindSheet 系统自带的 `showClose` 关闭按钮是系统渲染的，无法带沉浸光感；
+   * 需要光感关闭按钮的面板传 `panelShowClose: true` + `panelOnClose`，
+   * 并把宿主 bindSheet 的 `showClose` 显式改为 false（否则出现两个关闭按钮）。
+   */
+  @Prop panelShowClose: boolean = false;
+  /** 光感关闭按钮点击回调（通常写 `this.xxxSheet = false`） */
+  panelOnClose: () => void = (): void => {
+  };
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   @BuilderParam panelContent: () => void = this.emptyPanel;
 
@@ -594,6 +607,35 @@ export struct MaterialSheetPanel {
   /** 面板根背景：材质生效时让出底色，否则补卡片底色兜底（bindSheet 的 backgroundColor 通常是 Color.Transparent） */
   private panelBackground(): ResourceColor {
     return this.materialEffective() ? Color.Transparent : $r('app.color.bg_card');
+  }
+
+  /** 右上角沉浸光感关闭按钮（position + markAnchor 定位到面板右上角，只占按钮自身命中区域，不挡内容） */
+  @Builder
+  panelCloseButton() {
+    if (this.panelShowClose) {
+      Row() {
+        MaterialButton({
+          btnRadius: 15,
+          btnBg: $r('app.color.bg_chip'),
+          btnBlur: BlurStyle.Thin,
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnOnClick: (): void => {
+            this.panelOnClose();
+          }
+        }) {
+          Text('✕')
+            .fontSize(13)
+            .fontColor($r('app.color.text_secondary'))
+            .width(30)
+            .height(30)
+            .textAlign(TextAlign.Center)
+        }
+      }
+      .padding({ right: 10 })
+      .position({ x: '100%', y: 10 })
+      .markAnchor({ x: '100%', y: 0 })
+    }
   }
 
   @Builder
@@ -615,6 +657,7 @@ export struct MaterialSheetPanel {
       .width('100%')
       .padding(this.panelPadding)
     }
+    this.panelCloseButton()
   }
 
   build() {

@@ -875,6 +875,8 @@ export struct ScheduleView {
       preferType: SheetType.BOTTOM,
       width: this.sheetWidth,
       dragBar: true,
+      // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+      showClose: false,
       // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
       backgroundColor: Color.Transparent,
       blurStyle: sheetBlurStyle(),
@@ -1126,7 +1128,7 @@ export struct ScheduleView {
   weekPickerSheet() {
     // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底（见 weekHeaderBar 的选项）。
     // SheetSize.MEDIUM 固定高 → 保持 panelFillHeight 默认 true，材质裹住整块面板；内边距原样保留。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0 }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelShowClose: true, panelOnClose: (): void => { this.showWeekSheet = false; } }) {
       Column() {
         List({ space: 10 }) {
           ForEach(this.weekList(), (w: number) => {
@@ -1155,7 +1157,7 @@ export struct ScheduleView {
     // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底（见外层选项）。
     // SheetSize.FIT_CONTENT（高度随内容）→ panelFillHeight: false（true 会把弹窗撑到最大高度）；
     // 内层 20/8/24vp 内边距原样保留。学期行保留实色底：选中态靠实色背景表达，材质会吃掉选中态。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showTermSheet = false; } }) {
       Column() {
         if (this.terms.length === 0) {
           Text('暂无可查询的学期')
@@ -1200,7 +1202,7 @@ export struct ScheduleView {
   settingsSheet() {
     // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底（见外层选项）。
     // SheetSize.MEDIUM 固定高 → 保持 panelFillHeight 默认 true；ScheduleSettingsPanel 根为 Stack、无底色。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0 }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelShowClose: true, panelOnClose: (): void => { this.showSettingsSheet = false; } }) {
       ScheduleSettingsPanel({
         cfg: this.cfg,
         scheduleBg: this.scheduleBg,
@@ -1221,7 +1223,7 @@ export struct ScheduleView {
     // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底
     // （竖屏/横屏两处 bindSheet 选项均已改）。SheetSize.MEDIUM 固定高 → panelFillHeight 默认 true；
     // CourseDetailPanel 根为 Scroll（自带滚动、无底色），不遮挡材质。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0 }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelShowClose: true, panelOnClose: (): void => { this.showSheet = false; } }) {
       CourseDetailPanel({
         selected: this.selected,
         customColors: this.customColors,
@@ -1292,6 +1294,8 @@ export struct ScheduleView {
             preferType: SheetType.BOTTOM,
             width: this.sheetWidth,
             dragBar: true,
+            // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+            showClose: false,
             // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
             backgroundColor: Color.Transparent,
             blurStyle: sheetBlurStyle(),
@@ -1308,6 +1312,8 @@ export struct ScheduleView {
         preferType: SheetType.BOTTOM,
         width: this.sheetWidth,
         dragBar: false,
+        // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+        showClose: false,
         // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
         backgroundColor: Color.Transparent,
         blurStyle: sheetBlurStyle(),
@@ -1321,6 +1327,8 @@ export struct ScheduleView {
       preferType: SheetType.BOTTOM,
       width: this.sheetWidth,
       dragBar: true,
+      // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+      showClose: false,
       // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
       backgroundColor: Color.Transparent,
       blurStyle: sheetBlurStyle(),
@@ -1536,6 +1544,8 @@ export struct ScheduleView {
         preferType: SheetType.BOTTOM,
         width: this.sheetWidth,
         dragBar: true,
+        // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+        showClose: false,
         // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
         backgroundColor: Color.Transparent,
         blurStyle: sheetBlurStyle(),

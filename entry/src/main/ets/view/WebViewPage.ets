@@ -288,7 +288,9 @@ export struct WebViewPage {
     // 显式 backgroundColor: Color.Transparent，否则默认白底会把材质整块盖住。
     // 原根节点的 bg_page 不透明底色必须去掉（兄弟节点画在材质之上，同样会盖掉材质）。
     // 面板高度固定 MEDIUM → panelFillHeight 保持默认 true（承载层铺满整块面板）。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0 }) {
+    // 关闭按钮由面板自绘（沉浸光感），替代系统 showClose。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0,
+      panelShowClose: true, panelOnClose: (): void => { this.showHistory = false; } }) {
     Column() {
       // 清空按钮：原为淡红玻璃底（#14DB5252）+ 红字。材质走 MaterialButton；
       // 材质生效时靠 btnTint（警示红）叠回底色语义（比例 0.5），光感关闭时回落原本的淡红玻璃底。
@@ -531,7 +533,8 @@ export struct WebViewPage {
         preferType: SheetType.BOTTOM,
         height: SheetSize.MEDIUM,
         dragBar: false,
-        showClose: true,
+        // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+        showClose: false,
         title: { title: '历史记录' },
         // 必须显式透明：BindOptions.backgroundColor 默认是 Color.White，
         // 而沉浸光感的视觉层级位于 backgroundColor **之下**，白底会把 MaterialSheetPanel 的材质整块盖住。

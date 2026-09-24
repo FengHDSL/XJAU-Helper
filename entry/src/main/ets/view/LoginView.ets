@@ -534,7 +534,7 @@ export struct LoginView {
     // SheetSize.FIT_CONTENT（高度随内容）→ panelFillHeight: false；原根容器的 bg_page 底色删除
     // （材质生效时让出底色，不生效时由面板自身补 $r('app.color.bg_card') 兜底）；
     // TextInput 属表单控件，保持原自绘玻璃底（见输入行注释）。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showLogSheet = false; } }) {
       Column() {
         Text('日志调试')
           .fontSize(17)
@@ -1329,7 +1329,8 @@ export struct LoginView {
           dragBar: false,
           preferType: SheetType.BOTTOM,
           width: this.sheetWidth,
-          showClose: true,
+          // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+          showClose: false,
           // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
           backgroundColor: Color.Transparent,
           blurStyle: sheetBlurStyle()
@@ -1344,7 +1345,8 @@ export struct LoginView {
           dragBar: false,
           preferType: SheetType.BOTTOM,
           width: this.sheetWidth,
-          showClose: true,
+          // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+          showClose: false,
           // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
           backgroundColor: Color.Transparent,
           blurStyle: sheetBlurStyle()
@@ -1359,7 +1361,8 @@ export struct LoginView {
           dragBar: false,
           preferType: SheetType.BOTTOM,
           width: this.sheetWidth,
-          showClose: true,
+          // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+          showClose: false,
           // 键盘弹出时避让：弹层上移/内容可滚，保证输入聚焦后"确认"按钮可见可点
           keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_SCROLL,
           // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
@@ -1558,7 +1561,7 @@ export struct LoginView {
   declarationSheet() {
     // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底（见宿主选项）。
     // SheetSize.FIT_CONTENT（高度随内容）→ panelFillHeight: false；原根容器的 bg_page 底色删除（由面板兜底）。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showDeclaration = false; } }) {
       Column() {
         // 标题
         Row() {
@@ -1647,7 +1650,7 @@ export struct LoginView {
   riskTipSheet() {
     // 弹窗内容套 MaterialSheetPanel（同开发者声明弹窗）：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底；
     // SheetSize.FIT_CONTENT → panelFillHeight: false；原根容器的 bg_page 底色删除（由面板兜底）。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showRiskTip = false; } }) {
       Column() {
         // 标题
         Row() {

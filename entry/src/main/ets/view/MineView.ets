@@ -734,7 +734,7 @@ export struct MineView {
     // 弹窗内容套 MaterialSheetPanel：bindSheet 自身的 systemMaterial 挂在面板上、内容区不生效，
     // 由 MaterialSheetPanel 的 Toggle 承载层渲染材质；配套要求是 bindSheet 显式 backgroundColor: Color.Transparent。
     // 本弹窗高度随内容（SheetSize.FIT_CONTENT），故 panelFillHeight: false（不写 height('100%')，避免被撑成整屏）。
-    MaterialSheetPanel({ panelRadius: 24, panelPadding: 0, panelFillHeight: false }) {
+    MaterialSheetPanel({ panelRadius: 24, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showBackupSheet = false; } }) {
     Column() {
       Text('备份包含：课程表、成绩、考试、学业情况、消息与新闻缓存，以及课表设置、主题颜色、深色模式、壁纸、日历与收藏等全部应用信息。\n'
         + '出于安全考虑，备份文件不包含账号、密码与登录 Cookie。导入会覆盖当前对应数据，请确认后再恢复。')
@@ -1139,7 +1139,8 @@ export struct MineView {
         .bindSheet($$this.showBackupSheet, this.backupSheet(), {
       height: SheetSize.FIT_CONTENT,
       dragBar: true,
-      showClose: true,
+      // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+      showClose: false,
       title: { title: '恢复备份' },
       // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，而沉浸光感材质的视觉层级位于
       // backgroundColor **之下**，白底会把面板材质整块盖住（表现为「弹窗一点光感都没有」）。

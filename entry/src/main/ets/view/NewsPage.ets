@@ -439,7 +439,7 @@ export struct NewsPage {
     // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染；配套硬要求（见 build 的 bindSheet 选项）
     // 是显式 backgroundColor: Color.Transparent（默认白底会把材质整块盖住）。
     // SheetSize.FIT_CONTENT（高度随内容）→ panelFillHeight: false；内边距原样保留。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showNewsSetting = false; } }) {
       Column() {
         Row() {
           Column() {
@@ -664,7 +664,8 @@ export struct NewsPage {
         .margin({ left: 10, right: 10 })
         .bindSheet($$this.showNewsSetting, this.newsSettingSheet(), {
           height: SheetSize.FIT_CONTENT,
-          showClose: true,
+          // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+          showClose: false,
           preferType: SheetType.BOTTOM,
           // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
           backgroundColor: Color.Transparent,

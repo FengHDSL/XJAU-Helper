@@ -400,7 +400,8 @@ export struct AboutPage {
       preferType: SheetType.BOTTOM,
       height: SheetSize.FIT_CONTENT,
       dragBar: false,
-      showClose: true,
+      // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+      showClose: false,
       // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，而沉浸光感材质的视觉层级位于
       // backgroundColor **之下**，白底会把面板材质整块盖住（表现为「弹窗一点光感都没有」）。
       backgroundColor: Color.Transparent,
@@ -414,7 +415,7 @@ export struct AboutPage {
     // 弹窗内容套 MaterialSheetPanel：bindSheet 自身的 systemMaterial 挂在面板上、内容区不生效，
     // 由 MaterialSheetPanel 的 Toggle 承载层渲染材质；配套要求是 bindSheet 显式 backgroundColor: Color.Transparent。
     // 本弹窗高度随内容（SheetSize.FIT_CONTENT），传 panelFillHeight: false（不写 height('100%')，避免被撑成整屏）。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showDebugSheet = false; } }) {
     Column() {
       Text('调试模式')
         .fontSize(17)

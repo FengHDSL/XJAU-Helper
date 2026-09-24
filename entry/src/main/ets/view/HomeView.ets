@@ -587,7 +587,7 @@ export struct HomeView {
   termPickerSheet() {
     // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底（见外层选项）。
     // SheetSize.FIT_CONTENT（高度随内容）→ panelFillHeight: false；内层 20/8/24vp 内边距原样保留。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showTermSheet = false; } }) {
       Column() {
         if (this.terms.length === 0) {
           Text('暂无可选学期')
@@ -1338,7 +1338,7 @@ export struct HomeView {
     // 所以由 MaterialSheetPanel 的 Toggle 承载层铺满整块面板来渲染材质。
     // 配套硬要求：bindSheet 必须显式 backgroundColor: Color.Transparent，
     // 否则默认白底会把材质整块盖住（表现为「弹窗一点光感都没有」）。
-    MaterialSheetPanel({ panelRadius: 24, panelPadding: 16 }) {
+    MaterialSheetPanel({ panelRadius: 24, panelPadding: 16, panelShowClose: true, panelOnClose: (): void => { this.showNoticeSheet = false; } }) {
     Column() {
       if (this.sheetNotice !== null) {
         Text(this.sheetNotice.title)
@@ -2083,6 +2083,8 @@ export struct HomeView {
             width: SheetUtil.sheetWidth(),
             preferType: SheetType.BOTTOM,
             height: SheetSize.FIT_CONTENT,
+            // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+            showClose: false,
             dragBar: true,
             // 必须显式透明：不透明底（默认白/bg_card）会把 MaterialSheetPanel 的材质整块盖住
             backgroundColor: Color.Transparent,
@@ -2122,6 +2124,8 @@ export struct HomeView {
       width: SheetUtil.sheetWidth(),
       preferType: SheetType.BOTTOM,
       height: SheetSize.LARGE,
+      // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+      showClose: false,
       dragBar: true,
       // 必须显式透明：BindOptions.backgroundColor 默认是 Color.White，
       // 而沉浸光感的视觉层级位于 backgroundColor 之下，白底会把面板材质整块盖住
@@ -2167,6 +2171,8 @@ export struct HomeView {
           width: SheetUtil.sheetWidth(),
           preferType: SheetType.BOTTOM,
           height: SheetSize.FIT_CONTENT,
+          // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+          showClose: false,
           dragBar: true,
           backgroundColor: $r('app.color.bg_card'),
           title: { title: '选择学年-学期' }

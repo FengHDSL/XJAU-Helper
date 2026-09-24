@@ -535,7 +535,9 @@ export struct ScoreView {
     // 显式 backgroundColor: Color.Transparent，否则默认白底会把材质整块盖住。
     // 本弹窗高度随内容（SheetSize.FIT_CONTENT）→ panelFillHeight: false；
     // 原内容的 20/8/24vp 内边距原样留在内层 Column 上（panelPadding: 0，间距不变）。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
+    // 关闭按钮由面板自绘（沉浸光感），替代系统 showClose。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false,
+      panelShowClose: true, panelOnClose: (): void => { this.showSheet = false; } }) {
     Column() {
       if (this.selectedItem !== null) {
         Row() {
@@ -656,7 +658,9 @@ export struct ScoreView {
   termPickerSheet() {
     // 弹窗内容套 MaterialSheetPanel（同 detailSheet）：材质由 Toggle 承载层渲染，配套要求 bindSheet 显式透明底。
     // 高度随内容（FIT_CONTENT）→ panelFillHeight: false；内层 Column 的 20/8/24vp 内边距原样保留。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false }) {
+    // 关闭按钮由面板自绘（沉浸光感），替代系统 showClose。
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false,
+      panelShowClose: true, panelOnClose: (): void => { this.showTermSheet = false; } }) {
     Column() {
       if (this.terms.length === 0) {
         Text('暂无可查询的学期')
@@ -858,6 +862,8 @@ export struct ScoreView {
         preferType: SheetType.BOTTOM,
         height: SheetSize.FIT_CONTENT,
         dragBar: true,
+        // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+        showClose: false,
         // 必须显式透明：BindOptions.backgroundColor 默认是 Color.White，
         // 而沉浸光感的视觉层级位于 backgroundColor **之下**，白底会把 MaterialSheetPanel 的材质整块盖住。
         backgroundColor: Color.Transparent,
@@ -875,6 +881,8 @@ export struct ScoreView {
       preferType: SheetType.BOTTOM,
       height: SheetSize.FIT_CONTENT,
       dragBar: true,
+      // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+      showClose: false,
       // 同 detailSheet：显式透明底 + 材质模糊，否则默认白底会盖住 MaterialSheetPanel 的材质
       backgroundColor: Color.Transparent,
       blurStyle: sheetBlurStyle(),
@@ -917,6 +925,8 @@ export struct ScoreView {
               preferType: SheetType.BOTTOM,
               height: SheetSize.FIT_CONTENT,
               dragBar: true,
+              // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+              showClose: false,
               // 同竖屏成绩详情弹层：显式透明底 + 材质模糊（MaterialSheetPanel 才能透出材质）
               backgroundColor: Color.Transparent,
               blurStyle: sheetBlurStyle(),
