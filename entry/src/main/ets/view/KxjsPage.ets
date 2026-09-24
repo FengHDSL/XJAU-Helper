@@ -148,15 +148,18 @@ export struct KxjsPage {
   @State showWeb: boolean = false;
 
   aboutToAppear(): void {
+    // 灰字高级调整：本页成为活动页（每页单独灰字色生效）
+    GlassMaterial.setPageActive('kxjs');
     this.listenLandscape();
     this.initLocalData();
     this.loadRemoteConditions();
   }
 
-  /** 页面消失：注销横竖屏监听 */
+  /** 页面消失：注销横竖屏监听 + 退出活动页上下文（回落全局灰字色） */
   aboutToDisappear(): void {
     this.landscapeListener = null;
     this.wideListener = null;
+    GlassMaterial.setPageActive('');
   }
 
   /** 监听窗口尺寸/方向变化：窗口缩放或旋转时实时切换布局（判定规则见 ResponsiveUtil） */
@@ -801,106 +804,128 @@ export struct KxjsPage {
       PickRow({ label: '星期', value: this.weekdayLabel, placeholder: '请选择', onTap: () => this.openWeekdayPicker() })
       PickRow({ label: '节次', value: this.sectionLabel, placeholder: '请选择', onTap: () => this.openSectionPicker() })
 
-      // 座位数范围（从 ~ 至）
-      Row() {
-        Text('座位数')
-          .fontSize(13)
-          .fontColor($r('app.color.text_secondary'))
-          .width(86)
-        Blank()
-        TextInput({ placeholder: '不限', text: this.seatMinText })
-          .type(InputType.Number)
-          .height(48)
-          .enterKeyType(EnterKeyType.Done)
-          .borderRadius($r('sys.float.corner_radius_level12'))
-          .fontSize($r('sys.float.Body_L'))
-          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
-          .backgroundColor($r('sys.color.comp_background_tertiary'))
-          .caretStyle({ color: $r('sys.color.font_emphasize') })
-          .fontColor('rgba(0, 85, 255, 1.0)')
-          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-          .width(72)
-          .onChange((v: string) => {
-            this.seatMinText = v;
-          })
-        Text('至')
-          .fontSize(13)
-          .fontColor($r('app.color.text_tertiary'))
-          .margin({ left: 6, right: 6 })
-        TextInput({ placeholder: '不限', text: this.seatMaxText })
-          .type(InputType.Number)
-          .height(48)
-          .enterKeyType(EnterKeyType.Done)
-          .borderRadius($r('sys.float.corner_radius_level12'))
-          .fontSize($r('sys.float.Body_L'))
-          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
-          .backgroundColor($r('sys.color.comp_background_tertiary'))
-          .caretStyle({ color: $r('sys.color.font_emphasize') })
-          .fontColor('rgba(0, 85, 255, 1.0)')
-          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-          .width(72)
-          .onChange((v: string) => {
-            this.seatMaxText = v;
-          })
-        Text('人')
-          .fontSize(13)
-          .fontColor($r('app.color.text_tertiary'))
-          .margin({ left: 6 })
-      }
-      .width('100%')
-      .height(56)
-      .padding({ left: 10, right: 10 })
-      .backgroundColor($r('app.color.bg_chip'))
-      // 卡内小卡直接普通磨砂（参考项目材质卡内小元素的观感；不挂材质，恒定生效）
-      .backgroundBlurStyle(BlurStyle.Thin)
-      .borderRadius(10)
-      .margin({ bottom: 10 })
-
-      // 场地名称
-      Row() {
-        Text('场地名称')
-          .fontSize(13)
-          .fontColor($r('app.color.text_secondary'))
-          .width(86)
-        Blank()
-        TextInput({ placeholder: '场地名称或编号', text: this.roomName })
-          .height(48)
-          .enterKeyType(EnterKeyType.Done)
-          .borderRadius($r('sys.float.corner_radius_level12'))
-          .fontSize($r('sys.float.Body_L'))
-          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
-          .backgroundColor($r('sys.color.comp_background_tertiary'))
-          .caretStyle({ color: $r('sys.color.font_emphasize') })
-          .type(InputType.Normal)
-          .fontColor('rgba(0, 85, 255, 1.0)')
-          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-          .textAlign(TextAlign.End)
-          .layoutWeight(1)
-          .onChange((v: string) => {
-            this.roomName = v;
-          })
-      }
-      .width('100%')
-      .height(56)
-      .padding({ left: 10, right: 10 })
-      .backgroundColor($r('app.color.bg_chip'))
-      // 卡内小卡直接普通磨砂（参考项目材质卡内小元素的观感；不挂材质，恒定生效）
-      .backgroundBlurStyle(BlurStyle.Thin)
-      .borderRadius(10)
-      .margin({ bottom: 10 })
-
-      Button(this.loading ? '查询中…' : '查询空闲教室')
+      // 座位数范围（从 ~ 至）；卡内小卡：材质承载层（开）或普通磨砂（关）
+      Stack({ alignContent: Alignment.TopStart }) {
+        if (this.matOn()) {
+          MaterialCardLayer({ layerRadius: 10, layerShadow: false })
+        }
+        Row() {
+          Text('座位数')
+            .fontSize(13)
+            .fontColor($r('app.color.text_secondary'))
+            .width(86)
+          Blank()
+          TextInput({ placeholder: '不限', text: this.seatMinText })
+            .type(InputType.Number)
+            .height(48)
+            .enterKeyType(EnterKeyType.Done)
+            .borderRadius($r('sys.float.corner_radius_level12'))
+            .fontSize($r('sys.float.Body_L'))
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
+            .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+            .border({ width: this.matOn() ? 1 : 0, color: GlassMaterial.borderColor() })
+            .caretStyle({ color: $r('sys.color.font_emphasize') })
+            .fontColor('rgba(0, 85, 255, 1.0)')
+            .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+            .width(72)
+            .onChange((v: string) => {
+              this.seatMinText = v;
+            })
+          Text('至')
+            .fontSize(13)
+            .fontColor($r('app.color.text_tertiary'))
+            .margin({ left: 6, right: 6 })
+          TextInput({ placeholder: '不限', text: this.seatMaxText })
+            .type(InputType.Number)
+            .height(48)
+            .enterKeyType(EnterKeyType.Done)
+            .borderRadius($r('sys.float.corner_radius_level12'))
+            .fontSize($r('sys.float.Body_L'))
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
+            .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+            .border({ width: this.matOn() ? 1 : 0, color: GlassMaterial.borderColor() })
+            .caretStyle({ color: $r('sys.color.font_emphasize') })
+            .fontColor('rgba(0, 85, 255, 1.0)')
+            .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+            .width(72)
+            .onChange((v: string) => {
+              this.seatMaxText = v;
+            })
+          Text('人')
+            .fontSize(13)
+            .fontColor($r('app.color.text_tertiary'))
+            .margin({ left: 6 })
+        }
         .width('100%')
-        .height(44)
-        .fontSize(15)
-        .fontColor($r('app.color.brand_on'))
-        .backgroundColor(Theme.colorOf(this.themeColor))
-        .borderRadius(12)
-        .margin({ top: 4 })
-        .enabled(!this.loading)
-        .onClick(() => {
+        .height(56)
+        .padding({ left: 10, right: 10 })
+        .backgroundColor(this.matOn() ? Color.Transparent : $r('app.color.bg_chip'))
+        // 材质生效时不再叠普通磨砂（避免发灰）；关闭时保留原磨砂观感
+        .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : BlurStyle.Thin)
+        .borderRadius(10)
+        .margin({ bottom: 10 })
+      }
+
+      // 场地名称；卡内小卡：材质承载层（开）或普通磨砂（关）
+      Stack({ alignContent: Alignment.TopStart }) {
+        if (this.matOn()) {
+          MaterialCardLayer({ layerRadius: 10, layerShadow: false })
+        }
+        Row() {
+          Text('场地名称')
+            .fontSize(13)
+            .fontColor($r('app.color.text_secondary'))
+            .width(86)
+          Blank()
+          TextInput({ placeholder: '场地名称或编号', text: this.roomName })
+            .height(48)
+            .enterKeyType(EnterKeyType.Done)
+            .borderRadius($r('sys.float.corner_radius_level12'))
+            .fontSize($r('sys.float.Body_L'))
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
+            .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+            .border({ width: this.matOn() ? 1 : 0, color: GlassMaterial.borderColor() })
+            .caretStyle({ color: $r('sys.color.font_emphasize') })
+            .type(InputType.Normal)
+            .fontColor('rgba(0, 85, 255, 1.0)')
+            .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+            .textAlign(TextAlign.End)
+            .layoutWeight(1)
+            .onChange((v: string) => {
+              this.roomName = v;
+            })
+        }
+        .width('100%')
+        .height(56)
+        .padding({ left: 10, right: 10 })
+        .backgroundColor(this.matOn() ? Color.Transparent : $r('app.color.bg_chip'))
+        .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : BlurStyle.Thin)
+        .borderRadius(10)
+        .margin({ bottom: 10 })
+      }
+
+      // 查询按钮：材质按钮（液态玻璃主题色，材质关闭回落主题色实底）
+      MaterialButton({
+        btnRadius: 12,
+        btnBg: Theme.colorOf(this.themeColor),
+        btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+        btnBorderW: GlassMaterial.borderWidth(),
+        btnBorderC: GlassMaterial.borderColor(),
+        btnTint: Theme.colorOf(this.themeColor),
+        btnTintRatio: 0.55,
+        btnEnabled: !this.loading,
+        btnMargin: { top: 4, right: 0, bottom: 0, left: 0 },
+        btnOnClick: (): void => {
           this.query();
-        })
+        }
+      }) {
+        Text(this.loading ? '查询中…' : '查询空闲教室')
+          .fontSize(15)
+          .fontColor($r('app.color.brand_on'))
+          .width('100%')
+          .textAlign(TextAlign.Center)
+          .height(44)
+      }
       }
       .width('100%')
       .padding(16)

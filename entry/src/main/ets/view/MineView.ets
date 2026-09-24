@@ -45,6 +45,8 @@ export struct MineView {
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
+  /** 灰字广播依赖登记：根容器 opacity 恒真表达式登记依赖，广播时本页重算灰字色 */
+  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（文字自适应用） */
@@ -1163,6 +1165,8 @@ export struct MineView {
       backgroundColor: Color.Transparent,
       blurStyle: sheetBlurStyle()
     })
+    // 灰字广播依赖登记：grayTick 变化触发整页重算 graySecondary/grayTertiary 文本色（恒真不改变视觉）
+    .opacity(this.grayTick >= 0 ? 1 : 1)
   }
 
   @Builder

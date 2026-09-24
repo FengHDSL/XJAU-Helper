@@ -10,6 +10,8 @@ import { AppearanceStore } from '../../common/AppearanceStore';
 import { Immersive } from './Immersive';
 import { GlassMaterial } from '../../common/GlassMaterial';
 import { MaterialButton } from './MaterialButton';
+import { MaterialCardLayer } from './MaterialCarrier';
+import { isApi26OrAbove, materialAvailable } from '../../common/SystemMaterial';
 import { WallpaperTone } from '../../common/WallpaperTone';
 import { BackButton } from './BackButton';
 
@@ -30,6 +32,8 @@ export struct SectionHeader {
   @Prop action: string = '';
   onAction: () => void = () => {
   };
+  /** 灰字广播依赖登记：广播时本组件重算 grayTertiary 文本色 */
+  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
 
   /** 标题字体族：读 this.ffZh/this.ffEn 登记依赖（字体族切换即时刷新）；空串=跟随系统 */
   private titleFontFamily(): string {
@@ -72,6 +76,8 @@ export struct SectionHeader {
     }
     .width('100%')
     .padding({ bottom: 10 })
+    // 灰字广播依赖登记（恒真，不改变视觉）
+    .opacity(this.grayTick >= 0 ? 1 : 1)
   }
 }
 
@@ -97,6 +103,8 @@ export struct TagChip {
 export struct EmptyTip {
   @Prop icon: string = '';
   @Prop text: string = '暂无数据';
+  /** 灰字广播依赖登记：广播时本组件重算 grayTertiary 文本色 */
+  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
 
   build() {
     Column() {
@@ -113,6 +121,8 @@ export struct EmptyTip {
     .width('100%')
     .padding({ top: 40, bottom: 40 })
     .justifyContent(FlexAlign.Center)
+    // 灰字广播依赖登记（恒真，不改变视觉）
+    .opacity(this.grayTick >= 0 ? 1 : 1)
   }
 }
 
@@ -124,6 +134,8 @@ export struct LoadingTip {
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @Prop icon: string = '';
   @Prop text: string = '正在同步教务数据…';
+  /** 灰字广播依赖登记：广播时本组件重算 grayTertiary 文本色 */
+  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
 
   build() {
     Column() {
@@ -140,6 +152,8 @@ export struct LoadingTip {
     .width('100%')
     .padding({ top: 40, bottom: 40 })
     .justifyContent(FlexAlign.Center)
+    // 灰字广播依赖登记（恒真，不改变视觉）
+    .opacity(this.grayTick >= 0 ? 1 : 1)
   }
 }
 
@@ -152,6 +166,8 @@ export struct StatCell {
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
+  /** 灰字广播依赖登记：广播时本组件重算 grayTertiary 文本色 */
+  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
 
   build() {
     Column() {
@@ -167,6 +183,8 @@ export struct StatCell {
     }
     .layoutWeight(1)
     .alignItems(HorizontalAlign.Center)
+    // 灰字广播依赖登记（恒真，不改变视觉）
+    .opacity(this.grayTick >= 0 ? 1 : 1)
   }
 }
 
@@ -184,6 +202,8 @@ export struct SettingRow {
   @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('fontFamilyZh') ffZh: string = '';
   @StorageProp('fontFamilyEn') ffEn: string = '';
+  /** 灰字广播依赖登记：广播时本组件重算 grayTertiary 文本色 */
+  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
   onTap: () => void = () => {
   };
 
@@ -218,6 +238,8 @@ export struct SettingRow {
     }
     .width('100%')
     .height(52)
+    // 灰字广播依赖登记（恒真，不改变视觉）
+    .opacity(this.grayTick >= 0 ? 1 : 1)
     .onClick(() => {
       this.onTap();
     })
@@ -235,46 +257,64 @@ export struct PickRow {
   /** 卡片沾色底色（广播键）：沾色开关变化时由 AppearanceStore.broadcastDerived() 重写 */
   @StorageProp('cardTintBg') tintBg: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 全局沉浸光感开关：开 + 材质可用时用 Toggle 承载层画材质，否则回落原玻璃底 */
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
+  /** 灰字广播依赖登记：广播时本组件重算 graySecondary/grayTertiary 文本色 */
+  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
   onTap: () => void = () => {
   };
 
+  /** 材质是否生效（与 KxjsPage.matOn 同判定链：全局开关 + API + 材质构造结果） */
+  private matOn(): boolean {
+    return this.immersiveEffect && materialAvailable();
+  }
+
   build() {
-    Row() {
-      Text(this.label)
-        .fontSize(13)
-        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
-        .width(86)
-      Blank()
-      Text(this.value.length > 0 ? this.value : this.placeholder)
-        .fontSize(13)
-        .fontColor(this.value.length > 0 ? $r('app.color.text_primary') : $r('app.color.text_tertiary'))
-        .layoutWeight(1)
-        .maxLines(1)
-        .textAlign(TextAlign.End)
-        .textOverflow({ overflow: TextOverflow.MARQUEE })
-      Text('›')
-        .fontSize(16)
-        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
-        .margin({ left: 6 })
+    Stack({ alignContent: Alignment.TopStart }) {
+      if (this.matOn()) {
+        // 材质承载层：只画材质不参与交互（材质生效时内容行透明让材质透出）
+        MaterialCardLayer({ layerRadius: 10, layerShadow: false })
+      }
+      Row() {
+        Text(this.label)
+          .fontSize(13)
+          .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+          .width(86)
+        Blank()
+        Text(this.value.length > 0 ? this.value : this.placeholder)
+          .fontSize(13)
+          .fontColor(this.value.length > 0 ? $r('app.color.text_primary') : $r('app.color.text_tertiary'))
+          .layoutWeight(1)
+          .maxLines(1)
+          .textAlign(TextAlign.End)
+          .textOverflow({ overflow: TextOverflow.MARQUEE })
+        Text('›')
+          .fontSize(16)
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .margin({ left: 6 })
+      }
+      .width('100%')
+      .height(46)
+      .padding({ left: 10, right: 10 })
+      // 材质生效时透明（不透明底会盖住材质）；关闭时回落玻璃底（沾色广播键优先）。
+      .backgroundColor(this.matOn() ? Color.Transparent
+        : (this.tintBg.length > 0
+          ? this.tintBg
+          : GlassMaterial.cardBg($r('app.color.bg_chip'), this.isDarkMode)))
+      // 磨砂仅回落态保留（避免叠在材质上发灰）；亮边/阴影同理，材质生效时去掉
+      .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.cardBlur())
+      .border({ width: this.matOn() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
+      .shadow(GlassMaterial.shadowEx(GlassMaterial.cardShadowStyle()))
+      .clip(true)
+      .borderRadius(10)
+      .margin({ bottom: 10 })
+      .onClick(() => {
+        this.onTap();
+      })
     }
     .width('100%')
-    .height(46)
-    .padding({ left: 10, right: 10 })
-    // 玻璃底（半透明，磨砂才可见；开关关闭时回落原 bg_chip 实色）。
-    // 沾色广播键优先：拨「卡片沾色」开关时本行底色即时刷新。
-    .backgroundColor(this.tintBg.length > 0
-      ? this.tintBg
-      : GlassMaterial.cardBg($r('app.color.bg_chip'), this.isDarkMode))
-    // 玻璃质感：磨砂 + 亮边 + 微阴影 + 圆角裁剪
-    .backgroundBlurStyle(GlassMaterial.cardBlur())
-    .border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
-    .shadow(GlassMaterial.cardShadowStyle())
-    .clip(true)
-    .borderRadius(10)
-    .margin({ bottom: 10 })
-    .onClick(() => {
-      this.onTap();
-    })
+    // 灰字广播依赖登记（恒真，不改变视觉）
+    .opacity(this.grayTick >= 0 ? 1 : 1)
   }
 }
 

@@ -48,6 +48,8 @@ export struct ScoreView {
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
+  /** 灰字广播依赖登记：根容器 opacity 恒真表达式登记依赖，广播时本页重算灰字色 */
+  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
@@ -307,13 +309,21 @@ export struct ScoreView {
     this.loading = false;
   }
 
-  private async load(): Promise<void> {
+  private async load(keepTerm: boolean = false): Promise<void> {
     this.loading = true;
+    // 刷新时记录当前选中的学期 id，重建学期列表后找回原选择（不重置到当前学期）
+    let targetTermId: string = '';
+    if (keepTerm && this.selectedTermIndex >= 0 && this.selectedTermIndex < this.terms.length) {
+      targetTermId = this.terms[this.selectedTermIndex].id;
+    }
     // 本地生成年学期列表（保证学年学期选择一定可用）
     this.terms = await JwApi.getTerms();
-    // 默认选中当前学期
+    // 优先找回刷新前选中的学期；首次加载默认选中当前学期
+    if (targetTermId === '') {
+      targetTermId = AppState.term.id;
+    }
     for (let i = 0; i < this.terms.length; i++) {
-      if (this.terms[i].id === AppState.term.id) {
+      if (this.terms[i].id === targetTermId) {
         this.selectedTermIndex = i;
         break;
       }
@@ -335,7 +345,7 @@ export struct ScoreView {
   /** 下拉刷新：重新加载成绩（保留学期选择，清空已加载成绩后重新拉取） */
   private async onRefresh(): Promise<void> {
     this.termScores = [];
-    await this.load();
+    await this.load(true);
     this.refreshing = false;
   }
   private async fetchSelectedTerm(): Promise<void> {
@@ -720,28 +730,33 @@ export struct ScoreView {
         if (this.loading) {
           LoadingTip()
         } else if (this.currentTermScore() === null || this.currentTermScore()!.items.length === 0) {
-          // 横屏空态：顶部让位顶栏 + 与"平均成绩"卡片同宽同风格的紧凑卡（不铺满整屏）
+          // 横屏空态：顶部让位顶栏 + 空态卡限宽 720vp 居中（平板/大屏横屏下不铺满整屏，与内容区一多适配一致）
           Column() {
             Column()
               .width('100%')
               .height(this.getUIContext().px2vp(this.topInsetPx) + 72)
-            // MaterialCard 承载：原 97% 宽度走 cardWidth（不能写 .width('97%')）、18vp 圆角走 cardRadius；
+            // MaterialCard 承载：宽度由外层限宽容器控制、18vp 圆角走 cardRadius；
             // 上下 40vp 内边距挂内部内容容器（承载层铺满整块卡片）。
-            MaterialCard({
-              cardWidth: '97%',
-              cardRadius: 18,
-              cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
-              cardBlur: GlassMaterial.cardBlur(),
-              cardBorderW: GlassMaterial.cardBorderWidth(),
-              cardBorderC: GlassMaterial.borderColor(),
-              cardShadow: GlassMaterial.cardShadowStyle()
-            }) {
             Column() {
-              EmptyTip({ text: '本学期成绩尚未发布\n期末考试结束两周后可查询' })
+              MaterialCard({
+                cardWidth: '100%',
+                cardRadius: 18,
+                cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+                cardBlur: GlassMaterial.cardBlur(),
+                cardBorderW: GlassMaterial.cardBorderWidth(),
+                cardBorderC: GlassMaterial.borderColor(),
+                cardShadow: GlassMaterial.cardShadowStyle()
+              }) {
+              Column() {
+                EmptyTip({ text: '本学期成绩尚未发布\n期末考试结束两周后可查询' })
+              }
+              .width('100%')
+              .padding({ top: 40, bottom: 40 })
+              }
             }
             .width('100%')
-            .padding({ top: 40, bottom: 40 })
-            }
+            .constraintSize({ maxWidth: 720 })
+            .padding({ left: 16, right: 16 })
           }
           .width('100%')
           .height('100%')
@@ -897,6 +912,8 @@ export struct ScoreView {
     }
     .width('100%')
     .height('100%')
+    // 灰字广播依赖登记：grayTick 变化触发整页重算 graySecondary/grayTertiary 文本色（恒真不改变视觉）
+    .opacity(this.grayTick >= 0 ? 1 : 1)
   }
 
   @Builder

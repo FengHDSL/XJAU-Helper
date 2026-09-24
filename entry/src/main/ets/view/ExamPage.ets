@@ -74,6 +74,8 @@ export struct ExamPage {
 
   /** 页面出现：加载考试数据 */
   aboutToAppear(): void {
+    // 灰字高级调整：本页成为活动页（每页单独灰字色生效）
+    GlassMaterial.setPageActive('exam');
     this.pickedExamId = DataStore.getPickedExamId();
     // 桌面卡片跳转 → 进入 picker 模式，加载完后自动弹
     this.enterFromCard = AppState.openPageRequest === 'exam-pick';
@@ -82,6 +84,11 @@ export struct ExamPage {
       AppState.openPageRequest = '';
     }
     this.load();
+  }
+
+  /** 页面消失：退出活动页上下文（回落全局灰字色） */
+  aboutToDisappear(): void {
+    GlassMaterial.setPageActive('');
   }
 
   /** 加载完成回调（用于桌面卡片模式自动弹 picker） */

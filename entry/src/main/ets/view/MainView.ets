@@ -15,6 +15,7 @@ import { HdsTabs, HdsTabsController, hdsMaterial } from '@kit.UIDesignKit';
 import { AppState } from '../common/AppState';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { Const } from '../common/Constants';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { Theme } from '../common/ThemeUtil';
 import { Wallpaper } from '../common/Wallpaper';
 import { WallpaperTone } from '../common/WallpaperTone';
@@ -96,8 +97,27 @@ export struct MainView {
     return base;
   }
 
+  /** Tab 序号 → 灰字高级调整页面 key（与 WallpaperPage GRAY_ADV_PAGES 一致） */
+  static tabPageKey(index: number): string {
+    if (index === 1) {
+      return 'schedule';
+    }
+    if (index === 2) {
+      return 'score';
+    }
+    if (index === 3) {
+      return 'news';
+    }
+    if (index === 4) {
+      return 'mine';
+    }
+    return 'home';
+  }
+
   /** 页面出现：处理桌面卡片点击跳转（AppState.openPageRequest） */
   aboutToAppear(): void {
+    // 灰字高级调整：初始活动页 = 当前 Tab（默认首页）
+    GlassMaterial.setPageActive(MainView.tabPageKey(this.currentIndex));
     const req: string = AppState.openPageRequest;
     if (req.length === 0) {
       return;
@@ -314,6 +334,8 @@ export struct MainView {
           // activeIndex 同步让底栏高亮跟上手势滑动（点击路径已在 onClick 里先行更新）。
           this.currentIndex = index;
           this.activeIndex = index;
+          // 灰字高级调整：同步活动页面 key（常驻 Tab 页的每页单独灰字色随切换生效）
+          GlassMaterial.setPageActive(MainView.tabPageKey(index));
         })
       }
       .hideTitleBar(true)

@@ -209,6 +209,41 @@ export class DataStore {
   static loadGrayCustom(): string {
     return DataStore.get(DataStore.KEY_GRAY_CUSTOM);
   }
+
+  /** 每页单独灰字色 JSON（pageKey -> rrggbb） */
+  static readonly KEY_GRAY_PAGE_MAP: string = 'gray_text_page_map';
+
+  /** 读取每页单独灰字色 map（JSON 反序列化；为空/损坏返回空 Map） */
+  static loadGrayPageMap(): Map<string, string> {
+    const raw: string = DataStore.get(DataStore.KEY_GRAY_PAGE_MAP);
+    const m: Map<string, string> = new Map();
+    if (raw.length < 2 || !raw.startsWith('{')) {
+      return m;
+    }
+    try {
+      const obj: Record<string, string> = JSON.parse(raw) as Record<string, string>;
+      const keys: string[] = Object.keys(obj);
+      for (let i: number = 0; i < keys.length; i++) {
+        const v: string = obj[keys[i]];
+        if (typeof v === 'string' && v.length >= 6) {
+          m.set(keys[i], v);
+        }
+      }
+    } catch (e) {
+      // JSON 损坏时返回空 map（覆盖失效但不崩溃）
+    }
+    return m;
+  }
+
+  /** 保存每页单独灰字色 map（JSON 序列化） */
+  static saveGrayPageMap(m: Map<string, string>): void {
+    const obj: Record<string, string> = {};
+    m.forEach((v: string, k: string) => {
+      obj[k] = v;
+    });
+    DataStore.put(DataStore.KEY_GRAY_PAGE_MAP, JSON.stringify(obj));
+  }
+
   // 当前学期 ID（全局设置，启动时优先恢复）
   static readonly KEY_DS_TERM: string = 'current_term_id';
   // 自定义开学时间：各学期 termId -> 自定义开学日(yyyy-MM-dd)，覆盖默认 9-01/3-01 推算；空串=未自定义

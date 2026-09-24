@@ -90,6 +90,8 @@ export struct NewsPage {
   /** 灰字覆盖响应（grayTextMode 变化时触发本页重渲染，取值经 GlassMaterial 读取） */
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
+  /** 灰字广播依赖登记：根容器 opacity 恒真表达式登记依赖，广播时本页重算灰字色 */
+  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
   /** 卡片材质响应（开关变化时触发本页重渲染） */
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
@@ -796,5 +798,7 @@ export struct NewsPage {
       height: SheetSize.LARGE, dragBar: true,
       backgroundColor: $r('app.color.bg_page'), title: { title: '农大新闻 · 网页端' }
     })
+    // 灰字广播依赖登记：grayTick 变化触发整页重算 grayTertiary 文本色（恒真不改变视觉）
+    .opacity(this.grayTick >= 0 ? 1 : 1)
   }
 }

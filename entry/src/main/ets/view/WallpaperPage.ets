@@ -22,10 +22,32 @@ import { AppearanceStore } from '../common/AppearanceStore';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
 import { GlassMaterial } from '../common/GlassMaterial';
+import { SheetUtil } from '../common/SheetUtil';
 import { isApi26OrAbove, materialAvailable, materialDiagnostics } from '../common/SystemMaterial';
 import { MaterialCardLayer } from './common/MaterialCarrier';
 import { MaterialCard } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
+
+/** 灰字高级调整：可单独设置灰字色的页面条目 */
+interface GrayAdvPage {
+  key: string;
+  name: string;
+}
+
+/** 可单独设色的页面清单（key 与 GlassMaterial.setPageActive 的接线一致） */
+const GRAY_ADV_PAGES: GrayAdvPage[] = [
+  { key: 'home', name: '首页' },
+  { key: 'schedule', name: '课程表' },
+  { key: 'score', name: '成绩查询' },
+  { key: 'exam', name: '考试安排' },
+  { key: 'news', name: '校园资讯' },
+  { key: 'notice', name: '通知公告' },
+  { key: 'kxjs', name: '空教室' },
+  { key: 'mine', name: '我的' }
+];
+
+/** 高级调整预置颜色（rrggbb；与全局灰字胶囊风格互补的常用色） */
+const GRAY_ADV_COLORS: string[] = ['9AA0A6', 'FFFFFF', '000000', 'FFE082', '90CAF9', 'A5D6A7', 'EF9A9A', 'CE93D8'];
 
 @Component
 export struct WallpaperPage {
@@ -68,6 +90,15 @@ export struct WallpaperPage {
   /** 灰体文本显示增强（default=自动 / gray / black / white / custom）与自定义色 */
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
+  /** 灰字广播计数器：本页根容器表达式引用以登记依赖（拨开关后本页文本即时重算） */
+  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  /** 自定义灰字色输入区展开（带动画）与草稿（点「应用」才生效） */
+  @State grayCustomExpanded: boolean = false;
+  @State grayCustomDraft: string = '';
+  /** 灰字高级调整面板：每页单独色（页面 key 选择 + 颜色草稿 + 实时预览） */
+  @State grayAdvancedOpen: boolean = false;
+  @State grayAdvPageKey: string = 'home';
+  @State grayAdvColor: string = '';
   /** 字重方案（follow/thin/light/regular/medium/bold） */
   @StorageProp('fontWeightMode') fontWeightMode: string = 'follow';
   /** 字号方案（follow=跟随系统 / custom=自定义） */
@@ -81,6 +112,44 @@ export struct WallpaperPage {
     this.combos = DataStore.combos();
     // 打开外观设置即恢复字号缩放（自定义字号持久化后应用级生效）
     AppearanceStore.applyFontSizeScale();
+    // 自定义灰字模式：进入页面时直接展开输入区并预填已存颜色
+    if (this.grayTextMode === 'custom') {
+      this.grayCustomExpanded = true;
+      this.grayCustomDraft = DataStore.loadGrayCustom();
+    }
+  }
+
+  /** 自定义灰字色输入区展开/收起（animateTo 中改 @State 才播放 transition） */
+  private toggleGrayCustom(open: boolean): void {
+    this.getUIContext().animateTo({ duration: 220, curve: Curve.Friction }, () => {
+      this.grayCustomExpanded = open;
+    });
+  }
+
+  /** 应用自定义灰字色：校验草稿 → 持久化 + AppStorage 同步 + 广播实时生效 */
+  private applyGrayCustom(): void {
+    const v: string = this.grayCustomDraft.trim();
+    const hex: string = v.startsWith('#') ? v.substring(1) : v;
+    if (hex.length < 6) {
+      this.getUIContext().getPromptAction().showToast({ message: '请输入 6 位十六进制颜色（如 9AA0A6）' });
+      return;
+    }
+    this.grayTextColor = hex;
+    AppStorage.setOrCreate('grayTextColor', hex);
+    DataStore.saveGrayCustom(hex);
+    GlassMaterial.broadcastGray();
+    this.getUIContext().getPromptAction().showToast({ message: '已应用自定义灰字色' });
+  }
+
+  /** 高级调整入口摘要：已单独设色的页面名（逗号连接）；无则「未设置」 */
+  private grayAdvSummary(): string {
+    const names: string[] = [];
+    for (let i = 0; i < GRAY_ADV_PAGES.length; i++) {
+      if (GlassMaterial.grayPageColor(GRAY_ADV_PAGES[i].key) !== '') {
+        names.push(GRAY_ADV_PAGES[i].name);
+      }
+    }
+    return names.length > 0 ? names.join('、') : '未设置';
   }
 
   /** 全局沉浸光感开关（AppStorage 实时 + DataStore 持久化，重启后保持） */
@@ -502,31 +571,47 @@ export struct WallpaperPage {
           .fontSize(12)
           .fontColor($r('app.color.text_tertiary'))
           .margin({ right: 10 })
-        TextInput({ text: this.subHex, placeholder: '#RRGGBB' })
-          .height(48)
-          .enterKeyType(EnterKeyType.Done)
-          .borderRadius($r('sys.float.corner_radius_level12'))
-          .fontSize($r('sys.float.Body_L'))
-          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
-          .backgroundColor($r('sys.color.comp_background_tertiary'))
-          .caretStyle({ color: $r('sys.color.font_emphasize') })
-          .type(InputType.Normal)
-          .fontColor('rgba(0, 85, 255, 1.0)')
-          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-          .layoutWeight(1)
-          .onChange((v: string) => {
-            this.subHex = v;
-          })
-        Button('应用')
-          .fontSize(13)
-          .height(36)
-          .borderRadius(18)
-          .fontColor(Color.White)
-          .backgroundColor(Theme.colorOf(this.themeColor))
-          .margin({ left: 10 })
-          .onClick(() => {
+        // 自定义副标题色输入框：材质承载层包 Stack（材质生效时输入框底色透明让材质透出）
+        Stack({ alignContent: Alignment.TopStart }) {
+          if (this.matOn()) {
+            MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false })
+          }
+          TextInput({ text: this.subHex, placeholder: '#RRGGBB' })
+            .height(48)
+            .enterKeyType(EnterKeyType.Done)
+            .borderRadius($r('sys.float.corner_radius_level12'))
+            .fontSize($r('sys.float.Body_L'))
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
+            .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+            .caretStyle({ color: $r('sys.color.font_emphasize') })
+            .type(InputType.Normal)
+            .fontColor('rgba(0, 85, 255, 1.0)')
+            .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+            .width('100%')
+            .onChange((v: string) => {
+              this.subHex = v;
+            })
+        }
+        .layoutWeight(1)
+        // 副标题「应用」：材质按钮（液态玻璃主题色胶囊）
+        MaterialButton({
+          btnRadius: 18,
+          btnBg: Theme.colorOf(this.themeColor),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnTint: Theme.colorOf(this.themeColor),
+          btnTintRatio: 0.55,
+          btnMargin: { top: 0, right: 0, bottom: 0, left: 10 },
+          btnOnClick: (): void => {
             this.applySubtitleHex();
-          })
+          }
+        }) {
+          Text('应用')
+            .fontSize(13)
+            .fontColor(Color.White)
+            .padding({ left: 16, right: 16, top: 9, bottom: 9 })
+        }
       }
       .width('100%')
       .margin({ bottom: 12 })
@@ -549,33 +634,51 @@ export struct WallpaperPage {
           .fontSize(13)
           .fontColor($r('app.color.text_secondary'))
           .margin({ right: 10 })
-        TextInput({ text: $$this.hexInput, placeholder: '#RRGGBB' })
-          .height(48)
-          .enterKeyType(EnterKeyType.Done)
-          .borderRadius($r('sys.float.corner_radius_level12'))
-          .fontSize($r('sys.float.Body_L'))
-          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
-          .backgroundColor($r('sys.color.comp_background_tertiary'))
-          .caretStyle({ color: $r('sys.color.font_emphasize') })
-          .type(InputType.Normal)
-          .fontColor('rgba(0, 85, 255, 1.0)')
-          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-          .layoutWeight(1)
-          .onChange((v: string) => {
-            this.validateHex(v);
-          })
-        // 与上方副标题色「应用」按钮同款规格（36 高 / 18 圆角 / 白字）
-        Button('应用')
-          .fontSize(13)
-          .height(36)
-          .borderRadius(18)
-          .fontColor(Color.White)
-          .backgroundColor(Theme.colorOf(this.themeColor))
-          .margin({ left: 10 })
-          .enabled(this.hexOk)
-          .onClick(() => {
+        // 顶栏主题色自定义输入框：材质承载层包 Stack
+        Stack({ alignContent: Alignment.TopStart }) {
+          if (this.matOn()) {
+            MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false })
+          }
+          TextInput({ text: $$this.hexInput, placeholder: '#RRGGBB' })
+            .height(48)
+            .enterKeyType(EnterKeyType.Done)
+            .borderRadius($r('sys.float.corner_radius_level12'))
+            .fontSize($r('sys.float.Body_L'))
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
+            .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+            .caretStyle({ color: $r('sys.color.font_emphasize') })
+            .type(InputType.Normal)
+            .fontColor('rgba(0, 85, 255, 1.0)')
+            .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+            .width('100%')
+            .onChange((v: string) => {
+              this.validateHex(v);
+            })
+        }
+        .layoutWeight(1)
+        // 顶栏主题色「应用」：材质按钮（默认可点，输入不合法时点击 toast 提示）
+        MaterialButton({
+          btnRadius: 18,
+          btnBg: Theme.colorOf(this.themeColor),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnTint: Theme.colorOf(this.themeColor),
+          btnTintRatio: 0.55,
+          btnMargin: { top: 0, right: 0, bottom: 0, left: 10 },
+          btnOnClick: (): void => {
+            if (!this.hexOk) {
+              this.getUIContext().getPromptAction().showToast({ message: '请输入 6 位十六进制颜色（如 079841）' });
+              return;
+            }
             this.applyHexTheme();
-          })
+          }
+        }) {
+          Text('应用')
+            .fontSize(13)
+            .fontColor(Color.White)
+            .padding({ left: 16, right: 16, top: 9, bottom: 9 })
+        }
       }
       .width('100%')
       }
@@ -630,9 +733,32 @@ export struct WallpaperPage {
         .width('100%')
         .margin({ top: 12 })
 
-        if (this.grayTextMode === 'custom') {
+        // 高级调整入口：每页单独自定义灰字颜色（实时预览，模拟数据）
+        Row() {
+          Text('高级调整')
+            .fontSize(13)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+            .fontColor(Theme.colorOf(this.themeColor))
+          Blank()
+          Text(this.grayAdvSummary())
+            .fontSize(11)
+            .fontColor($r('app.color.text_tertiary'))
+          Text(' ›')
+            .fontSize(14)
+            .fontColor(Theme.colorOf(this.themeColor))
+        }
+        .width('100%')
+        .margin({ top: 12 })
+        .padding({ top: 4 })
+        .onClick(() => {
+          // 打开面板时同步当前选中页的已存颜色
+          this.grayAdvColor = GlassMaterial.grayPageColor(this.grayAdvPageKey);
+          this.grayAdvancedOpen = true;
+        })
+
+        if (this.grayCustomExpanded) {
           Row() {
-            TextInput({ text: this.grayTextColor, placeholder: 'RRGGBB（如 9AA0A6）' })
+            TextInput({ text: this.grayCustomDraft, placeholder: 'RRGGBB（如 9AA0A6）' })
               .height(48)
               .enterKeyType(EnterKeyType.Done)
               .borderRadius($r('sys.float.corner_radius_level12'))
@@ -645,13 +771,34 @@ export struct WallpaperPage {
               .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
               .layoutWeight(1)
               .onChange((v: string) => {
-                this.grayTextColor = v;
-                AppStorage.setOrCreate('grayTextColor', v);
-                DataStore.saveGrayCustom(v);
+                // 草稿暂存：点「应用」才生效（不再 onChange 即存）
+                this.grayCustomDraft = v;
               })
+            // 应用按钮（液态玻璃主题色胶囊，与页内其他操作按钮同款）
+            MaterialButton({
+              btnRadius: 18,
+              btnBg: Theme.colorOf(this.themeColor),
+              btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+              btnBorderW: GlassMaterial.borderWidth(),
+              btnBorderC: GlassMaterial.borderColor(),
+              btnTint: Theme.colorOf(this.themeColor),
+              btnTintRatio: 0.55,
+              btnMargin: { top: 0, right: 0, bottom: 0, left: 10 },
+              btnOnClick: (): void => {
+                this.applyGrayCustom();
+              }
+            }) {
+              Text('应用')
+                .fontSize(13)
+                .fontColor(Color.White)
+                .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+            }
           }
           .width('100%')
           .margin({ top: 12 })
+          .transition(TransitionEffect.OPACITY
+            .combine(TransitionEffect.translate({ y: 8 }))
+            .animation({ duration: 220, curve: Curve.Friction }))
         }
       }
       .width('100%')
@@ -664,6 +811,17 @@ export struct WallpaperPage {
     .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
     .border({ width: this.matOn() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
     .margin({ top: 14 })
+    // 灰字高级调整面板（每页单独色；与页内其他弹层挂不同组件——ArkUI 同组件多 bindSheet 仅最后一个生效）
+    .bindSheet($$this.grayAdvancedOpen, this.grayAdvancedSheet(), {
+      width: SheetUtil.sheetWidth(),
+      preferType: SheetType.BOTTOM,
+      height: SheetSize.FIT_CONTENT,
+      dragBar: true,
+      showClose: false,
+      onDisappear: () => {
+        this.grayAdvancedOpen = false;
+      }
+    })
   }
 
   /** 灰字模式胶囊：MaterialButton（选中=主题色叠层白字，未选中=bg_chip 玻璃胶囊，与字重胶囊同款） */
@@ -682,6 +840,15 @@ export struct WallpaperPage {
           this.grayTextMode = mode;
           AppStorage.setOrCreate('grayTextMode', mode);
           DataStore.saveGrayMode(mode);
+          // 实时广播：订阅 grayTick 的页面立即按新模式重算灰字色
+          GlassMaterial.broadcastGray();
+          // 自定义模式展开输入区（带动画），其他模式收起
+          if (mode === 'custom') {
+            this.grayCustomDraft = DataStore.loadGrayCustom();
+            this.toggleGrayCustom(true);
+          } else {
+            this.toggleGrayCustom(false);
+          }
         }
       }
     }) {
@@ -690,6 +857,219 @@ export struct WallpaperPage {
         .fontColor(this.grayTextMode === mode ? Color.White : $r('app.color.text_primary'))
         .padding({ left: 12, right: 12, top: 5, bottom: 5 })
     }
+  }
+
+  /** 灰字高级调整面板：每页单独自定义灰字色（实时预览用模拟数据；优先于全局灰字模式生效） */
+  @Builder
+  grayAdvancedSheet() {
+    Column() {
+      Row() {
+        Text('灰字高级调整')
+          .fontSize(16)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
+          .fontColor($r('app.color.text_primary'))
+        Blank()
+        Text('✕')
+          .fontSize(15)
+          .fontColor($r('app.color.text_secondary'))
+          .padding(6)
+          .onClick(() => {
+            this.grayAdvancedOpen = false;
+          })
+      }
+      .width('100%')
+
+      Text('为指定页面单独设置次要/辅助文字颜色，优先于全局灰字模式生效；下方预览为模拟数据。')
+        .fontSize(11)
+        .fontColor($r('app.color.text_tertiary'))
+        .width('100%')
+        .margin({ top: 4 })
+
+      // 页面选择器（已单独设色的页面带主题色小圆点标记）
+      Flex({ wrap: FlexWrap.Wrap }) {
+        ForEach(GRAY_ADV_PAGES, (p: GrayAdvPage) => {
+          Row() {
+            if (GlassMaterial.grayPageColor(p.key) !== '') {
+              Circle({ width: 5, height: 5 })
+                .fill(Theme.colorOf(this.themeColor))
+                .margin({ right: 4 })
+            }
+            Text(p.name)
+              .fontSize(12)
+              .fontColor(this.grayAdvPageKey === p.key ? Color.White : $r('app.color.text_primary'))
+          }
+          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .borderRadius(10)
+          .backgroundColor(this.grayAdvPageKey === p.key ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
+          .margin({ right: 8, bottom: 8 })
+          .onClick(() => {
+            this.grayAdvPageKey = p.key;
+            this.grayAdvColor = GlassMaterial.grayPageColor(p.key);
+          })
+        }, (p: GrayAdvPage) => p.key)
+      }
+      .width('100%')
+      .margin({ top: 12 })
+
+      // 预置颜色块（当前草稿色高亮描边）
+      Row({ space: 10 }) {
+        ForEach(GRAY_ADV_COLORS, (c: string) => {
+          Column()
+            .width(30)
+            .height(30)
+            .borderRadius(15)
+            .backgroundColor(`#${c}`)
+            .border({
+              width: this.grayAdvColor.toLowerCase() === c.toLowerCase() ? 2.5 : 1,
+              color: this.grayAdvColor.toLowerCase() === c.toLowerCase() ? Theme.colorOf(this.themeColor) : GlassMaterial.borderColor()
+            })
+            .onClick(() => {
+              this.grayAdvColor = c;
+            })
+        }, (c: string) => c)
+      }
+      .width('100%')
+      .margin({ top: 12 })
+
+      // 自定义 hex 输入 + 清除该页覆盖
+      Row() {
+        TextInput({ text: this.grayAdvColor, placeholder: 'RRGGBB（如 9AA0A6）' })
+          .height(40)
+          .layoutWeight(1)
+          .borderRadius(10)
+          .fontSize($r('sys.float.Body_L'))
+          .backgroundColor($r('sys.color.comp_background_tertiary'))
+          .caretStyle({ color: $r('sys.color.font_emphasize') })
+          .onChange((v: string) => {
+            this.grayAdvColor = v;
+          })
+        MaterialButton({
+          btnRadius: 18,
+          btnBg: $r('app.color.bg_chip'),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnTint: '',
+          btnTintRatio: 0,
+          btnMargin: { top: 0, right: 0, bottom: 0, left: 8 },
+          btnOnClick: (): void => {
+            this.clearGrayAdv();
+          }
+        }) {
+          Text('清除')
+            .fontSize(13)
+            .fontColor($r('app.color.text_primary'))
+            .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+        }
+        MaterialButton({
+          btnRadius: 18,
+          btnBg: Theme.colorOf(this.themeColor),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnTint: Theme.colorOf(this.themeColor),
+          btnTintRatio: 0.55,
+          btnMargin: { top: 0, right: 0, bottom: 0, left: 8 },
+          btnOnClick: (): void => {
+            this.applyGrayAdv();
+          }
+        }) {
+          Text('应用')
+            .fontSize(13)
+            .fontColor(Color.White)
+            .padding({ left: 14, right: 14, top: 8, bottom: 8 })
+        }
+      }
+      .width('100%')
+      .margin({ top: 12 })
+
+      // 实时预览卡（模拟数据：课程行 + 通知行，次要/辅助文字用当前草稿色渲染）
+      Column() {
+        Text(`预览 · ${this.grayAdvPageName()}`)
+          .fontSize(12)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
+          .fontColor($r('app.color.text_primary'))
+        Column() {
+          Row() {
+            Text('高等数学（下）')
+              .fontSize(14)
+              .fontColor($r('app.color.text_primary'))
+            Blank()
+            Text('92 · 绩点 4.0')
+              .fontSize(12)
+              .fontColor(this.previewGray())
+          }
+          .width('100%')
+          Text('第 1-4 节 · 新教学楼 A201')
+            .fontSize(11)
+            .fontColor(this.previewGray())
+            .width('100%')
+            .margin({ top: 4 })
+          Row() {
+            Text('关于 2026 年国庆节放假安排的通知')
+              .fontSize(13)
+              .fontColor($r('app.color.text_primary'))
+          }
+          .width('100%')
+          .margin({ top: 10 })
+          Text('教务处 · 2026-09-20')
+            .fontSize(11)
+            .fontColor(this.previewGray())
+            .width('100%')
+            .margin({ top: 2 })
+        }
+        .width('100%')
+        .padding(12)
+        .borderRadius(12)
+        .backgroundColor($r('app.color.bg_chip'))
+        .margin({ top: 8 })
+      }
+      .width('100%')
+      .margin({ top: 14 })
+      .alignItems(HorizontalAlign.Start)
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ left: 20, right: 20, top: 16, bottom: 24 })
+  }
+
+  /** 当前选中页的显示名（高级调整面板标题用） */
+  private grayAdvPageName(): string {
+    for (let i = 0; i < GRAY_ADV_PAGES.length; i++) {
+      if (GRAY_ADV_PAGES[i].key === this.grayAdvPageKey) {
+        return GRAY_ADV_PAGES[i].name;
+      }
+    }
+    return '';
+  }
+
+  /** 预览次要文字色：草稿色合法时用草稿色（实时），否则回落默认次要色资源 */
+  private previewGray(): ResourceColor {
+    const v: string = this.grayAdvColor.trim();
+    if (v.length >= 6) {
+      return v.startsWith('#') ? v : `#${v}`;
+    }
+    return $r('app.color.text_secondary');
+  }
+
+  /** 应用当前页单独灰字色（持久化 + 广播：若该页正是活动页则立即生效） */
+  private applyGrayAdv(): void {
+    const v: string = this.grayAdvColor.trim();
+    const hex: string = v.startsWith('#') ? v.substring(1) : v;
+    if (hex.length < 6) {
+      this.getUIContext().getPromptAction().showToast({ message: '请输入 6 位十六进制颜色' });
+      return;
+    }
+    GlassMaterial.setGrayPageColor(this.grayAdvPageKey, hex);
+    this.grayAdvColor = hex;
+    this.getUIContext().getPromptAction().showToast({ message: `已应用到「${this.grayAdvPageName()}」` });
+  }
+
+  /** 清除当前页单独灰字色（回落全局灰字模式） */
+  private clearGrayAdv(): void {
+    GlassMaterial.setGrayPageColor(this.grayAdvPageKey, '');
+    this.grayAdvColor = '';
+    this.getUIContext().getPromptAction().showToast({ message: `已清除「${this.grayAdvPageName()}」的单独设置` });
   }
 
   /** 沉浸光感节：全局开关 + 真机诊断行（API≥26 才显示；开关写入后全站卡片/按钮跟随切换） */
@@ -1125,35 +1505,58 @@ export struct WallpaperPage {
                 .textAlign(TextAlign.Center)
                 .margin({ top: 8 })
             }
-            // 操作区：选择图片 → 裁剪页（缩放/平移 → 按屏幕比例裁切应用）
+            // 操作区：选择图片 → 裁剪页（缩放/平移 → 按屏幕比例裁切应用）；材质按钮整宽
             Row() {
-              Button('选择图片并裁剪')
-                .fontSize(14)
-                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-                .fontColor($r('app.color.brand_on'))
-                .backgroundColor(Theme.colorOf(this.themeColor))
-                .height(42)
-                .layoutWeight(1)
-                .borderRadius(21)
-                .onClick(() => {
+              MaterialButton({
+                btnRadius: 21,
+                btnBg: Theme.colorOf(this.themeColor),
+                btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                btnBorderW: GlassMaterial.borderWidth(),
+                btnBorderC: GlassMaterial.borderColor(),
+                btnTint: Theme.colorOf(this.themeColor),
+                btnTintRatio: 0.55,
+                btnOnClick: (): void => {
                   this.openCropPage();
-                })
+                }
+              }) {
+                Text('选择图片并裁剪')
+                  .fontSize(14)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+                  .fontColor($r('app.color.brand_on'))
+                  .width('100%')
+                  .textAlign(TextAlign.Center)
+                  .height(42)
+              }
+              .layoutWeight(1)
             }
             .width('100%')
             .margin({ top: 18 })
-            // 取消壁纸：恢复默认纯色背景（粉红按钮）
-            Button('取消壁纸')
-              .fontSize(14)
-              .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-              .fontColor(Color.White)
-              .backgroundColor('#F2A0B5')
-              .height(42)
-              .width('100%')
-              .borderRadius(21)
-              .margin({ top: 12 })
-              .onClick(() => {
-                this.cancelWallpaper();
-              })
+            // 取消壁纸：恢复默认纯色背景（淡红玻璃按钮；材质生效时淡红叠层保留颜色语义）
+            Row() {
+              MaterialButton({
+                btnRadius: 21,
+                btnBg: '#F2A0B5',
+                btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                btnBorderW: GlassMaterial.borderWidth(),
+                btnBorderC: GlassMaterial.borderColor(),
+                btnTint: '#F2A0B5',
+                btnTintRatio: 0.55,
+                btnOnClick: (): void => {
+                  this.cancelWallpaper();
+                }
+              }) {
+                Text('取消壁纸')
+                  .fontSize(14)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+                  .fontColor(Color.White)
+                  .width('100%')
+                  .textAlign(TextAlign.Center)
+                  .height(42)
+              }
+              .layoutWeight(1)
+            }
+            .width('100%')
+            .margin({ top: 12 })
             // 壁纸蒙版开关：关闭后不叠加可读性遮罩（文字仍会自动适配颜色）
             Row() {
               Column() {
@@ -1178,38 +1581,53 @@ export struct WallpaperPage {
             .width('100%')
             .alignItems(VerticalAlign.Center)
             .margin({ top: 12 })
-            // URL 导入壁纸：直接填图片链接，下载到应用目录并应用
+            // URL 导入壁纸：直接填图片链接，下载到应用目录并应用（输入框材质承载层）
             Row() {
-              TextInput({ text: this.urlText, placeholder: '编辑图像地址（支持API地址）' })
-                .height(48)
-                .enterKeyType(EnterKeyType.Done)
-                .borderRadius($r('sys.float.corner_radius_level12'))
-                .fontSize($r('sys.float.Body_L'))
-                .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
-                .backgroundColor($r('sys.color.comp_background_tertiary'))
-                .caretStyle({ color: $r('sys.color.font_emphasize') })
-                .type(InputType.Normal)
-                .fontColor('rgba(0, 85, 255, 1.0)')
-                .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-                .layoutWeight(1)
-                .onChange((v: string) => {
-                  this.urlText = v;
-                })
-                .onSubmit(() => {
+              Stack({ alignContent: Alignment.TopStart }) {
+                if (this.matOn()) {
+                  MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false })
+                }
+                TextInput({ text: this.urlText, placeholder: '编辑图像地址（支持API地址）' })
+                  .height(48)
+                  .enterKeyType(EnterKeyType.Done)
+                  .borderRadius($r('sys.float.corner_radius_level12'))
+                  .fontSize($r('sys.float.Body_L'))
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
+                  .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+                  .caretStyle({ color: $r('sys.color.font_emphasize') })
+                  .type(InputType.Normal)
+                  .fontColor('rgba(0, 85, 255, 1.0)')
+                  .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+                  .width('100%')
+                  .onChange((v: string) => {
+                    this.urlText = v;
+                  })
+                  .onSubmit(() => {
+                    this.importByUrl();
+                  })
+              }
+              .layoutWeight(1)
+              MaterialButton({
+                btnRadius: 21,
+                btnBg: Theme.colorOf(this.themeColor),
+                btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                btnBorderW: GlassMaterial.borderWidth(),
+                btnBorderC: GlassMaterial.borderColor(),
+                btnTint: Theme.colorOf(this.themeColor),
+                btnTintRatio: 0.55,
+                btnMargin: { top: 0, right: 0, bottom: 0, left: 12 },
+                btnOnClick: (): void => {
                   this.importByUrl();
-                })
-              Button('保存')
-                .fontSize(14)
-                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-                .fontColor($r('app.color.brand_on'))
-                .backgroundColor(Theme.colorOf(this.themeColor))
-                .height(42)
-                .width(96)
-                .borderRadius(21)
-                .margin({ left: 12 })
-                .onClick(() => {
-                  this.importByUrl();
-                })
+                }
+              }) {
+                Text('保存')
+                  .fontSize(14)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+                  .fontColor($r('app.color.brand_on'))
+                  .width(96)
+                  .textAlign(TextAlign.Center)
+                  .height(42)
+              }
             }
             .width('100%')
             .margin({ top: 12 })
@@ -1255,32 +1673,46 @@ export struct WallpaperPage {
               .width('100%')
               .margin({ top: 4, bottom: 10 })
             Row() {
-              TextInput({ text: this.comboName, placeholder: '组合名称（如：夜间阅读）' })
-                .height(48)
-                .enterKeyType(EnterKeyType.Done)
-                .borderRadius($r('sys.float.corner_radius_level12'))
-                .fontSize($r('sys.float.Body_L'))
-                .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
-                .backgroundColor($r('sys.color.comp_background_tertiary'))
-                .caretStyle({ color: $r('sys.color.font_emphasize') })
-                .type(InputType.Normal)
-                .fontColor('rgba(0, 85, 255, 1.0)')
-                .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-                .layoutWeight(1)
-                .onChange((v: string) => {
-                  this.comboName = v;
-                })
-              Button('保存当前组合')
-                .fontSize(14)
-                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-                .fontColor(Color.White)
-                .backgroundColor(Theme.colorOf(this.themeColor))
-                .height(40)
-                .borderRadius(20)
-                .margin({ left: 10 })
-                .onClick(() => {
+              Stack({ alignContent: Alignment.TopStart }) {
+                if (this.matOn()) {
+                  MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false })
+                }
+                TextInput({ text: this.comboName, placeholder: '组合名称（如：夜间阅读）' })
+                  .height(48)
+                  .enterKeyType(EnterKeyType.Done)
+                  .borderRadius($r('sys.float.corner_radius_level12'))
+                  .fontSize($r('sys.float.Body_L'))
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
+                  .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+                  .caretStyle({ color: $r('sys.color.font_emphasize') })
+                  .type(InputType.Normal)
+                  .fontColor('rgba(0, 85, 255, 1.0)')
+                  .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+                  .width('100%')
+                  .onChange((v: string) => {
+                    this.comboName = v;
+                  })
+              }
+              .layoutWeight(1)
+              MaterialButton({
+                btnRadius: 20,
+                btnBg: Theme.colorOf(this.themeColor),
+                btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                btnBorderW: GlassMaterial.borderWidth(),
+                btnBorderC: GlassMaterial.borderColor(),
+                btnTint: Theme.colorOf(this.themeColor),
+                btnTintRatio: 0.55,
+                btnMargin: { top: 0, right: 0, bottom: 0, left: 10 },
+                btnOnClick: (): void => {
                   this.saveCombo();
-                })
+                }
+              }) {
+                Text('保存当前组合')
+                  .fontSize(14)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+                  .fontColor(Color.White)
+                  .padding({ left: 14, right: 14, top: 10, bottom: 10 })
+              }
             }
             .width('100%')
             .alignItems(VerticalAlign.Center)
@@ -1402,5 +1834,7 @@ export struct WallpaperPage {
     }
     .hideTitleBar(true)
     .backgroundColor($r('app.color.bg_page'))
+    // 灰字广播依赖登记：表达式引用 grayTick（恒真不改变视觉），广播时本页整体重算
+    .opacity(this.grayTick >= 0 ? 1 : 1)
   }
 }

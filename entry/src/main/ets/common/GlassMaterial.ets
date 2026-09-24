@@ -394,14 +394,26 @@ export class GlassMaterial {
     return orig;
   }
 
-  // ── 次要文字颜色覆盖（灰/白/黑/自定义）：外观设置页可调，提升壁纸上的可读性 ──
+  // ── 次要文字颜色覆盖（灰/白/黑/自定义/每页单独）：外观设置页可调，提升壁纸上的可读性 ──
   /** AppStorage 键：灰字模式（default=默认灰 / white=白 / black=黑 / custom=自定义） */
   static readonly KEY_GRAY_MODE: string = 'grayTextMode';
   /** AppStorage 键：自定义灰字颜色（rrggbb 或 #rrggbb） */
   static readonly KEY_GRAY_CUSTOM: string = 'grayTextColor';
+  /**
+   * 广播键：灰字刷新计数器。含灰字调用的页面必须 @StorageProp 订阅此键并在根容器
+   * 属性表达式里引用（登记依赖）——静态函数 graySecondary/grayTertiary 内部读
+   * AppStorage 不登记依赖（实证），不订阅则拨开关后已画出的文本不会重算。
+   */
+  static readonly KEY_GRAY_TICK: string = 'grayTick';
+  /** 广播键：当前生效的全局覆盖色（''＝不覆盖；grayOverride 缓存读取，由 broadcastGray 维护） */
+  static readonly KEY_GRAY_EFFECTIVE: string = 'grayEffectiveColor';
+  /** AppStorage 键：当前活动页面 key（每页单独灰字色的生效上下文；''＝无页面上下文） */
+  static readonly KEY_GRAY_PAGE_ACTIVE: string = 'grayActivePage';
+  /** 每页单独灰字色（pageKey -> rrggbb），启动时从 DataStore 恢复 */
+  private static grayPageMap: Map<string, string> = new Map();
 
-  /** 按模式解析覆盖色；返回 undefined 表示不覆盖（用默认灰色） */
-  private static grayOverride(): string | undefined {
+  /** 全局覆盖色（mode/custom 现算；不读每页 map） */
+  private static globalGrayOverride(): string | undefined {
     const mode: string | undefined = AppStorage.get<string>(GlassMaterial.KEY_GRAY_MODE);
     if (mode === 'gray') {
       return '#9AA0A6';
@@ -419,6 +431,59 @@ export class GlassMaterial {
       }
     }
     return undefined;
+  }
+
+  /** 按模式解析覆盖色；返回 undefined 表示不覆盖（用默认灰色）。每页单独色优先于全局。 */
+  private static grayOverride(): string | undefined {
+    // 每页单独色：活动页面 key 命中 map 时优先生效
+    const pk: string = AppStorage.get<string>(GlassMaterial.KEY_GRAY_PAGE_ACTIVE) ?? '';
+    if (pk !== '') {
+      const pc: string | undefined = GlassMaterial.grayPageMap.get(pk);
+      if (pc !== undefined && pc.length >= 6) {
+        return pc.startsWith('#') ? pc : `#${pc}`;
+      }
+    }
+    // 全局：广播缓存（broadcastGray 维护）；缓存未初始化时现算兜底
+    const eff: string = AppStorage.get<string>(GlassMaterial.KEY_GRAY_EFFECTIVE) ?? '';
+    if (eff !== '') {
+      return eff;
+    }
+    return GlassMaterial.globalGrayOverride();
+  }
+
+  /** 重算全局覆盖色并广播（灰字设置变化时调用；订阅 grayTick 的页面即时刷新） */
+  static broadcastGray(): void {
+    const g: string | undefined = GlassMaterial.globalGrayOverride();
+    AppStorage.setOrCreate(GlassMaterial.KEY_GRAY_EFFECTIVE, g ?? '');
+    const tick: number = (AppStorage.get<number>(GlassMaterial.KEY_GRAY_TICK) ?? 0) + 1;
+    AppStorage.setOrCreate(GlassMaterial.KEY_GRAY_TICK, tick);
+  }
+
+  /** 页面激活时调用：设置每页单独灰字色的生效上下文并广播（活动页文本即时按本页色重算） */
+  static setPageActive(pageKey: string): void {
+    AppStorage.setOrCreate(GlassMaterial.KEY_GRAY_PAGE_ACTIVE, pageKey);
+    GlassMaterial.broadcastGray();
+  }
+
+  /** 启动恢复：从 DataStore 读每页单独灰字色 map（EntryAbility 调用一次） */
+  static loadGrayPageMap(): void {
+    GlassMaterial.grayPageMap = DataStore.loadGrayPageMap();
+  }
+
+  /** 读取某页单独灰字色（rrggbb；未设置返回空串）——高级调整面板显示用 */
+  static grayPageColor(pageKey: string): string {
+    return GlassMaterial.grayPageMap.get(pageKey) ?? '';
+  }
+
+  /** 设置某页单独灰字色（rrggbb；空串=清除该页覆盖）并持久化 + 广播 */
+  static setGrayPageColor(pageKey: string, color: string): void {
+    if (color.length < 6) {
+      GlassMaterial.grayPageMap.delete(pageKey);
+    } else {
+      GlassMaterial.grayPageMap.set(pageKey, color.startsWith('#') ? color.substring(1) : color);
+    }
+    DataStore.saveGrayPageMap(GlassMaterial.grayPageMap);
+    GlassMaterial.broadcastGray();
   }
 
   /**

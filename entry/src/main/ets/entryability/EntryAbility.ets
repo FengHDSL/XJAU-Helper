@@ -6,6 +6,7 @@ import { fileIo } from '@kit.CoreFileKit';
 import { AppState } from '../common/AppState';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { DataStore } from '../common/DataStore';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Theme } from '../common/ThemeUtil';
 import { NewsApi } from '../api/NewsApi';
@@ -79,6 +80,12 @@ export default class EntryAbility extends UIAbility {
     // 对应参考文件：miha_hm `pages/AppearanceSettingsPage.ets` + `utils/CustomFonts.ets`
     // 在 DataStore.init + AppState.context 之后调用，保证自定义字体可读沙箱目录并完成注册。
     AppearanceStore.init();
+    // 灰体文本覆盖启动恢复：模式/自定义色先回 AppStorage（此前冷启动会丢失设置），
+    // 再载入每页单独色 map 并广播（含灰字调用的页面订阅 grayTick，见 GlassMaterial.broadcastGray）
+    AppStorage.setOrCreate('grayTextMode', DataStore.loadGrayMode());
+    AppStorage.setOrCreate('grayTextColor', DataStore.loadGrayCustom());
+    GlassMaterial.loadGrayPageMap();
+    GlassMaterial.broadcastGray();
     try {
       this.context.getApplicationContext()
         .setColorMode(DataStore.isDarkOn() ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK

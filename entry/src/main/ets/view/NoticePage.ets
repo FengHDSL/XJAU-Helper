@@ -47,7 +47,14 @@ export struct NoticePage {
 
   /** 页面出现：加载通知公告 */
   aboutToAppear(): void {
+    // 灰字高级调整：本页成为活动页（每页单独灰字色生效）
+    GlassMaterial.setPageActive('notice');
     this.load();
+  }
+
+  /** 页面消失：退出活动页上下文（回落全局灰字色） */
+  aboutToDisappear(): void {
+    GlassMaterial.setPageActive('');
   }
 
   private async load(): Promise<void> {
