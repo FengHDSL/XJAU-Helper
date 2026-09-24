@@ -1161,13 +1161,14 @@ export struct LoginView {
                         LoadingProgress()
                           .width(18)
                           .height(18)
-                          .color($r('app.color.brand_on'))
+                          .color(Color.White)
                           .margin({ right: 8 })
                       }
                       Text(this.loading ? '正在登录' : '登  录')
                         .fontSize(16)
                         .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-                        .fontColor($r('app.color.brand_on'))
+                        // 按钮底为主题色（彩色玻璃/实底），深浅色模式下都用白色保证对比
+                        .fontColor(Color.White)
                     }
                     .justifyContent(FlexAlign.Center)
                     .width('100%')

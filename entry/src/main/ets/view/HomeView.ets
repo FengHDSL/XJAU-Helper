@@ -594,7 +594,7 @@ export struct HomeView {
   termPickerSheet() {
     // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底（见外层选项）。
     // SheetSize.FIT_CONTENT（高度随内容）→ panelFillHeight: false；内层 20/8/24vp 内边距原样保留。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showTermSheet = false; } }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelTitle: '选择学年-学期', panelShowClose: true, panelOnClose: (): void => { this.showTermSheet = false; } }) {
       Column() {
         if (this.terms.length === 0) {
           Text('暂无可选学期')
@@ -1660,6 +1660,8 @@ export struct HomeView {
   /** 日历设置面板：学期标题 + 开学日 / 结束日自定义 */
   @Builder
   calEditorSheet() {
+    // 补上沉浸光感：面板内自绘「日历设置」标题 + 关闭按钮（此前是系统 title 的普通弹层）
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelTitle: '日历设置', panelShowClose: true, panelOnClose: (): void => { this.showCalEditor = false; } }) {
     Column() {
       Text('学期标题')
         .fontSize(13)
@@ -1781,6 +1783,7 @@ export struct HomeView {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 14, bottom: 26 })
+    }
   }
 
   /** 学期日历信息小标签（胶囊小按钮：材质走 MaterialButton 的 Toggle 承载层） */
@@ -2041,9 +2044,11 @@ export struct HomeView {
     // 日历设置面板（挂日历卡片外框；与根 Column / Scroll 上的其它弹层分属不同组件，避免冲突）
     .bindSheet($$this.showCalEditor, this.calEditorSheet(), {
       height: SheetSize.FIT_CONTENT,
-      showClose: true,
+      // 关闭按钮/标题改由面板内 MaterialSheetPanel 自绘；显式透明底 + 材质模糊补上沉浸光感
+      showClose: false,
       preferType: SheetType.BOTTOM,
-      title: { title: '日历设置' }
+      backgroundColor: Color.Transparent,
+      blurStyle: sheetBlurStyle()
     })
   }
 
@@ -2105,8 +2110,7 @@ export struct HomeView {
             dragBar: true,
             // 必须显式透明：不透明底（默认白/bg_card）会把 MaterialSheetPanel 的材质整块盖住
             backgroundColor: Color.Transparent,
-            blurStyle: sheetBlurStyle(),
-            title: { title: '选择学年-学期' }
+            blurStyle: sheetBlurStyle()
           })
         }
         .width('100%')
@@ -2120,8 +2124,8 @@ export struct HomeView {
           preferType: SheetType.BOTTOM,
           height: SheetSize.LARGE,
           dragBar: false,
-          backgroundColor: $r('app.color.bg_page'),
-          title: { title: AppState.webTitle }
+          backgroundColor: Color.Transparent,
+          blurStyle: sheetBlurStyle()
         })
       }
       .onRefreshing(() => { this.onRefresh(); })
@@ -2193,8 +2197,8 @@ export struct HomeView {
           // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
           showClose: false,
           dragBar: true,
-          backgroundColor: $r('app.color.bg_card'),
-          title: { title: '选择学年-学期' }
+          backgroundColor: Color.Transparent,
+          blurStyle: sheetBlurStyle()
         })
       }
       .layoutWeight(1)
@@ -2238,8 +2242,8 @@ export struct HomeView {
           preferType: SheetType.BOTTOM,
           height: SheetSize.LARGE,
           dragBar: false,
-          backgroundColor: $r('app.color.bg_page'),
-          title: { title: AppState.webTitle }
+          backgroundColor: Color.Transparent,
+          blurStyle: sheetBlurStyle()
         })
       }
       .layoutWeight(1)
@@ -2253,6 +2257,9 @@ export struct HomeView {
 
   @Builder
   webSheet() {
-    WebSurface()
+    // 网页弹层也走沉浸光感面板：标题进面板（AppState.webTitle 动态传入）
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelTitle: AppState.webTitle, panelShowClose: true, panelOnClose: (): void => { this.showWebSheet = false; } }) {
+      WebSurface()
+    }
   }
 }

@@ -820,7 +820,7 @@ export struct KxjsPage {
           Blank()
           TextInput({ placeholder: '不限', text: this.seatMinText })
             .type(InputType.Number)
-            .height(48)
+            .height(40)
             .enterKeyType(EnterKeyType.Done)
             .borderRadius($r('sys.float.corner_radius_level12'))
             .fontSize($r('sys.float.Body_L'))
@@ -840,7 +840,7 @@ export struct KxjsPage {
             .margin({ left: 6, right: 6 })
           TextInput({ placeholder: '不限', text: this.seatMaxText })
             .type(InputType.Number)
-            .height(48)
+            .height(40)
             .enterKeyType(EnterKeyType.Done)
             .borderRadius($r('sys.float.corner_radius_level12'))
             .fontSize($r('sys.float.Body_L'))
@@ -866,7 +866,7 @@ export struct KxjsPage {
         // 材质生效时不再叠普通磨砂（避免发灰）；关闭时保留原磨砂观感
         .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : BlurStyle.Thin)
         .borderRadius(10)
-        .margin({ bottom: 10 })
+        .margin({ bottom: 14 })
       }
 
       // 场地名称；卡内小卡：材质承载层（开）或普通磨砂（关）
@@ -881,7 +881,7 @@ export struct KxjsPage {
             .width(86)
           Blank()
           TextInput({ placeholder: '场地名称或编号', text: this.roomName })
-            .height(48)
+            .height(40)
             .enterKeyType(EnterKeyType.Done)
             .borderRadius($r('sys.float.corner_radius_level12'))
             .fontSize($r('sys.float.Body_L'))
@@ -893,7 +893,8 @@ export struct KxjsPage {
             .fontColor(Theme.colorOf(this.themeColor))
             .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
             .textAlign(TextAlign.End)
-            .layoutWeight(1)
+            // 此前 layoutWeight(1) 占满整行显得过长；定宽 200 视觉更均衡
+            .width(200)
             .onChange((v: string) => {
               this.roomName = v;
             })
@@ -904,7 +905,7 @@ export struct KxjsPage {
         .backgroundColor(this.matOn() ? Color.Transparent : $r('app.color.bg_chip'))
         .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : BlurStyle.Thin)
         .borderRadius(10)
-        .margin({ bottom: 10 })
+        .margin({ bottom: 14 })
       }
 
       // 查询按钮：材质按钮（液态玻璃主题色，材质关闭回落主题色实底）
@@ -924,7 +925,8 @@ export struct KxjsPage {
       }) {
         Text(this.loading ? '查询中…' : '查询空闲教室')
           .fontSize(15)
-          .fontColor($r('app.color.brand_on'))
+          // 深色模式下 brand_on 会变深色，压在主题色按钮上不清晰 → 深色时用白色
+          .fontColor(this.isDarkMode ? Color.White : $r('app.color.brand_on'))
           .width('100%')
           .textAlign(TextAlign.Center)
           .height(44)
@@ -980,7 +982,7 @@ export struct KxjsPage {
                 .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
             }
             .width('100%')
-            .margin({ bottom: 10 })
+            .margin({ bottom: 14 })
 
             if (this.loading) {
               MaterialCard({
@@ -1000,7 +1002,7 @@ export struct KxjsPage {
                 Column() {
                   this.roomCard(item)
                 }
-                .margin({ bottom: 10 })
+                .margin({ bottom: 14 })
               }, (item: EmptyRoomItem) => `${item.cdbh}-${item.cdmc}-${item.time}`)
               this.pageControl()
             } else {
@@ -1157,7 +1159,7 @@ export struct KxjsPage {
                     .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
                 }
                 .width('100%')
-                .margin({ bottom: 10 })
+                .margin({ bottom: 14 })
 
                 if (this.loading) {
                   MaterialCard({
@@ -1178,7 +1180,7 @@ export struct KxjsPage {
                     Column() {
                       this.roomCard(item)
                     }
-                    .margin({ bottom: 10 })
+                    .margin({ bottom: 14 })
                   }, (item: EmptyRoomItem) => `${item.cdbh}-${item.cdmc}-${item.time}`)
                   // 底部翻页（左右按钮 + 页数）
                   this.pageControl()
@@ -1322,7 +1324,7 @@ export struct KxjsPage {
                 ? Theme.colorOf(this.themeColor)
                 : $r('app.color.bg_chip'))
               .borderRadius(17)
-              .margin({ bottom: 10 })
+              .margin({ bottom: 14 })
               .onClick(() => {
                 this.toggleMultiPicker(index);
               })
