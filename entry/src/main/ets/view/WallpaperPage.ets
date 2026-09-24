@@ -1527,8 +1527,9 @@ export struct WallpaperPage {
                   .textAlign(TextAlign.Center)
                   .height(42)
               }
-              .layoutWeight(1)
             }
+            // layoutWeight 必须挂在内置容器 Row 上（自定义组件尾随闭包后不能链式加属性）
+            .layoutWeight(1)
             .width('100%')
             .margin({ top: 18 })
             // 取消壁纸：恢复默认纯色背景（淡红玻璃按钮；材质生效时淡红叠层保留颜色语义）
@@ -1553,8 +1554,9 @@ export struct WallpaperPage {
                   .textAlign(TextAlign.Center)
                   .height(42)
               }
-              .layoutWeight(1)
             }
+            // layoutWeight 必须挂在内置容器 Row 上（自定义组件尾随闭包后不能链式加属性）
+            .layoutWeight(1)
             .width('100%')
             .margin({ top: 12 })
             // 壁纸蒙版开关：关闭后不叠加可读性遮罩（文字仍会自动适配颜色）

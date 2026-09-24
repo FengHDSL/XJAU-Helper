@@ -1,5 +1,6 @@
 import { uiMaterial } from '@kit.ArkUI';
 import { AppearanceStore } from './AppearanceStore';
+import { DataStore } from './DataStore';
 import { Theme } from './ThemeUtil';
 
 /**
