@@ -81,11 +81,14 @@ export default class EntryAbility extends UIAbility {
     // 在 DataStore.init + AppState.context 之后调用，保证自定义字体可读沙箱目录并完成注册。
     AppearanceStore.init();
     // 灰体文本覆盖启动恢复：模式/自定义色先回 AppStorage（此前冷启动会丢失设置），
-    // 再载入每页单独色 map 并广播（含灰字调用的页面订阅 grayTick，见 GlassMaterial.broadcastGray）
+    // 再载入每页单独色 map、文字样式，并广播（含灰字调用的页面订阅 grayTick，见 GlassMaterial.broadcastGray）
     AppStorage.setOrCreate('grayTextMode', DataStore.loadGrayMode());
     AppStorage.setOrCreate('grayTextColor', DataStore.loadGrayCustom());
+    GlassMaterial.loadTextStyle();
     GlassMaterial.loadGrayPageMap();
     GlassMaterial.broadcastGray();
+    // 「自动」灰字色：按壁纸亮度计算对比度更高的颜色（1.5s 防抖，壁纸刚变化时先静止再切换）
+    GlassMaterial.scheduleAutoGray();
     try {
       this.context.getApplicationContext()
         .setColorMode(DataStore.isDarkOn() ? ConfigurationConstant.ColorMode.COLOR_MODE_DARK

@@ -69,6 +69,8 @@ export struct WallpaperPage {
   @StorageProp('grayTextColor') grayTextColor: string = '';
   /** 灰字广播计数器：本页根容器表达式引用以登记依赖（拨开关后本页文本即时重算） */
   @StorageProp('grayTick') grayTick: number = 0;
+  /** 文字样式增强（''=默认 | italic 斜体 | bold 加粗 | thin 减细 | glow 荧光底） */
+  @StorageProp('textStyleMode') textStyleMode: string = '';
   /** 自定义灰字色输入区展开（带动画）与草稿（点「应用」才生效） */
   @State grayCustomExpanded: boolean = false;
   @State grayCustomDraft: string = '';
@@ -85,6 +87,8 @@ export struct WallpaperPage {
     this.combos = DataStore.combos();
     // 打开外观设置即恢复字号缩放（自定义字号持久化后应用级生效）
     AppearanceStore.applyFontSizeScale();
+    // 「自动」灰字色按壁纸对比度重算（1.5s 防抖；壁纸刚变化时先静止再切换）
+    GlassMaterial.scheduleAutoGray();
     // 自定义灰字模式：进入页面时直接展开输入区并预填已存颜色
     if (this.grayTextMode === 'custom') {
       this.grayCustomExpanded = true;
@@ -704,6 +708,35 @@ export struct WallpaperPage {
         .width('100%')
         .margin({ top: 12 })
 
+        // 文字样式增强：全站灰字的斜体 / 加粗 / 减细 / 荧光底，便于区分与阅读
+        Row() {
+          Text('文字样式')
+            .fontSize(12)
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+          Blank()
+          Text('作用于全站次要/辅助文字')
+            .fontSize(11)
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+        }
+        .width('100%')
+        .margin({ top: 14 })
+
+        Row({ space: 6 }) {
+          this.textStyleChip('默认', '')
+          this.textStyleChip('斜体', 'italic')
+          this.textStyleChip('加粗', 'bold')
+          this.textStyleChip('减细', 'thin')
+          this.textStyleChip('荧光底', 'glow')
+        }
+        .width('100%')
+        .margin({ top: 8 })
+
+        Text('「自动」灰字色按壁纸明暗计算对比度（切换壁纸后约 1.5 秒生效）；无壁纸时沿用默认灰。')
+          .fontSize(11)
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+          .width('100%')
+          .margin({ top: 10 })
+
         if (this.grayCustomExpanded) {
           Row() {
             // 自定义色输入框：材质承载层与输入框做「兄弟」（Stack），保证沉浸光感同时输入框可获焦
@@ -786,6 +819,10 @@ export struct WallpaperPage {
           DataStore.saveGrayMode(mode);
           // 实时广播：订阅 grayTick 的页面立即按新模式重算灰字色
           GlassMaterial.broadcastGray();
+          // 选中「自动」时按需重算壁纸对比度配色（1.5s 防抖）
+          if (mode === 'default') {
+            GlassMaterial.scheduleAutoGray();
+          }
           // 自定义模式展开输入区（带动画），其他模式收起
           if (mode === 'custom') {
             this.grayCustomDraft = DataStore.loadGrayCustom();
@@ -803,10 +840,27 @@ export struct WallpaperPage {
     }
   }
 
-  // 灰字「高级调整」（逐页设色）已按用户要求下线，改为下方的「文字样式」设置。
-
-  /** 灰字模式胶囊：MaterialButton（选中=主题色叠层白字，未选中=bg_chip 玻璃胶囊，与字重胶囊同款） */
-
+  /** 文字样式胶囊：MaterialButton（选中=主题色叠层白字，未选中=bg_chip 玻璃胶囊；作用于全站灰字） */
+  @Builder
+  textStyleChip(label: string, mode: string) {
+    MaterialButton({
+      btnRadius: 12,
+      btnBg: this.textStyleMode === mode ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'),
+      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: this.textStyleMode === mode ? Theme.colorOf(this.themeColor) : '',
+      btnTintRatio: 0.85,
+      btnOnClick: (): void => {
+        GlassMaterial.setTextStyle(mode);
+      }
+    }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.textStyleMode === mode ? Color.White : $r('app.color.text_primary'))
+        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+    }
+  }
 
   /** 沉浸光感节：全局开关 + 真机诊断行（API≥26 才显示；开关写入后全站卡片/按钮跟随切换） */
   @Builder

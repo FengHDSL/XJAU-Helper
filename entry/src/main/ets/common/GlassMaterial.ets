@@ -2,6 +2,7 @@ import { uiMaterial } from '@kit.ArkUI';
 import { AppearanceStore } from './AppearanceStore';
 import { DataStore } from './DataStore';
 import { Theme } from './ThemeUtil';
+import { WallpaperTone } from './WallpaperTone';
 
 /**
  * 玻璃质感（GlassMaterial）—— 全应用统一的按钮与卡片材质
@@ -438,6 +439,11 @@ export class GlassMaterial {
         return c.startsWith('#') ? c : `#${c}`;
       }
     }
+    // 「自动」：按壁纸对比度算出的灰字色（1.5s 防抖后写入；未算出/无壁纸时返回 undefined → 用站点默认灰）
+    const auto: string = GlassMaterial.autoGrayColor();
+    if (auto.length >= 6) {
+      return auto;
+    }
     return undefined;
   }
 
@@ -584,5 +590,95 @@ export class GlassMaterial {
    */
   static grayTertiary(tick: number, defaultColor: ResourceColor): ResourceColor {
     return GlassMaterial.resolveRole(tick, GlassMaterial.GRAY_ROLE_TERTIARY) ?? defaultColor;
+  }
+
+  // ── 文字样式增强（斜体 / 加粗 / 减细 / 荧光底）：外观设置可调，作用于全站灰字，便于区分与阅读 ──
+  /** AppStorage 键：文字样式（''=默认 | 'italic' | 'bold' | 'thin' | 'glow'） */
+  static readonly KEY_TEXT_STYLE: string = 'textStyleMode';
+  /** AppStorage 键：自动灰字色（按壁纸对比度算出；''＝未算出，用各站点默认灰） */
+  static readonly KEY_GRAY_AUTO: string = 'grayAutoColor';
+  /** 荧光底色：荧光笔黄、半透明（醒目又不遮挡壁纸纹理） */
+  private static readonly TEXT_GLOW_BG: string = 'rgba(255, 233, 92, 0.38)';
+  /** 「自动」配色的防抖定时器句柄 */
+  private static autoGrayTimer: number = -1;
+
+  /** 当前文字样式（'' | 'italic' | 'bold' | 'thin' | 'glow'） */
+  private static styleMode(): string {
+    return AppStorage.get<string>(GlassMaterial.KEY_TEXT_STYLE) ?? '';
+  }
+
+  /**
+   * 斜体：样式='italic' 时斜体，否则常规。
+   * tick 仅作响应式依赖载体（调用处须传自己的订阅值，见 resolveRole 说明）。
+   */
+  static styleItalic(tick: number): FontStyle {
+    if (tick < 0) {
+      return FontStyle.Normal;
+    }
+    return GlassMaterial.styleMode() === 'italic' ? FontStyle.Italic : FontStyle.Normal;
+  }
+
+  /** 字重：'bold'=粗体 / 'thin'=更细 / 其余=常规（只作用于灰字，不影响主文字） */
+  static styleWeight(tick: number): FontWeight {
+    if (tick < 0) {
+      return FontWeight.Normal;
+    }
+    const m: string = GlassMaterial.styleMode();
+    if (m === 'bold') {
+      return FontWeight.Bold;
+    }
+    if (m === 'thin') {
+      return FontWeight.Lighter;
+    }
+    return FontWeight.Normal;
+  }
+
+  /** 荧光底：样式='glow' 时给灰字铺一层荧光高亮底，其余样式透明（不影响默认观感） */
+  static styleGlowBg(tick: number): ResourceColor {
+    if (tick < 0) {
+      return Color.Transparent;
+    }
+    return GlassMaterial.styleMode() === 'glow' ? GlassMaterial.TEXT_GLOW_BG : Color.Transparent;
+  }
+
+  /** 已算出的自动灰字色（''＝未算出/无壁纸） */
+  static autoGrayColor(): string {
+    return AppStorage.get<string>(GlassMaterial.KEY_GRAY_AUTO) ?? '';
+  }
+
+  /**
+   * 重新计算「自动」灰字色：按当前壁纸亮度选对比度更高的颜色（复用 WallpaperTone 的对比度算法）。
+   * **1.5s 防抖**——壁纸刚变化时先不动，静止 1.5 秒后再切换，避免连续跳动。
+   * 应在进入外观设置 / 冷启动 / 切换壁纸后调用。
+   */
+  static scheduleAutoGray(): void {
+    if (GlassMaterial.autoGrayTimer >= 0) {
+      clearTimeout(GlassMaterial.autoGrayTimer);
+    }
+    GlassMaterial.autoGrayTimer = setTimeout(() => {
+      GlassMaterial.autoGrayTimer = -1;
+      GlassMaterial.applyAutoGray();
+    }, 1500);
+  }
+
+  /** 立即计算并写入自动灰字色并广播（无壁纸时不覆盖，沿用各站点默认灰） */
+  private static applyAutoGray(): void {
+    const tone: number = AppStorage.get<number>('wallpaperTone') ?? -1;
+    const dark: boolean = AppStorage.get<boolean>('isDarkMode') ?? false;
+    const color: string = tone < 0 ? '' : WallpaperTone.onWallpaperSecondary(tone, dark);
+    AppStorage.setOrCreate(GlassMaterial.KEY_GRAY_AUTO, color);
+    GlassMaterial.broadcastGray();
+  }
+
+  /** 切换文字样式（写 AppStorage + 持久化 + 广播灰字刷新） */
+  static setTextStyle(mode: string): void {
+    AppStorage.setOrCreate(GlassMaterial.KEY_TEXT_STYLE, mode);
+    DataStore.saveTextStyle(mode);
+    GlassMaterial.broadcastGray();
+  }
+
+  /** 启动恢复文字样式（EntryAbility 调用） */
+  static loadTextStyle(): void {
+    AppStorage.setOrCreate(GlassMaterial.KEY_TEXT_STYLE, DataStore.loadTextStyle());
   }
 }

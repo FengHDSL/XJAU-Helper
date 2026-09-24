@@ -188,6 +188,8 @@ export class DataStore {
   // ── 灰色字体颜色覆盖（default=自动跟随深浅 / gray=固定灰 / white / black / custom）──
   static readonly KEY_GRAY_MODE: string = 'gray_text_mode';
   static readonly KEY_GRAY_CUSTOM: string = 'gray_text_custom';
+  /** 文字样式增强（''=默认 | 'italic' 斜体 | 'bold' 加粗 | 'thin' 减细 | 'glow' 荧光底） */
+  static readonly KEY_TEXT_STYLE: string = 'text_style_mode';
 
   /** 保存灰字模式 */
   static saveGrayMode(mode: string): void {
@@ -203,6 +205,17 @@ export class DataStore {
   /** 保存自定义灰字颜色（rrggbb） */
   static saveGrayCustom(color: string): void {
     DataStore.put(DataStore.KEY_GRAY_CUSTOM, color);
+  }
+
+  /** 保存文字样式增强模式 */
+  static saveTextStyle(mode: string): void {
+    DataStore.put(DataStore.KEY_TEXT_STYLE, mode);
+  }
+
+  /** 读取文字样式增强模式（默认 ''＝默认样式） */
+  static loadTextStyle(): string {
+    const v: string = DataStore.get(DataStore.KEY_TEXT_STYLE);
+    return (v === 'italic' || v === 'bold' || v === 'thin' || v === 'glow') ? v : '';
   }
 
   /** 读取自定义灰字颜色（未设置返回空串） */
