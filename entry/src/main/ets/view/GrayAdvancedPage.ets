@@ -100,7 +100,7 @@ const MOCK_PAGES: MockPage[] = [
   {
     key: 'mine', barTitle: '我的', barMeta: '已同步',
     blocks: [
-      { title: '梁振槟', secondary: '应用化学 2303 班', meta: ['学号 220236142'] },
+      { title: '示例同学', secondary: '示例班级 2301 班', meta: ['学号 2023XXXXXXX'] },
       { title: '网页端教务系统', secondary: '服务大厅 · 智慧学工', meta: ['上次同步 2026-09-24 18:20'] },
       { title: '外观设置', secondary: '主题色 · 壁纸 · 字体', meta: ['沉浸光感 · 灰体文本'] }
     ]
