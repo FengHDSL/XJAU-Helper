@@ -934,7 +934,9 @@ export struct KxjsPage {
       }
       .width('100%')
       .padding(16)
-      .backgroundColor(this.matOn() ? Color.Transparent : GlassMaterial.cardSurfaceColor(this.isDarkMode))
+      .backgroundColor(this.matOn() ? Color.Transparent
+        : (AppearanceStore.cardFallbackMica() ? GlassMaterial.cardSurfaceColor(this.isDarkMode) : $r('app.color.bg_card')))
+      .backgroundBlurStyle(this.matOn() || !AppearanceStore.cardFallbackMica() ? BlurStyle.NONE : BlurStyle.Thin)
       .borderRadius(18)
     }
     .width('100%')

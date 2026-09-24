@@ -807,7 +807,7 @@ export struct QuickSelectPage {
                   .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
                   .width('100%')
               } else {
-                ForEach(this.queue, (item: GrabTarget) => {
+                ForEach(this.queue, (item: GrabTarget, qIdx: number) => {
                   Row() {
                     Column() {
                       Text(item.courseName)
@@ -881,7 +881,7 @@ export struct QuickSelectPage {
                   .width('100%')
                   .alignItems(VerticalAlign.Center)
                   .padding({ top: 7, bottom: 7 })
-                }, (item: GrabTarget) => `${item.kchId}-${item.doJxbId}${item.jxbId}`)
+                }, (item: GrabTarget, qIdx: number) => `q${qIdx}_${item.kchId}-${item.doJxbId}${item.jxbId}`)
               }
 
               // 定时设置：启动时间（日期 + 时间选择）

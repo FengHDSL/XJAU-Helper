@@ -196,6 +196,8 @@ export class DataStore {
   static readonly KEY_PAGE_BG_TINT: string = 'page_bg_tint';
   /** 上次弹过更新提示的应用版本号（每版本只弹一次更新内容） */
   static readonly KEY_LAST_SEEN_VERSION: string = 'last_seen_version';
+  /** 卡片降级样式（mica=云母磨砂 / solid=实色纯底） */
+  static readonly KEY_CARD_FALLBACK: string = 'card_fallback';
 
   /** 保存灰字模式 */
   static saveGrayMode(mode: string): void {
@@ -252,6 +254,16 @@ export class DataStore {
   /** 记录已弹过更新提示的版本号 */
   static setLastSeenVersion(v: string): void {
     DataStore.put(DataStore.KEY_LAST_SEEN_VERSION, v);
+  }
+
+  /** 保存卡片降级样式 */
+  static saveCardFallback(mode: string): void {
+    DataStore.put(DataStore.KEY_CARD_FALLBACK, mode);
+  }
+
+  /** 读取卡片降级样式（''＝默认云母） */
+  static loadCardFallback(): string {
+    return DataStore.get(DataStore.KEY_CARD_FALLBACK);
   }
 
   /** 读取自定义灰字颜色（未设置返回空串） */

@@ -480,17 +480,16 @@ export struct MaterialCard {
     if (this.tintBg.length > 0) {
       return this.tintBg;
     }
-    // 玻璃卡降级（参考项目完整移植）：70% 透明玻璃底 + Thin 磨砂，
-    // 替代原先不透明的 bg_card 死板色块——光感开/关观感一致
-    return GlassMaterial.cardSurfaceColor(this.isDarkMode);
+    // 卡片降级样式（用户可选）：云母=70% 玻璃底 / 实色=调用方传入的纯色底（默认云母）
+    return AppearanceStore.cardFallbackMica() ? GlassMaterial.cardSurfaceColor(this.isDarkMode) : this.cardBg;
   }
 
-  /** 外壳磨砂：材质生效时关掉（避免与材质叠加发灰）；关闭光感时回落 **Thin 磨砂**（参考项目行为，恒定） */
+  /** 外壳磨砂：材质生效时关掉；关闭光感时云母=Thin 磨砂 / 实色=无磨砂 */
   private shellBlurStyle(): BlurStyle {
     if (this.materialEffective()) {
       return BlurStyle.NONE;
     }
-    return BlurStyle.Thin;
+    return AppearanceStore.cardFallbackMica() ? BlurStyle.Thin : BlurStyle.NONE;
   }
 
   /** 外壳阴影：材质生效时让出（材质自带的投影由 cardMaterialShadow 控制） */
@@ -644,6 +643,8 @@ export struct MaterialSheetPanel {
           buttonSize: 30,
           iconSize: 14,
           tint: $r('app.color.text_secondary'),
+          // 灰色圆底：让小尺寸关闭按钮在玻璃/材质上足够显眼（用户反馈「太小，加个灰色底」）
+          fill: '#33808080',
           buttonInteractive: true,
           onAction: (): void => {
             this.panelOnClose();
@@ -676,7 +677,7 @@ export struct MaterialSheetPanel {
           buttonSize: 30,
           iconSize: 14,
           tint: this.panelCloseTint === '' ? $r('app.color.text_secondary') : this.panelCloseTint,
-          fill: this.panelCloseFill,
+          fill: this.panelCloseFill.length > 0 ? this.panelCloseFill : '#33808080',
           buttonInteractive: true,
           onAction: (): void => {
             this.panelOnClose();

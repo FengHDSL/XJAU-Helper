@@ -1543,10 +1543,24 @@ export struct LoginView {
   @Builder
   webSheetTitle() {
     Row() {
-      Text(AppState.webTitle)
-        .fontSize(18)
-        .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
-        .fontColor($r('app.color.text_primary'))
+      // 标题位让给「识别登录状态」胶囊（用户指定：取消「网页登录」标题文本）——
+      // 自动轮询漏判（登录成功没反应）时点一下立即抓取会话 Cookie 完成登录判定
+      MaterialButton({
+        btnRadius: 15,
+        btnBg: $r('app.color.bg_chip'),
+        btnBlur: GlassMaterial.cardBlur(),
+        btnBorderW: GlassMaterial.borderWidth(),
+        btnBorderC: GlassMaterial.borderColor(),
+        btnOnClick: (): void => {
+          this.webScanSeq++;
+          this.getUIContext().getPromptAction().showToast({ message: '正在识别登录状态…' });
+        }
+      }) {
+        Text('识别登录状态')
+          .fontSize(13)
+          .fontColor($r('app.color.brand'))
+          .padding({ left: 14, right: 14, top: 6, bottom: 6 })
+      }
       Blank()
       if (AppState.webLoginMode) {
         Row() {
@@ -1576,20 +1590,6 @@ export struct LoginView {
         .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
         .borderRadius(16)
         .padding(3)
-      }
-      // 手动识别登录状态：自动轮询漏判（登录成功没反应）时，点一下立即抓取会话 Cookie 完成判定
-      if (AppState.webLoginMode) {
-        Text('手动识别登录')
-          .fontSize(11)
-          .fontColor($r('app.color.brand'))
-          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-          .backgroundColor($r('app.color.bg_chip'))
-          .borderRadius(13)
-          .margin({ left: 8 })
-          .onClick(() => {
-            this.webScanSeq++;
-            this.getUIContext().getPromptAction().showToast({ message: '正在识别登录状态…' });
-          })
       }
     }
     .width('100%')

@@ -76,6 +76,8 @@ export struct WallpaperPage {
   @StorageProp('textGlowColor') textGlowColor: string = '';
   /** 背景跟随主题色开关（false = 页面底色保持中性，不混入主题色） */
   @StorageProp('pageBgTint') pageBgTint: boolean = true;
+  /** 卡片降级样式（mica=云母磨砂 / solid=实色纯底；默认云母） */
+  @StorageProp('cardFallback') cardFallback: string = 'mica';
   /** 正在删除的组合名（粒子消散 + 淡出收起动画用） */
   @State deletingCombo: string = '';
   /** 粒子消散触发序号（自增触发新一轮爆散） */
@@ -186,10 +188,17 @@ export struct WallpaperPage {
       return Color.Transparent;
     }
     const tintOn: boolean = this.cardTint;
-    // 光感关闭兜底改 70% 玻璃底（不再用 bg_card 纯色）——用户反馈：顶栏主题色卡/灰体文本卡/
-    // 全局壁纸卡/主题组合卡关闭光感后纯黑纯白
+    // 卡片降级样式（用户可选）：云母=70% 玻璃底 / 实色=原 bg_card 纯色（默认云母）
     return tintOn ? AppearanceStore.cardBackground(this.isDarkMode, this.themeColor)
-      : GlassMaterial.cardSurfaceColor(this.isDarkMode);
+      : (AppearanceStore.cardFallbackMica() ? GlassMaterial.cardSurfaceColor(this.isDarkMode) : orig);
+  }
+
+  /** 卡片磨砂兜底：云母=Thin（配合玻璃底）；实色=NONE（纯底不需要）；材质生效时让出 */
+  private cardBlurFb(): BlurStyle {
+    if (this.matOn() || !AppearanceStore.cardFallbackMica()) {
+      return BlurStyle.NONE;
+    }
+    return BlurStyle.Thin;
   }
 
   /** 手写卡的沾色叠层：压在材质承载层之上、内容之下（对齐 MaterialCard.cardBody 排层） */
@@ -688,7 +697,7 @@ export struct WallpaperPage {
     .borderRadius(16)
     .clip(true)
     .backgroundColor(this.cardBg($r('app.color.bg_card')))
-    .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+    .backgroundBlurStyle(this.cardBlurFb())
     .border({ width: this.matOn() ? 0 : (GlassMaterial.borderWidth()), color: GlassMaterial.borderColor() })
     .margin({ top: 14 })
   }
@@ -837,7 +846,7 @@ export struct WallpaperPage {
     .borderRadius(16)
     .clip(true)
     .backgroundColor(this.cardBg($r('app.color.bg_card')))
-    .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+    .backgroundBlurStyle(this.cardBlurFb())
     .border({ width: this.matOn() ? 0 : (GlassMaterial.borderWidth()), color: GlassMaterial.borderColor() })
     .margin({ top: 14 })
   }
@@ -899,6 +908,28 @@ export struct WallpaperPage {
       Text(label)
         .fontSize(12)
         .fontColor(this.textStyleMode === mode ? Color.White : $r('app.color.text_primary'))
+        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+    }
+  }
+
+  /** 卡片降级样式胶囊：MaterialButton（选中=主题色叠层白字） */
+  @Builder
+  cardFallbackChip(label: string, mode: string) {
+    MaterialButton({
+      btnRadius: 12,
+      btnBg: this.cardFallback === mode ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'),
+      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: this.cardFallback === mode ? Theme.colorOf(this.themeColor) : '',
+      btnTintRatio: 0.85,
+      btnOnClick: (): void => {
+        AppearanceStore.setCardFallback(mode);
+      }
+    }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.cardFallback === mode ? Color.White : $r('app.color.text_primary'))
         .padding({ left: 12, right: 12, top: 5, bottom: 5 })
     }
   }
@@ -984,6 +1015,29 @@ export struct WallpaperPage {
               .onChange((on: boolean) => {
                 AppearanceStore.setPageBgTint(on);
               })
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+          .margin({ top: 12 })
+
+          // 卡片降级样式：云母（磨砂玻璃）/ 实色（纯底），默认云母
+          Row() {
+            Column({ space: 3 }) {
+              Text('卡片降级样式')
+                .fontSize(14)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+                .fontColor($r('app.color.text_primary'))
+              Text('关闭沉浸光感后，卡片使用云母磨砂还是实色纯底')
+                .fontSize(11)
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+
+            Row({ space: 6 }) {
+              this.cardFallbackChip('云母', 'mica')
+              this.cardFallbackChip('实色', 'solid')
+            }
           }
           .width('100%')
           .alignItems(VerticalAlign.Center)
@@ -1523,7 +1577,7 @@ export struct WallpaperPage {
             .borderRadius(16)
             .clip(true)
             .backgroundColor(this.cardBg($r('app.color.bg_card')))
-            .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+            .backgroundBlurStyle(this.cardBlurFb())
             .border({ width: this.matOn() ? 0 : (GlassMaterial.borderWidth()), color: GlassMaterial.borderColor() })
             .margin({ top: 14 })
 
@@ -1687,7 +1741,7 @@ export struct WallpaperPage {
             .borderRadius(16)
             .clip(true)
             .backgroundColor(this.cardBg($r('app.color.bg_card')))
-            .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+            .backgroundBlurStyle(this.cardBlurFb())
             .border({ width: this.matOn() ? 0 : (GlassMaterial.borderWidth()), color: GlassMaterial.borderColor() })
             .margin({ top: 14 })
 

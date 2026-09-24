@@ -87,6 +87,7 @@ export default class EntryAbility extends UIAbility {
     GlassMaterial.loadTextStyle();
     GlassMaterial.loadTextGlowColor();
     AppearanceStore.loadPageBgTint();
+    AppearanceStore.loadCardFallback();
     GlassMaterial.loadGrayPageMap();
     GlassMaterial.broadcastGray();
     // 「自动」灰字色：按壁纸亮度计算对比度更高的颜色（1.5s 防抖，壁纸刚变化时先静止再切换）

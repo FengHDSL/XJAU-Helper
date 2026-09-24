@@ -230,7 +230,7 @@ export struct AboutPage {
       } else if (cmp > 0) {
         this.getUIContext().getPromptAction().showDialog({
           title: '版本超前',
-          message: `当前版本（v${this.currentVersion}）比已发布版本（v${remote}）更高`,
+          message: `当前最新版本为 v${remote}！`,
           buttons: [
             { text: '知道了', color: '#079841' }
           ]

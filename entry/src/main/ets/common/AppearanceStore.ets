@@ -227,6 +227,25 @@ export class AppearanceStore {
 
   /** AppStorage 键：页面背景是否混入主题色（true=默认取色；false=中性底色） */
   static readonly KEY_PAGE_BG_TINT: string = 'pageBgTint';
+  /** AppStorage 键：卡片降级样式（mica=云母磨砂玻璃 / solid=实色纯底），默认 mica */
+  static readonly KEY_CARD_FALLBACK: string = 'cardFallback';
+
+  /** 当前是否「云母」降级（默认 true；'solid'=实色纯底） */
+  static cardFallbackMica(): boolean {
+    return AppStorage.get<string>(AppearanceStore.KEY_CARD_FALLBACK) !== 'solid';
+  }
+
+  /** 切换卡片降级样式（写 AppStorage + 持久化） */
+  static setCardFallback(mode: string): void {
+    AppStorage.setOrCreate(AppearanceStore.KEY_CARD_FALLBACK, mode);
+    DataStore.saveCardFallback(mode);
+  }
+
+  /** 启动恢复卡片降级样式（EntryAbility 调用；缺省 mica） */
+  static loadCardFallback(): void {
+    const v: string = DataStore.loadCardFallback();
+    AppStorage.setOrCreate(AppearanceStore.KEY_CARD_FALLBACK, v.length > 0 ? v : 'mica');
+  }
 
   /** 切换「背景跟随主题色」（写 AppStorage + 持久化 + 重新广播派生底色） */
   static setPageBgTint(on: boolean): void {
