@@ -911,6 +911,35 @@ export class DataStore {
   static readonly KEY_FONT_WEIGHT_MODE: string = 'font_weight_mode';
   static readonly KEY_FONT_WEIGHT_VALUE: string = 'font_weight_value';
   static readonly KEY_CUSTOM_FONTS: string = 'custom_fonts';
+  /** 字号方案（follow=跟随系统 / custom=自定义）—— 移植自参考项目外观设置 */
+  static readonly KEY_FONT_SIZE_MODE: string = 'font_size_mode';
+  /** 自定义字号值（12~28，基准 16） */
+  static readonly KEY_FONT_SIZE_VALUE: string = 'font_size_value';
+
+  /** 保存字号方案（follow / custom） */
+  static saveFontSizeMode(mode: string): void {
+    DataStore.put(DataStore.KEY_FONT_SIZE_MODE, mode.length > 0 ? mode : 'follow');
+  }
+
+  /** 读取字号方案（默认 follow） */
+  static fontSizeMode(): string {
+    const v: string = DataStore.get(DataStore.KEY_FONT_SIZE_MODE);
+    return v.length > 0 ? v : 'follow';
+  }
+
+  /** 保存自定义字号值（12~28 取整） */
+  static saveFontSizeValue(v: number): void {
+    DataStore.put(DataStore.KEY_FONT_SIZE_VALUE, `${Math.round(v)}`);
+  }
+
+  /** 读取自定义字号值（默认 16） */
+  static fontSizeValue(): number {
+    const v: number = Number.parseInt(DataStore.get(DataStore.KEY_FONT_SIZE_VALUE));
+    if (isNaN(v) || v <= 0) {
+      return 16;
+    }
+    return Math.max(12, Math.min(28, v));
+  }
 
   /** 保存字体方案（preset=跟随系统 / zh-en=中英分设 / custom=自定义） */
   static saveFontMode(mode: string): void {

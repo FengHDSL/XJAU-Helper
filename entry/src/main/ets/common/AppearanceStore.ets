@@ -16,6 +16,7 @@
  */
 import { common } from '@kit.AbilityKit';
 import { text } from '@kit.ArkGraphics2D';
+import { uiAppearance } from '@kit.ArkUI';
 import { CustomFontItem, DataStore } from './DataStore';
 import { Theme } from './ThemeUtil';
 import { AppState } from './AppState';
@@ -44,6 +45,10 @@ export class AppearanceStore {
   static readonly KEY_CUSTOM_FONTS: string = 'customFonts';
   /** 主页页面平滑切换（页签切换时页面平滑滑动过渡）—— 移植自参考项目外观设置 */
   static readonly KEY_SMOOTH_PAGE: string = 'smoothPageSwitch';
+  /** 字号方案：follow（跟随系统）/ custom（自定义）—— 移植自参考项目外观设置 */
+  static readonly KEY_FONT_SIZE_MODE: string = 'fontSizeMode';
+  /** 自定义字号值（12~28，基准 16） */
+  static readonly KEY_FONT_SIZE_VALUE: string = 'fontSizeValue';
 
   // ── 派生参数 ──
   /** 卡片沾色比例（参考项目取值：10% 主题色） */
@@ -76,6 +81,8 @@ export class AppearanceStore {
     AppStorage.setOrCreate(AppearanceStore.KEY_FONT_FAMILY_EN, DataStore.fontFamilyEn());
     AppStorage.setOrCreate(AppearanceStore.KEY_FONT_WEIGHT_MODE, DataStore.fontWeightMode());
     AppStorage.setOrCreate(AppearanceStore.KEY_FONT_WEIGHT_VALUE, DataStore.fontWeightValue());
+    AppStorage.setOrCreate(AppearanceStore.KEY_FONT_SIZE_MODE, DataStore.fontSizeMode());
+    AppStorage.setOrCreate(AppearanceStore.KEY_FONT_SIZE_VALUE, DataStore.fontSizeValue());
     AppStorage.setOrCreate(AppearanceStore.KEY_CUSTOM_FONTS, AppearanceStore.customFontAliases());
     AppearanceStore.registerCustomFonts();
   }
@@ -303,6 +310,57 @@ export class AppearanceStore {
   static setFontWeightValue(v: number): void {
     DataStore.saveFontWeightValue(v);
     AppStorage.setOrCreate(AppearanceStore.KEY_FONT_WEIGHT_VALUE, DataStore.fontWeightValue());
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // 字号（跟随系统 / 自定义缩放）—— 移植自参考项目外观设置
+  // ══════════════════════════════════════════════════════════════
+
+  /** 字号方案（follow=跟随系统 / custom=自定义） */
+  static fontSizeMode(): string {
+    const v: string | undefined = AppStorage.get<string>(AppearanceStore.KEY_FONT_SIZE_MODE);
+    return v === undefined || v.length === 0 ? 'follow' : v;
+  }
+
+  /** 自定义字号值（12~28，基准 16，默认 16） */
+  static fontSizeValue(): number {
+    const v: number | undefined = AppStorage.get<number>(AppearanceStore.KEY_FONT_SIZE_VALUE);
+    if (v === undefined || isNaN(v) || v <= 0) {
+      return 16;
+    }
+    return Math.max(12, Math.min(28, v));
+  }
+
+  static setFontSizeMode(mode: string): void {
+    DataStore.saveFontSizeMode(mode);
+    AppStorage.setOrCreate(AppearanceStore.KEY_FONT_SIZE_MODE, DataStore.fontSizeMode());
+  }
+
+  static setFontSizeValue(v: number): void {
+    DataStore.saveFontSizeValue(v);
+    AppStorage.setOrCreate(AppearanceStore.KEY_FONT_SIZE_VALUE, DataStore.fontSizeValue());
+  }
+
+  /**
+   * 应用字号缩放到全局（自定义 = 字号值/16；跟随系统 = 还原系统缩放）。
+   * 参考项目同款：appContext.setFontSizeScale(scale)，应用级即时生效。
+   */
+  static applyFontSizeScale(): void {
+    try {
+      const ctx: common.Context | null = AppState.context;
+      if (ctx === null) {
+        return;
+      }
+      let scale: number = 1;
+      if (AppearanceStore.fontSizeMode() === 'custom') {
+        scale = AppearanceStore.fontSizeValue() / 16;
+      } else {
+        scale = uiAppearance.getFontScale();
+      }
+      ctx.getApplicationContext().setFontSizeScale(scale);
+    } catch (e) {
+      // 系统不支持或上下文未就绪时静默
+    }
   }
 
   // ══════════════════════════════════════════════════════════════
