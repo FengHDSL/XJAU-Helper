@@ -22,6 +22,7 @@ import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { Theme } from '../common/ThemeUtil';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
@@ -42,6 +43,9 @@ export struct ExamPage {
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（顶栏文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅（custom 调值触发重渲染） */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
@@ -242,7 +246,7 @@ export struct ExamPage {
           .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.grayTertiary($r('app.color.text_tertiary')) : $r('app.color.accent_orange'))
         Text(`${DateUtil.parse(item.date).getDate()}`)
           .fontSize(22)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.grayTertiary($r('app.color.text_tertiary')) : $r('app.color.accent_orange'))
         Text(Const.WEEK_LABELS[DateUtil.weekdayOf(DateUtil.parse(item.date)) - 1])
           .fontSize(10)
@@ -258,7 +262,7 @@ export struct ExamPage {
         Row() {
           Text(item.courseName)
             .fontSize(16)
-            .fontWeight(FontWeight.Medium)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.graySecondary($r('app.color.text_secondary')) : $r('app.color.text_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -339,7 +343,7 @@ export struct ExamPage {
             .backgroundColor($r('app.color.accent_orange'))
           Text(this.selectedExam.courseName)
             .fontSize(19)
-            .fontWeight(FontWeight.Bold)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor($r('app.color.text_primary'))
             .margin({ left: 8 })
             .layoutWeight(1)
@@ -571,7 +575,7 @@ export struct ExamPage {
                   Column() {
                     Text(item.courseName)
                       .fontSize(14)
-                      .fontWeight(FontWeight.Medium)
+                      .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                       .fontColor($r('app.color.text_primary'))
                       .maxLines(1)
                       .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -690,7 +694,7 @@ export struct ExamPage {
           Column() {
             Text('考试查询')
               .fontSize(20)
-              .fontWeight(FontWeight.Bold)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
               .height(28)
               .lineHeight(28)
@@ -773,7 +777,7 @@ Row() {
                   Column() {
                     Text(this.nextExamText())
                       .fontSize(14)
-                      .fontWeight(FontWeight.Medium)
+                      .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                       .fontColor($r('app.color.text_primary'))
                     Text('考试须携带学生证与身份证，提前 15 分钟入场')
                       .fontSize(11)

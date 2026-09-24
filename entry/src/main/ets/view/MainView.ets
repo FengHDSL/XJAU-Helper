@@ -62,6 +62,9 @@ export struct MainView {
   /** 是否 PC 窗口化（非全屏/最大化）：窗口底部无系统安全区，底栏需额外留白 */
   @StorageProp('winFloating') winFloating: boolean = false;
   @State currentIndex: number = 0;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /**
    * 底栏高亮专用状态（与页面解耦）：点击 tab 时立即更新（图标/文字即时变色），
    * 页面切换只交给 changeIndex(index, true) 带动画执行；currentIndex 在 onChange
@@ -125,7 +128,7 @@ export struct MainView {
         .fillColor(this.activeIndex === index ? Theme.colorOf(this.themeColor) : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
       Text(title)
         .fontSize(10)
-        .fontWeight(this.activeIndex === index ? FontWeight.Medium : FontWeight.Normal)
+        .fontWeight(this.fwMode === 'follow' ? (this.activeIndex === index ? FontWeight.Medium : FontWeight.Normal) : AppearanceStore.fontWeight(this.activeIndex === index ? FontWeight.Medium : FontWeight.Normal))
         .fontColor(this.activeIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#FFFFFF' : '#000000'))
         .margin({ top: 3 })
     }

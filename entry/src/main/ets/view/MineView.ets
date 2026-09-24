@@ -49,6 +49,9 @@ export struct MineView {
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅（custom 调值触发重渲染） */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 日志调试开关（AppStorage 响应式）：开启后显示「日志详情」入口 */
   @StorageProp('logEnabled') logEnabled: boolean = false;
   /** 日志收集状态（AppStorage 响应式）：收集中=亮绿灯，暂停=灰灯 */
@@ -607,7 +610,7 @@ export struct MineView {
         } else {
           Text(AppState.avatarText())
             .fontSize(17)
-            .fontWeight(FontWeight.Medium)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor(Theme.colorOf(this.themeColor))
             .width(52)
             .height(52)
@@ -620,7 +623,7 @@ export struct MineView {
       Column() {
         Text(AppState.displayName())
           .fontSize(17)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
         Text(this.identityLine())
           .fontSize(12)
@@ -712,7 +715,7 @@ export struct MineView {
       Column() {
         Text(this.loaded ? `${this.report.totalEarned}` : '--')
           .fontSize(18)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor(Theme.colorOf(this.themeColor))
         Text('已修学分')
           .fontSize(11)
@@ -724,7 +727,7 @@ export struct MineView {
       Column() {
         Text(this.loaded ? this.report.gpa.toFixed(2) : '--')
           .fontSize(18)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.accent_blue'))
         Text('平均绩点')
           .fontSize(11)
@@ -775,7 +778,7 @@ export struct MineView {
           }) {
             Text('导出备份')
               .fontSize(14)
-              .fontWeight(FontWeight.Medium)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
               .fontColor(Color.White)
               .width('100%')
               .height(42)
@@ -798,7 +801,7 @@ export struct MineView {
           }) {
             Text('导入备份')
               .fontSize(14)
-              .fontWeight(FontWeight.Medium)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
               .fontColor(Theme.colorOf(this.themeColor))
               .width('100%')
               .height(42)

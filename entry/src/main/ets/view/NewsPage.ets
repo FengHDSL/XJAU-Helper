@@ -23,12 +23,16 @@ import { MaterialButton } from './common/MaterialButton';
 import { MaterialSheetPanel } from './common/MaterialCard';
 import { MaterialCardLayer } from './common/MaterialCarrier';
 import { materialAvailable, sheetBlurStyle } from '../common/SystemMaterial';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 @Component
 struct NewsRow {
   @Prop item: NewsItem | null = null;
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @Prop showThumb: boolean = true;
   @State thumb: image.PixelMap | null = null;
   onTap: () => void = () => {};
@@ -58,7 +62,7 @@ struct NewsRow {
         }
         Column() {
           // 标题随深浅主题（text_primary）
-          Text(this.item.title).fontSize(15).fontWeight(FontWeight.Medium)
+          Text(this.item.title).fontSize(15).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.text_primary')).maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
           Text(this.item.date).fontSize(11).fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))
@@ -88,6 +92,9 @@ export struct NewsPage {
   @StorageProp('grayTextColor') grayTextColor: string = '';
   /** 卡片材质响应（开关变化时触发本页重渲染） */
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 调试模式（AppStorage 响应式）：开启后功能浏览模式允许加载新闻 */
   @StorageProp('debugNetwork') @Watch('onDebugNetworkChanged') debugNetwork: boolean = false;
   /** 新闻设置面板显隐 */
@@ -420,7 +427,7 @@ export struct NewsPage {
     }) {
       Text(name)
         .fontSize(14)
-        .fontWeight(this.currentTab === index ? FontWeight.Bold : FontWeight.Normal)
+        .fontWeight(this.fwMode === 'follow' ? (this.currentTab === index ? FontWeight.Bold : FontWeight.Normal) : AppearanceStore.fontWeight(this.currentTab === index ? FontWeight.Bold : FontWeight.Normal))
         .fontColor(this.currentTab === index ? Color.White
           : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
         .padding({ left: 16, right: 16, top: 6, bottom: 6 })
@@ -445,7 +452,7 @@ export struct NewsPage {
           Column() {
             Text('获取新闻封面缩略图')
               .fontSize(14)
-              .fontWeight(FontWeight.Medium)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
               .fontColor($r('app.color.text_primary'))
             Text('关闭后列表不再加载封面图片，可节省流量、加快加载')
               .fontSize(11)
@@ -641,7 +648,7 @@ export struct NewsPage {
               .height(32)
               .enterKeyType(EnterKeyType.Done)
               .fontSize(13)
-              .fontWeight(FontWeight.Regular)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
               .caretStyle({ color: $r('sys.color.font_emphasize') })
               .type(InputType.Normal)
               .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
