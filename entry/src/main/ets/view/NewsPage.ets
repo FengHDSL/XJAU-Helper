@@ -21,7 +21,8 @@ import { JwApi } from '../api/JwApi';
 // 半模态弹窗内容走 MaterialSheetPanel（WebSurface/Web 内容弹窗例外，保持 bg_page 不透底）
 import { MaterialButton } from './common/MaterialButton';
 import { MaterialSheetPanel } from './common/MaterialCard';
-import { sheetBlurStyle } from '../common/SystemMaterial';
+import { MaterialCardLayer } from './common/MaterialCarrier';
+import { materialAvailable, sheetBlurStyle } from '../common/SystemMaterial';
 
 @Component
 struct NewsRow {
@@ -374,6 +375,14 @@ export struct NewsPage {
       })
   }
 
+  /**
+   * 沉浸光感生效判定（与 WallpaperPage 同款）：全局开关 + 材质可用性。
+   * 搜索框承载层是否画材质、外壳是否降级玻璃，都以此为准。
+   */
+  private matOn(): boolean {
+    return this.immersiveEffect && materialAvailable();
+  }
+
   /** 站内搜索：跳转搜索结果页（原生页面，点击结果进详情） */
   private doSearch(): void {
     const kw: string = this.keyword.trim();
@@ -618,25 +627,39 @@ export struct NewsPage {
           .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
       Row() {
         BarTitle({ title: '农大新闻' })
-        // 搜索框：输入框，回车跳转搜索结果页
-        Row() {
-          TextInput({ text: this.keyword, placeholder: '搜索新闻' })
-            .height(48)
-            .enterKeyType(EnterKeyType.Done)
-            .fontSize($r('sys.float.Body_L'))
-            .fontWeight(FontWeight.Regular)
-            .caretStyle({ color: $r('sys.color.font_emphasize') })
-            .type(InputType.Normal)
-            .fontColor('rgba(0, 85, 255, 1.0)')
-            .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-            .backgroundColor(Color.Transparent)
-            .layoutWeight(1)
-            .onChange((v: string) => { this.keyword = v; })
-            .onSubmit(() => { this.doSearch(); })
+        // 搜索框：输入框，回车跳转搜索结果页。
+        // 含 TextInput 不能套 MaterialCard（onTouch 写组件态会打断输入焦点）→ Stack 兄弟结构：
+        // MaterialCardLayer 纯视觉承载层画沉浸光感（受全局开关控制、layerShadow:false 防成排投影叠暗带），
+        // 内容层独立叠上。材质关闭时外壳回落玻璃胶囊（同右侧按钮配色）。
+        // 尺寸恢复 32 高/16 圆角胶囊：与设置/网页端按钮同款对齐（9a02ba9 统一输入框时误拉成 48，顶栏里显笨重）。
+        Stack() {
+          if (this.matOn()) {
+            MaterialCardLayer({ layerRadius: 16, layerShadow: false })
+          }
+          Row() {
+            TextInput({ text: this.keyword, placeholder: '搜索新闻' })
+              .height(32)
+              .enterKeyType(EnterKeyType.Done)
+              .fontSize(13)
+              .fontWeight(FontWeight.Regular)
+              .caretStyle({ color: $r('sys.color.font_emphasize') })
+              .type(InputType.Normal)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .placeholderColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .backgroundColor(Color.Transparent)
+              .layoutWeight(1)
+              .onChange((v: string) => { this.keyword = v; })
+              .onSubmit(() => { this.doSearch(); })
+          }
+          .width('100%')
+          .padding({ left: 4, right: 4 })
+          .backgroundColor(this.matOn() ? Color.Transparent
+            : (this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)'))
+          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, !this.matOn() && this.immersiveEffect))
+          .borderRadius(16)
+          .height(32)
         }
-        .backgroundColor($r('sys.color.comp_background_tertiary'))
-        .borderRadius($r('sys.float.corner_radius_level12'))
-        .height(48)
+        .height(32)
         .layoutWeight(1)
         .margin({ left: 10, right: 10 })
         .bindSheet($$this.showNewsSetting, this.newsSettingSheet(), {
