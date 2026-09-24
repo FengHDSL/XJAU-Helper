@@ -34,6 +34,7 @@ import { Immersive } from './common/Immersive';
 // 卡片容器统一走 MaterialCard（材质承载层在卡片内容之下，见 view/common/MaterialCard.ets）
 import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
 import { materialActive, sheetBlurStyle } from '../common/SystemMaterial';
+import { MaterialCardLayer } from './common/MaterialCarrier';
 import { MaterialButton } from './common/MaterialButton';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
@@ -1659,21 +1660,31 @@ export struct HomeView {
         .fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.text_primary'))
         .width('100%')
-      TextInput({ placeholder: '留空则显示校历原标题', text: this.labelInput })
-        .height(48)
-        .enterKeyType(EnterKeyType.Done)
-        .borderRadius($r('sys.float.corner_radius_level12'))
-        .fontSize($r('sys.float.Body_L'))
-        .fontWeight(FontWeight.Regular)
-        .backgroundColor($r('sys.color.comp_background_tertiary'))
-        .caretStyle({ color: $r('sys.color.font_emphasize') })
-        .type(InputType.Normal)
-        .fontColor('rgba(0, 85, 255, 1.0)')
-        .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-        .margin({ top: 6 })
-        .onChange((v: string) => {
-          this.labelInput = v;
-        })
+      // 学期标题输入框：TextInput 属表单控件，不能走 Toggle 承载层 → Stack 兄弟结构：
+      // MaterialCardLayer 纯视觉承载层画沉浸光感（受全局开关控制），输入框自身透明底；
+      // 材质关闭时回落原 comp_background_tertiary 实色底。原 top:6 间距由外壳 margin 承担。
+      Stack() {
+        if (materialActive()) {
+          MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false })
+        }
+        TextInput({ placeholder: '留空则显示校历原标题', text: this.labelInput })
+          .height(48)
+          .enterKeyType(EnterKeyType.Done)
+          .borderRadius($r('sys.float.corner_radius_level12'))
+          .fontSize($r('sys.float.Body_L'))
+          .fontWeight(FontWeight.Regular)
+          .backgroundColor(materialActive() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+          .caretStyle({ color: $r('sys.color.font_emphasize') })
+          .type(InputType.Normal)
+          .fontColor('rgba(0, 85, 255, 1.0)')
+          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+          .onChange((v: string) => {
+            this.labelInput = v;
+          })
+      }
+      .width('100%')
+      .margin({ top: 6 })
+      .borderRadius($r('sys.float.corner_radius_level12'))
       Row() {
         Text('保存标题')
           .fontSize(13)

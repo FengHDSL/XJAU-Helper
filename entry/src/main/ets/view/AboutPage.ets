@@ -30,7 +30,8 @@ import { ChangelogCard } from './common/ChangelogCard';
 // 每张卡只剩一层视觉），胶囊按钮走 MaterialButton，半模态弹窗内容走 MaterialSheetPanel
 import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
-import { sheetBlurStyle } from '../common/SystemMaterial';
+import { materialActive, sheetBlurStyle } from '../common/SystemMaterial';
+import { MaterialCardLayer } from './common/MaterialCarrier';
 import { CHANGELOG_ALL, CHANGELOG_MAX, ChangelogItem } from '../common/Changelog';
 
 
@@ -430,24 +431,34 @@ export struct AboutPage {
         .width('100%')
         .margin({ bottom: 12 })
 
-      TextInput({ text: this.debugPwd, placeholder: '请输入密码' })
-        .height(48)
-        .enterKeyType(EnterKeyType.Done)
-        .borderRadius($r('sys.float.corner_radius_level12'))
-        .fontSize($r('sys.float.Body_L'))
-        .fontWeight(FontWeight.Regular)
-        .backgroundColor($r('sys.color.comp_background_tertiary'))
-        .caretStyle({ color: $r('sys.color.font_emphasize') })
-        .type(InputType.Normal)
-        .fontColor('rgba(0, 85, 255, 1.0)')
-        .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-        .width('100%')
-        .onChange((v: string) => {
-          this.debugPwd = v;
-        })
-        .onSubmit(() => {
-          this.submitDebugPwd();
-        })
+      // 密码输入框：TextInput 属表单控件，不能走 Toggle 承载层 → Stack 兄弟结构：
+      // MaterialCardLayer 纯视觉承载层画沉浸光感（受全局开关控制），输入框自身透明底；
+      // 材质关闭时回落原 comp_background_tertiary 实色底（与全站输入框一致）。
+      Stack() {
+        if (materialActive()) {
+          MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false })
+        }
+        TextInput({ text: this.debugPwd, placeholder: '请输入密码' })
+          .height(48)
+          .enterKeyType(EnterKeyType.Done)
+          .borderRadius($r('sys.float.corner_radius_level12'))
+          .fontSize($r('sys.float.Body_L'))
+          .fontWeight(FontWeight.Regular)
+          .backgroundColor(materialActive() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+          .caretStyle({ color: $r('sys.color.font_emphasize') })
+          .type(InputType.Normal)
+          .fontColor('rgba(0, 85, 255, 1.0)')
+          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+          .width('100%')
+          .onChange((v: string) => {
+            this.debugPwd = v;
+          })
+          .onSubmit(() => {
+            this.submitDebugPwd();
+          })
+      }
+      .width('100%')
+      .borderRadius($r('sys.float.corner_radius_level12'))
 
       // 确认按钮：材质走 MaterialButton 的 Toggle 承载层（普通 Button 直接挂材质真机不渲染）；
       // 原 .width('100%') / .height(40) / .margin 由内容与 btnMargin 承担，点击行为不变

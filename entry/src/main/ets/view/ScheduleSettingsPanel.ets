@@ -14,7 +14,8 @@ import { GlassMaterial } from '../common/GlassMaterial';
 // 节次编辑半模态内容套 MaterialSheetPanel
 import { MaterialSheetPanel } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
-import { sheetBlurStyle } from '../common/SystemMaterial';
+import { materialActive, sheetBlurStyle } from '../common/SystemMaterial';
+import { MaterialCardLayer } from './common/MaterialCarrier';
 
 const BG_PALETTE: string[] = [
   '#FFFFFF', '#FAF9F6', '#F0F0F0', '#F5F0E1', '#E8F0FE', '#E3F9E5',
@@ -51,23 +52,31 @@ struct ColorPickCell {
           .border({ width: 1, color: '#CCCCCC' })
       }.width('100%').margin({ bottom: 4 })
       Row() {
-        // 十六进制色值输入框：TextInput 属表单控件，不能走 Toggle 承载层（材质只在按钮/选择类组件上可靠生效），
-        // 故保持自绘玻璃底（原 .systemMaterial 是恒 undefined 的无效旧写法，已移除，观感不变）。
-        TextInput({ text: this.hex, placeholder: '#RRGGBB' })
-          .height(48)
-          .enterKeyType(EnterKeyType.Done)
-          .borderRadius($r('sys.float.corner_radius_level12'))
-          .fontSize($r('sys.float.Body_L'))
-          .fontWeight(FontWeight.Regular)
-          .backgroundColor($r('sys.color.comp_background_tertiary'))
-          .caretStyle({ color: $r('sys.color.font_emphasize') })
-          .type(InputType.Normal)
-          .fontColor('rgba(0, 85, 255, 1.0)')
-          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-          .layoutWeight(1)
-          .onChange((v: string) => {
-            if (v.length === 0 || /^#[0-9a-fA-F]{6}$/.test(v)) { this.hex = v; this.onChange(); }
-          })
+        // 十六进制色值输入框：TextInput 属表单控件，不能走 Toggle 承载层 → Stack 兄弟结构：
+        // MaterialCardLayer 纯视觉承载层画沉浸光感（受全局开关控制），输入框自身透明底；
+        // 材质关闭时回落原 comp_background_tertiary 实色底。
+        Stack() {
+          if (materialActive()) {
+            MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false })
+          }
+          TextInput({ text: this.hex, placeholder: '#RRGGBB' })
+            .height(48)
+            .enterKeyType(EnterKeyType.Done)
+            .borderRadius($r('sys.float.corner_radius_level12'))
+            .fontSize($r('sys.float.Body_L'))
+            .fontWeight(FontWeight.Regular)
+            .backgroundColor(materialActive() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+            .caretStyle({ color: $r('sys.color.font_emphasize') })
+            .type(InputType.Normal)
+            .fontColor('rgba(0, 85, 255, 1.0)')
+            .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+            .width('100%')
+            .onChange((v: string) => {
+              if (v.length === 0 || /^#[0-9a-fA-F]{6}$/.test(v)) { this.hex = v; this.onChange(); }
+            })
+        }
+        .layoutWeight(1)
+        .borderRadius($r('sys.float.corner_radius_level12'))
       }.width('100%').margin({ bottom: 10 })
 
       Flex({ wrap: FlexWrap.Wrap }) {
@@ -482,39 +491,54 @@ export struct ScheduleSettingsPanel {
       Column() {
         Row() {
           Text('上课时间').fontSize(13).fontColor($r('app.color.text_secondary')).width(72)
-          // 时间输入框：TextInput 属表单控件、不能走 Toggle 承载层，保持自绘玻璃底（原无效的 .systemMaterial 旧写法已移除）
-          TextInput({ text: (this.editTimes[this.editingIndex] ?? '').split('-')[0], placeholder: 'HH:MM' })
-            .height(48)
-            .enterKeyType(EnterKeyType.Done)
-            .borderRadius($r('sys.float.corner_radius_level12'))
-            .fontSize($r('sys.float.Body_L'))
-            .fontWeight(FontWeight.Regular)
-            .backgroundColor($r('sys.color.comp_background_tertiary'))
-            .caretStyle({ color: $r('sys.color.font_emphasize') })
-            .type(InputType.Normal)
-            .fontColor('rgba(0, 85, 255, 1.0)')
-            .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-            .layoutWeight(1)
-            .onChange((v: string) => { this.setEditTime(this.editingIndex, 0, v); })
+          // 时间输入框：TextInput 属表单控件、不能走 Toggle 承载层 → Stack 兄弟结构（承载层画沉浸光感，
+          // 受全局开关控制；材质关闭回落原 comp_background_tertiary 实色底）。原 layoutWeight(1) 由外壳承担。
+          Stack() {
+            if (materialActive()) {
+              MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false })
+            }
+            TextInput({ text: (this.editTimes[this.editingIndex] ?? '').split('-')[0], placeholder: 'HH:MM' })
+              .height(48)
+              .enterKeyType(EnterKeyType.Done)
+              .borderRadius($r('sys.float.corner_radius_level12'))
+              .fontSize($r('sys.float.Body_L'))
+              .fontWeight(FontWeight.Regular)
+              .backgroundColor(materialActive() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+              .caretStyle({ color: $r('sys.color.font_emphasize') })
+              .type(InputType.Normal)
+              .fontColor('rgba(0, 85, 255, 1.0)')
+              .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+              .width('100%')
+              .onChange((v: string) => { this.setEditTime(this.editingIndex, 0, v); })
+          }
+          .layoutWeight(1)
+          .borderRadius($r('sys.float.corner_radius_level12'))
         }
         .width('100%').margin({ top: 12 }).alignItems(VerticalAlign.Center)
 
         Row() {
           Text('下课时间').fontSize(13).fontColor($r('app.color.text_secondary')).width(72)
-          // 同「上课时间」输入框：保持自绘玻璃底
-          TextInput({ text: (this.editTimes[this.editingIndex] ?? '').split('-')[1], placeholder: 'HH:MM' })
-            .height(48)
-            .enterKeyType(EnterKeyType.Done)
-            .borderRadius($r('sys.float.corner_radius_level12'))
-            .fontSize($r('sys.float.Body_L'))
-            .fontWeight(FontWeight.Regular)
-            .backgroundColor($r('sys.color.comp_background_tertiary'))
-            .caretStyle({ color: $r('sys.color.font_emphasize') })
-            .type(InputType.Normal)
-            .fontColor('rgba(0, 85, 255, 1.0)')
-            .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-            .layoutWeight(1)
-            .onChange((v: string) => { this.setEditTime(this.editingIndex, 1, v); })
+          // 同「上课时间」输入框：Stack 兄弟结构承载沉浸光感
+          Stack() {
+            if (materialActive()) {
+              MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false })
+            }
+            TextInput({ text: (this.editTimes[this.editingIndex] ?? '').split('-')[1], placeholder: 'HH:MM' })
+              .height(48)
+              .enterKeyType(EnterKeyType.Done)
+              .borderRadius($r('sys.float.corner_radius_level12'))
+              .fontSize($r('sys.float.Body_L'))
+              .fontWeight(FontWeight.Regular)
+              .backgroundColor(materialActive() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+              .caretStyle({ color: $r('sys.color.font_emphasize') })
+              .type(InputType.Normal)
+              .fontColor('rgba(0, 85, 255, 1.0)')
+              .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+              .width('100%')
+              .onChange((v: string) => { this.setEditTime(this.editingIndex, 1, v); })
+          }
+          .layoutWeight(1)
+          .borderRadius($r('sys.float.corner_radius_level12'))
         }
         .width('100%').margin({ top: 14 }).alignItems(VerticalAlign.Center)
 
