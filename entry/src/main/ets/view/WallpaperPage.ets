@@ -88,7 +88,9 @@ export struct WallpaperPage {
    * 材质不可用时——沾色开=沾色底 / 关=原卡片色兜底。
    */
   private cardBg(orig: ResourceColor): ResourceColor {
-    const tintOn: boolean = AppearanceStore.cardTintOn();
+    // 必须读 this.cardTint（@StorageProp 订阅）而不是 AppearanceStore.cardTintOn()：
+    // ArkUI 按属性表达式登记依赖，静态函数内读 AppStorage 不登记，拨开关本页不会重算。
+    const tintOn: boolean = this.cardTint;
     if (materialAvailable()) {
       return tintOn ? AppearanceStore.cardBackground(this.isDarkMode, this.themeColor) : Color.Transparent;
     }

@@ -17,6 +17,8 @@ export struct WallpaperFill {
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 高权限自定义主题色开关（用于登记依赖：开关变化时本底色即时刷新） */
   @StorageProp('customAccentFull') customAccentFull: boolean = false;
+  /** 页面背景色（广播键）：开关/主题/深色变化时由 AppearanceStore.broadcastDerived() 重写 */
+  @StorageProp('pageBackground') pageBgBc: string = '';
   /** 壁纸蒙版开关（关闭时不叠加可读性遮罩） */
   @StorageProp('wallpaperMask') wallpaperMask: boolean = true;
   /** 壁纸平均亮度（-1=未分析）；用于自动适配文字对比度 */
@@ -40,11 +42,14 @@ export struct WallpaperFill {
               : (this.isDarkMode ? 'rgba(8,10,10,0.38)' : 'rgba(255,255,255,0.18)'))
         }
       } else {
-        // 未启用壁纸：页面底色（内置主题色染色；自定义 hex 需开启「高权限自定义主题色」）
+        // 未启用壁纸：页面底色（内置主题色染色；自定义 hex 需开启「高权限自定义主题色」）。
+        // 走广播键订阅：开关/主题/深色变化时即时刷新（广播未写入前回落静态派生兜底）。
         Column()
           .width('100%')
           .height('100%')
-          .backgroundColor(AppearanceStore.pageBackground(this.isDarkMode, this.themeColor))
+          .backgroundColor(this.pageBgBc.length > 0
+            ? this.pageBgBc
+            : AppearanceStore.pageBackground(this.isDarkMode, this.themeColor))
       }
     }
     .width('100%')

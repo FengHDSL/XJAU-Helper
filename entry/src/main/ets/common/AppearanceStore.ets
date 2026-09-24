@@ -49,6 +49,17 @@ export class AppearanceStore {
   static readonly KEY_FONT_SIZE_MODE: string = 'fontSizeMode';
   /** 自定义字号值（12~28，基准 16） */
   static readonly KEY_FONT_SIZE_VALUE: string = 'fontSizeValue';
+  /**
+   * 广播键：卡片沾色底色（不透明 #RRGGBB；空串＝沾色关闭）。
+   * 卡片组件必须用 @StorageProp 订阅此键来取沾色底色——
+   * 参考项目 DesignTokens 的 CARD_SURFACE_KEY 同款机制。
+   */
+  static readonly KEY_BROADCAST_CARD_BG: string = 'cardTintBg';
+  /**
+   * 广播键：页面背景色（#RRGGBB）。
+   * 页面根背景订阅此键（参考项目 DesignTokens 的 PAGE_BACKGROUND_KEY 同款机制）。
+   */
+  static readonly KEY_BROADCAST_PAGE_BG: string = 'pageBackground';
 
   // ── 派生参数 ──
   /** 卡片沾色比例（参考项目取值：10% 主题色） */
@@ -84,6 +95,8 @@ export class AppearanceStore {
     AppStorage.setOrCreate(AppearanceStore.KEY_FONT_SIZE_MODE, DataStore.fontSizeMode());
     AppStorage.setOrCreate(AppearanceStore.KEY_FONT_SIZE_VALUE, DataStore.fontSizeValue());
     AppStorage.setOrCreate(AppearanceStore.KEY_CUSTOM_FONTS, AppearanceStore.customFontAliases());
+    // 广播派生色（卡片沾色底色 / 页面背景）——订阅端见 MaterialCard / MainView / WallpaperFill
+    AppearanceStore.broadcastDerived();
     AppearanceStore.registerCustomFonts();
   }
 
@@ -131,6 +144,8 @@ export class AppearanceStore {
   static setCardTint(on: boolean): void {
     DataStore.setCardTint(on);
     AppStorage.setOrCreate(AppearanceStore.KEY_CARD_TINT, on);
+    // 沾色底色/材质沾色层随开关重算并广播（卡片订阅广播键即时刷新）
+    AppearanceStore.broadcastDerived();
   }
 
   static setPressGlow(on: boolean): void {
@@ -146,11 +161,35 @@ export class AppearanceStore {
   static setCustomAccentFull(on: boolean): void {
     DataStore.setCustomAccentFull(on);
     AppStorage.setOrCreate(AppearanceStore.KEY_CUSTOM_ACCENT_FULL, on);
+    // 高权限开关影响自定义 hex 是否染页面背景 → 页面背景广播键重算
+    AppearanceStore.broadcastDerived();
   }
 
   // ══════════════════════════════════════════════════════════════
   // 主题色派生
   // ══════════════════════════════════════════════════════════════
+
+  /**
+   * 重算并广播派生色（卡片沾色底色 + 页面背景）—— 对齐参考项目
+   * miha_hm `DesignTokens.applyAppTheme()` 的广播键机制。
+   *
+   * 为什么需要广播：ArkUI 按**属性表达式**登记依赖，组件里的静态函数
+   * （如 `GlassMaterial.homeCardBg()`）内部读 AppStorage 不会登记依赖，
+   * 拨开关后已画出的卡片不会重算。组件用 @StorageProp 订阅广播键、
+   * 本方法在开关/主题/深色变化时重写广播键，才能实现全站即时刷新。
+   *
+   * 触发时机：启动恢复(init) / 卡片沾色开关 / 高权限自定义主题色开关 /
+   * 主题色切换(Theme.apply/restore) / 深色模式切换。
+   */
+  static broadcastDerived(): void {
+    const dark: boolean = AppStorage.get<boolean>('isDarkMode') === true;
+    const card: string = AppearanceStore.cardTintOn()
+      ? AppearanceStore.cardBackground(dark, Theme.current())
+      : '';
+    AppStorage.setOrCreate(AppearanceStore.KEY_BROADCAST_CARD_BG, card);
+    AppStorage.setOrCreate(AppearanceStore.KEY_BROADCAST_PAGE_BG,
+      AppearanceStore.pageBackground(dark, Theme.current()));
+  }
 
   /** 当前主题色 hex（内置五色或自定义 #RRGGBB） */
   static accentHex(): string {

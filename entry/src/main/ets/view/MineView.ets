@@ -21,6 +21,7 @@ import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
@@ -127,6 +128,8 @@ export struct MineView {
     } catch (e) {
       // ignore
     }
+    // 深色模式变化 → 卡片沾色/页面背景派生色重算并广播（订阅端即时刷新）
+    AppearanceStore.broadcastDerived();
   }
 
   /** 页面出现：加载学业概览并刷新缓存大小 */
@@ -358,6 +361,8 @@ export struct MineView {
             if (DataStore.hasDarkSetting()) {
               AppStorage.setOrCreate('isDarkMode', DataStore.isDarkOn());
             }
+            // 备份里的深色设置可能变化 → 派生色（沾色/页面背景）重算并广播
+            AppearanceStore.broadcastDerived();
             this.getUIContext().getPromptAction().showToast({ message: `已恢复 ${n} 项数据（不含账号与登录 Cookie）` });
           } else {
             // 旧版 v1：仅课表内容 + 课程表设置项 + 主题颜色

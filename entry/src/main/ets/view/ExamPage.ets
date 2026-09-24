@@ -48,6 +48,8 @@ export struct ExamPage {
   /** 响应式依赖：玻璃/灰字设置变化时即时刷新本页（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  /** 卡片沾色底色（广播键）：沾色开关变化时由 AppearanceStore.broadcastDerived() 重写 */
+  @StorageProp('cardTintBg') tintBg: string = '';
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('subtitleColor') subtitleColor: string = '';
@@ -619,7 +621,7 @@ export struct ExamPage {
                 }
                 .width('100%')
                 .padding({ left: 12, right: 12, top: 10, bottom: 10 })
-                .backgroundColor(this.pickedExamId === item.id ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : GlassMaterial.homeCardBg($r('app.color.bg_card'))).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
+                .backgroundColor(this.pickedExamId === item.id ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : (this.tintBg.length > 0 ? this.tintBg : GlassMaterial.homeCardBg($r('app.color.bg_card')))).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
                 .borderRadius(10)
                 .margin({ bottom: 6 })
               }

@@ -31,6 +31,11 @@ export struct SectionHeader {
   onAction: () => void = () => {
   };
 
+  /** 标题字体族：读 this.ffZh/this.ffEn 登记依赖（字体族切换即时刷新）；空串=跟随系统 */
+  private titleFontFamily(): string {
+    return AppearanceStore.hasCjk(this.title) ? this.ffZh : this.ffEn;
+  }
+
   build() {
     Row() {
       Row() {
@@ -42,8 +47,9 @@ export struct SectionHeader {
           .margin({ right: 8 })
         Text(this.title)
           .fontSize(16)
-          .fontWeight(AppearanceStore.fontWeight(FontWeight.Bold))
-          .fontFamily(AppearanceStore.fontFamilyFor(this.title))
+          // 表达式必须读 this.fwMode 才登记依赖（静态函数内读 AppStorage 不登记）
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
+          .fontFamily(this.titleFontFamily())
           .fontColor($r('app.color.text_primary'))
       }
 
@@ -177,6 +183,11 @@ export struct SettingRow {
   onTap: () => void = () => {
   };
 
+  /** 标题字体族：读 this.ffZh/this.ffEn 登记依赖（字体族切换即时刷新）；空串=跟随系统 */
+  private titleFontFamily(): string {
+    return AppearanceStore.hasCjk(this.title) ? this.ffZh : this.ffEn;
+  }
+
   build() {
     Row() {
       if (this.icon.length > 0) {
@@ -186,8 +197,9 @@ export struct SettingRow {
       }
       Text(this.title)
         .fontSize(15)
-        .fontWeight(AppearanceStore.fontWeight(FontWeight.Normal))
-        .fontFamily(AppearanceStore.fontFamilyFor(this.title))
+        // 表达式必须读 this.fwMode 才登记依赖（静态函数内读 AppStorage 不登记）
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Normal : AppearanceStore.fontWeight(FontWeight.Normal))
+        .fontFamily(this.titleFontFamily())
         .fontColor(this.titleColor)
       Blank()
       Text(this.value)
@@ -216,6 +228,9 @@ export struct PickRow {
   @Prop label: string = '';
   @Prop value: string = '';
   @Prop placeholder: string = '';
+  /** 卡片沾色底色（广播键）：沾色开关变化时由 AppearanceStore.broadcastDerived() 重写 */
+  @StorageProp('cardTintBg') tintBg: string = '';
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
   onTap: () => void = () => {
   };
 
@@ -241,8 +256,11 @@ export struct PickRow {
     .width('100%')
     .height(46)
     .padding({ left: 10, right: 10 })
-    // 玻璃底（半透明，磨砂才可见；开关关闭时回落原 bg_chip 实色）
-    .backgroundColor(GlassMaterial.cardBg($r('app.color.bg_chip'), AppStorage.get<boolean>('isDarkMode') ?? false))
+    // 玻璃底（半透明，磨砂才可见；开关关闭时回落原 bg_chip 实色）。
+    // 沾色广播键优先：拨「卡片沾色」开关时本行底色即时刷新。
+    .backgroundColor(this.tintBg.length > 0
+      ? this.tintBg
+      : GlassMaterial.cardBg($r('app.color.bg_chip'), this.isDarkMode))
     // 玻璃质感：磨砂 + 亮边 + 微阴影 + 圆角裁剪
     .backgroundBlurStyle(GlassMaterial.cardBlur())
     .border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
@@ -289,12 +307,18 @@ export struct BarTitle {
     return WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode);
   }
 
+  /** 标题字体族：读 this.ffZh/this.ffEn 登记依赖（字体族切换即时刷新）；空串=跟随系统 */
+  private titleFontFamily(): string {
+    return AppearanceStore.hasCjk(this.title) ? this.ffZh : this.ffEn;
+  }
+
   build() {
     Column() {
       Text(this.title)
         .fontSize(20)
-        .fontWeight(AppearanceStore.fontWeight(FontWeight.Bold))
-        .fontFamily(AppearanceStore.fontFamilyFor(this.title))
+        // 表达式必须读 this.fwMode 才登记依赖（静态函数内读 AppStorage 不登记）
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
+        .fontFamily(this.titleFontFamily())
         .fontColor(this.titleColor())
         .height(28)
         .lineHeight(28)

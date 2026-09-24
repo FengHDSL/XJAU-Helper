@@ -52,6 +52,8 @@ export struct MainView {
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 高权限自定义主题色开关（登记依赖：切换后页面底色即时刷新） */
   @StorageProp('customAccentFull') customAccentFull: boolean = false;
+  /** 页面背景色（广播键）：沾色/主题/深色/高权限开关变化时由 AppearanceStore.broadcastDerived() 重写 */
+  @StorageProp('pageBackground') pageBgBc: string = '';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
   /** 全局壁纸 id（'b1'..'b6' 预置 / 'c:<path>' 自定义 / 'none'=未启用） */
   @StorageProp('wallpaperId') wallpaperId: string = 'none';
@@ -196,10 +198,13 @@ export struct MainView {
     Stack() {
       // 页面底色：无壁纸时的默认底色（五个 Tab 页根背景已透明，由本层兜底）。
       // 底色经 AppearanceStore 派生：内置主题色始终染色；自定义 hex 需开启「高权限自定义主题色」。
+      // 走广播键订阅：开关/主题/深色变化时即时刷新（广播未写入前回落静态派生兜底）。
       Column()
         .width('100%')
         .height('100%')
-        .backgroundColor(AppearanceStore.pageBackground(this.isDarkMode, this.themeColor))
+        .backgroundColor(this.pageBgBc.length > 0
+          ? this.pageBgBc
+          : AppearanceStore.pageBackground(this.isDarkMode, this.themeColor))
         .hitTestBehavior(HitTestMode.None)
       // 全局壁纸（'none'=未启用不渲染）。壁纸始终清晰显示；
       // 可读性遮罩仅壁纸启用时叠加，避免默认观感变化。

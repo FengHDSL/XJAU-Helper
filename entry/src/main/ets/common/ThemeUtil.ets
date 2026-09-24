@@ -1,4 +1,5 @@
 import { DataStore } from './DataStore';
+import { AppearanceStore } from './AppearanceStore';
 
 /**
  * 主题工具：顶栏主题色（中国红 / 天空蓝 / 农大绿 / 自定义 #RRGGBB）
@@ -123,6 +124,8 @@ export class Theme {
   static apply(theme: string): void {
     AppStorage.setOrCreate('themeColor', theme);
     DataStore.put(Theme.KEY_DS, theme);
+    // 主题色变化 → 卡片沾色/页面背景派生色重算并广播（订阅端即时刷新）
+    AppearanceStore.broadcastDerived();
   }
 
   /** 启动时从持久化恢复主题（内置枚举或合法 hex，否则回退绿） */
@@ -133,5 +136,6 @@ export class Theme {
     } else {
       AppStorage.setOrCreate('themeColor', 'green');
     }
+    AppearanceStore.broadcastDerived();
   }
 }

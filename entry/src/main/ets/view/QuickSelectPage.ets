@@ -44,6 +44,8 @@ export struct QuickSelectPage {
   /** 响应式依赖：玻璃/灰字设置变化时即时刷新本页（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
+  /** 卡片沾色底色（广播键）：沾色开关变化时由 AppearanceStore.broadcastDerived() 重写 */
+  @StorageProp('cardTintBg') tintBg: string = '';
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = true;
@@ -1282,7 +1284,8 @@ export struct QuickSelectPage {
             .width('100%')
             .borderRadius(18)
             .clip(true)
-            .backgroundColor(materialAvailable() ? Color.Transparent : GlassMaterial.homeCardBg($r('app.color.bg_card')))
+            .backgroundColor(materialAvailable() ? Color.Transparent
+              : (this.tintBg.length > 0 ? this.tintBg : GlassMaterial.homeCardBg($r('app.color.bg_card'))))
             .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.cardBlur())
             .border({ width: materialAvailable() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
             .margin({ top: 12 })

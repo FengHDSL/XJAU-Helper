@@ -168,6 +168,16 @@ export struct MaterialCard {
   @StorageProp('cardGlowTouch') glowTouchEnabled: boolean = true;
   /** 卡片沾色开关 */
   @StorageProp('cardTint') cardTintOn: boolean = false;
+  /**
+   * 卡片沾色底色（广播键，空串＝沾色关闭）。
+   *
+   * 非材质路径的外壳底色不能只依赖 @Prop cardBg：它是父组件 build 时
+   * 由 `GlassMaterial.homeCardBg()` 算出的**静态值**，父组件的表达式
+   * （`cardBg: GlassMaterial.homeCardBg(...)`）不读任何状态，拨动沾色开关
+   * 后父组件不会重算。广播键由 `AppearanceStore.broadcastDerived()` 在
+   * 开关/主题/深色变化时重写，本卡订阅后即时刷新（参考项目 DesignTokens 机制）。
+   */
+  @StorageProp('cardTintBg') tintBg: string = '';
   /** 当前主题色（流光/沾色取色用） */
   @StorageProp('themeColor') themeColor: string = 'green';
 
@@ -460,6 +470,11 @@ export struct MaterialCard {
   private shellBackground(): ResourceColor {
     if (this.materialEffective()) {
       return Color.Transparent;
+    }
+    // 卡片沾色（广播键）优先：@Prop cardBg 是父组件算出的静态值，
+    // 沾色开关的即时生效由广播键承担（见 tintBg 字段注释）。
+    if (this.tintBg.length > 0) {
+      return this.tintBg;
     }
     return this.cardBg;
   }
