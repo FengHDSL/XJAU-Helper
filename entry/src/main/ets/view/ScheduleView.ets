@@ -18,6 +18,7 @@ import { DataStore } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { ScheduleConfig, COURSE_BG_HEX, COURSE_FG_HEX } from '../common/ScheduleConfig';
 import { Theme } from '../common/ThemeUtil';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
@@ -49,6 +50,9 @@ export struct ScheduleView {
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（顶栏文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅（custom 调值触发重渲染） */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @State courses: CourseItem[] = [];
   @State terms: TermInfo[] = [];
   @State selectedTermIndex: number = 0;
@@ -559,7 +563,7 @@ export struct ScheduleView {
           Row() {
             Text('课程表')
               .fontSize(20)
-              .fontWeight(FontWeight.Bold)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
               .height(28)
               .lineHeight(28)
@@ -677,7 +681,7 @@ export struct ScheduleView {
               })
             Text(`第 ${this.viewWeek} 周`)
               .fontSize(12)
-              .fontWeight(FontWeight.Medium)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
               .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
               .width(56)
               .textAlign(TextAlign.Center)
@@ -730,7 +734,7 @@ export struct ScheduleView {
           Column() {
             Text(Const.WEEK_SHORT[wd - 1])
               .fontSize(this.cfg.headerFontSize)
-              .fontWeight(this.isToday(wd) ? FontWeight.Bold : FontWeight.Normal)
+              .fontWeight(this.fwMode === 'follow' ? (this.isToday(wd) ? FontWeight.Bold : FontWeight.Normal) : AppearanceStore.fontWeight(this.isToday(wd) ? FontWeight.Bold : FontWeight.Normal))
               .fontColor(this.isToday(wd) ? Theme.colorOf(this.themeColor) : this.schedTextSec())
             Text(`${this.dateOf(wd).getMonth() + 1}/${this.dateOf(wd).getDate()}`)
               .fontSize(11)
@@ -799,7 +803,7 @@ export struct ScheduleView {
       Column() {
         Text(`第${week}周`)
           .fontSize(13)
-          .fontWeight(week === this.viewWeek ? FontWeight.Bold : FontWeight.Normal)
+          .fontWeight(this.fwMode === 'follow' ? (week === this.viewWeek ? FontWeight.Bold : FontWeight.Normal) : AppearanceStore.fontWeight(week === this.viewWeek ? FontWeight.Bold : FontWeight.Normal))
           .fontColor(week === this.viewWeek ? $r('app.color.brand_on') :
             (week === this.currentWeek ? Theme.colorOf(this.themeColor) : $r('app.color.text_primary')))
         if (week === this.currentWeek) {
@@ -833,7 +837,7 @@ export struct ScheduleView {
       Row() {
         Text(`第${week}周`)
           .fontSize(13)
-          .fontWeight(week === this.viewWeek ? FontWeight.Bold : FontWeight.Normal)
+          .fontWeight(this.fwMode === 'follow' ? (week === this.viewWeek ? FontWeight.Bold : FontWeight.Normal) : AppearanceStore.fontWeight(week === this.viewWeek ? FontWeight.Bold : FontWeight.Normal))
           .fontColor(week === this.viewWeek ? $r('app.color.brand_on') :
             (week === this.currentWeek ? Theme.colorOf(this.themeColor) : $r('app.color.text_primary')))
         if (week === this.currentWeek) {
@@ -897,7 +901,7 @@ export struct ScheduleView {
           Column() {
             Text(`${item.index}`)
               .fontSize(13)
-              .fontWeight(FontWeight.Medium)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
               .fontColor(this.schedTextSec())
             if (this.cfg.showSectionTime) {
               Text(item.start)
@@ -996,7 +1000,7 @@ export struct ScheduleView {
         Text(course.name)
           .fontSize(this.cfg.textSize)
           .lineHeight(this.cfg.textSize + 3)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor(this.fgOf(course, isNext))
           .width('100%')
           .textAlign(this.cellTextAlign())
@@ -1441,7 +1445,7 @@ export struct ScheduleView {
       Row() {
         Text('点阵周次')
           .fontSize(15)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
         Blank()
       }
@@ -1477,7 +1481,7 @@ export struct ScheduleView {
           Row() {
             Text('点阵周次')
               .fontSize(15)
-              .fontWeight(FontWeight.Bold)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor($r('app.color.text_primary'))
             Blank()
           }
