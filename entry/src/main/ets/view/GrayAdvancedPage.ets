@@ -9,7 +9,6 @@
  *  - 每页单独色优先于「外观设置」里的全局灰字模式生效。
  */
 import { AppState } from '../common/AppState';
-import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';

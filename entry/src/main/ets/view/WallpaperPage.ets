@@ -15,7 +15,6 @@ import { Const } from '../common/Constants';
 import { DataStore, ThemeCombo } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { WallpaperTone } from '../common/WallpaperTone';
-import { Immersive } from './common/Immersive';
 import { Theme } from '../common/ThemeUtil';
 import { Wallpaper } from '../common/Wallpaper';
 import { AppearanceStore } from '../common/AppearanceStore';
