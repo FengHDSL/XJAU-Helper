@@ -22,11 +22,15 @@ import { BarTitle, EmptyTip, LoadingTip, TagChip } from './common/UiKit';
 import { BackButton } from './common/BackButton';
 import { WallpaperFill } from './common/WallpaperFill';
 import { MaterialCard } from './common/MaterialCard';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 @Component
 export struct NoticePage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
@@ -118,7 +122,7 @@ export struct NoticePage {
 
       Text(item.title)
         .fontSize(15)
-        .fontWeight(item.read ? FontWeight.Normal : FontWeight.Medium)
+        .fontWeight(this.fwMode === 'follow' ? (item.read ? FontWeight.Normal : FontWeight.Medium) : AppearanceStore.fontWeight(item.read ? FontWeight.Normal : FontWeight.Medium))
         .fontColor($r('app.color.text_primary'))
         .maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -228,6 +232,9 @@ export struct NoticePage {
 export struct NoticeDetailPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
@@ -279,7 +286,7 @@ export struct NoticeDetailPage {
             if (this.notice.id.length > 0) {
               Text(this.notice.title)
                 .fontSize(19)
-                .fontWeight(FontWeight.Bold)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .lineHeight(28)
                 .fontColor($r('app.color.text_primary'))
                 .width('100%')
