@@ -9,6 +9,7 @@ import { JwApi } from '../api/JwApi';
 import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
 import { AppearanceStore } from '../common/AppearanceStore';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { COURSE_BG_HEX } from '../common/ScheduleConfig';
 import { CourseItem } from '../model/Models';
 import { EMPTY_COURSE } from '../model/Empty';

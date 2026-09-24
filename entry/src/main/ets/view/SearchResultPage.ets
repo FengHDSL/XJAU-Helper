@@ -12,6 +12,7 @@ import { Immersive } from './common/Immersive';
 import { BackButton } from './common/BackButton';
 import { WallpaperFill } from './common/WallpaperFill';
 import { AppearanceStore } from '../common/AppearanceStore';
+import { GlassMaterial } from '../common/GlassMaterial';
 
 @Component
 struct SearchRow {

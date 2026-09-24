@@ -29,6 +29,7 @@ import { Wallpaper } from '../common/Wallpaper';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
+import { GlassMaterial } from '../common/GlassMaterial';
 
 /** 裁剪框最小宽度（vp），防止把手把框拖没了 */
 const MIN_CROP_WIDTH: number = 80;

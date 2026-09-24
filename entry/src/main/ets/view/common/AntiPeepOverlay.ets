@@ -7,6 +7,7 @@
  * 用法：在页面 build() 中用 Stack 包裹页面内容，将本组件放在内容之后层叠覆盖。
  */
 import { AppearanceStore } from '../../common/AppearanceStore';
+import { GlassMaterial } from '../../common/GlassMaterial';
 
 @Component
 export struct AntiPeepOverlay {

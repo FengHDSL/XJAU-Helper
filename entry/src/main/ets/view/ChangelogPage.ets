@@ -5,6 +5,7 @@
 import { AppState } from '../common/AppState';
 import { CHANGELOG_ALL, ChangelogItem } from '../common/Changelog';
 import { PageHeader } from './common/UiKit';
+import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperFill } from './common/WallpaperFill';
 import { ChangelogCard } from './common/ChangelogCard';
 
