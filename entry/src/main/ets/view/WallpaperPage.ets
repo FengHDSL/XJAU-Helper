@@ -31,6 +31,9 @@ import { MaterialButton } from './common/MaterialButton';
 export struct WallpaperPage {
   /** 全局壁纸 id（'b1'..'b6' 预置 / 'c:<path>' 自定义 / 'none'=未启用） */
   @StorageProp('wallpaperId') wallpaperId: string = 'none';
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 壁纸蒙版开关 */
   @StorageProp('wallpaperMask') wallpaperMask: boolean = true;
   /** URL 导入输入框内容 */
@@ -413,7 +416,7 @@ export struct WallpaperPage {
       Row() {
         Text('顶栏主题色')
           .fontSize(15)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
         Blank()
         Text(`当前：${this.themeNameText()}`)
@@ -427,7 +430,7 @@ export struct WallpaperPage {
       Row() {
         Text('顶栏样式')
           .fontSize(13)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor($r('app.color.text_primary'))
         Blank()
         Text('毛玻璃')
@@ -460,7 +463,7 @@ export struct WallpaperPage {
       Row() {
         Text('副标题颜色')
           .fontSize(13)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor($r('app.color.text_primary'))
         Blank()
         Row({ space: 8 }) {
@@ -484,7 +487,7 @@ export struct WallpaperPage {
           .enterKeyType(EnterKeyType.Done)
           .borderRadius($r('sys.float.corner_radius_level12'))
           .fontSize($r('sys.float.Body_L'))
-          .fontWeight(FontWeight.Regular)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
           .backgroundColor($r('sys.color.comp_background_tertiary'))
           .caretStyle({ color: $r('sys.color.font_emphasize') })
           .type(InputType.Normal)
@@ -531,7 +534,7 @@ export struct WallpaperPage {
           .enterKeyType(EnterKeyType.Done)
           .borderRadius($r('sys.float.corner_radius_level12'))
           .fontSize($r('sys.float.Body_L'))
-          .fontWeight(FontWeight.Regular)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
           .backgroundColor($r('sys.color.comp_background_tertiary'))
           .caretStyle({ color: $r('sys.color.font_emphasize') })
           .type(InputType.Normal)
@@ -585,7 +588,7 @@ export struct WallpaperPage {
             Column({ space: 3 }) {
               Text('全局沉浸光感')
                 .fontSize(15)
-                .fontWeight(FontWeight.Bold)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor($r('app.color.text_primary'))
               Text('开启后卡片与按钮使用沉浸光感材质，关闭后回退为毛玻璃效果')
                 .fontSize(11)
@@ -636,7 +639,7 @@ export struct WallpaperPage {
             Column({ space: 3 }) {
               Text('卡片沾色')
                 .fontSize(14)
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .fontColor($r('app.color.text_primary'))
               Text('开启后所有卡片底色混入 10% 主题色')
                 .fontSize(11)
@@ -662,7 +665,7 @@ export struct WallpaperPage {
             Column({ space: 3 }) {
               Text('主题色流光')
                 .fontSize(14)
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .fontColor($r('app.color.text_primary'))
               Text('按压卡片的流光与光晕改用主题色；关闭后为系统默认白光')
                 .fontSize(11)
@@ -688,7 +691,7 @@ export struct WallpaperPage {
             Column({ space: 3 }) {
               Text('卡片流光触感')
                 .fontSize(14)
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .fontColor($r('app.color.text_primary'))
               Text('开启后按压卡片出现跟手流光；关闭只有卡间缝隙的环境光')
                 .fontSize(11)
@@ -714,7 +717,7 @@ export struct WallpaperPage {
             Column({ space: 3 }) {
               Text('高权限自定义主题色')
                 .fontSize(14)
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .fontColor($r('app.color.text_primary'))
               Text('默认只有内置主题色会染到页面背景；开启后自定义颜色也会')
                 .fontSize(11)
@@ -800,7 +803,7 @@ export struct WallpaperPage {
           Column({ space: 3 }) {
             Text('字体管理')
               .fontSize(15)
-              .fontWeight(FontWeight.Bold)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor($r('app.color.text_primary'))
             Text('上传字体 / 选择中英文字体 / 删除已上传字体')
               .fontSize(11)
@@ -826,7 +829,7 @@ export struct WallpaperPage {
         // 字重模式（跟随 / 细 / 轻 / 常规 / 中等 / 粗）
         Text('字体粗细')
           .fontSize(13)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor($r('app.color.text_primary'))
           .width('100%')
         Row({ space: 8 }) {
@@ -848,7 +851,7 @@ export struct WallpaperPage {
         Row() {
           Text('字体大小')
             .fontSize(13)
-            .fontWeight(FontWeight.Medium)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.text_primary'))
           Blank()
           Row({ space: 8 }) {
@@ -911,7 +914,7 @@ export struct WallpaperPage {
           Column({ space: 3 }) {
             Text('页面平滑切换')
               .fontSize(15)
-              .fontWeight(FontWeight.Bold)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor($r('app.color.text_primary'))
             Text('底部页签切换时页面平滑滑动过渡，关闭后立即切换')
               .fontSize(11)
@@ -965,7 +968,7 @@ export struct WallpaperPage {
               Column() {
               Text('全局壁纸')
                 .fontSize(15)
-                .fontWeight(FontWeight.Bold)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor($r('app.color.text_primary'))
                 .width('100%')
                 .margin({ bottom: 10 })
@@ -973,7 +976,7 @@ export struct WallpaperPage {
             if (this.wallpaperId.startsWith('c:')) {
               Text('自定义壁纸')
                 .fontSize(15)
-                .fontWeight(FontWeight.Bold)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor($r('app.color.text_primary'))
                 .width('100%')
                 .margin({ top: 8, bottom: 10 })
@@ -996,7 +999,7 @@ export struct WallpaperPage {
             Row() {
               Button('选择图片并裁剪')
                 .fontSize(14)
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .fontColor($r('app.color.brand_on'))
                 .backgroundColor(Theme.colorOf(this.themeColor))
                 .height(42)
@@ -1011,7 +1014,7 @@ export struct WallpaperPage {
             // 取消壁纸：恢复默认纯色背景（粉红按钮）
             Button('取消壁纸')
               .fontSize(14)
-              .fontWeight(FontWeight.Medium)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
               .fontColor(Color.White)
               .backgroundColor('#F2A0B5')
               .height(42)
@@ -1026,7 +1029,7 @@ export struct WallpaperPage {
               Column() {
                 Text('壁纸蒙版')
                   .fontSize(13)
-                  .fontWeight(FontWeight.Medium)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                   .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
                 Text('在壁纸上叠加可读性遮罩，保证文字清晰')
                   .fontSize(11)
@@ -1052,7 +1055,7 @@ export struct WallpaperPage {
                 .enterKeyType(EnterKeyType.Done)
                 .borderRadius($r('sys.float.corner_radius_level12'))
                 .fontSize($r('sys.float.Body_L'))
-                .fontWeight(FontWeight.Regular)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
                 .backgroundColor($r('sys.color.comp_background_tertiary'))
                 .caretStyle({ color: $r('sys.color.font_emphasize') })
                 .type(InputType.Normal)
@@ -1067,7 +1070,7 @@ export struct WallpaperPage {
                 })
               Button('保存')
                 .fontSize(14)
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .fontColor($r('app.color.brand_on'))
                 .backgroundColor(Theme.colorOf(this.themeColor))
                 .height(42)
@@ -1117,7 +1120,7 @@ export struct WallpaperPage {
             // ── 主题组合：保存/应用（背景 + 顶栏颜色 + 副标题颜色）──
             Text('主题组合')
               .fontSize(15)
-              .fontWeight(FontWeight.Bold)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor($r('app.color.text_primary'))
               .width('100%')
               .margin({ top: 4, bottom: 10 })
@@ -1127,7 +1130,7 @@ export struct WallpaperPage {
                 .enterKeyType(EnterKeyType.Done)
                 .borderRadius($r('sys.float.corner_radius_level12'))
                 .fontSize($r('sys.float.Body_L'))
-                .fontWeight(FontWeight.Regular)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
                 .backgroundColor($r('sys.color.comp_background_tertiary'))
                 .caretStyle({ color: $r('sys.color.font_emphasize') })
                 .type(InputType.Normal)
@@ -1139,7 +1142,7 @@ export struct WallpaperPage {
                 })
               Button('保存当前组合')
                 .fontSize(14)
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .fontColor(Color.White)
                 .backgroundColor(Theme.colorOf(this.themeColor))
                 .height(40)
@@ -1181,7 +1184,7 @@ export struct WallpaperPage {
                 Column() {
                   Text(c.name)
                     .fontSize(14)
-                    .fontWeight(FontWeight.Medium)
+                    .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                     .fontColor($r('app.color.text_primary'))
                   // 颜色预览点：顶栏色 + 副标题色（空=自动，显示描边空点）
                   Row({ space: 6 }) {

@@ -30,6 +30,7 @@ import { MaterialCardLayer } from './common/MaterialCarrier';
 import { LogStore } from '../common/LogStore';
 import { DEVELOPER_DECLARATION, DeclarationSection } from '../common/PrivacyText';
 import { Theme } from '../common/ThemeUtil';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { LoginResult } from '../model/Models';
 import { LogPage } from './LogPage';
 import { WebSurface } from './WebSurface';
@@ -67,6 +68,9 @@ export struct LoginView {
   @State sheetWidth: Dimension = '100%'; // 半模态面板宽度（≥600vp 视为平板，与课程表页面一致）
   /** 日志调试模式（AppStorage 响应式）：登录页连点图标 5 次 + 密码可开启；功能浏览模式同样生效 */
   @StorageProp('logEnabled') logEnabled: boolean = false;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('logCollecting') logCollecting: boolean = true;
   /** 应用图标连点计数（5 次内有效） */
   @State logTapCount: number = 0;
@@ -539,7 +543,7 @@ export struct LoginView {
       Column() {
         Text('日志调试')
           .fontSize(17)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
           .width('100%')
           .margin({ top: 16, bottom: 8 })
@@ -562,7 +566,7 @@ export struct LoginView {
             .enterKeyType(EnterKeyType.Done)
             .borderRadius($r('sys.float.corner_radius_level12'))
             .fontSize($r('sys.float.Body_L'))
-            .fontWeight(FontWeight.Regular)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
             .backgroundColor(materialAvailable() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
             .caretStyle({ color: $r('sys.color.font_emphasize') })
             .type(InputType.Normal)
@@ -581,7 +585,7 @@ export struct LoginView {
 
         Button('确认')
           .fontSize(14)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor(Color.White)
           .backgroundColor(Theme.colorOf(this.themeColor))
           .height(40)
@@ -723,7 +727,7 @@ export struct LoginView {
           .height(48)
           .enterKeyType(EnterKeyType.Done)
           .fontSize($r('sys.float.Body_L'))
-          .fontWeight(FontWeight.Regular)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
           .caretStyle({ color: $r('sys.color.font_emphasize') })
           .fontColor('rgba(0, 85, 255, 1.0)')
           .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
@@ -759,7 +763,7 @@ export struct LoginView {
         .height(48)
         .enterKeyType(EnterKeyType.Done)
         .fontSize($r('sys.float.Body_L'))
-        .fontWeight(FontWeight.Regular)
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
         .caretStyle({ color: $r('sys.color.font_emphasize') })
         .fontColor('rgba(0, 85, 255, 1.0)')
         .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
@@ -816,7 +820,7 @@ export struct LoginView {
             .height(48)
             .enterKeyType(EnterKeyType.Done)
             .fontSize($r('sys.float.Body_L'))
-            .fontWeight(FontWeight.Regular)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
             .caretStyle({ color: $r('sys.color.font_emphasize') })
             .type(InputType.Normal)
             .fontColor('rgba(0, 85, 255, 1.0)')
@@ -838,7 +842,7 @@ export struct LoginView {
       if (JwApi.USE_MOCK) {
         Text(this.captcha)
           .fontSize(19)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontStyle(FontStyle.Italic)
           .letterSpacing(4)
           .fontColor($r('app.color.brand'))
@@ -887,7 +891,7 @@ export struct LoginView {
       Row() {
         Text('历史账号')
           .fontSize(13)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor($r('app.color.text_primary'))
         Blank()
         Text('清空')
@@ -1016,7 +1020,7 @@ export struct LoginView {
                 })
               Text('新农助手')
                 .fontSize(22)
-                .fontWeight(FontWeight.Bold)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor('#FFFFFF')
                 .margin({ top: 14 })
             }
@@ -1034,7 +1038,7 @@ export struct LoginView {
               Column() {
               Text(this.loginSystem === 'service' ? '服务大厅登录' : '教务登录')
                 .fontSize(17)
-                .fontWeight(FontWeight.Bold)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor($r('app.color.text_primary'))
                 .width('100%')
                 .margin({ bottom: 4 })
@@ -1121,7 +1125,7 @@ export struct LoginView {
                           .fillColor($r('app.color.text_secondary'))
                         Text('返回')
                           .fontSize(16)
-                          .fontWeight(FontWeight.Medium)
+                          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                           .fontColor($r('app.color.text_secondary'))
                           .margin({ left: 4 })
                       }
@@ -1160,7 +1164,7 @@ export struct LoginView {
                       }
                       Text(this.loading ? '正在登录' : '登  录')
                         .fontSize(16)
-                        .fontWeight(FontWeight.Medium)
+                        .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                         .fontColor($r('app.color.brand_on'))
                     }
                     .justifyContent(FlexAlign.Center)
@@ -1269,7 +1273,7 @@ export struct LoginView {
                   Row() {
                     Text(this.loginSystem === 'service' ? '教务登录' : '服务大厅登录')
                       .fontSize(15)
-                      .fontWeight(FontWeight.Medium)
+                      .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                       .fontColor($r('app.color.brand'))
                   }
                   .justifyContent(FlexAlign.Center)
@@ -1298,7 +1302,7 @@ export struct LoginView {
                   Row() {
                     Text('网页登录')
                       .fontSize(15)
-                      .fontWeight(FontWeight.Medium)
+                      .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                       .fontColor($r('app.color.brand'))
                   }
                   .justifyContent(FlexAlign.Center)
@@ -1326,7 +1330,7 @@ export struct LoginView {
                   Row() {
                     Text('功能浏览')
                       .fontSize(15)
-                      .fontWeight(FontWeight.Medium)
+                      .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                       .fontColor($r('app.color.brand'))
                   }
                   .justifyContent(FlexAlign.Center)
@@ -1516,7 +1520,7 @@ export struct LoginView {
     Row() {
       Text(AppState.webTitle)
         .fontSize(18)
-        .fontWeight(FontWeight.Bold)
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
         .fontColor($r('app.color.text_primary'))
       Blank()
       if (AppState.webLoginMode) {
@@ -1559,7 +1563,7 @@ export struct LoginView {
     Column() {
       Text('隐私政策')
         .fontSize(20)
-        .fontWeight(FontWeight.Bold)
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
         .fontColor($r('app.color.text_primary'))
         .width('100%')
         .padding({ left: 20, right: 20, top: 16, bottom: 12 })
@@ -1616,7 +1620,7 @@ export struct LoginView {
             })
           Button('同意并继续')
             .fontSize(14)
-            .fontWeight(FontWeight.Medium)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.brand_on'))
             .backgroundColor($r('app.color.brand'))
             .height(42)
@@ -1649,7 +1653,7 @@ export struct LoginView {
         Row() {
           Text('开发者声明')
             .fontSize(18)
-            .fontWeight(FontWeight.Bold)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor($r('app.color.text_primary'))
           Blank()
         }
@@ -1663,7 +1667,7 @@ export struct LoginView {
               Column() {
                 Text(sec.title)
                   .fontSize(15)
-                  .fontWeight(FontWeight.Bold)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                   .fontColor($r('app.color.text_primary'))
                   .width('100%')
                   .margin({ bottom: 4 })
@@ -1702,7 +1706,7 @@ export struct LoginView {
             })
           Button('我已知晓')
             .fontSize(14)
-            .fontWeight(FontWeight.Medium)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.brand_on'))
             .backgroundColor($r('app.color.brand'))
             .height(40)
@@ -1738,7 +1742,7 @@ export struct LoginView {
         Row() {
           Text('账号风控提醒')
             .fontSize(18)
-            .fontWeight(FontWeight.Bold)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor($r('app.color.text_primary'))
           Blank()
         }
@@ -1780,7 +1784,7 @@ export struct LoginView {
             })
           Button('我知道了')
             .fontSize(14)
-            .fontWeight(FontWeight.Medium)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.brand_on'))
             .backgroundColor($r('app.color.brand'))
             .height(40)
