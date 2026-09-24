@@ -11,10 +11,12 @@
  * 粒子颜色跟随主题色（订阅 themeColor，切色后新爆散的粒子即用新色）。
  */
 
+import { Theme } from '../../common/ThemeUtil';
+
 interface ParticleSpec {
   angle: number;
   distance: number;
-  size: number;
+  dotSize: number;
   delay: number;
 }
 
@@ -25,7 +27,7 @@ const PARTICLE_SPECS: ParticleSpec[] = (() => {
     list.push({
       angle: i * (360 / PARTICLE_COUNT) + (i % 3) * 6,
       distance: 44 + (i % 4) * 11,
-      size: 3.5 + (i % 3) * 1.5,
+      dotSize: 3.5 + (i % 3) * 1.5,
       delay: i * 12
     });
   }
@@ -37,7 +39,8 @@ const PARTICLE_SPECS: ParticleSpec[] = (() => {
 struct DissolveParticle {
   @Prop angle: number = 0;
   @Prop distance: number = 52;
-  @Prop size: number = 5;
+  /** 粒子直径（不能叫 size——与 CustomComponent 基类的 size 属性冲突） */
+  @Prop dotSize: number = 5;
   @Prop delay: number = 0;
   @State dx: number = 0;
   @State dy: number = 0;
@@ -56,8 +59,8 @@ struct DissolveParticle {
 
   build() {
     Circle()
-      .width(this.size)
-      .height(this.size)
+      .width(this.dotSize)
+      .height(this.dotSize)
       .fill(Theme.colorOf(this.themeColor))
       .translate({ x: this.dx, y: this.dy })
       .opacity(this.alpha)
@@ -76,7 +79,7 @@ export struct DissolveBurst {
           DissolveParticle({
             angle: p.angle,
             distance: p.distance,
-            size: p.size,
+            dotSize: p.dotSize,
             delay: p.delay
           })
         }, (p: ParticleSpec) => `dp${this.trigger}_${p.angle}_${p.distance}`)
