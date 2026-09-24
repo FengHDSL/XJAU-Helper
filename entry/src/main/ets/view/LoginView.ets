@@ -384,14 +384,14 @@ export struct LoginView {
   }
 
   /** 打开网页版登录（WebView）：标题栏可切换"教务系统 / 服务大厅"两个登录网址，
-   *  登录成功后按目标类型取 Cookie 并自动登录教务系统（服务大厅模式由 WebSurface 桥接 jwglxt）。 */
+   *  登录成功后按目标类型取 Cookie 并自动登录教务系统（服务大厅模式由 WebSurface 桥接 jwglxt）。
+   *  网页登录是**真实登录入口**，mock/功能浏览模式下也必须可用（首次使用无会话时尤其依赖它）。 */
   private openWebLogin(): void {
-    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
-      this.getUIContext().getPromptAction().showToast({ message: '当前模式禁止使用' });
-      return;
-    }
     AppState.webLoginMode = true;
     AppState.onWebLogin = () => {
+      // 网页登录成功＝真实登录：退出 mock/离线模式，让真实会话立即生效
+      JwApi.USE_MOCK = false;
+      HttpClient.setOfflineMode(false);
       this.showWeb = false;
       this.onSuccess();
     };
@@ -470,12 +470,9 @@ export struct LoginView {
     });
   }
 
-  /** 打开找回密码网页（学校统一身份认证平台），跳转系统浏览器打开。 */
+  /** 打开找回密码网页（学校统一身份认证平台），跳转系统浏览器打开。
+   *  仅是打开外部网页，不消耗 mock 数据，任何模式下都可用。 */
   private openForgotPassword(): void {
-    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
-      this.getUIContext().getPromptAction().showToast({ message: '当前模式禁止使用' });
-      return;
-    }
     AppState.openExternalLink(Const.FORGOT_PASSWORD_URL);
   }
 

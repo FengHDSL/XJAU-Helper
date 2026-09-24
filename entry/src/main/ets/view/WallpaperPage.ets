@@ -186,7 +186,10 @@ export struct WallpaperPage {
       return Color.Transparent;
     }
     const tintOn: boolean = this.cardTint;
-    return tintOn ? AppearanceStore.cardBackground(this.isDarkMode, this.themeColor) : orig;
+    // 光感关闭兜底改 70% 玻璃底（不再用 bg_card 纯色）——用户反馈：顶栏主题色卡/灰体文本卡/
+    // 全局壁纸卡/主题组合卡关闭光感后纯黑纯白
+    return tintOn ? AppearanceStore.cardBackground(this.isDarkMode, this.themeColor)
+      : GlassMaterial.cardSurfaceColor(this.isDarkMode);
   }
 
   /** 手写卡的沾色叠层：压在材质承载层之上、内容之下（对齐 MaterialCard.cardBody 排层） */

@@ -44,6 +44,8 @@ export struct QuickSelectPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
   @StorageProp('grayTick') grayTick: number = 0;
+  /** 深浅色订阅：队列排序箭头图标黑白自适应 */
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 响应式依赖：玻璃/灰字设置变化时即时刷新本页（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
@@ -333,6 +335,21 @@ export struct QuickSelectPage {
     SelectApi.dequeue(this.queue, target);
     this.queue = SelectApi.copyQueue(this.queue);
     this.log(`已移出队列：${target.courseName}`);
+  }
+
+  /** 队列排序（参考项目 GrabQueueManager.moveItem）：抢课按队列顺序依次执行，
+   *  上移/下移调整优先级（dir=-1 上移 / +1 下移），改动即时持久化 */
+  private doMove(target: GrabTarget, dir: number): void {
+    const idx: number = this.queue.indexOf(target);
+    const to: number = idx + dir;
+    if (idx < 0 || to < 0 || to >= this.queue.length) {
+      return;
+    }
+    const item: GrabTarget = this.queue[idx];
+    this.queue.splice(idx, 1);
+    this.queue.splice(to, 0, item);
+    SelectApi.saveQueue(this.queue);
+    this.log(`队列顺序调整：${item.courseName} ${dir < 0 ? '上移' : '下移'}`);
   }
 
   /** 切换队列项启用状态 */
@@ -813,7 +830,22 @@ export struct QuickSelectPage {
                       .fontSize(11)
                       .fontColor(this.statusColor(item.status))
                       .margin({ right: 8 })
-                    // 停用/启用 + 移除：结果项小按钮 → MaterialButton（材质走 Toggle 承载层）
+                    // 队列排序：上移/下移（图标 = 用户箭头 SVG 旋转，黑白自适应）
+                    Row({ space: 4 }) {
+                      Image($r('app.media.chevron_left'))
+                        .width(14).height(14).objectFit(ImageFit.Cover).rotate({ angle: 90 })
+                        .fillColor(this.isDarkMode ? Color.White : Color.Black)
+                        .onClick(() => {
+                          this.doMove(item, -1);
+                        })
+                      Image($r('app.media.chevron_right'))
+                        .width(14).height(14).objectFit(ImageFit.Cover).rotate({ angle: 90 })
+                        .fillColor(this.isDarkMode ? Color.White : Color.Black)
+                        .onClick(() => {
+                          this.doMove(item, 1);
+                        })
+                    }
+                    .margin({ right: 4 })
                     MaterialButton({
                       btnRadius: 9,
                       btnBg: $r('app.color.bg_chip'),

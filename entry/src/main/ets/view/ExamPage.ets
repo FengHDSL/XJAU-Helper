@@ -520,7 +520,7 @@ export struct ExamPage {
   pickExamSheet() {
     // 弹窗内容套 MaterialSheetPanel（同详情/学期弹窗）：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底；
     // 高度随内容（SheetSize.LARGE 固定高）→ 保持 panelFillHeight 默认 true，让材质裹住整块面板。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelTitle: '选择桌面卡片倒计时', panelShowClose: true, panelCloseFill: '#DB5252', panelCloseTint: $r('sys.color.font_primary'), panelOnClose: (): void => { this.showPickExam = false; } }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelTitle: '选择桌面卡片倒计时', panelShowClose: true, panelOnClose: (): void => { this.showPickExam = false; } }) {
     Column() {
       // 顶部说明（去掉重复标题"桌面卡片倒计时"，sheet 自身 title 已显示）
       Text('选一场考试作为桌面卡片的倒计时对象')
@@ -653,7 +653,8 @@ export struct ExamPage {
         Column() {
           MaterialButton({
             btnRadius: 10,
-            btnBg: $r('app.color.bg_chip'),
+            // 底部矩形关闭按钮改红色（用户澄清：是这里，不是右上角 ✕）
+            btnBg: '#DB5252',
             btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE,
             btnBorderW: 1,
             btnBorderC: 'rgba(255,255,255,0.28)',
@@ -663,7 +664,8 @@ export struct ExamPage {
           }) {
             Text('关闭')
               .fontSize(14)
-              .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+              // 红底上的文字黑白自适应
+              .fontColor($r('sys.color.font_primary'))
               .width('100%')
               .height(40)
               .textAlign(TextAlign.Center)

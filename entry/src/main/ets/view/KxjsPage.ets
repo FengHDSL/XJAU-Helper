@@ -934,7 +934,7 @@ export struct KxjsPage {
       }
       .width('100%')
       .padding(16)
-      .backgroundColor(this.matOn() ? Color.Transparent : $r('app.color.bg_card'))
+      .backgroundColor(this.matOn() ? Color.Transparent : GlassMaterial.cardSurfaceColor(this.isDarkMode))
       .borderRadius(18)
     }
     .width('100%')
