@@ -1569,8 +1569,7 @@ export struct ScheduleView {
         showClose: false,
         // 必须显式透明：BindOptions.backgroundColor 默认 Color.White，白底会把 MaterialSheetPanel 的材质整块盖住
         backgroundColor: Color.Transparent,
-        blurStyle: sheetBlurStyle(),
-        title: { title: '课程详情' }
+        blurStyle: sheetBlurStyle()
       })
     }
     .layoutWeight(1)

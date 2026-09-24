@@ -607,7 +607,7 @@ export struct ScheduleSettingsPanel {
     // 由 MaterialSheetPanel 的 Toggle 承载层渲染材质。配套硬要求（见 build 里的 bindSheet）：
     // 显式 backgroundColor: Color.Transparent。面板高度 detents [MEDIUM, LARGE] 为固定高度
     // → panelFillHeight 保持默认 true（承载层铺满整块面板）。
-    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelShowClose: true, panelOnClose: (): void => { this.showSecSheet = false; } }) {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelTitle: '课程节数与上课时间', panelShowClose: true, panelOnClose: (): void => { this.showSecSheet = false; } }) {
     Stack() {
       Column() {
         this.secSheetMain()
@@ -1093,7 +1093,7 @@ export struct ScheduleSettingsPanel {
       // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
       showClose: false,
       preferType: SheetType.BOTTOM,
-      title: { title: '课程节数与上课时间' },
+      // 标题改由面板内 MaterialSheetPanel 自绘（panelTitle），系统 title 不再传
       // 必须显式透明：BindOptions.backgroundColor 默认是 Color.White，
       // 而沉浸光感的视觉层级位于 backgroundColor **之下**，白底会把 MaterialSheetPanel 的材质整块盖住。
       backgroundColor: Color.Transparent,
