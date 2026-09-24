@@ -550,12 +550,16 @@ export struct LoginView {
           .margin({ bottom: 12 })
 
         TextInput({ text: this.logPwd, placeholder: '请输入密码' })
-          .fontSize(15)
-          .fontColor($r('app.color.text_primary'))
-          .placeholderColor($r('app.color.text_tertiary'))
-          .backgroundColor(GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false)).backgroundBlurStyle(BlurStyle.Thin).border({ width: 1, color: GlassMaterial.borderColor() }).shadow(GlassMaterial.capsuleShadow()).clip(true)
-          .borderRadius(10)
-          .height(44)
+          .height(48)
+          .enterKeyType(EnterKeyType.Done)
+          .borderRadius($r('sys.float.corner_radius_level12'))
+          .fontSize($r('sys.float.Body_L'))
+          .fontWeight(FontWeight.Regular)
+          .backgroundColor($r('sys.color.comp_background_tertiary'))
+          .caretStyle({ color: $r('sys.color.font_emphasize') })
+          .type(InputType.Normal)
+          .fontColor('rgba(0, 85, 255, 1.0)')
+          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
           .width('100%')
           .onChange((v: string) => {
             this.logPwd = v;
@@ -698,18 +702,21 @@ export struct LoginView {
     Row() {
       TextInput({ placeholder: placeholder, controller: controller, text: value })
         .type(InputType.Normal)
-        .placeholderColor($r('app.color.text_tertiary'))
-        .fontColor($r('app.color.text_primary'))
-        .fontSize(15)
+        .height(48)
+        .enterKeyType(EnterKeyType.Done)
+        .fontSize($r('sys.float.Body_L'))
+        .fontWeight(FontWeight.Regular)
+        .caretStyle({ color: $r('sys.color.font_emphasize') })
+        .fontColor('rgba(0, 85, 255, 1.0)')
+        .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
         .backgroundColor(Color.Transparent)
         .padding({ left: 14, right: 8 })
         .layoutWeight(1)
-        .height(48)
         .onChange(onInput)
     }
     .width('100%')
-    .backgroundColor(GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false)).backgroundBlurStyle(BlurStyle.Thin).border({ width: 1, color: GlassMaterial.borderColor() }).shadow(GlassMaterial.capsuleShadow()).clip(true)
-    .borderRadius(12)
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
+    .borderRadius($r('sys.float.corner_radius_level12'))
     .margin({ bottom: 12 })
   }
 
@@ -723,13 +730,16 @@ export struct LoginView {
         .type(this.showPwd ? InputType.Normal : InputType.Password)
         // 隐藏系统内置的密码可见性切换图标（与自定义眼睛重复）
         .showPasswordIcon(false)
-        .placeholderColor($r('app.color.text_tertiary'))
-        .fontColor($r('app.color.text_primary'))
-        .fontSize(15)
+        .height(48)
+        .enterKeyType(EnterKeyType.Done)
+        .fontSize($r('sys.float.Body_L'))
+        .fontWeight(FontWeight.Regular)
+        .caretStyle({ color: $r('sys.color.font_emphasize') })
+        .fontColor('rgba(0, 85, 255, 1.0)')
+        .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
         .backgroundColor(Color.Transparent)
         .padding({ left: 14, right: 8 })
         .layoutWeight(1)
-        .height(48)
         .onChange((v: string) => {
           this.password = v;
         })
@@ -759,8 +769,8 @@ export struct LoginView {
     }
     .width('100%')
     .alignItems(VerticalAlign.Center) // 眼睛/叉与输入框水平中线对齐
-    .backgroundColor(GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false)).backgroundBlurStyle(BlurStyle.Thin).border({ width: 1, color: GlassMaterial.borderColor() }).shadow(GlassMaterial.capsuleShadow()).clip(true)
-    .borderRadius(12)
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
+    .borderRadius($r('sys.float.corner_radius_level12'))
     .margin({ bottom: 12 })
   }
 
@@ -769,20 +779,24 @@ export struct LoginView {
     Row() {
       Row() {
         TextInput({ placeholder: '验证码', text: this.captchaInput })
-          .placeholderColor($r('app.color.text_tertiary'))
-          .fontColor($r('app.color.text_primary'))
-          .fontSize(15)
+          .height(48)
+          .enterKeyType(EnterKeyType.Done)
+          .fontSize($r('sys.float.Body_L'))
+          .fontWeight(FontWeight.Regular)
+          .caretStyle({ color: $r('sys.color.font_emphasize') })
+          .type(InputType.Normal)
+          .fontColor('rgba(0, 85, 255, 1.0)')
+          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
           .backgroundColor(Color.Transparent)
           .padding({ left: 14, right: 8 })
           .layoutWeight(1)
-          .height(48)
           .onChange((v: string) => {
             this.captchaInput = v;
           })
       }
       .layoutWeight(1)
-      .backgroundColor(GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false)).backgroundBlurStyle(BlurStyle.Thin).border({ width: 1, color: GlassMaterial.borderColor() }).shadow(GlassMaterial.capsuleShadow()).clip(true)
-      .borderRadius(12)
+      .backgroundColor($r('sys.color.comp_background_tertiary'))
+      .borderRadius($r('sys.float.corner_radius_level12'))
 
       if (JwApi.USE_MOCK) {
         Text(this.captcha)

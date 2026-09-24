@@ -429,12 +429,16 @@ export struct AboutPage {
         .margin({ bottom: 12 })
 
       TextInput({ text: this.debugPwd, placeholder: '请输入密码' })
-        .fontSize(15)
-        .fontColor($r('app.color.text_primary'))
-        .placeholderColor($r('app.color.text_tertiary'))
-        .backgroundColor($r('app.color.bg_chip'))
-        .borderRadius(10)
-        .height(44)
+        .height(48)
+        .enterKeyType(EnterKeyType.Done)
+        .borderRadius($r('sys.float.corner_radius_level12'))
+        .fontSize($r('sys.float.Body_L'))
+        .fontWeight(FontWeight.Regular)
+        .backgroundColor($r('sys.color.comp_background_tertiary'))
+        .caretStyle({ color: $r('sys.color.font_emphasize') })
+        .type(InputType.Normal)
+        .fontColor('rgba(0, 85, 255, 1.0)')
+        .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
         .width('100%')
         .onChange((v: string) => {
           this.debugPwd = v;
