@@ -30,6 +30,7 @@ import { LoadingTip, PageHeader, StatCell } from './common/UiKit';
 import { AntiPeepOverlay } from './common/AntiPeepOverlay';
 import { WallpaperFill } from './common/WallpaperFill';
 import { Theme } from '../common/ThemeUtil';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 // 沉浸光感：卡片统一走 MaterialCard（材质承载层在卡片内容之下，材质生效时卡片底色/磨砂/亮边/阴影
@@ -46,6 +47,9 @@ export struct AcademicPage {
   @StorageProp('grayTextColor') grayTextColor: string = '';
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 壁纸亮度（文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('themeColor') themeColor: string = 'green';
@@ -169,7 +173,7 @@ export struct AcademicPage {
       Row() {
         Text(this.currentGpa().toFixed(2))
           .fontSize(48)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.brand'))
         Text('/ 5.0')
           .fontSize(16)
@@ -258,7 +262,7 @@ export struct AcademicPage {
       Row() {
         Text('课程分类与修读情况')
           .fontSize(16)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
       }
       .width('100%')
@@ -321,7 +325,7 @@ export struct AcademicPage {
       Row() {
         Text('学业提醒')
           .fontSize(16)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
       }
       .width('100%')
@@ -380,7 +384,7 @@ export struct AcademicPage {
       Row() {
         Text('总体成绩')
           .fontSize(16)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
         Blank()
         Text(this.overallCourses.length > 0 ? `${this.overallCourses.length} 门` : '累计')
@@ -429,7 +433,7 @@ export struct AcademicPage {
       Row() {
         Text('成绩分布')
           .fontSize(16)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
         Blank()
         Text('按已统计课程划分')
@@ -500,7 +504,7 @@ export struct AcademicPage {
       .alignItems(VerticalAlign.Center)
       Text(`${count} 门`)
         .fontSize(13)
-        .fontWeight(FontWeight.Medium)
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
         .fontColor($r('app.color.text_primary'))
         .margin({ top: 4 })
     }
@@ -526,7 +530,7 @@ export struct AcademicPage {
       Row() {
         Text('课程明细')
           .fontSize(16)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
         Blank()
         Text(this.overallCourses.length > 0
@@ -569,7 +573,7 @@ export struct AcademicPage {
               .margin({ right: 10 })
             Text(item.scoreText)
               .fontSize(14)
-              .fontWeight(FontWeight.Bold)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor(this.scoreTone(item.scoreText))
           }
           .width('100%')

@@ -21,6 +21,7 @@ import { DataStore } from '../common/DataStore';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { EmptyRoomCondition, EmptyRoomItem, EmptyRoomQueryParams, EmptyRoomResult, TermInfo } from '../model/Models';
@@ -71,6 +72,9 @@ const STATIC_SUB_TYPES: Record<string, EmptyRoomCondition[]> = {
 export struct KxjsPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
@@ -724,7 +728,7 @@ export struct KxjsPage {
         Row() {
           Text(item.cdmc)
             .fontSize(16)
-            .fontWeight(FontWeight.Bold)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor($r('app.color.text_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -810,7 +814,7 @@ export struct KxjsPage {
           .enterKeyType(EnterKeyType.Done)
           .borderRadius($r('sys.float.corner_radius_level12'))
           .fontSize($r('sys.float.Body_L'))
-          .fontWeight(FontWeight.Regular)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
           .backgroundColor($r('sys.color.comp_background_tertiary'))
           .caretStyle({ color: $r('sys.color.font_emphasize') })
           .fontColor('rgba(0, 85, 255, 1.0)')
@@ -829,7 +833,7 @@ export struct KxjsPage {
           .enterKeyType(EnterKeyType.Done)
           .borderRadius($r('sys.float.corner_radius_level12'))
           .fontSize($r('sys.float.Body_L'))
-          .fontWeight(FontWeight.Regular)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
           .backgroundColor($r('sys.color.comp_background_tertiary'))
           .caretStyle({ color: $r('sys.color.font_emphasize') })
           .fontColor('rgba(0, 85, 255, 1.0)')
@@ -864,7 +868,7 @@ export struct KxjsPage {
           .enterKeyType(EnterKeyType.Done)
           .borderRadius($r('sys.float.corner_radius_level12'))
           .fontSize($r('sys.float.Body_L'))
-          .fontWeight(FontWeight.Regular)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
           .backgroundColor($r('sys.color.comp_background_tertiary'))
           .caretStyle({ color: $r('sys.color.font_emphasize') })
           .type(InputType.Normal)
@@ -940,7 +944,7 @@ export struct KxjsPage {
             Row() {
               Text('查询结果')
                 .fontSize(14)
-                .fontWeight(FontWeight.Bold)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor($r('app.color.text_primary'))
               Blank()
               Text(this.rooms.length > 0 ? `共 ${this.rooms.length} 间空闲教室` : '')
@@ -1117,7 +1121,7 @@ export struct KxjsPage {
                 Row() {
                   Text('查询结果')
                     .fontSize(14)
-                    .fontWeight(FontWeight.Bold)
+                    .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                     .fontColor($r('app.color.text_primary'))
                   Blank()
                   Text(this.rooms.length > 0 ? `共 ${this.rooms.length} 间空闲教室` : '')
@@ -1360,7 +1364,7 @@ export struct KxjsPage {
             .backgroundColor(Theme.colorOf(this.themeColor))
           Text(this.selectedRoom.cdmc)
             .fontSize(18)
-            .fontWeight(FontWeight.Bold)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor($r('app.color.text_primary'))
             .margin({ left: 8 })
             .layoutWeight(1)
