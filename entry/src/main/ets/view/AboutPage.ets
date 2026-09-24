@@ -150,6 +150,7 @@ export struct AboutPage {
         .width('100%')
         .margin({ bottom: 10 })
       this.linkRow('XJAU-Helper（本项目）', 'https://github.com/FengHDSL/XJAU-Helper', true)
+      this.linkRow('miha_hm（参考）', 'https://github.com/MrCashmere/miha_hm')
       this.linkRow('zhengfang-apk（参考）', 'https://github.com/znjhahaha/zhengfang-apk')
       this.linkRow('HiXD（参考）', 'https://github.com/PollenWang6/HiXD')
       this.linkRow('Traintime PDA（参考）', 'https://github.com/BenderBlog/traintime_pda')
