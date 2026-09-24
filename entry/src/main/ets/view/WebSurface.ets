@@ -30,6 +30,11 @@ export struct WebSurface {
   /** 页面加载完成（onPageEnd）后回调（外层可执行初始滚动让位等） */
   onLoadEnd: () => void = () => {
   };
+  /** 主文档加载失败回调（外层提示网络问题；子资源失败不触发） */
+  onLoadFail: () => void = () => {
+  };
+  /** 页面加载中标记：WebView 上方居中显示加载动画（切换 服务大厅/教务系统 时可见） */
+  @State pageLoading: boolean = false;
   /**
    * 手动识别登录状态触发器：外部自增时**立即执行一次**会话抓取（tryGrabSession）。
    * 兜底场景：轮询漏判/登录成功没反应时，用户点「手动识别登录」按钮手动完成判定。
@@ -315,11 +320,22 @@ export struct WebSurface {
 
   build() {
     Column() {
-      Web({ src: AppState.webUrl, controller: this.controller })
-        .layoutWeight(1)
+      Stack({ alignContent: Alignment.Center }) {
+        Web({ src: AppState.webUrl, controller: this.controller })
         .width('100%')
+        .height('100%')
         .javaScriptAccess(true)
         .domStorageAccess(true)
+        .onPageBegin(() => {
+          this.pageLoading = true;
+        })
+        .onErrorReceive((event) => {
+          // 主文档加载失败：提示网络问题（子资源失败不提示）
+          if (event && event.request.isMainFrame()) {
+            this.pageLoading = false;
+            this.onLoadFail();
+          }
+        })
         .onControllerAttached(() => {
           // 功能浏览模式（USE_MOCK）默认断网：不加载真实网页，避免意外联网；
           // 隐藏调试模式（AppState.debugNetwork）开启后允许联网
@@ -340,6 +356,7 @@ export struct WebSurface {
           this.onControllerReady(this.controller);
         })
         .onPageEnd(() => {
+          this.pageLoading = false;
           const url: string = this.controller.getUrl();
           if (AppState.webLoginMode && !this.loggedIn) {
             // 切换了登录目标：重置桥接状态，按新目标继续
@@ -384,6 +401,17 @@ export struct WebSurface {
             AppState.recordWebHistory(pageTitle, url);
           }
         })
+        // 加载动画：页面加载中在 WebView 上方居中显示（切换 服务大厅/教务系统 时可见）
+        if (this.pageLoading) {
+          LoadingProgress()
+            .width(38)
+            .height(38)
+            .color($r('app.color.brand'))
+        }
+      }
+      .width('100%')
+      .layoutWeight(1)
+      .alignContent(Alignment.Center)
     }
     .width('100%')
     .height('100%')

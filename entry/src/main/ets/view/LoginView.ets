@@ -1533,6 +1533,13 @@ export struct LoginView {
   webSheet() {
     WebSurface({
       scanTrigger: this.webScanSeq,
+      onLoadFail: (): void => {
+        // 主文档加载失败：给出可行动的提示
+        this.getUIContext().getPromptAction().showToast({
+          message: '网络状态不佳，请检查网络，若仍无法访问，则可能是学校服务器维护中，请稍后再试。',
+          duration: 3500
+        });
+      },
       onControllerReady: (ctrl: webview.WebviewController) => {
         this.webCtrl = ctrl;
       }

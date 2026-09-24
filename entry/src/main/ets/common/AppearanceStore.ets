@@ -230,15 +230,19 @@ export class AppearanceStore {
   /** AppStorage 键：卡片降级样式（mica=云母磨砂玻璃 / solid=实色纯底），默认 mica */
   static readonly KEY_CARD_FALLBACK: string = 'cardFallback';
 
-  /** 当前是否「云母」降级（默认 true；'solid'=实色纯底） */
-  static cardFallbackMica(): boolean {
+  /** 当前是否「云母」降级（默认 true；'solid'=实色纯底）。
+   *  tick 仅作响应式依赖载体：静态读值不触发重渲染，调用方必须传自己的订阅值，
+   *  切换样式时 setCardFallback 自增 cardFallbackTick 广播，卡片才会重算底色。 */
+  static cardFallbackMica(tick: number): boolean {
     return AppStorage.get<string>(AppearanceStore.KEY_CARD_FALLBACK) !== 'solid';
   }
 
-  /** 切换卡片降级样式（写 AppStorage + 持久化） */
+  /** 切换卡片降级样式（写 AppStorage + 持久化 + 自增 tick 广播全站卡片重渲染） */
   static setCardFallback(mode: string): void {
     AppStorage.setOrCreate(AppearanceStore.KEY_CARD_FALLBACK, mode);
     DataStore.saveCardFallback(mode);
+    const t: number = AppStorage.get<number>('cardFallbackTick') ?? 0;
+    AppStorage.setOrCreate('cardFallbackTick', t + 1);
   }
 
   /** 启动恢复卡片降级样式（EntryAbility 调用；缺省 mica） */

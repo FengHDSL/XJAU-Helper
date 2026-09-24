@@ -73,6 +73,8 @@ export struct KxjsPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
   @StorageProp('grayTick') grayTick: number = 0;
+  /** 降级样式切换广播：cardFallbackMica(tick) 静态读值靠 tick 登记依赖 */
+  @StorageProp('cardFallbackTick') fallbackTick: number = 0;
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
@@ -935,8 +937,8 @@ export struct KxjsPage {
       .width('100%')
       .padding(16)
       .backgroundColor(this.matOn() ? Color.Transparent
-        : (AppearanceStore.cardFallbackMica() ? GlassMaterial.cardSurfaceColor(this.isDarkMode) : $r('app.color.bg_card')))
-      .backgroundBlurStyle(this.matOn() || !AppearanceStore.cardFallbackMica() ? BlurStyle.NONE : BlurStyle.Thin)
+        : (AppearanceStore.cardFallbackMica(this.fallbackTick) ? GlassMaterial.cardSurfaceColor(this.isDarkMode) : $r('app.color.bg_card')))
+      .backgroundBlurStyle(this.matOn() || !AppearanceStore.cardFallbackMica(this.fallbackTick) ? BlurStyle.NONE : BlurStyle.Thin)
       .borderRadius(18)
     }
     .width('100%')

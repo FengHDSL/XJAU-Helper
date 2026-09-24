@@ -78,6 +78,8 @@ export struct WallpaperPage {
   @StorageProp('pageBgTint') pageBgTint: boolean = true;
   /** 卡片降级样式（mica=云母磨砂 / solid=实色纯底；默认云母） */
   @StorageProp('cardFallback') cardFallback: string = 'mica';
+  /** 降级样式切换广播：cardFallbackMica(tick) 静态读值靠 tick 登记依赖，切换后卡片才重渲染 */
+  @StorageProp('cardFallbackTick') fallbackTick: number = 0;
   /** 正在删除的组合名（粒子消散 + 淡出收起动画用） */
   @State deletingCombo: string = '';
   /** 粒子消散触发序号（自增触发新一轮爆散） */
@@ -190,12 +192,12 @@ export struct WallpaperPage {
     const tintOn: boolean = this.cardTint;
     // 卡片降级样式（用户可选）：云母=70% 玻璃底 / 实色=原 bg_card 纯色（默认云母）
     return tintOn ? AppearanceStore.cardBackground(this.isDarkMode, this.themeColor)
-      : (AppearanceStore.cardFallbackMica() ? GlassMaterial.cardSurfaceColor(this.isDarkMode) : orig);
+      : (AppearanceStore.cardFallbackMica(this.fallbackTick) ? GlassMaterial.cardSurfaceColor(this.isDarkMode) : orig);
   }
 
   /** 卡片磨砂兜底：云母=Thin（配合玻璃底）；实色=NONE（纯底不需要）；材质生效时让出 */
   private cardBlurFb(): BlurStyle {
-    if (this.matOn() || !AppearanceStore.cardFallbackMica()) {
+    if (this.matOn() || !AppearanceStore.cardFallbackMica(this.fallbackTick)) {
       return BlurStyle.NONE;
     }
     return BlurStyle.Thin;

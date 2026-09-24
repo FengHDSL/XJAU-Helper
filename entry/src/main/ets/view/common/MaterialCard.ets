@@ -480,8 +480,8 @@ export struct MaterialCard {
     if (this.tintBg.length > 0) {
       return this.tintBg;
     }
-    // 卡片降级样式（用户可选）：云母=70% 玻璃底 / 实色=调用方传入的纯色底（默认云母）
-    return AppearanceStore.cardFallbackMica() ? GlassMaterial.cardSurfaceColor(this.isDarkMode) : this.cardBg;
+    return AppearanceStore.cardFallbackMica(this.fallbackTick)
+      ? GlassMaterial.cardSurfaceColor(this.isDarkMode) : this.cardBg;
   }
 
   /** 外壳磨砂：材质生效时关掉；关闭光感时云母=Thin 磨砂 / 实色=无磨砂 */
@@ -489,7 +489,7 @@ export struct MaterialCard {
     if (this.materialEffective()) {
       return BlurStyle.NONE;
     }
-    return AppearanceStore.cardFallbackMica() ? BlurStyle.Thin : BlurStyle.NONE;
+    return AppearanceStore.cardFallbackMica(this.fallbackTick) ? BlurStyle.Thin : BlurStyle.NONE;
   }
 
   /** 外壳阴影：材质生效时让出（材质自带的投影由 cardMaterialShadow 控制） */
@@ -637,11 +637,12 @@ export struct MaterialSheetPanel {
   panelCloseButton() {
     if (this.panelShowClose) {
       Row() {
-        // 关闭图标：SymbolGlyph xmark（不再用文字 ✕）+ IconCircleButton 跟手光感
+        // 关闭图标：用户提供的 xmark.svg（Image 渲染，fillColor 跟随 tint 深浅色）+ 跟手光感
         IconCircleButton({
-          symbol: $r('sys.symbol.xmark'),
+          hasImage: true,
+          image: $r('app.media.xmark'),
           buttonSize: 30,
-          iconSize: 14,
+          iconSize: 13,
           tint: $r('app.color.text_secondary'),
           // 灰色圆底：让小尺寸关闭按钮在玻璃/材质上足够显眼（用户反馈「太小，加个灰色底」）
           fill: '#33808080',
@@ -669,13 +670,12 @@ export struct MaterialSheetPanel {
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       if (this.panelShowClose) {
-        // 关闭图标：SymbolGlyph xmark（不再用文字 ✕）；IconCircleButton 自带
-        // 按压弹性形变 + 跟手流光（拖拽光感），样式与 miha_hm 一致；
-        // panelCloseFill/panelCloseTint 支持按面板定制（如考试倒计时面板的红色关闭钮）
+        // 关闭图标：用户提供的 xmark.svg；IconCircleButton 自带按压弹性形变 + 跟手流光
         IconCircleButton({
-          symbol: $r('sys.symbol.xmark'),
+          hasImage: true,
+          image: $r('app.media.xmark'),
           buttonSize: 30,
-          iconSize: 14,
+          iconSize: 13,
           tint: this.panelCloseTint === '' ? $r('app.color.text_secondary') : this.panelCloseTint,
           fill: this.panelCloseFill.length > 0 ? this.panelCloseFill : '#33808080',
           buttonInteractive: true,

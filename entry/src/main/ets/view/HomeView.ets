@@ -55,6 +55,51 @@ interface NextFutureCourse {
   dateLabel: string;
 }
 
+/**
+ * 版本更新内容弹窗：正文**左对齐**（系统 showDialog 的消息居中，不满足需求，改自绘）。
+ * 数据经 @Link 由宿主注入，open() 前赋值即可。
+ */
+@CustomDialog
+struct UpdateContentDialog {
+  controller?: CustomDialogController;
+  @Link titleText: string;
+  @Link lines: string[];
+  build() {
+    Column({ space: 10 }) {
+      Text(this.titleText)
+        .fontSize(17)
+        .fontWeight(FontWeight.Bold)
+        .fontColor($r('app.color.text_primary'))
+        .width('100%')
+      Column({ space: 5 }) {
+        ForEach(this.lines, (line: string) => {
+          Text(`· ${line}`)
+            .fontSize(13)
+            .fontColor($r('app.color.text_secondary'))
+            .width('100%')
+            .textAlign(TextAlign.Start)
+        }, (line: string) => line)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .width('100%')
+      Button('知道了')
+        .fontSize(14)
+        .fontColor(Color.White)
+        .backgroundColor('#079841')
+        .width('100%')
+        .height(38)
+        .borderRadius(10)
+        .onClick(() => {
+          this.controller?.close();
+        })
+    }
+    .padding(20)
+    .borderRadius(16)
+    .backgroundColor($r('app.color.bg_card'))
+    .width('82%')
+  }
+}
+
 @Component
 export struct HomeView {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
@@ -167,17 +212,25 @@ export struct HomeView {
   }
 
   /** 页面出现：加载数据并监听横竖屏 */
+  /** 版本更新弹窗数据（@Link 注入自绘弹窗） */
+  @State updateTitle: string = '';
+  @State updateLines: string[] = [];
+  updateDialog: CustomDialogController = new CustomDialogController({
+    builder: UpdateContentDialog({ titleText: $updateTitle, lines: $updateLines }),
+    autoCancel: false,
+    customStyle: true
+  });
+
   aboutToAppear(): void {
     // 版本更新提示：每个版本在更新后**首次进首页**弹一次，内容直接引用更新日志最新一条
-    // （无需随版本手动改弹窗文案）；弹过即记录版本号，之后不再打扰
+    // （无需随版本手动改弹窗文案）；弹过即记录版本号，之后不再打扰。
+    // 自绘弹窗（正文左对齐，绿色按钮），替代消息居中的系统 showDialog。
     const latest: ChangelogItem = CHANGELOG_ALL[0];
     if (DataStore.getLastSeenVersion() !== latest.version) {
       DataStore.setLastSeenVersion(latest.version);
-      this.getUIContext().getPromptAction().showDialog({
-        title: `已更新到 v${latest.version}`,
-        message: latest.items.map((s: string): string => `· ${s}`).join('\n'),
-        buttons: [{ text: '知道了', color: '#079841' }]
-      });
+      this.updateTitle = `已更新到 v${latest.version}`;
+      this.updateLines = latest.items;
+      this.updateDialog.open();
     }
     // 功能浏览模式优先用 AppState.mockCurrentWeek > 0 指定的周次，确保所有功能有数据
     if (AppState.mockCurrentWeek > 0) {
