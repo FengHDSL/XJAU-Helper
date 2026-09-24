@@ -1168,7 +1168,7 @@ export struct ScheduleView {
         if (this.terms.length === 0) {
           Text('暂无可查询的学期')
             .fontSize(13)
-            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             .width('100%')
             .textAlign(TextAlign.Center)
             .margin({ top: 12 })

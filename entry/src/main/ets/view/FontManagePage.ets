@@ -54,6 +54,8 @@ const SYSTEM_FONT_LIMIT: number = 300;
 struct SectionCard {
   @Prop title: string = '';
   @Prop subtitle: string = '';
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
@@ -87,7 +89,7 @@ struct SectionCard {
             if (this.subtitle.length > 0) {
               Text(this.subtitle)
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
             }
@@ -109,6 +111,8 @@ struct SectionCard {
 @Component
 export struct FontManagePage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
@@ -426,7 +430,7 @@ export struct FontManagePage {
             if (this.customFonts.length > 0) {
               Text('已上传字体')
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                 .width('100%')
                 .margin({ top: 10, bottom: 4 })
               ForEach(this.customFonts, (alias: string) => {
@@ -444,13 +448,13 @@ export struct FontManagePage {
 
             Text('系统字体')
               .fontSize(11)
-              .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
               .width('100%')
               .margin({ top: 10, bottom: 4 })
             if (this.systemFonts.length === 0) {
               Text('系统未提供可枚举字体（仍可用「跟随系统」或已上传字体）')
                 .fontSize(12)
-                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                 .width('100%')
                 .padding({ top: 6, bottom: 6 })
             }
@@ -489,7 +493,7 @@ export struct FontManagePage {
       Row() {
         Text('小')
           .fontSize(12)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         Slider({
           value: this.fontScale * 100,
           min: 80,
@@ -505,7 +509,7 @@ export struct FontManagePage {
           })
         Text('特大')
           .fontSize(12)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
       }
       .width('100%')
 
@@ -536,7 +540,7 @@ export struct FontManagePage {
         Row() {
           Text('数值')
             .fontSize(12)
-            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             .width(36)
           Slider({
             value: this.weightValue,
@@ -611,7 +615,7 @@ export struct FontManagePage {
     Column() {
       Text('支持 .ttf / .otf / .ttc；上传后自动注册，可在上方「中文字体 / 英数字体」中选择。')
         .fontSize(11)
-        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         .width('100%')
         .margin({ bottom: 10 })
       Text(this.busy ? '处理中…' : '选择字体文件')
@@ -637,7 +641,7 @@ export struct FontManagePage {
       if (this.fontItems.length === 0) {
         Text('尚未上传字体。上方「上传字体」可添加 .ttf / .otf 文件。')
           .fontSize(12)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .width('100%')
       }
       ForEach(this.fontItems, (it: CustomFontItem) => {
@@ -648,7 +652,7 @@ export struct FontManagePage {
               .fontColor($r('app.color.text_primary'))
             Text(it.fileName)
               .fontSize(10)
-              .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
           }

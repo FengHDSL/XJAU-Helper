@@ -27,6 +27,8 @@ import { AppearanceStore } from '../common/AppearanceStore';
 @Component
 export struct NoticePage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
@@ -116,7 +118,7 @@ export struct NoticePage {
         }
         Text(item.source)
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .layoutWeight(1)
         if (!item.read) {
           Circle()
@@ -196,7 +198,7 @@ export struct NoticePage {
               EmptyTip({ text: '暂无消息' })
               Text('消息来源: 教务系统 /jwglxt/xtgl/index_cxDbsy.html?flag=1')
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                 .margin({ top: 16, bottom: 24 })
             }
             .width('100%')
@@ -238,6 +240,8 @@ export struct NoticePage {
 @Component
 export struct NoticeDetailPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
@@ -301,10 +305,10 @@ export struct NoticeDetailPage {
               Row() {
                 Text(this.notice.source)
                   .fontSize(12)
-                  .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                 Text('·')
                   .fontSize(12)
-                  .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                   .margin({ left: 6, right: 6 })
                 Text(this.notice.date)
                   .fontSize(12)

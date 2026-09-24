@@ -170,7 +170,7 @@ export struct ScoreView {
           .fontColor($r('app.color.brand'))
         Text('平均分')
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .margin({ top: 4 })
       }
       .layoutWeight(1)
@@ -188,7 +188,7 @@ export struct ScoreView {
           .fontColor($r('app.color.brand'))
         Text('平均学分绩点 GPA')
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .margin({ top: 4 })
       }
       .layoutWeight(1)
@@ -206,7 +206,7 @@ export struct ScoreView {
           .fontColor($r('app.color.accent_orange'))
         Text('已修课程')
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .margin({ top: 4 })
       }
       .layoutWeight(1)
@@ -238,7 +238,7 @@ export struct ScoreView {
     Row() {
       Text('GPA 按学校「课程及学分」办法计算，仅供参考')
         .fontSize(12)
-        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
         .layoutWeight(1)
       Text('查看 ›')
         .fontSize(12)
@@ -512,7 +512,7 @@ export struct ScoreView {
           }
           Text(`${item.credit} 学分`)
             .fontSize(11)
-            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             .margin({ left: 8 })
         }
         .width('100%')
@@ -528,7 +528,7 @@ export struct ScoreView {
           .fontColor(this.scoreColor(item))
         Text(`绩点 ${item.gradePoint.toFixed(1)}`)
           .fontSize(10)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .margin({ top: 3 })
       }
       .alignItems(HorizontalAlign.End)
@@ -579,7 +579,7 @@ export struct ScoreView {
             .margin({ right: 10 })
           Text('课程属性')
             .fontSize(13)
-            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             .width(72)
           Row() {
             TagChip({
@@ -656,7 +656,7 @@ export struct ScoreView {
         .margin({ right: 10 })
       Text(label)
         .fontSize(13)
-        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         .width(72)
       Text(value)
         .fontSize(13)
@@ -679,7 +679,7 @@ export struct ScoreView {
       if (this.terms.length === 0) {
         Text('暂无可查询的学期')
           .fontSize(13)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .width('100%')
           .textAlign(TextAlign.Center)
       } else {

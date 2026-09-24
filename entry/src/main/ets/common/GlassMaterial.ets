@@ -555,18 +555,34 @@ export class GlassMaterial {
   }
 
   /**
+   * 角色解析（tick 仅作「响应式依赖载体」，不参与取值）。
+   *
+   * ⚠️ tick 必须来自调用组件自己的 `@StorageProp('grayTick')`：ArkUI 在**属性表达式**里
+   * 读到响应式属性才登记依赖，广播时才会重算该属性；静态函数内部读 AppStorage 不登记依赖。
+   * 参考项目内已验证可实时的主题副标题色写法：`this.subtitleColor.length > 0 ? this.subtitleColor : 默认`。
+   */
+  private static resolveRole(tick: number, role: string): string | undefined {
+    if (tick < 0) {
+      return undefined; // 异常输入（tick 由 0 起递增，不会为负）：不覆盖
+    }
+    return GlassMaterial.grayOverride(role);
+  }
+
+  /**
    * 次要文字色（原默认：text_secondary）。
+   * @param tick **传入调用组件的 `this.grayTick`**（响应式依赖载体，见 resolveRole 说明）
    * @param defaultColor 传入 $r('app.color.text_secondary') 作为未覆盖时的默认值
    */
-  static graySecondary(defaultColor: ResourceColor): ResourceColor {
-    return GlassMaterial.grayOverride(GlassMaterial.GRAY_ROLE_SECONDARY) ?? defaultColor;
+  static graySecondary(tick: number, defaultColor: ResourceColor): ResourceColor {
+    return GlassMaterial.resolveRole(tick, GlassMaterial.GRAY_ROLE_SECONDARY) ?? defaultColor;
   }
 
   /**
    * 辅助文字色（原默认：text_tertiary）。
+   * @param tick **传入调用组件的 `this.grayTick`**（响应式依赖载体，见 resolveRole 说明）
    * @param defaultColor 传入 $r('app.color.text_tertiary') 作为未覆盖时的默认值
    */
-  static grayTertiary(defaultColor: ResourceColor): ResourceColor {
-    return GlassMaterial.grayOverride(GlassMaterial.GRAY_ROLE_TERTIARY) ?? defaultColor;
+  static grayTertiary(tick: number, defaultColor: ResourceColor): ResourceColor {
+    return GlassMaterial.resolveRole(tick, GlassMaterial.GRAY_ROLE_TERTIARY) ?? defaultColor;
   }
 }

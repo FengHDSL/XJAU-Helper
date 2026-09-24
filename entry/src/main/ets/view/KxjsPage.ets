@@ -71,6 +71,8 @@ const STATIC_SUB_TYPES: Record<string, EmptyRoomCondition[]> = {
 @Component
 export struct KxjsPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
@@ -661,7 +663,7 @@ export struct KxjsPage {
 
   private borrowableColor(sfkfy: string): ResourceColor {
     return this.isBorrowable(sfkfy) ? Theme.colorOf(this.themeColor)
-      : GlassMaterial.grayTertiary($r('app.color.text_tertiary'));
+      : GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'));
   }
 
   private borrowableBg(sfkfy: string): string {
@@ -692,7 +694,7 @@ export struct KxjsPage {
           : ''
       )
         .fontSize(13)
-        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
       Blank()
       Button('›')
         .fontSize(18)
@@ -770,7 +772,7 @@ export struct KxjsPage {
             .margin({ left: 12, right: 6 })
           Text(item.time)
             .fontSize(11)
-            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
@@ -813,7 +815,7 @@ export struct KxjsPage {
         Row() {
           Text('座位数')
             .fontSize(13)
-            .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
             .width(86)
           Blank()
           TextInput({ placeholder: '不限', text: this.seatMinText })
@@ -834,7 +836,7 @@ export struct KxjsPage {
             })
           Text('至')
             .fontSize(13)
-            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             .margin({ left: 6, right: 6 })
           TextInput({ placeholder: '不限', text: this.seatMaxText })
             .type(InputType.Number)
@@ -854,7 +856,7 @@ export struct KxjsPage {
             })
           Text('人')
             .fontSize(13)
-            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             .margin({ left: 6 })
         }
         .width('100%')
@@ -875,7 +877,7 @@ export struct KxjsPage {
         Row() {
           Text('场地名称')
             .fontSize(13)
-            .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
             .width(86)
           Blank()
           TextInput({ placeholder: '场地名称或编号', text: this.roomName })
@@ -975,7 +977,7 @@ export struct KxjsPage {
               Blank()
               Text(this.rooms.length > 0 ? `共 ${this.rooms.length} 间空闲教室` : '')
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             }
             .width('100%')
             .margin({ bottom: 10 })
@@ -1015,7 +1017,7 @@ export struct KxjsPage {
                   EmptyTip({ text: this.resultMessage.length > 0 ? this.resultMessage : '点击左侧"查询"获取空闲教室情况' })
                   Text(`当前条件: ${this.weekLabel} ${this.weekdayLabel} ${this.sectionLabel}`)
                     .fontSize(11)
-                    .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                     .margin({ top: 8 })
                 }
                 .width('100%')
@@ -1152,7 +1154,7 @@ export struct KxjsPage {
                   Blank()
                   Text(this.rooms.length > 0 ? `共 ${this.rooms.length} 间空闲教室` : '')
                     .fontSize(11)
-                    .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                 }
                 .width('100%')
                 .margin({ bottom: 10 })
@@ -1194,7 +1196,7 @@ export struct KxjsPage {
                       EmptyTip({ text: this.resultMessage.length > 0 ? this.resultMessage : '点击上方"查询"获取空闲教室情况' })
                       Text(`当前条件: ${this.weekLabel} ${this.weekdayLabel} ${this.sectionLabel}`)
                         .fontSize(11)
-                        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                         .margin({ top: 8 })
                     }
                     .width('100%')
@@ -1337,7 +1339,7 @@ export struct KxjsPage {
       Row() {
         Text(this.multiPickerTempSet.length <= 0 ? '请至少选择 1 项' : `已选 ${this.multiPickerTempSet.length} 项`)
           .fontSize(12)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         Blank()
         Text(this.multiPickerTempSet.length === this.multiPickerAllValues.length ? '全清' : '全选')
           .fontSize(13)
@@ -1419,7 +1421,7 @@ export struct KxjsPage {
 
         Button('关闭')
           .fontSize(15)
-          .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
           .backgroundColor($r('app.color.bg_chip'))
           .height(42)
           .borderRadius(12)
@@ -1446,7 +1448,7 @@ export struct KxjsPage {
         .margin({ right: 10 })
       Text(label)
         .fontSize(13)
-        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         .width(96)
       Text(value.length > 0 ? value : '—')
         .fontSize(13)

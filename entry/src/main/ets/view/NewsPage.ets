@@ -334,10 +334,10 @@ export struct NewsPage {
         Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60 + 44)
         Text('暂无收藏')
           .fontSize(14)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         Text('在新闻详情页点击「收藏」即可加入')
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .margin({ top: 8 })
         Column().height(this.getUIContext().px2vp(this.bottomInsetPx) + 16)
       }
@@ -458,7 +458,7 @@ export struct NewsPage {
               .fontColor($r('app.color.text_primary'))
             Text('关闭后列表不再加载封面图片，可节省流量、加快加载')
               .fontSize(11)
-              .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
               .margin({ top: 2 })
           }
           .alignItems(HorizontalAlign.Start)
@@ -485,20 +485,20 @@ export struct NewsPage {
       Column() {
         Text('当前模式禁止使用')
           .fontSize(14)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
       }
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.listLoading[index]) {
       Column() {
         LoadingProgress().width(32).height(32).color(Theme.colorOf(this.themeColor))
-        Text('加载中').fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary'))).margin({ top: 10 })
+        Text('加载中').fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).margin({ top: 10 })
       }
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
     } else if (this.lists[index].length === 0) {
       Column() {
         Text(this.listLoading[index] ? '加载中' : '暂无新闻')
           .fontSize(14)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
       }
       .width('100%').height('100%').justifyContent(FlexAlign.Center)
       .onAppear(() => {
@@ -568,11 +568,11 @@ export struct NewsPage {
             Column() {
               if (this.loadingMore[index]) {
                 LoadingProgress().width(22).height(22).color(Theme.colorOf(this.themeColor)).margin({ top: 14 })
-                Text('加载中…').fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary'))).margin({ top: 6 })
+                Text('加载中…').fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).margin({ top: 6 })
               } else if (!this.hasMore[index]) {
-                Text('已加载全部新闻').fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary'))).margin({ top: 14 })
+                Text('已加载全部新闻').fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).margin({ top: 14 })
               } else {
-                Text('上拉加载更多').fontSize(12).fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary'))).margin({ top: 14 })
+                Text('上拉加载更多').fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).margin({ top: 14 })
               }
               Text('数据来源: 新疆农业大学新闻网')
                 .fontSize(11).fontColor(WallpaperTone.onWallpaperSecondary(this.wallpaperTone, this.isDarkMode))

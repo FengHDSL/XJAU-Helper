@@ -16,6 +16,8 @@ import { AppearanceStore } from '../../common/AppearanceStore';
 export struct ChangelogCard {
   @Prop version: string = '';
   @Prop date: string = '';
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
@@ -46,7 +48,7 @@ export struct ChangelogCard {
             .fontColor($r('app.color.text_primary'))
           Text(`  ${this.date}`)
             .fontSize(12)
-            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         }
         .width('100%')
         .margin({ bottom: 8 })
@@ -69,7 +71,7 @@ export struct ChangelogCard {
               Text(item)
                 .fontSize(13)
                 .lineHeight(20)
-                .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+                .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
                 .layoutWeight(1)
             }
             .width('100%')

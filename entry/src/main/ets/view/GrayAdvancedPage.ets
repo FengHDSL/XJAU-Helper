@@ -417,7 +417,7 @@ export struct GrayAdvancedPage {
 
       Text('点预览界面里的灰字可直接设置该段文字所属角色；下方可切换范围并选色（点击色块即时生效）。')
         .fontSize(11)
-        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         .width('100%')
         .margin({ top: 4 })
 
@@ -557,7 +557,7 @@ export struct GrayAdvancedPage {
               Text('点下方任意预览界面里的灰字（带虚下划线）即可单独设置那一段文字的颜色；每页右上角可按整页统一设置。')
                 .fontSize(11)
                 .lineHeight(17)
-                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                 .width('100%')
                 .padding({ left: 4, right: 4 })
 

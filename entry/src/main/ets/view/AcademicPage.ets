@@ -40,6 +40,8 @@ import { MaterialCard } from './common/MaterialCard';
 @Component
 export struct AcademicPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 响应式依赖：玻璃/灰字设置变化时即时刷新本页（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
@@ -169,7 +171,7 @@ export struct AcademicPage {
     Column() {
       Text('平均学分绩点（GPA）')
         .fontSize(13)
-        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
       Row() {
         Text(this.currentGpa().toFixed(2))
           .fontSize(48)
@@ -177,7 +179,7 @@ export struct AcademicPage {
           .fontColor($r('app.color.brand'))
         Text('/ 5.0')
           .fontSize(16)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .margin({ left: 6, bottom: 8 })
       }
       .alignItems(VerticalAlign.Bottom)
@@ -277,7 +279,7 @@ export struct AcademicPage {
             Blank()
             Text(`${item.earned.toFixed(1)} / ${item.required.toFixed(1)}`)
               .fontSize(12)
-              .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+              .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
             Text(`  ${this.percent(item.earned, item.required)}%`)
               .fontSize(12)
               .fontColor(this.pctColor(this.percent(item.earned, item.required)))
@@ -353,7 +355,7 @@ export struct AcademicPage {
           Text(text)
             .fontSize(13)
             .lineHeight(21)
-            .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
             .margin({ left: 28 })
             .width('100%')
         }
@@ -389,7 +391,7 @@ export struct AcademicPage {
         Blank()
         Text(this.overallCourses.length > 0 ? `${this.overallCourses.length} 门` : '累计')
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
       }
       .width('100%')
       .margin({ bottom: 12 })
@@ -438,7 +440,7 @@ export struct AcademicPage {
         Blank()
         Text('按已统计课程划分')
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
       }
       .width('100%')
       .margin({ bottom: 12 })
@@ -498,7 +500,7 @@ export struct AcademicPage {
           .borderRadius(4)
         Text(label)
           .fontSize(12)
-          .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
           .margin({ left: 5 })
       }
       .alignItems(VerticalAlign.Center)
@@ -536,7 +538,7 @@ export struct AcademicPage {
         Text(this.overallCourses.length > 0
           ? `共 ${this.overallCourses.length} 门 · ${this.detailTermCount()} 个学期` : '暂无数据')
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
       }
       .width('100%')
       .margin({ bottom: 10 })
@@ -544,7 +546,7 @@ export struct AcademicPage {
       if (this.overallCourses.length === 0) {
         Text('暂无课程明细：需教务系统开放学业情况-课程修读数据')
           .fontSize(12)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .width('100%')
       } else {
         ForEach(this.detailList(), (item: ScoreItem) => {
@@ -556,7 +558,7 @@ export struct AcademicPage {
                 .width('100%')
               Text(`${this.termLabelOf(item.termId)}${item.kclbmc.length > 0 ? ` · ${item.kclbmc}` : (item.courseType.length > 0 ? ` · ${item.courseType}` : '')}`)
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                 .width('100%')
                 .margin({ top: 2 })
             }
@@ -565,11 +567,11 @@ export struct AcademicPage {
 
             Text(item.credit > 0 ? `${item.credit} 学分` : '')
               .fontSize(11)
-              .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+              .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
               .margin({ right: 10 })
             Text(item.gradePoint > 0 ? `绩点 ${item.gradePoint}` : '')
               .fontSize(11)
-              .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+              .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
               .margin({ right: 10 })
             Text(item.scoreText)
               .fontSize(14)
@@ -679,7 +681,7 @@ export struct AcademicPage {
     if (n >= 60) {
       return $r('app.color.accent_purple');
     }
-    return GlassMaterial.graySecondary($r('app.color.text_secondary'));
+    return GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'));
   }
 
   private percent(earned: number, required: number): number {

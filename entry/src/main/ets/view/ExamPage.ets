@@ -39,6 +39,8 @@ import { sheetBlurStyle } from '../common/SystemMaterial';
 @Component
 export struct ExamPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（顶栏文字自适应用） */
@@ -192,7 +194,7 @@ export struct ExamPage {
   /** 倒计时 TagChip 文字颜色（按剩余天数分级：≤3天红紧急、≤7天黄中等、>7天绿充足；已结束灰） */
   private daysTagColor(d: number): ResourceColor {
     if (d < 0) {
-      return GlassMaterial.grayTertiary($r('app.color.text_tertiary'));
+      return GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'));
     }
     if (d <= 3) {
       return $r('app.color.state_danger');
@@ -250,14 +252,14 @@ export struct ExamPage {
       Column() {
         Text(`${DateUtil.parse(item.date).getMonth() + 1}`)
           .fontSize(11)
-          .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.grayTertiary($r('app.color.text_tertiary')) : $r('app.color.accent_orange'))
+          .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')) : $r('app.color.accent_orange'))
         Text(`${DateUtil.parse(item.date).getDate()}`)
           .fontSize(22)
           .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
-          .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.grayTertiary($r('app.color.text_tertiary')) : $r('app.color.accent_orange'))
+          .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')) : $r('app.color.accent_orange'))
         Text(Const.WEEK_LABELS[DateUtil.weekdayOf(DateUtil.parse(item.date)) - 1])
           .fontSize(10)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .margin({ top: 2 })
       }
       .width(60)
@@ -270,12 +272,12 @@ export struct ExamPage {
           Text(item.courseName)
             .fontSize(16)
             .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-            .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.graySecondary($r('app.color.text_secondary')) : $r('app.color.text_primary'))
+            .fontColor(this.daysLeft(item) < 0 ? GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')) : $r('app.color.text_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
           if (this.daysLeft(item) < 0) {
-            TagChip({ text: '已结束', color: GlassMaterial.grayTertiary($r('app.color.text_tertiary')), bg: $r('app.color.bg_chip') })
+            TagChip({ text: '已结束', color: GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')), bg: $r('app.color.bg_chip') })
           } else if (this.daysLeft(item) === 0) {
             TagChip({ text: '今天', color: $r('app.color.brand_on'), bg: $r('app.color.state_danger') })
           } else {
@@ -298,7 +300,7 @@ export struct ExamPage {
             .margin({ right: 5 })
           Text(item.timeRange)
             .fontSize(12)
-            .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
             .margin({ left: 4 })
           Column()
             .width(6)
@@ -308,7 +310,7 @@ export struct ExamPage {
             .margin({ left: 12, right: 5 })
           Text(item.location)
             .fontSize(12)
-            .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
             .margin({ left: 4 })
         }
         .width('100%')
@@ -318,7 +320,7 @@ export struct ExamPage {
           TagChip({ text: item.examType, color: Theme.colorOf(this.themeColor), bg: Theme.rgba(Theme.colorOf(this.themeColor), 0.12) })
           Text(`座位号 ${item.seat}`)
             .fontSize(11)
-            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             .margin({ left: 8 })
           Blank()
         }
@@ -403,7 +405,7 @@ export struct ExamPage {
             }) {
               Text('关闭')
                 .fontSize(15)
-                .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+                .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
                 .width('100%')
                 .height(44)
                 .textAlign(TextAlign.Center)
@@ -430,7 +432,7 @@ export struct ExamPage {
       if (this.terms.length === 0) {
         Text('暂无可查询的学期')
           .fontSize(13)
-          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .width('100%')
           .textAlign(TextAlign.Center)
       } else {
@@ -484,7 +486,7 @@ export struct ExamPage {
         .margin({ right: 10 })
       Text(label)
         .fontSize(13)
-        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         .width(72)
       Text(value)
         .fontSize(13)
@@ -523,12 +525,12 @@ export struct ExamPage {
       // 顶部说明（去掉重复标题"桌面卡片倒计时"，sheet 自身 title 已显示）
       Text('选一场考试作为桌面卡片的倒计时对象')
         .fontSize(12)
-        .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
         .width('100%')
         .margin({ bottom: 4 })
       Text('不选则自动显示最近一场未开始的考试')
         .fontSize(11)
-        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         .width('100%')
         .margin({ bottom: 14 })
 
@@ -536,7 +538,7 @@ export struct ExamPage {
       Row() {
         Text(this.pickedExamId.length === 0 ? '当前: 最近一场考试自动倒计时' : `当前: ${this.pickedExamName()}`)
           .fontSize(12)
-          .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .layoutWeight(1)
@@ -571,7 +573,7 @@ export struct ExamPage {
           if (this.exams.length === 0) {
             Text('本学期暂无考试安排，刷新后重试')
               .fontSize(12)
-              .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
               .width('100%')
               .textAlign(TextAlign.Center)
               .padding(20)
@@ -588,7 +590,7 @@ export struct ExamPage {
                       .textOverflow({ overflow: TextOverflow.Ellipsis })
                     Text(`${item.date} ${item.timeRange} · ${item.location}`)
                       .fontSize(11)
-                      .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+                      .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
                       .margin({ top: 4 })
                       .maxLines(1)
                       .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -661,7 +663,7 @@ export struct ExamPage {
           }) {
             Text('关闭')
               .fontSize(14)
-              .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
+              .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
               .width('100%')
               .height(40)
               .textAlign(TextAlign.Center)
@@ -712,7 +714,7 @@ Row() {
               Image($r('app.media.list_bullet'))
                 .width(14)
                 .height(14)
-                .fillColor(this.subtitleColor.length > 0 ? this.subtitleColor : (this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? GlassMaterial.grayTertiary($r('app.color.text_tertiary')) : '#CCFFFFFF')))
+                .fillColor(this.subtitleColor.length > 0 ? this.subtitleColor : (this.barStyle === 'legacy' ? 'rgba(255,255,255,0.92)' : (this.isDarkMode ? GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')) : '#CCFFFFFF')))
                 .margin({ left: 3 })
             }
             .height(15)
@@ -788,7 +790,7 @@ Row() {
                       .fontColor($r('app.color.text_primary'))
                     Text('考试须携带学生证与身份证，提前 15 分钟入场')
                       .fontSize(11)
-                      .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
+                      .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                       .margin({ top: 4 })
                   }
                   .alignItems(HorizontalAlign.Start)
