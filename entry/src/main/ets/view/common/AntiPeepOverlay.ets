@@ -38,12 +38,12 @@ export struct AntiPeepOverlay {
 
         Text('检测到非机主观看，敏感信息已隐藏')
           .fontSize(13)
-          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
           .margin({ bottom: 4 })
 
         Text('请面向手机解锁后查看')
           .fontSize(13)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
       }
       .width('100%')
       .height('100%')

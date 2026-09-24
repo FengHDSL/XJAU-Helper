@@ -89,7 +89,7 @@ struct SectionCard {
             if (this.subtitle.length > 0) {
               Text(this.subtitle)
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
             }
@@ -433,7 +433,7 @@ export struct FontManagePage {
             if (this.customFonts.length > 0) {
               Text('已上传字体')
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                 .width('100%')
                 .margin({ top: 10, bottom: 4 })
               ForEach(this.customFonts, (alias: string) => {
@@ -451,13 +451,13 @@ export struct FontManagePage {
 
             Text('系统字体')
               .fontSize(11)
-              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
               .width('100%')
               .margin({ top: 10, bottom: 4 })
             if (this.systemFonts.length === 0) {
               Text('系统未提供可枚举字体（仍可用「跟随系统」或已上传字体）')
                 .fontSize(12)
-                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                 .width('100%')
                 .padding({ top: 6, bottom: 6 })
             }
@@ -496,7 +496,7 @@ export struct FontManagePage {
       Row() {
         Text('小')
           .fontSize(12)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
         Slider({
           value: this.fontScale * 100,
           min: 80,
@@ -512,7 +512,7 @@ export struct FontManagePage {
           })
         Text('特大')
           .fontSize(12)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
       }
       .width('100%')
 
@@ -543,7 +543,7 @@ export struct FontManagePage {
         Row() {
           Text('数值')
             .fontSize(12)
-            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
             .width(36)
           Slider({
             value: this.weightValue,
@@ -560,7 +560,7 @@ export struct FontManagePage {
             })
           Text(`${this.weightValue}`)
             .fontSize(12)
-            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
             .width(40)
             .textAlign(TextAlign.End)
         }
@@ -582,7 +582,7 @@ export struct FontManagePage {
       Row() {
         Text('当前：' + (target === 'zh' ? this.familyLabel(this.fontFamilyZh) : this.familyLabel(this.fontFamilyEn)))
           .fontSize(12)
-          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
           .layoutWeight(1)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -622,7 +622,7 @@ export struct FontManagePage {
     Column() {
       Text('支持 .ttf / .otf / .ttc；上传后自动注册，可在上方「中文字体 / 英数字体」中选择。')
         .fontSize(11)
-        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
         .width('100%')
         .margin({ bottom: 10 })
       Text(this.busy ? '处理中…' : '选择字体文件')
@@ -648,7 +648,7 @@ export struct FontManagePage {
       if (this.fontItems.length === 0) {
         Text('尚未上传字体。上方「上传字体」可添加 .ttf / .otf 文件。')
           .fontSize(12)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
           .width('100%')
       }
       ForEach(this.fontItems, (it: CustomFontItem) => {
@@ -659,7 +659,7 @@ export struct FontManagePage {
               .fontColor($r('app.color.text_primary'))
             Text(it.fileName)
               .fontSize(10)
-              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
           }

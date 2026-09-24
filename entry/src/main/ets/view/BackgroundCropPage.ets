@@ -421,7 +421,7 @@ export struct BackgroundCropPage {
               Column() {
                 Text(this.busy ? '正在处理…' : '请选择一张图片')
                   .fontSize(14)
-                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
               }
               .width('100%')
               .height('100%')
@@ -539,7 +539,7 @@ export struct BackgroundCropPage {
 
           Text('提示：拖动白色框调整裁剪区域，拖动右下角圆形把手调整大小；框内区域即最终背景。')
             .fontSize(11)
-            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
             .textAlign(TextAlign.Center)
             .width('100%')
             .padding({ left: 16, right: 16 })

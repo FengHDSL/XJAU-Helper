@@ -225,12 +225,12 @@ export struct NewsDetailPage {
         if (this.loading) {
           Column() {
             LoadingProgress().width(32).height(32).color(Theme.colorOf(this.themeColor))
-            Text('加载中').fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).margin({ top: 10 })
+            Text('加载中').fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick)).margin({ top: 10 })
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else if (this.detail === null) {
           Column() {
-            Text('加载失败').fontSize(14).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+            Text('加载失败').fontSize(14).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else {
@@ -262,14 +262,14 @@ export struct NewsDetailPage {
                 // 元信息：日期 / 来源 / 浏览量（来源过长自动换行）
                 Column() {
                   Row() {
-                    Text(this.detail.date).fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                    Text(this.detail.date).fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                     if (this.detail.views.length > 0) {
-                      Text(`  浏览 ${this.detail.views}`).fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                      Text(`  浏览 ${this.detail.views}`).fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                     }
                   }.width('100%')
                   if (this.detail.source.length > 0) {
                     Text(`来源: ${this.detail.source}`)
-                      .fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                      .fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                       .width('100%').margin({ top: 4 })
                   }
                 }
@@ -277,7 +277,7 @@ export struct NewsDetailPage {
 
                 if (this.detail.author.length > 0) {
                   Text(`作者: ${this.detail.author}`).fontSize(12)
-                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).width('100%').margin({ bottom: 16 })
+                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick)).width('100%').margin({ bottom: 16 })
                 }
 
                 ForEach(this.detail.blocks, (b: ContentBlock, i: number) => {
@@ -298,7 +298,7 @@ export struct NewsDetailPage {
                 if (this.detail.editor.length > 0) {
                   Divider().color($r('app.color.divider')).margin({ top: 16, bottom: 12 })
                   Text(this.detail.editor)
-                    .fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).width('100%')
+                    .fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick)).width('100%')
                 }
 
                 Column().height(20)

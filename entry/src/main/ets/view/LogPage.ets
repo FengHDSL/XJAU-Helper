@@ -439,7 +439,7 @@ export struct LogPage {
             .fontColor($r('app.color.text_primary'))
           Text('开启日志调试后，这里会展示各功能模块的使用日志与联网反馈')
             .fontSize(12)
-            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
             .margin({ top: 8 })
             .textAlign(TextAlign.Center)
             .padding({ left: 30, right: 30 })
@@ -516,7 +516,7 @@ export struct LogPage {
                     .margin({ left: 12 })
                   Text(log.time)
                     .fontSize(11)
-                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                 }
                 .width('100%')
 
@@ -635,13 +635,13 @@ export struct LogPage {
       Text(label)
         .fontSize(11)
         .lineHeight(17)
-        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
         .width(52)
         .margin({ right: 10 })
       Text(value)
         .fontSize(11)
         .lineHeight(17)
-        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
         .layoutWeight(1)
         .copyOption(CopyOptions.InApp)
     }
@@ -675,12 +675,12 @@ export struct LogPage {
       }) {
         Text(this.sortDesc ? '最新 ↓' : '最旧 ↑')
           .fontSize(12)
-          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
       }
       Text(this.selecting ? `已选 ${this.selectedIdx.length} 条` : '长按日志可多选导出')
         .fontSize(11)
-        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
         .margin({ left: 10 })
       Blank()
       if (this.selecting) {
@@ -697,7 +697,7 @@ export struct LogPage {
         }) {
           Text('取消')
             .fontSize(13)
-            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
             .padding({ left: 14, right: 14, top: 6, bottom: 6 })
         }
         // 「导出选中」品牌绿实底 + 白字 → 材质生效时靠 btnTint 叠回品牌绿（比例 0.85，承载白字对比度）

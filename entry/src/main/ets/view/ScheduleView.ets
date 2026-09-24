@@ -721,7 +721,12 @@ export struct ScheduleView {
     // 仅在用户自定义 headerColor（需要实色底）时不叠材质。材质生效时外壳让出磨砂/亮边/阴影。
     Stack({ alignContent: Alignment.Start }) {
       if (this.cfg.headerColor.length === 0 && GlassMaterial.immSupported()) {
-        MaterialCardLayer({ layerRadius: 12, layerForce: true })
+        // 日期条承载层：连接边直角（下沿两角 0），与容器 borderRadius 一致——
+        // 否则承载层把材质画成四角全圆，盖过容器圆角（用户看到的「左下角仍是圆的」根因）
+        MaterialCardLayer({
+          layerRadius: { topLeft: 12, topRight: 12, bottomRight: 0, bottomLeft: 0 },
+          layerForce: true
+        })
       }
       Row() {
         Column() {
@@ -896,7 +901,11 @@ export struct ScheduleView {
     // .systemMaterial 旧写法），layerForce 强制常驻；材质生效时外壳让出磨砂/亮边/阴影。
     Stack({ alignContent: Alignment.Start }) {
       if (GlassMaterial.immSupported()) {
-        MaterialCardLayer({ layerRadius: 12, layerForce: true })
+        // 时间条承载层：上沿两角直角（与日期条齐平相接），下沿保留胶囊圆角
+        MaterialCardLayer({
+          layerRadius: { topLeft: 0, topRight: 0, bottomRight: 12, bottomLeft: 12 },
+          layerForce: true
+        })
       }
       Column() {
         ForEach(SectionUtil.list(this.cfg), (item: SectionTime) => {
@@ -1169,7 +1178,7 @@ export struct ScheduleView {
         if (this.terms.length === 0) {
           Text('暂无可查询的学期')
             .fontSize(13)
-            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
             .width('100%')
             .textAlign(TextAlign.Center)
             .margin({ top: 12 })

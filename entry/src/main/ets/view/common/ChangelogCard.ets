@@ -48,7 +48,7 @@ export struct ChangelogCard {
             .fontColor($r('app.color.text_primary'))
           Text(`  ${this.date}`)
             .fontSize(12)
-            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
         }
         .width('100%')
         .margin({ bottom: 8 })
@@ -71,7 +71,7 @@ export struct ChangelogCard {
               Text(item)
                 .fontSize(13)
                 .lineHeight(20)
-                .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                 .layoutWeight(1)
             }
             .width('100%')

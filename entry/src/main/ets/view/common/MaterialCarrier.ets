@@ -33,7 +33,12 @@ import { applyMaterialCarrier } from '../../common/SystemMaterial';
 @Component
 export struct MaterialCardLayer {
   /** 与 MaterialCard 的 cardRadius 保持一致，避免出现内嵌的小圆角边框 */
-  @Prop layerRadius: Length = 20;
+  /**
+   * 承载层圆角：统一数值，或分角对象 `{ topLeft/topRight/bottomRight/bottomLeft }`。
+   * 分角场景：日期条/时间条这类「与相邻元素拼接」的条形承载——连接边必须直角，
+   * 否则承载层画的材质四角全圆，盖过容器自己的 borderRadius（课程表圆角问题根因）。
+   */
+  @Prop layerRadius: Length | BorderRadiuses = 20;
   /**
    * 是否让材质自带投影（`ImmersiveMaterial.applyShadow` 默认 true）。
    * 大卡片保留（投影是加分项）；成排的小卡片传 false——

@@ -633,7 +633,7 @@ export struct MaterialSheetPanel {
         }) {
           Text('✕')
             .fontSize(13)
-            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
             .width(30)
             .height(30)
             .textAlign(TextAlign.Center)

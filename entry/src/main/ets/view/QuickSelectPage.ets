@@ -566,35 +566,35 @@ export struct QuickSelectPage {
           .layoutWeight(1)
         Text(cls.credit.length > 0 ? `${cls.credit} 学分` : '')
           .fontSize(11)
-          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
       }
       .width('100%')
 
       if (cls.className.length > 0) {
         Text(cls.className)
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
           .width('100%')
           .margin({ top: 2 })
       }
       if (cls.teacher.length > 0) {
         Text(`教师：${cls.teacher}`)
           .fontSize(11)
-          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
           .width('100%')
           .margin({ top: 4 })
       }
       if (cls.time.length > 0) {
         Text(cls.time)
           .fontSize(11)
-          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
           .width('100%')
           .margin({ top: 2 })
       }
       if (cls.location.length > 0) {
         Text(cls.location)
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
           .width('100%')
           .margin({ top: 2 })
       }
@@ -611,7 +611,7 @@ export struct QuickSelectPage {
           // 「已选」是状态标签（无点击）：保留实色底
           Text('已选')
             .fontSize(11)
-            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
             .padding({ left: 10, right: 10, top: 5, bottom: 5 })
             .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle(GlassMaterial.cardBlur()).border({ width: GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() }).shadow(GlassMaterial.cardShadowStyle()).clip(true)
             .borderRadius(10)
@@ -661,7 +661,7 @@ export struct QuickSelectPage {
           }) {
             Text('模糊入队')
               .fontSize(12)
-              .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+              .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
               .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           }
         }
@@ -717,7 +717,7 @@ export struct QuickSelectPage {
               .width('100%')
               Text(this.ctxInfo)
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                 .width('100%')
                 .margin({ top: 8 })
               if (this.busy) {
@@ -730,7 +730,7 @@ export struct QuickSelectPage {
               if (this.successCount > 0 || this.retryCount > 0) {
                 Text(`运行统计：成功 ${this.successCount} 门 · 未成功 ${this.failCount} 门 · 累计尝试 ${this.retryCount} 次`)
                   .fontSize(11)
-                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                   .width('100%')
                   .margin({ top: 6 })
               }
@@ -760,7 +760,7 @@ export struct QuickSelectPage {
                 Blank()
                 Text(`${this.queue.length} 门`)
                   .fontSize(11)
-                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                 if (this.queue.length > 0 && !this.grabbing) {
                   // 「清空」胶囊小按钮：材质走 MaterialButton 的 Toggle 承载层
                   MaterialButton({
@@ -776,7 +776,7 @@ export struct QuickSelectPage {
                   }) {
                     Text('清空')
                       .fontSize(11)
-                      .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                      .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                       .padding({ left: 10, right: 10, top: 4, bottom: 4 })
                   }
                 }
@@ -787,7 +787,7 @@ export struct QuickSelectPage {
               if (this.queue.length === 0) {
                 Text('队列为空：先在下方查询课程，点「加入队列」把要抢的课程排队')
                   .fontSize(12)
-                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                   .width('100%')
               } else {
                 ForEach(this.queue, (item: GrabTarget) => {
@@ -802,7 +802,7 @@ export struct QuickSelectPage {
                         + ` · ${item.matchMode === 'fuzzy' ? '模糊' : '精确'}`
                         + ` · 第 ${item.attempts} 次`)
                         .fontSize(11)
-                        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                         .width('100%')
                         .margin({ top: 2 })
                     }
@@ -826,7 +826,7 @@ export struct QuickSelectPage {
                     }) {
                       Text(item.enabled ? '停用' : '启用')
                         .fontSize(11)
-                        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                         .padding({ left: 10, right: 10, top: 4, bottom: 4 })
                     }
                     MaterialButton({
@@ -863,7 +863,7 @@ export struct QuickSelectPage {
               Row() {
                 Text('启动时间')
                   .fontSize(12)
-                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                 Blank()
                 Text(this.startAtText.length > 0 ? this.startAtText : '立即开始')
                   .fontSize(12)
@@ -903,7 +903,7 @@ export struct QuickSelectPage {
                   }) {
                     Text('清除')
                       .fontSize(12)
-                      .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                      .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                       .padding({ left: 10, right: 10, top: 5, bottom: 5 })
                   }
                 }
@@ -921,7 +921,7 @@ export struct QuickSelectPage {
               Row() {
                 Text('重试间隔')
                   .fontSize(12)
-                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                   .layoutWeight(1)
                 // 档位胶囊保留实色底：选中态靠实色背景（选中=主题色 / 未选中=浅灰）+ 白字表达，
                 // 沉浸光感材质会让出底色、把选中态吃掉，故这一组不改为材质按钮。
@@ -945,7 +945,7 @@ export struct QuickSelectPage {
               Row() {
                 Text('最大重试次数')
                   .fontSize(12)
-                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                   .layoutWeight(1)
                 // 档位胶囊保留实色底（选中态靠实色背景表达，原因同「重试间隔」）
                 ForEach([50, 200, 500, 0], (r: number) => {
@@ -969,7 +969,7 @@ export struct QuickSelectPage {
               Row() {
                 Text('并行处理')
                   .fontSize(12)
-                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                   .layoutWeight(1)
                 // 档位胶囊保留实色底（选中态靠实色背景表达，原因同「重试间隔」）
                 ForEach([1, 2, 3], (w: number) => {
@@ -993,7 +993,7 @@ export struct QuickSelectPage {
               Row() {
                 Text('捡漏模式（有人退课立即抢）')
                   .fontSize(12)
-                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                   .layoutWeight(1)
                 Toggle({ type: ToggleType.Switch, isOn: this.leakMode })
                   .selectedColor(Theme.colorOf(this.themeColor))
@@ -1009,7 +1009,7 @@ export struct QuickSelectPage {
               Row() {
                 Text('抢到后继续抢队列其它课程')
                   .fontSize(12)
-                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                   .layoutWeight(1)
                 Toggle({ type: ToggleType.Switch, isOn: this.continueAfterSuccess })
                   .selectedColor(Theme.colorOf(this.themeColor))
@@ -1055,7 +1055,7 @@ export struct QuickSelectPage {
                 ? `运行中：每 ${this.intervalSec} 秒一轮 · ${this.maxRounds > 0 ? `最多 ${this.maxRounds} 轮` : '不限轮次'}`
                 : '点击「开始抢课」后按上述定时策略轮询空位并自动提交；抢课期间请保持页面打开')
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                 .width('100%')
                 .margin({ top: 8 })
             }
@@ -1121,7 +1121,7 @@ export struct QuickSelectPage {
                 }) {
                   Text(this.showFilter ? '收起筛选' : '筛选')
                     .fontSize(12)
-                    .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                    .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                     .padding({ left: 12, right: 12, top: 5, bottom: 5 })
                 }
                 MaterialButton({
@@ -1144,7 +1144,7 @@ export struct QuickSelectPage {
                 if (this.scopes.length > 0) {
                   Text(`轮次 ${this.roundIndex + 1}/${this.scopes.length}`)
                     .fontSize(11)
-                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                 }
               }
               .width('100%')
@@ -1253,7 +1253,7 @@ export struct QuickSelectPage {
                   Row() {
                     Text('仅看有空位')
                       .fontSize(12)
-                      .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                      .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                       .layoutWeight(1)
                     Toggle({ type: ToggleType.Switch, isOn: this.onlyAvailable })
                       .selectedColor(Theme.colorOf(this.themeColor))
@@ -1266,7 +1266,7 @@ export struct QuickSelectPage {
                   .margin({ top: 10 })
                   Text('筛选在本次查询结果上生效，改条件后点「查询」重新过滤')
                     .fontSize(11)
-                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                     .width('100%')
                     .margin({ top: 6 })
                 }
@@ -1317,7 +1317,7 @@ export struct QuickSelectPage {
                 Blank()
                 Text(`${this.chosen.length} 门`)
                   .fontSize(11)
-                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
               }
               .width('100%')
               .margin({ bottom: 10 })
@@ -1325,7 +1325,7 @@ export struct QuickSelectPage {
               if (this.chosen.length === 0) {
                 Text('暂无已选课程（或当前不在选课期）')
                   .fontSize(12)
-                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                   .width('100%')
               } else {
                 ForEach(this.chosen, (item: SelectedCourseItem) => {
@@ -1337,7 +1337,7 @@ export struct QuickSelectPage {
                         .width('100%')
                       Text(`${item.teacher}${item.time.length > 0 ? ` · ${item.time}` : ''}`)
                         .fontSize(11)
-                        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+                        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                         .width('100%')
                         .margin({ top: 2 })
                     }
@@ -1416,7 +1416,7 @@ export struct QuickSelectPage {
                 Text(this.logText)
                   .fontSize(10)
                   .lineHeight(15)
-                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
                   .width('100%')
               }
               .width('100%')
