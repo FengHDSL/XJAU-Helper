@@ -643,8 +643,8 @@ export struct MaterialSheetPanel {
         IconCircleButton({
           hasImage: true,
           image: $r('app.media.xmark'),
-          buttonSize: 30,
-          iconSize: 13,
+          buttonSize: 34,
+          iconSize: 20,
           tint: $r('app.color.text_secondary'),
           // 灰色圆底：让小尺寸关闭按钮在玻璃/材质上足够显眼（用户反馈「太小，加个灰色底」）
           fill: '#33808080',
@@ -676,8 +676,8 @@ export struct MaterialSheetPanel {
         IconCircleButton({
           hasImage: true,
           image: $r('app.media.xmark'),
-          buttonSize: 30,
-          iconSize: 13,
+          buttonSize: 34,
+          iconSize: 20,
           tint: this.panelCloseTint === '' ? $r('app.color.text_secondary') : this.panelCloseTint,
           fill: this.panelCloseFill.length > 0 ? this.panelCloseFill : '#33808080',
           buttonInteractive: true,
