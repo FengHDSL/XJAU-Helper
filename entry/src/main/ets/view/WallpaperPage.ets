@@ -44,6 +44,8 @@ export struct WallpaperPage {
   /** 顶栏样式：new=渐变色（默认）/ legacy=毛玻璃 */
   @StorageProp('barStyle') barStyle: string = 'new';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
+  /** 开关视觉镜像：onChange 先跟随手势，确认弹窗「取消」时强制拨回（否则开关视觉停在开、实际未开启） */
+  @State immersiveSwitchOn: boolean = false;
   /** 跟随系统深色（只读展示用） */
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（文字自适应用） */
@@ -98,6 +100,8 @@ export struct WallpaperPage {
 
   aboutToAppear(): void {
     this.combos = DataStore.combos();
+    // 开关镜像同步当前实际状态（否则已开启时进页面开关显示为关）
+    this.immersiveSwitchOn = this.immersiveEffect;
     // 打开外观设置即恢复字号缩放（自定义字号持久化后应用级生效）
     AppearanceStore.applyFontSizeScale();
     // 「自动」灰字色按壁纸对比度重算（1.5s 防抖；壁纸刚变化时先静止再切换）
@@ -151,6 +155,9 @@ export struct WallpaperPage {
       if (res.index === 0) {
         this.setImmersive(true);
         DataStore.markImmersiveHintShown();
+      } else {
+        // 取消：把开关镜像拨回「关」（否则开关视觉停在开、实际未开启）
+        this.immersiveSwitchOn = false;
       }
     });
   }
@@ -984,10 +991,12 @@ export struct WallpaperPage {
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
 
-            Toggle({ type: ToggleType.Switch, isOn: this.immersiveEffect })
+            Toggle({ type: ToggleType.Switch, isOn: this.immersiveSwitchOn })
               .selectedColor(Theme.colorOf(this.themeColor))
               .onChange((on: boolean) => {
-                // 首次开启前弹风险确认（确认一次后不再提示）
+                // 镜像先跟随手势（视觉与状态同步），再走确认/应用分支；
+                // 首次开启前弹风险确认（确认一次后不再提示），取消时把镜像拨回「关」
+                this.immersiveSwitchOn = on;
                 if (on && !DataStore.immersiveHintShown()) {
                   this.confirmImmersive();
                 } else {

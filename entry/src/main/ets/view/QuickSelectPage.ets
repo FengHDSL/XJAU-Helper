@@ -95,6 +95,10 @@ export struct QuickSelectPage {
   @State startAtText: string = '';
   /** 筛选条件 */
   @State fTeacher: string = '';
+  /** 手动添加抢课目标：课程名称（必填） */
+  @State manualName: string = '';
+  /** 手动添加抢课目标：上课时间（选填） */
+  @State manualTime: string = '';
   @State fTime: string = '';
   @State fLoc: string = '';
   @State fCredit: string = '';
@@ -350,6 +354,37 @@ export struct QuickSelectPage {
     this.queue.splice(to, 0, item);
     SelectApi.saveQueue(this.queue);
     this.log(`队列顺序调整：${item.courseName} ${dir < 0 ? '上移' : '下移'}`);
+  }
+
+  /** 手动添加抢课目标（提前订好队列，不依赖选课系统开放查询）：
+   *  课程名称必填、上课时间选填；授课教师默认「秾大云上平台」；按课程名模糊提交 */
+  private doEnqueueManual(): void {
+    const name: string = this.manualName.trim();
+    if (name.length === 0) {
+      this.getUIContext().getPromptAction().showToast({ message: '请输入课程名称' });
+      return;
+    }
+    const target: GrabTarget = {
+      kchId: '',
+      courseName: name,
+      teacher: '秾大云上平台',
+      time: this.manualTime.trim(),
+      jxbId: '',
+      doJxbId: '',
+      enabled: true,
+      status: 'waiting',
+      attempts: 0,
+      matchMode: 'fuzzy'
+    };
+    const ok: boolean = SelectApi.enqueue(this.queue, target);
+    this.queue = SelectApi.copyQueue(this.queue);
+    if (ok) {
+      this.manualName = '';
+      this.manualTime = '';
+      this.log(`已手动加入队列：${name}`);
+    } else {
+      this.getUIContext().getPromptAction().showToast({ message: '该课程已在队列中' });
+    }
   }
 
   /** 切换队列项启用状态 */
@@ -883,6 +918,54 @@ export struct QuickSelectPage {
                   .padding({ top: 7, bottom: 7 })
                 }, (item: GrabTarget, qIdx: number) => `q${qIdx}_${item.kchId}-${item.doJxbId}${item.jxbId}`)
               }
+
+              // 手动添加：提前把要抢的课程订好（不依赖选课系统开放查询），教师默认「秾大云上平台」
+              Divider().color($r('app.color.divider')).margin({ top: 4, bottom: 10 })
+              Text('手动添加课程')
+                .fontSize(13)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+                .fontColor($r('app.color.text_primary'))
+              TextInput({ placeholder: '课程名称（必填）', text: this.manualName })
+                .height(40)
+                .borderRadius(10)
+                .fontSize($r('sys.float.Body_L'))
+                .backgroundColor($r('sys.color.comp_background_tertiary'))
+                .margin({ top: 8 })
+                .onChange((v: string) => {
+                  this.manualName = v;
+                })
+              Row({ space: 8 }) {
+                TextInput({ placeholder: '上课时间（选填，如 周三 5-6 节）', text: this.manualTime })
+                  .height(40)
+                  .borderRadius(10)
+                  .fontSize($r('sys.float.Body_L'))
+                  .backgroundColor($r('sys.color.comp_background_tertiary'))
+                  .layoutWeight(1)
+                  .onChange((v: string) => {
+                    this.manualTime = v;
+                  })
+                MaterialButton({
+                  btnRadius: 10,
+                  btnBg: Theme.colorOf(this.themeColor),
+                  btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                  btnBorderW: GlassMaterial.borderWidth(),
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnTint: Theme.colorOf(this.themeColor),
+                  btnTintRatio: 0.55,
+                  btnOnClick: (): void => {
+                    this.doEnqueueManual();
+                  }
+                }) {
+                  Text('添加')
+                    .fontSize(13)
+                    .fontColor(Color.White)
+                    .padding({ left: 14, right: 14 })
+                    .height(40)
+                }
+              }
+              .width('100%')
+              .alignItems(VerticalAlign.Center)
+              .margin({ top: 8 })
 
               // 定时设置：启动时间（日期 + 时间选择）
               Divider().color($r('app.color.divider')).margin({ top: 4, bottom: 10 })
