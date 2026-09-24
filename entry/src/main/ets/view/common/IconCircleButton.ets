@@ -19,18 +19,6 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { applyMaterialCarrier, pressLightColor } from '../utils/SystemMaterial';
-
-/**
- * 圆形沉浸光感图标按钮。
- *
- * 载体必须是 `ToggleType.Button`：真机实测（HarmonyOS 7.0.0.105 / API 26）
- * **普通 `Button` 挂 systemMaterial 不渲染**，而同尺寸的 `ToggleType.Button`
- * 正常出材质（卡片用的就是它）。这是本组件唯一可用的承载形态。
- *
- * 结构：`ToggleType.Button` 作为交互层承载材质并接收触摸，
- * 图标用 `Stack` 叠在它上面、设 `hitTestBehavior(HitTestMode.None)` 让触摸穿透，
-
 import { applyMaterialCarrier, pressLightColor } from '../../common/SystemMaterial';
 import { Theme } from '../../common/ThemeUtil';
 
