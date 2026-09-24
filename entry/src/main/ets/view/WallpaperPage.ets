@@ -249,8 +249,8 @@ export struct WallpaperPage {
     // 保留输入内容与合法态：应用后输入框与「应用」按钮仍以该色显示，便于对照参考
   }
 
-  /** 输入框/「应用」按钮的实时参考色：输入合法时用输入色，否则用当前主题色（边输边预览） */
-  private hexPreviewColor(): ResourceColor {
+  /** 输入框/「应用」按钮的实时参考色：输入合法时用输入色，否则用当前主题色（边输边预览）。返回 string 以兼容 MaterialButton.btnTint */
+  private hexPreviewColor(): string {
     const raw: string = this.hexInput.trim();
     const hex: string = raw.startsWith('#') ? raw : `#${raw}`;
     return Theme.isHex(hex) ? hex : Theme.colorOf(this.themeColor);
