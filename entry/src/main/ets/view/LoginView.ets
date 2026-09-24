@@ -25,7 +25,8 @@ import { GlassMaterial } from '../common/GlassMaterial';
 import { MaterialButton } from './common/MaterialButton';
 // 沉浸光感：半模态弹窗内容走 MaterialSheetPanel（WebSurface/Web 内容弹窗例外，保持 bg_page 不透底）
 import { MaterialSheetPanel } from './common/MaterialCard';
-import { sheetBlurStyle } from '../common/SystemMaterial';
+import { materialAvailable, sheetBlurStyle } from '../common/SystemMaterial';
+import { MaterialCardLayer } from './common/MaterialCarrier';
 import { LogStore } from '../common/LogStore';
 import { DEVELOPER_DECLARATION, DeclarationSection } from '../common/PrivacyText';
 import { Theme } from '../common/ThemeUtil';
@@ -533,7 +534,7 @@ export struct LoginView {
     // 弹窗内容套 MaterialSheetPanel：材质由 Toggle 承载层渲染，bindSheet 必须显式透明底（见宿主选项）。
     // SheetSize.FIT_CONTENT（高度随内容）→ panelFillHeight: false；原根容器的 bg_page 底色删除
     // （材质生效时让出底色，不生效时由面板自身补 $r('app.color.bg_card') 兜底）；
-    // TextInput 属表单控件，保持原自绘玻璃底（见输入行注释）。
+    // TextInput 属表单控件，走 Stack 承载层画沉浸光感（见输入行注释）。
     MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelShowClose: true, panelOnClose: (): void => { this.showLogSheet = false; } }) {
       Column() {
         Text('日志调试')
@@ -549,24 +550,34 @@ export struct LoginView {
           .width('100%')
           .margin({ bottom: 12 })
 
-        TextInput({ text: this.logPwd, placeholder: '请输入密码' })
-          .height(48)
-          .enterKeyType(EnterKeyType.Done)
-          .borderRadius($r('sys.float.corner_radius_level12'))
-          .fontSize($r('sys.float.Body_L'))
-          .fontWeight(FontWeight.Regular)
-          .backgroundColor($r('sys.color.comp_background_tertiary'))
-          .caretStyle({ color: $r('sys.color.font_emphasize') })
-          .type(InputType.Normal)
-          .fontColor('rgba(0, 85, 255, 1.0)')
-          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-          .width('100%')
-          .onChange((v: string) => {
-            this.logPwd = v;
-          })
-          .onSubmit(() => {
-            this.submitLogPwd();
-          })
+        // 密码输入框：TextInput 属表单控件，不能走 Toggle 承载层 → Stack 兄弟结构：
+        // MaterialCardLayer 纯视觉承载层画沉浸光感（受全局开关控制），输入框自身透明底；
+        // 材质关闭时回落原 comp_background_tertiary 实色底。
+        Stack() {
+          if (materialAvailable()) {
+            MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false })
+          }
+          TextInput({ text: this.logPwd, placeholder: '请输入密码' })
+            .height(48)
+            .enterKeyType(EnterKeyType.Done)
+            .borderRadius($r('sys.float.corner_radius_level12'))
+            .fontSize($r('sys.float.Body_L'))
+            .fontWeight(FontWeight.Regular)
+            .backgroundColor(materialAvailable() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+            .caretStyle({ color: $r('sys.color.font_emphasize') })
+            .type(InputType.Normal)
+            .fontColor('rgba(0, 85, 255, 1.0)')
+            .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+            .width('100%')
+            .onChange((v: string) => {
+              this.logPwd = v;
+            })
+            .onSubmit(() => {
+              this.submitLogPwd();
+            })
+        }
+        .width('100%')
+        .borderRadius($r('sys.float.corner_radius_level12'))
 
         Button('确认')
           .fontSize(14)
@@ -699,25 +710,35 @@ export struct LoginView {
   @Builder
   inputRow(placeholder: string, value: string,
     onInput: (v: string) => void, controller: TextInputController) {
-    Row() {
-      TextInput({ placeholder: placeholder, controller: controller, text: value })
-        .type(InputType.Normal)
-        .height(48)
-        .enterKeyType(EnterKeyType.Done)
-        .fontSize($r('sys.float.Body_L'))
-        .fontWeight(FontWeight.Regular)
-        .caretStyle({ color: $r('sys.color.font_emphasize') })
-        .fontColor('rgba(0, 85, 255, 1.0)')
-        .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-        .backgroundColor(Color.Transparent)
-        .padding({ left: 14, right: 8 })
-        .layoutWeight(1)
-        .onChange(onInput)
+    // 输入行：TextInput 属表单控件，不能走 Toggle 承载层 → Stack 兄弟结构：
+    // MaterialCardLayer 纯视觉承载层画沉浸光感（layerForce 常驻，登录页不随全局开关消失），
+    // 输入行自身透明底；材质关闭回落原 comp_background_tertiary 实色底。
+    Stack() {
+      if (materialAvailable()) {
+        MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false, layerForce: true })
+      }
+      Row() {
+        TextInput({ placeholder: placeholder, controller: controller, text: value })
+          .type(InputType.Normal)
+          .height(48)
+          .enterKeyType(EnterKeyType.Done)
+          .fontSize($r('sys.float.Body_L'))
+          .fontWeight(FontWeight.Regular)
+          .caretStyle({ color: $r('sys.color.font_emphasize') })
+          .fontColor('rgba(0, 85, 255, 1.0)')
+          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+          .backgroundColor(Color.Transparent)
+          .padding({ left: 14, right: 8 })
+          .layoutWeight(1)
+          .onChange(onInput)
+      }
+      .width('100%')
+      .backgroundColor(materialAvailable() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+      .borderRadius($r('sys.float.corner_radius_level12'))
     }
     .width('100%')
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius($r('sys.float.corner_radius_level12'))
     .margin({ bottom: 12 })
+    .borderRadius($r('sys.float.corner_radius_level12'))
   }
 
   /** 密码输入行：眼睛切换明文/密文 + ✕ 一键清空
@@ -725,7 +746,12 @@ export struct LoginView {
    *  否则切换明文/密文导致 TextInput 重建时 text 取到过期快照 → 密码被清空。 */
   @Builder
   passwordRow(placeholder: string, controller: TextInputController) {
-    Row() {
+    // 同 inputRow：Stack 兄弟结构承载沉浸光感（layerForce 常驻），材质关闭回落实色底
+    Stack() {
+      if (materialAvailable()) {
+        MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false, layerForce: true })
+      }
+      Row() {
       TextInput({ placeholder: placeholder, controller: controller, text: this.password })
         .type(this.showPwd ? InputType.Normal : InputType.Password)
         // 隐藏系统内置的密码可见性切换图标（与自定义眼睛重复）
@@ -766,36 +792,47 @@ export struct LoginView {
         .onClick(() => {
           this.showPwd = !this.showPwd;
         })
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center) // 眼睛/叉与输入框水平中线对齐
+      .backgroundColor(materialAvailable() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+      .borderRadius($r('sys.float.corner_radius_level12'))
     }
     .width('100%')
-    .alignItems(VerticalAlign.Center) // 眼睛/叉与输入框水平中线对齐
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-    .borderRadius($r('sys.float.corner_radius_level12'))
     .margin({ bottom: 12 })
+    .borderRadius($r('sys.float.corner_radius_level12'))
   }
 
   @Builder
   captchaRow() {
     Row() {
-      Row() {
-        TextInput({ placeholder: '验证码', text: this.captchaInput })
-          .height(48)
-          .enterKeyType(EnterKeyType.Done)
-          .fontSize($r('sys.float.Body_L'))
-          .fontWeight(FontWeight.Regular)
-          .caretStyle({ color: $r('sys.color.font_emphasize') })
-          .type(InputType.Normal)
-          .fontColor('rgba(0, 85, 255, 1.0)')
-          .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-          .backgroundColor(Color.Transparent)
-          .padding({ left: 14, right: 8 })
-          .layoutWeight(1)
-          .onChange((v: string) => {
-            this.captchaInput = v;
-          })
+      // 验证码输入框：同 inputRow 的 Stack 兄弟结构承载沉浸光感（layerForce 常驻）
+      Stack() {
+        if (materialAvailable()) {
+          MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false, layerForce: true })
+        }
+        Row() {
+          TextInput({ placeholder: '验证码', text: this.captchaInput })
+            .height(48)
+            .enterKeyType(EnterKeyType.Done)
+            .fontSize($r('sys.float.Body_L'))
+            .fontWeight(FontWeight.Regular)
+            .caretStyle({ color: $r('sys.color.font_emphasize') })
+            .type(InputType.Normal)
+            .fontColor('rgba(0, 85, 255, 1.0)')
+            .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+            .backgroundColor(Color.Transparent)
+            .padding({ left: 14, right: 8 })
+            .layoutWeight(1)
+            .onChange((v: string) => {
+              this.captchaInput = v;
+            })
+        }
+        .width('100%')
+        .backgroundColor(materialAvailable() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+        .borderRadius($r('sys.float.corner_radius_level12'))
       }
       .layoutWeight(1)
-      .backgroundColor($r('sys.color.comp_background_tertiary'))
       .borderRadius($r('sys.float.corner_radius_level12'))
 
       if (JwApi.USE_MOCK) {
@@ -987,8 +1024,14 @@ export struct LoginView {
             .alignItems(HorizontalAlign.Center)
             .padding({ top: this.isLandscape ? 22 : 48, bottom: 28 })
 
-            // 登录卡片
-            Column() {
+            // 登录卡片：登录页沉浸光感**常驻**（layerForce，不随全局开关消失，与登录按钮一致）
+            // → Stack 兄弟结构：MaterialCardLayer 纯视觉承载层画材质，内容 Column 独立叠上；
+            // 材质生效时 Column 让出底色/磨砂/边框（每层只有一个视觉），关闭时回落原玻璃卡。
+            Stack() {
+              if (materialAvailable()) {
+                MaterialCardLayer({ layerRadius: 20, layerShadow: true, layerForce: true })
+              }
+              Column() {
               Text(this.loginSystem === 'service' ? '服务大厅登录' : '教务登录')
                 .fontSize(17)
                 .fontWeight(FontWeight.Bold)
@@ -1056,30 +1099,39 @@ export struct LoginView {
 
               Row() {
                 // 前往登录页模式：灰色返回按钮（左侧，与登录按钮等宽等高，合计与原登录按钮相同）
+                // → MaterialButton（Toggle 承载层，btnPersistent 常驻：登录页强制默认玻璃的延续）
                 if (this.showBack) {
-                  Button() {
-                    Row() {
-                      Image($r('app.media.back_arrow'))
-                        .width(16)
-                        .height(16)
-                        .fillColor($r('app.color.text_secondary'))
-                      Text('返回')
-                        .fontSize(16)
-                        .fontWeight(FontWeight.Medium)
-                        .fontColor($r('app.color.text_secondary'))
-                        .margin({ left: 4 })
+                  Row() {
+                    MaterialButton({
+                      btnRadius: 12,
+                      btnPersistent: true,
+                      btnBg: GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false),
+                      btnBlur: BlurStyle.Thin,
+                      btnBorderW: 1,
+                      btnBorderC: GlassMaterial.borderColor(),
+                      btnEnabled: !this.loading,
+                      btnOnClick: (): void => {
+                        this.onBack();
+                      }
+                    }) {
+                      Row() {
+                        Image($r('app.media.back_arrow'))
+                          .width(16)
+                          .height(16)
+                          .fillColor($r('app.color.text_secondary'))
+                        Text('返回')
+                          .fontSize(16)
+                          .fontWeight(FontWeight.Medium)
+                          .fontColor($r('app.color.text_secondary'))
+                          .margin({ left: 4 })
+                      }
+                      .justifyContent(FlexAlign.Center)
+                      .width('100%')
+                      .height(48)
                     }
-                    .alignItems(VerticalAlign.Center)
                   }
                   .layoutWeight(1)
-                  .height(48)
-                  .backgroundColor(GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false)).backgroundBlurStyle(BlurStyle.Thin).border({ width: 1, color: GlassMaterial.borderColor() }).shadow(GlassMaterial.capsuleShadow()).clip(true)
-                  .borderRadius(12)
                   .margin({ right: 10 })
-                  .enabled(!this.loading)
-                  .onClick(() => {
-                    this.onBack();
-                  })
                 }
                 // 登录按钮：沉浸光感**常驻**（btnPersistent，不随全局开关消失）；
                 // 观感与其它页面的材质按钮保持一致（纯材质，不叠原色层）
@@ -1088,6 +1140,11 @@ export struct LoginView {
                     btnRadius: 12,
                     btnPersistent: true,
                     btnMaterialShadow: true,
+                    // 绿色语义回归：材质关闭回落品牌绿实底；材质生效时 btnTint（半透明主题绿）
+                    // 叠在材质之上保住绿色（0.55 浓度，绿色玻璃感）
+                    btnBg: $r('app.color.brand'),
+                    btnTint: Theme.colorOf(this.themeColor),
+                    btnTintRatio: 0.55,
                     btnEnabled: !this.loading,
                     btnOnClick: (): void => {
                       this.doLogin();
@@ -1146,10 +1203,17 @@ export struct LoginView {
                     .combine(TransitionEffect.translate({ y: -10 })))
                 }
               }
+              }
+              .width('100%')
+              .padding(20)
+              .backgroundColor(materialAvailable() ? Color.Transparent : GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false))
+              .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : BlurStyle.Thin)
+              .borderWidth(materialAvailable() ? 0 : 1)
+              .borderColor(GlassMaterial.BORDER)
+              .borderRadius(20)
+              .clip(true)
             }
             .width('100%')
-            .padding(20)
-            .backgroundColor(GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false)).backgroundBlurStyle(BlurStyle.Thin).border({ width: 1, color: GlassMaterial.BORDER }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
             .borderRadius(20)
             .shadow({ radius: 20, color: '#14000000', offsetY: 6 })
 
@@ -1188,72 +1252,90 @@ export struct LoginView {
               })
 
               // 登录系统切换按钮：显示要切换到的目标模式（当前服务大厅登录 → 点按切教务登录，反之亦然）
-              Button() {
-                Row() {
-                  Text(this.loginSystem === 'service' ? '教务登录' : '服务大厅登录')
-                    .fontSize(15)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor($r('app.color.brand'))
+              // → MaterialButton（Toggle 承载层，btnPersistent 常驻：登录页强制默认玻璃的延续）
+              Row() {
+                MaterialButton({
+                  btnRadius: 22,
+                  btnPersistent: true,
+                  btnBg: GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false),
+                  btnBlur: BlurStyle.Thin,
+                  btnBorderW: 1,
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnEnabled: !this.loading,
+                  btnOnClick: (): void => {
+                    this.setLoginSystem(this.loginSystem === 'service' ? 'original' : 'service');
+                  }
+                }) {
+                  Row() {
+                    Text(this.loginSystem === 'service' ? '教务登录' : '服务大厅登录')
+                      .fontSize(15)
+                      .fontWeight(FontWeight.Medium)
+                      .fontColor($r('app.color.brand'))
+                  }
+                  .justifyContent(FlexAlign.Center)
+                  .width('100%')
+                  .height(44)
                 }
               }
               .width('72%')
-              .height(44)
-              .backgroundColor(GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false)).backgroundBlurStyle(BlurStyle.Thin).border({ width: 1, color: GlassMaterial.borderColor() }).shadow(GlassMaterial.capsuleShadow()).clip(true)
-              // 玻璃胶囊（GlassCapsule）：登录页强制默认玻璃（不受卡片材质/沉浸光感开关影响）
-              .backgroundBlurStyle(BlurStyle.Thin)
-              .border({ width: 1, color: GlassMaterial.BORDER })
-              .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
-              .borderRadius(22)
               .margin({ bottom: 10 })
-              .enabled(!this.loading)
-              .onClick(() => {
-                this.setLoginSystem(this.loginSystem === 'service' ? 'original' : 'service');
-              })
 
               // 网页登录：在 WebView 打开统一身份认证（CAS）登录页（验证码等场景兜底）
-              Button() {
-                Row() {
-                  Text('网页登录')
-                    .fontSize(15)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor($r('app.color.brand'))
+              // → MaterialButton（Toggle 承载层，btnPersistent 常驻）
+              Row() {
+                MaterialButton({
+                  btnRadius: 22,
+                  btnPersistent: true,
+                  btnBg: GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false),
+                  btnBlur: BlurStyle.Thin,
+                  btnBorderW: 1,
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnEnabled: !this.loading,
+                  btnOnClick: (): void => {
+                    this.openWebLogin();
+                  }
+                }) {
+                  Row() {
+                    Text('网页登录')
+                      .fontSize(15)
+                      .fontWeight(FontWeight.Medium)
+                      .fontColor($r('app.color.brand'))
+                  }
+                  .justifyContent(FlexAlign.Center)
+                  .width('100%')
+                  .height(44)
                 }
               }
               .width('72%')
-              .height(44)
-              .backgroundColor(GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false)).backgroundBlurStyle(BlurStyle.Thin).border({ width: 1, color: GlassMaterial.borderColor() }).shadow(GlassMaterial.capsuleShadow()).clip(true)
-              // 玻璃胶囊（GlassCapsule）：登录页强制默认玻璃（不受卡片材质/沉浸光感开关影响）
-              .backgroundBlurStyle(BlurStyle.Thin)
-              .border({ width: 1, color: GlassMaterial.BORDER })
-              .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
-              .borderRadius(22)
               .margin({ bottom: 10 })
-              .enabled(!this.loading)
-              .onClick(() => {
-                this.openWebLogin();
-              })
 
-              Button() {
-                Row() {
-                  Text('功能浏览')
-                    .fontSize(15)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor($r('app.color.brand'))
+              // 功能浏览 → MaterialButton（Toggle 承载层，btnPersistent 常驻）
+              Row() {
+                MaterialButton({
+                  btnRadius: 22,
+                  btnPersistent: true,
+                  btnBg: GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false),
+                  btnBlur: BlurStyle.Thin,
+                  btnBorderW: 1,
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnEnabled: !this.loading,
+                  btnOnClick: (): void => {
+                    this.demoLogin();
+                  }
+                }) {
+                  Row() {
+                    Text('功能浏览')
+                      .fontSize(15)
+                      .fontWeight(FontWeight.Medium)
+                      .fontColor($r('app.color.brand'))
+                  }
+                  .justifyContent(FlexAlign.Center)
+                  .width('100%')
+                  .height(44)
                 }
               }
               .width('72%')
-              .height(44)
-              .backgroundColor(GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false)).backgroundBlurStyle(BlurStyle.Thin).border({ width: 1, color: GlassMaterial.borderColor() }).shadow(GlassMaterial.capsuleShadow()).clip(true)
-              // 玻璃胶囊（GlassCapsule）：登录页强制默认玻璃（不受卡片材质/沉浸光感开关影响）
-              .backgroundBlurStyle(BlurStyle.Thin)
-              .border({ width: 1, color: GlassMaterial.BORDER })
-              .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
-              .borderRadius(22)
               .margin({ bottom: 10 })
-              .enabled(!this.loading)
-              .onClick(() => {
-                this.demoLogin();
-              })
 
               // 日志调试入口（功能浏览按钮下方）：仅日志调试开启后显示；点击进入日志查看页
               // （开启方式：连点顶部应用图标 5 次 + 密码 admin；真实登录/功能浏览模式均收集日志）
