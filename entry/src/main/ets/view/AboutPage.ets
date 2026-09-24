@@ -33,6 +33,7 @@ import { MaterialButton } from './common/MaterialButton';
 import { materialActive, sheetBlurStyle } from '../common/SystemMaterial';
 import { MaterialCardLayer } from './common/MaterialCarrier';
 import { CHANGELOG_ALL, CHANGELOG_MAX, ChangelogItem } from '../common/Changelog';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 
 @Component
@@ -43,6 +44,9 @@ export struct AboutPage {
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 壁纸亮度（文字自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
@@ -146,7 +150,7 @@ export struct AboutPage {
     Column() {
       Text('项目链接')
         .fontSize(13)
-        .fontWeight(FontWeight.Bold)
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
         .fontColor($r('app.color.text_primary'))
         .width('100%')
         .margin({ bottom: 10 })
@@ -250,7 +254,7 @@ export struct AboutPage {
                 })
               Text('新农助手')
                 .fontSize(20)
-                .fontWeight(FontWeight.Bold)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
                 .margin({ top: 12 })
               Text('版本 1.3.9')
@@ -420,7 +424,7 @@ export struct AboutPage {
     Column() {
       Text('调试模式')
         .fontSize(17)
-        .fontWeight(FontWeight.Bold)
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
         .fontColor($r('app.color.text_primary'))
         .width('100%')
         .margin({ top: 16, bottom: 8 })
@@ -443,7 +447,7 @@ export struct AboutPage {
           .enterKeyType(EnterKeyType.Done)
           .borderRadius($r('sys.float.corner_radius_level12'))
           .fontSize($r('sys.float.Body_L'))
-          .fontWeight(FontWeight.Regular)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
           .backgroundColor(materialActive() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
           .caretStyle({ color: $r('sys.color.font_emphasize') })
           .type(InputType.Normal)
@@ -475,7 +479,7 @@ export struct AboutPage {
       }) {
         Text('确认')
           .fontSize(14)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor($r('app.color.brand_on'))
           .width('100%')
           .height(40)

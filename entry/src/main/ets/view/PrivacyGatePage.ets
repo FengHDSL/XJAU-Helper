@@ -22,6 +22,7 @@ import { common } from '@kit.AbilityKit';
 // 沉浸光感：按钮走 MaterialButton（有色主按钮用 btnTint 叠回品牌绿），正文卡片走 MaterialCard
 import { MaterialCard } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 @Component
 export struct PrivacyGatePage {
@@ -31,6 +32,9 @@ export struct PrivacyGatePage {
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('barStyle') barStyle: string = 'new';
@@ -184,7 +188,7 @@ export struct PrivacyGatePage {
         }) {
           Text(primaryText)
             .fontSize(14)
-            .fontWeight(FontWeight.Medium)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor(Theme.onBrand())
             .height(42)
             .width('100%')
@@ -227,7 +231,7 @@ export struct PrivacyGatePage {
       Row() {
         Text(this.stepTitle())
           .fontSize(19)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
         Blank()
         Text(`第 ${this.step + 1}/3 步`)
@@ -343,7 +347,7 @@ export struct PrivacyGatePage {
                 }) {
                   Text('同意并继续')
                     .fontSize(14)
-                    .fontWeight(FontWeight.Medium)
+                    .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                     // 文字色按背景亮度自动取深/浅（品牌绿上深色文字对比度更高）；
                     // 未勾选时改为「中性底 + 次级文字」，避免用半透明表达禁用导致文字看不清
                     .fontColor(this.agreeTerms && this.agreePrivacy
@@ -374,7 +378,7 @@ export struct PrivacyGatePage {
               ForEach(DEVELOPER_DECLARATION, (sec: DeclarationSection) => {
                 Text(sec.title)
                   .fontSize(15)
-                  .fontWeight(FontWeight.Bold)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                   .fontColor($r('app.color.text_primary'))
                   .width('100%')
                   .margin({ top: 14, bottom: 6 })
@@ -465,7 +469,7 @@ export struct PrivacyGatePage {
           Row() {
             Text(this.showDoc === 'terms' ? '用户协议' : '隐私政策')
               .fontSize(16)
-              .fontWeight(FontWeight.Bold)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor($r('app.color.text_primary'))
               .layoutWeight(1)
             Text('✕')

@@ -149,12 +149,16 @@ export struct StatCell {
   @Prop value: string = '';
   @Prop label: string = '';
   color: ResourceColor = $r('app.color.text_primary');
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
 
   build() {
     Column() {
       Text(this.value)
         .fontSize(20)
-        .fontWeight(FontWeight.Bold)
+        // 表达式必须读 this.fwMode 才登记依赖（静态函数内读 AppStorage 不登记）
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
         .fontColor(this.color)
       Text(this.label)
         .fontSize(11)
@@ -441,7 +445,8 @@ export struct PageHeader {
         }) {
           Text(this.actionText)
             .fontSize(13)
-            .fontWeight(FontWeight.Medium)
+            // 表达式必须读 this.fwMode 才登记依赖（静态函数内读 AppStorage 不登记）
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             // 实底语义（主题色/警示红）用白字；玻璃底用顶栏自适应字色，保证可读
             .fontColor(this.actionTone === 'glass' ? WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode) : Color.White)
             .height(34)

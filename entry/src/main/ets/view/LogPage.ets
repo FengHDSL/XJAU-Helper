@@ -23,6 +23,7 @@ import { MaterialCard } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
 import { MaterialCardLayer } from './common/MaterialCarrier';
 import { isApi26OrAbove, materialActive } from '../common/SystemMaterial';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 @Component
 export struct LogPage {
@@ -38,6 +39,9 @@ export struct LogPage {
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 日志列表（全量） */
   @State logs: LogEntry[] = [];
   /** 收集开关状态（@StorageProp 同步 LogStore.collecting 对应 UI） */
@@ -429,7 +433,7 @@ export struct LogPage {
         Column() {
           Text('暂无日志')
             .fontSize(15)
-            .fontWeight(FontWeight.Medium)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.text_primary'))
           Text('开启日志调试后，这里会展示各功能模块的使用日志与联网反馈')
             .fontSize(12)
@@ -472,7 +476,7 @@ export struct LogPage {
                   if (this.selecting) {
                     Text(this.selectedIdx.indexOf(this.getRealIndex(visIdx)) >= 0 ? '✓' : '')
                       .fontSize(14)
-                      .fontWeight(FontWeight.Bold)
+                      .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                       .fontColor(Color.White)
                       .width(20).height(20)
                       .textAlign(TextAlign.Center)
@@ -502,7 +506,7 @@ export struct LogPage {
                     .margin({ left: 12 })
                   Text(log.action)
                     .fontSize(14)
-                    .fontWeight(FontWeight.Medium)
+                    .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                     .fontColor($r('app.color.text_primary'))
                     .maxLines(1)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -708,7 +712,7 @@ export struct LogPage {
         }) {
           Text('导出选中')
             .fontSize(13)
-            .fontWeight(FontWeight.Medium)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.brand_on'))
             .padding({ left: 14, right: 14, top: 6, bottom: 6 })
         }
@@ -726,7 +730,7 @@ export struct LogPage {
         }) {
           Text('全部导出')
             .fontSize(13)
-            .fontWeight(FontWeight.Medium)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.brand_on'))
             .padding({ left: 14, right: 14, top: 6, bottom: 6 })
         }
