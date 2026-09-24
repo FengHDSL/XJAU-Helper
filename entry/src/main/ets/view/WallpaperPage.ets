@@ -7,20 +7,22 @@
  *  - 交互：主页页面平滑切换开关
  */
 import { common } from '@kit.AbilityKit';
-import { fileIo, picker, fileUri } from '@kit.CoreFileKit';
+import { fileIo } from '@kit.CoreFileKit';
 import { http } from '@kit.NetworkKit';
 import { promptAction } from '@kit.ArkUI';
 import { AppState } from '../common/AppState';
+import { Const } from '../common/Constants';
 import { DataStore, ThemeCombo } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { Theme } from '../common/ThemeUtil';
 import { Wallpaper } from '../common/Wallpaper';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
 import { GlassMaterial } from '../common/GlassMaterial';
-import { materialAvailable, materialDiagnostics } from '../common/SystemMaterial';
+import { isApi26OrAbove, materialAvailable, materialDiagnostics } from '../common/SystemMaterial';
 import { MaterialCardLayer } from './common/MaterialCarrier';
 import { MaterialButton } from './common/MaterialButton';
 
@@ -51,9 +53,43 @@ export struct WallpaperPage {
   @State subHex: string = '';
   @State hexInput: string = '';
   @State hexOk: boolean = false;
+  /** 卡片沾色：卡片底色混入 10% 主题色（沉浸光感增强） */
+  @StorageProp('cardTint') cardTint: boolean = false;
+  /** 主题色流光：按压沉浸光感卡片的流光/光晕改用主题色 */
+  @StorageProp('immersivePressGlow') pressGlow: boolean = true;
+  /** 卡片流光触感：按压卡片出现跟手流光 */
+  @StorageProp('cardGlowTouch') cardGlowTouch: boolean = true;
+  /** 高权限自定义主题色：自定义 hex 也参与页面背景染色 */
+  @StorageProp('customAccentFull') customAccentFull: boolean = false;
+  /** 字重方案（follow/thin/light/regular/medium/bold） */
+  @StorageProp('fontWeightMode') fontWeightMode: string = 'follow';
+  /** 字号方案（follow=跟随系统 / custom=自定义） */
+  @StorageProp('fontSizeMode') fontSizeMode: string = 'follow';
+  /** 自定义字号值（12~28，基准 16） */
+  @StorageProp('fontSizeValue') fontSizeValue: number = 16;
+  /** 主页页面平滑切换（页签切换滑动过渡） */
+  @StorageProp('smoothPageSwitch') smoothPage: boolean = true;
 
   aboutToAppear(): void {
     this.combos = DataStore.combos();
+    // 打开外观设置即恢复字号缩放（自定义字号持久化后应用级生效）
+    AppearanceStore.applyFontSizeScale();
+  }
+
+  /** 全局沉浸光感开关（AppStorage 实时 + DataStore 持久化，重启后保持） */
+  private setImmersive(on: boolean): void {
+    AppStorage.setOrCreate('immersiveEffect', on);
+    DataStore.setImmersive(on);
+  }
+
+  /** 跳转壁纸裁剪页（选图 → 缩放/平移 → 按屏幕比例裁切应用） */
+  private openCropPage(): void {
+    AppState.stack.pushPath({ name: Const.ROUTE_BG_CROP });
+  }
+
+  /** 跳转字体管理页（上传 / 选择中英文字体 / 删除已上传字体） */
+  private openFontManage(): void {
+    AppState.stack.pushPath({ name: Const.ROUTE_FONT_MANAGE });
   }
 
   /** 当前主题显示名（三色枚举 / 自定义 hex 大写） */
@@ -147,47 +183,6 @@ export struct WallpaperPage {
     }
     this.applyWallpaper('none');
     this.getUIContext().getPromptAction().showToast({ message: '已取消壁纸背景' });
-  }
-
-  /** 导入自定义壁纸（文档选择器，免相册权限；jpg/jpeg/png/webp） */
-  private pickCustomWallpaper(): void {
-    try {
-      const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-      const options: picker.DocumentSelectOptions = new picker.DocumentSelectOptions();
-      options.maxSelectNumber = 1;
-      options.fileSuffixFilters = ['jpg', 'jpeg', 'png', 'webp'];
-      const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
-      docPicker.select(options).then((uris: string[]) => {
-        if (uris.length === 0) {
-          return;
-        }
-        try {
-          const srcPath: string = new fileUri.FileUri(uris[0]).path;
-          // openSync + readSync 读取图片字节（fileIo 无 readFileSync）
-          const srcFile: fileIo.File = fileIo.openSync(srcPath, fileIo.OpenMode.READ_ONLY);
-          const st: fileIo.Stat = fileIo.statSync(srcPath);
-          const buf: ArrayBuffer = new ArrayBuffer(st.size);
-          fileIo.readSync(srcFile.fd, buf);
-          fileIo.closeSync(srcFile);
-          const dstPath: string = `${ctx.filesDir}/wallpaper_user.dat`;
-          const file: fileIo.File = fileIo.openSync(dstPath,
-            fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC | fileIo.OpenMode.READ_WRITE);
-          fileIo.writeSync(file.fd, buf);
-          fileIo.closeSync(file);
-          // 自动分析壁纸明暗 → 适配文字对比度（正文 ≥ 4.5:1 / 标题 ≥ 3:1）
-          WallpaperTone.analyze(buf).then((tone: number) => {
-            WallpaperTone.save(tone);
-          });
-          this.applyWallpaper(`c:${dstPath}`);
-        } catch (e) {
-          this.getUIContext().getPromptAction().showToast({ message: '图片导入失败' });
-        }
-      }).catch(() => {
-        this.getUIContext().getPromptAction().showToast({ message: '选择文件失败' });
-      });
-    } catch (e) {
-      this.getUIContext().getPromptAction().showToast({ message: '选择文件失败' });
-    }
   }
 
   /** URL 图片导入壁纸（下载到 filesDir，持久化，无需相册权限） */
@@ -501,6 +496,364 @@ export struct WallpaperPage {
     .margin({ top: 14 })
   }
 
+  /** 沉浸光感节：全局开关 + 真机诊断行（API≥26 才显示；开关写入后全站卡片/按钮跟随切换） */
+  @Builder
+  immersiveSection() {
+    if (isApi26OrAbove()) {
+      Stack({ alignContent: Alignment.TopStart }) {
+        if (materialAvailable()) {
+          MaterialCardLayer({ layerRadius: 16, layerShadow: false, layerForce: true })
+        }
+        Column() {
+          Row() {
+            Column({ space: 3 }) {
+              Text('全局沉浸光感')
+                .fontSize(15)
+                .fontWeight(FontWeight.Bold)
+                .fontColor($r('app.color.text_primary'))
+              Text('开启后卡片与按钮使用沉浸光感材质，关闭后回退为毛玻璃效果')
+                .fontSize(11)
+                .fontColor($r('app.color.text_tertiary'))
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+
+            Toggle({ type: ToggleType.Switch, isOn: this.immersiveEffect })
+              .selectedColor(Theme.colorOf(this.themeColor))
+              .onChange((on: boolean) => {
+                this.setImmersive(on);
+              })
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+
+          if (this.immersiveEffect) {
+            Text(materialDiagnostics(this.pressGlow, Theme.colorOf(this.themeColor)))
+              .fontSize(10)
+              .fontColor($r('app.color.text_tertiary'))
+              .width('100%')
+              .maxLines(2)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .margin({ top: 10 })
+          }
+        }
+        .padding(16)
+      }
+      .width('100%')
+      .borderRadius(16)
+      .clip(true)
+      .backgroundColor(materialAvailable() ? Color.Transparent : $r('app.color.bg_card'))
+      .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+      .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
+      .margin({ top: 14 })
+    }
+  }
+
+  /** 沉浸光感增强节：卡片沾色 / 主题色流光 / 卡片流光触感 / 高权限自定义主题色（参考项目同款 4 开关） */
+  @Builder
+  glowExtraSection() {
+    if (isApi26OrAbove()) {
+      Stack({ alignContent: Alignment.TopStart }) {
+        if (materialAvailable()) {
+          MaterialCardLayer({ layerRadius: 16, layerShadow: false, layerForce: true })
+        }
+        Column() {
+          Row() {
+            Column({ space: 3 }) {
+              Text('卡片沾色')
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.text_primary'))
+              Text('开启后所有卡片底色混入 10% 主题色')
+                .fontSize(11)
+                .fontColor($r('app.color.text_tertiary'))
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+
+            Toggle({ type: ToggleType.Switch, isOn: this.cardTint })
+              .selectedColor(Theme.colorOf(this.themeColor))
+              .onChange((on: boolean) => {
+                AppearanceStore.setCardTint(on);
+              })
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+
+          Divider()
+            .color($r('app.color.divider'))
+            .margin({ top: 12, bottom: 12 })
+
+          Row() {
+            Column({ space: 3 }) {
+              Text('主题色流光')
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.text_primary'))
+              Text('按压卡片的流光与光晕改用主题色；关闭后为系统默认白光')
+                .fontSize(11)
+                .fontColor($r('app.color.text_tertiary'))
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+
+            Toggle({ type: ToggleType.Switch, isOn: this.pressGlow })
+              .selectedColor(Theme.colorOf(this.themeColor))
+              .onChange((on: boolean) => {
+                AppearanceStore.setPressGlow(on);
+              })
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+
+          Divider()
+            .color($r('app.color.divider'))
+            .margin({ top: 12, bottom: 12 })
+
+          Row() {
+            Column({ space: 3 }) {
+              Text('卡片流光触感')
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.text_primary'))
+              Text('开启后按压卡片出现跟手流光；关闭只有卡间缝隙的环境光')
+                .fontSize(11)
+                .fontColor($r('app.color.text_tertiary'))
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+
+            Toggle({ type: ToggleType.Switch, isOn: this.cardGlowTouch })
+              .selectedColor(Theme.colorOf(this.themeColor))
+              .onChange((on: boolean) => {
+                AppearanceStore.setCardGlowTouch(on);
+              })
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+
+          Divider()
+            .color($r('app.color.divider'))
+            .margin({ top: 12, bottom: 12 })
+
+          Row() {
+            Column({ space: 3 }) {
+              Text('高权限自定义主题色')
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor($r('app.color.text_primary'))
+              Text('默认只有内置主题色会染到页面背景；开启后自定义颜色也会')
+                .fontSize(11)
+                .fontColor($r('app.color.text_tertiary'))
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+
+            Toggle({ type: ToggleType.Switch, isOn: this.customAccentFull })
+              .selectedColor(Theme.colorOf(this.themeColor))
+              .onChange((on: boolean) => {
+                AppearanceStore.setCustomAccentFull(on);
+              })
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+        }
+        .padding(16)
+      }
+      .width('100%')
+      .borderRadius(16)
+      .clip(true)
+      .backgroundColor(materialAvailable() ? Color.Transparent : $r('app.color.bg_card'))
+      .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+      .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
+      .margin({ top: 14 })
+    }
+  }
+
+  /** 字重模式胶囊（选中=主题色底白字） */
+  @Builder
+  fontWeightChip(mode: string, label: string) {
+    Text(label)
+      .fontSize(12)
+      .fontColor(this.fontWeightMode === mode ? Color.White : $r('app.color.text_primary'))
+      .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+      .backgroundColor(this.fontWeightMode === mode ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
+      .borderRadius(12)
+      .onClick(() => {
+        AppearanceStore.setFontWeightMode(mode);
+      })
+  }
+
+  /** 字号模式胶囊（切换后立即应用全局字号缩放） */
+  @Builder
+  fontSizeChip(mode: string, label: string) {
+    Text(label)
+      .fontSize(12)
+      .fontColor(this.fontSizeMode === mode ? Color.White : $r('app.color.text_primary'))
+      .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+      .backgroundColor(this.fontSizeMode === mode ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
+      .borderRadius(12)
+      .onClick(() => {
+        AppearanceStore.setFontSizeMode(mode);
+        AppearanceStore.applyFontSizeScale();
+      })
+  }
+
+  /** 字体节：字体管理入口 + 字重模式 + 字号大小（跟随系统 / 自定义 Slider） */
+  @Builder
+  fontSection() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      if (materialAvailable()) {
+        MaterialCardLayer({ layerRadius: 16, layerShadow: false, layerForce: true })
+      }
+      Column() {
+        // 字体管理入口（上传 / 选择中英文字体 / 删除）
+        Row() {
+          Column({ space: 3 }) {
+            Text('字体管理')
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.text_primary'))
+            Text('上传字体 / 选择中英文字体 / 删除已上传字体')
+              .fontSize(11)
+              .fontColor($r('app.color.text_tertiary'))
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+
+          Text('前往 ›')
+            .fontSize(13)
+            .fontColor(Theme.colorOf(this.themeColor))
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+        .onClick(() => {
+          this.openFontManage();
+        })
+
+        Divider()
+          .color($r('app.color.divider'))
+          .margin({ top: 12, bottom: 12 })
+
+        // 字重模式（跟随 / 细 / 轻 / 常规 / 中等 / 粗）
+        Text('字体粗细')
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.text_primary'))
+          .width('100%')
+        Row({ space: 8 }) {
+          this.fontWeightChip('follow', '跟随')
+          this.fontWeightChip('thin', '细')
+          this.fontWeightChip('light', '轻')
+          this.fontWeightChip('regular', '常规')
+          this.fontWeightChip('medium', '中等')
+          this.fontWeightChip('bold', '粗')
+        }
+        .width('100%')
+        .margin({ top: 8 })
+
+        Divider()
+          .color($r('app.color.divider'))
+          .margin({ top: 12, bottom: 12 })
+
+        // 字号模式
+        Row() {
+          Text('字体大小')
+            .fontSize(13)
+            .fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.text_primary'))
+          Blank()
+          Row({ space: 8 }) {
+            this.fontSizeChip('follow', '跟随系统')
+            this.fontSizeChip('custom', '自定义')
+          }
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+
+        // 自定义字号滑杆（12~28，基准 16，应用级缩放即时生效）
+        if (this.fontSizeMode === 'custom') {
+          Row() {
+            Text('字号')
+              .fontSize(12)
+              .fontColor($r('app.color.text_tertiary'))
+              .margin({ right: 10 })
+            Slider({
+              value: this.fontSizeValue,
+              min: 12,
+              max: 28,
+              step: 1,
+              style: SliderStyle.OutSet
+            })
+              .layoutWeight(1)
+              .showSteps(true)
+              .onChange((value: number) => {
+                AppearanceStore.setFontSizeValue(value);
+                AppearanceStore.applyFontSizeScale();
+              })
+            Text(`${this.fontSizeValue}`)
+              .fontSize(13)
+              .fontColor(Theme.colorOf(this.themeColor))
+              .width(30)
+              .textAlign(TextAlign.End)
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+          .margin({ top: 10 })
+        }
+      }
+      .padding(16)
+    }
+    .width('100%')
+    .borderRadius(16)
+    .clip(true)
+    .backgroundColor(materialAvailable() ? Color.Transparent : $r('app.color.bg_card'))
+    .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+    .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
+    .margin({ top: 14 })
+  }
+
+  /** 交互细节节：主页页面平滑切换 */
+  @Builder
+  toggleSection() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      if (materialAvailable()) {
+        MaterialCardLayer({ layerRadius: 16, layerShadow: false, layerForce: true })
+      }
+      Column() {
+        Row() {
+          Column({ space: 3 }) {
+            Text('页面平滑切换')
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.text_primary'))
+            Text('底部页签切换时页面平滑滑动过渡，关闭后立即切换')
+              .fontSize(11)
+              .fontColor($r('app.color.text_tertiary'))
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+
+          Toggle({ type: ToggleType.Switch, isOn: this.smoothPage })
+            .selectedColor(Theme.colorOf(this.themeColor))
+            .onChange((on: boolean) => {
+              AppearanceStore.setSmoothPageSwitch(on);
+            })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+      }
+      .padding(16)
+    }
+    .width('100%')
+    .borderRadius(16)
+    .clip(true)
+    .backgroundColor(materialAvailable() ? Color.Transparent : $r('app.color.bg_card'))
+    .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+    .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
+    .margin({ top: 14 })
+  }
+
 
   build() {
     NavDestination() {
@@ -514,6 +867,12 @@ export struct WallpaperPage {
             Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60)
             // 顶栏主题色（三色预设 + 自定义 rrggbb）
             this.themeSection()
+
+            // 沉浸光感（全局开关 + 真机诊断）
+            this.immersiveSection()
+
+            // 沉浸光感增强（卡片沾色 / 主题色流光 / 卡片流光触感 / 高权限自定义主题色）
+            this.glowExtraSection()
 
 
             // ── 壁纸（卡片）：选择 / 取消 / 蒙版 / 图像地址 ──
@@ -547,9 +906,9 @@ export struct WallpaperPage {
                 .textAlign(TextAlign.Center)
                 .margin({ top: 8 })
             }
-            // 操作区
+            // 操作区：选择图片 → 裁剪页（缩放/平移 → 按屏幕比例裁切应用）
             Row() {
-              Button('从相册选择图片')
+              Button('选择图片并裁剪')
                 .fontSize(14)
                 .fontWeight(FontWeight.Medium)
                 .fontColor($r('app.color.brand_on'))
@@ -558,7 +917,7 @@ export struct WallpaperPage {
                 .layoutWeight(1)
                 .borderRadius(21)
                 .onClick(() => {
-                  this.pickCustomWallpaper();
+                  this.openCropPage();
                 })
             }
             .width('100%')
@@ -646,6 +1005,12 @@ export struct WallpaperPage {
             .backgroundColor($r('app.color.bg_card'))
             .borderRadius(16)
             .margin({ top: 14 })
+
+            // ── 字体（字体管理入口 + 字重 + 字号）──
+            this.fontSection()
+
+            // ── 交互细节（页面平滑切换）──
+            this.toggleSection()
 
             // ── 主题组合（卡片）──
             Column() {
