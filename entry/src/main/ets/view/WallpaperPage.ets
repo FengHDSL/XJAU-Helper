@@ -343,18 +343,27 @@ export struct WallpaperPage {
     this.combos = DataStore.combos();
   }
 
-  /** 副标题颜色胶囊 */
+  /** 副标题颜色胶囊：MaterialButton（Toggle 承载层）——选中态材质生效时 btnTint 半透明主题色叠层
+   *  （0.85 浓度接近实色）+ 白字；材质关闭回落主题色实底（原观感）。未选中 bg_chip 玻璃胶囊。 */
   @Builder
   subtitleChip(label: string, color: string) {
-    Text(label)
-      .fontSize(12)
-      .fontColor(this.subtitleColor === color ? Color.White : $r('app.color.text_primary'))
-      .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-      .backgroundColor(this.subtitleColor === color ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-      .borderRadius(12)
-      .onClick(() => {
+    MaterialButton({
+      btnRadius: 12,
+      btnBg: this.subtitleColor === color ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'),
+      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: this.subtitleColor === color ? Theme.colorOf(this.themeColor) : '',
+      btnTintRatio: 0.85,
+      btnOnClick: (): void => {
         this.applySubtitle(color);
-      })
+      }
+    }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.subtitleColor === color ? Color.White : $r('app.color.text_primary'))
+        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+    }
   }
 
   /** 单张主题色预置块 */
@@ -532,12 +541,13 @@ export struct WallpaperPage {
           .onChange((v: string) => {
             this.validateHex(v);
           })
-        Button(this.hexOk ? '应用' : '应用')
+        // 与上方副标题色「应用」按钮同款规格（36 高 / 18 圆角 / 白字）
+        Button('应用')
           .fontSize(13)
-          .fontColor($r('app.color.brand_on'))
+          .height(36)
+          .borderRadius(18)
+          .fontColor(Color.White)
           .backgroundColor(Theme.colorOf(this.themeColor))
-          .height(38)
-          .borderRadius(19)
           .margin({ left: 10 })
           .enabled(this.hexOk)
           .onClick(() => {
@@ -727,33 +737,49 @@ export struct WallpaperPage {
     }
   }
 
-  /** 字重模式胶囊（选中=主题色底白字） */
+  /** 字重模式胶囊：MaterialButton（选中=主题色叠层白字，未选中=bg_chip 玻璃胶囊） */
   @Builder
   fontWeightChip(mode: string, label: string) {
-    Text(label)
-      .fontSize(12)
-      .fontColor(this.fontWeightMode === mode ? Color.White : $r('app.color.text_primary'))
-      .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-      .backgroundColor(this.fontWeightMode === mode ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-      .borderRadius(12)
-      .onClick(() => {
+    MaterialButton({
+      btnRadius: 12,
+      btnBg: this.fontWeightMode === mode ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'),
+      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: this.fontWeightMode === mode ? Theme.colorOf(this.themeColor) : '',
+      btnTintRatio: 0.85,
+      btnOnClick: (): void => {
         AppearanceStore.setFontWeightMode(mode);
-      })
+      }
+    }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.fontWeightMode === mode ? Color.White : $r('app.color.text_primary'))
+        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+    }
   }
 
-  /** 字号模式胶囊（切换后立即应用全局字号缩放） */
+  /** 字号模式胶囊：MaterialButton（切换后立即应用全局字号缩放） */
   @Builder
   fontSizeChip(mode: string, label: string) {
-    Text(label)
-      .fontSize(12)
-      .fontColor(this.fontSizeMode === mode ? Color.White : $r('app.color.text_primary'))
-      .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-      .backgroundColor(this.fontSizeMode === mode ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-      .borderRadius(12)
-      .onClick(() => {
+    MaterialButton({
+      btnRadius: 12,
+      btnBg: this.fontSizeMode === mode ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'),
+      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: this.fontSizeMode === mode ? Theme.colorOf(this.themeColor) : '',
+      btnTintRatio: 0.85,
+      btnOnClick: (): void => {
         AppearanceStore.setFontSizeMode(mode);
         AppearanceStore.applyFontSizeScale();
-      })
+      }
+    }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.fontSizeMode === mode ? Color.White : $r('app.color.text_primary'))
+        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+    }
   }
 
   /** 字体节：字体管理入口 + 字重模式 + 字号大小（跟随系统 / 自定义 Slider） */
