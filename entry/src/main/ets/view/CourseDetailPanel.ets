@@ -8,6 +8,7 @@ import { promptAction } from '@kit.ArkUI';
 import { JwApi } from '../api/JwApi';
 import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { COURSE_BG_HEX } from '../common/ScheduleConfig';
 import { CourseItem } from '../model/Models';
 import { EMPTY_COURSE } from '../model/Empty';
@@ -36,6 +37,9 @@ const COURSE_PALETTES: string[][] = [
 
 @Component
 export struct CourseDetailPanel {
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 当前课程（只读展示 + 颜色选择目标） */
   @Prop selected: CourseItem = EMPTY_COURSE;
@@ -164,7 +168,7 @@ export struct CourseDetailPanel {
               .backgroundColor(this.colorOf())
             Text(this.selected.name)
               .fontSize(19)
-              .fontWeight(FontWeight.Bold)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor($r('app.color.text_primary'))
               .margin({ left: 8 })
               .layoutWeight(1)
@@ -183,7 +187,7 @@ export struct CourseDetailPanel {
           Row() {
             Text('课程颜色')
               .fontSize(15)
-              .fontWeight(FontWeight.Medium)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
               .fontColor($r('app.color.text_primary'))
             Column()
               .width(22)

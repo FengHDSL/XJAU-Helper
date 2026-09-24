@@ -24,6 +24,7 @@ import { JwApi } from '../api/JwApi';
 import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
 import { sheetBlurStyle } from '../common/SystemMaterial';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 /** 浏览器标识（UA）常量：桌面 / 手机 / 平板 */
 const DESKTOP_UA: string =
@@ -41,6 +42,9 @@ const UA_TABLET: number = 2;
 @Component
 export struct WebViewPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
@@ -406,7 +410,7 @@ export struct WebViewPage {
     Column() {
       Text('当前为功能浏览模式')
         .fontSize(15)
-        .fontWeight(FontWeight.Bold)
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
         .fontColor($r('app.color.text_primary'))
       Text('该外部链接不可用，请使用真实账号登录后访问')
         .fontSize(12)

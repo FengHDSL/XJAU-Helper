@@ -17,6 +17,7 @@ import { WallpaperFill } from './common/WallpaperFill';
 // 沉浸光感：卡片统一走 MaterialCard，胶囊小按钮走 MaterialButton（含「材质 + 原色」共存的 btnTint）
 import { MaterialCard } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 /** JSON 原文预览最多显示的字符数（完整内容可复制） */
 const PREVIEW_MAX: number = 20000;
@@ -24,6 +25,9 @@ const PREVIEW_MAX: number = 20000;
 @Component
 export struct CourseRawPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
@@ -280,7 +284,7 @@ export struct CourseRawPage {
               Column() {
                 Text('暂无课表原文件')
                   .fontSize(13)
-                  .fontWeight(FontWeight.Medium)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                   .fontColor($r('app.color.text_primary'))
                 Text('原文件在每次成功拉取课表时生成。点上方「重新获取」，或回到课程表页点标题旁的刷新按钮即可生成。')
                   .fontSize(12)
