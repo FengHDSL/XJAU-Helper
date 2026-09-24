@@ -1,17 +1,23 @@
 /**
  * 背景裁剪页（外观设置 → 背景 → 更换背景）
- * —— 移植自参考项目 miha_hm（鸿米家）`pages/BackgroundCropPage.ets`
- * 对应参考文件：miha_hm `pages/BackgroundCropPage.ets`
+ * —— 裁剪交互组件直接移植自参考项目 miha_hm `pages/BackgroundCropPage.ets`：
+ *    图片 Contain 居中固定 + 4 块遮罩 + 白色裁剪框拖动 + 圆形把手缩放框。
  *
- * 核心闭环：选图 → 缩放/平移 → 完成（按屏幕比例裁剪并保存为全局壁纸）。
+ * 与参考项目的差异（管线保留本项目）：
+ * 1) 选图：参考项目由上游页选好图传 sourceUri 进来；本项目进入页面后自动弹文档选择器
+ *    （WallpaperPage 只 pushPath 不带参），拷贝进沙箱后读取；
+ * 2) 保存：裁剪结果仍走本项目壁纸管线（Wallpaper.newUserWallpaperPath 唯一命名 +
+ *    WallpaperTone.analyze 明暗分析 + DataStore.saveWallpaper），并保留「清空背景」入口；
+ * 3) 路由：参考项目 @Entry + router.back()；本项目 NavDestination + AppState.stack.pop()。
  *
- * 实现要点（踩坑说明）：
- * 1) 相册原图可达上亿像素，**按原始尺寸解码会失败/耗尽内存**（表现为预览空白）
- *    → 解码时用 `desiredSize` 把长边限制在 MAX_DECODE_LONG_SIDE，并保持比例；
- * 2) 裁剪框用「屏幕宽高比」的固定框，图片以 `ImageFit.Cover` 铺底再叠加缩放/平移，
- *    这样「裁剪框 → 原图像素」是纯比例换算，稳定可控；
- * 3) 裁剪用 `pixelMap.cropSync()`（API 12+）+ `ImagePacker.packToData(jpeg, 95)`，
- *    写回 `filesDir` 唯一命名的壁纸文件（复用 Wallpaper 工具，避免同路径缓存不刷新）。
+ * 实现要点（踩坑说明，来自参考项目）：
+ * 1) 相册原图可达上亿像素，按原始尺寸解码会失败/耗尽内存（表现为预览一片空白，
+ *    getImageInfo 只读文件头、尺寸看起来正常，极易误判成路径问题）
+ *    → 预览与裁剪统一基于降采样尺寸（长边 MAX_DECODE_LONG_SIDE）；
+ * 2) 预览 Image 用 sourceSize 按目标尺寸解码，避免整张上亿像素图解进内存；
+ * 3) 裁剪框坐标（屏幕 vp）与解码像素坐标通过 displayScale（Contain 缩放比）互转，
+ *    预览和裁剪用同一套坐标，「框住哪里就裁哪里」才成立；
+ * 4) 裁剪比例用物理屏幕宽高比（本项目未发布窗口尺寸键，折叠屏/PC 分屏后续再适配）。
  */
 import { common } from '@kit.AbilityKit';
 import { fileIo, fileUri, picker } from '@kit.CoreFileKit';
@@ -24,171 +30,167 @@ import { WallpaperTone } from '../common/WallpaperTone';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
 
-/** 裁剪区域（原图像素坐标系） */
-interface CropBox {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-/** 尺寸（像素） */
-interface Size2D {
-  width: number;
-  height: number;
-}
-
-/** 最大解码长边（px）：避免超大原图解码失败 / 内存耗尽 */
+/** 裁剪框最小宽度（vp），防止把手把框拖没了 */
+const MIN_CROP_WIDTH: number = 80;
+/** 解码长边上限（px）：避免超大原图解码失败 / 内存耗尽 */
 const MAX_DECODE_LONG_SIDE: number = 2560;
-/** 最小 / 最大缩放（1 = 铺满裁剪框） */
-const MIN_ZOOM: number = 1;
-const MAX_ZOOM: number = 5;
-/** 裁剪框距屏幕两侧留白（vp） */
-const FRAME_MARGIN: number = 20;
 
 @Component
 export struct BackgroundCropPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
-  /** 预览图 uri（file://沙箱路径） */
+  /** 预览图 uri（file:// 沙箱路径） */
   @State srcUri: string = '';
   /** 是否已选到图片 */
   @State hasImage: boolean = false;
-  /** 缩放倍数 */
-  @State zoom: number = MIN_ZOOM;
-  /** 缩放滑条数值（= zoom × 100；用 state 保证「复位」时滑条同步回位） */
-  @State sliderVal: number = MIN_ZOOM * 100;
-  /** 平移量（vp） */
-  @State tx: number = 0;
-  @State ty: number = 0;
-  /** 是否正在处理（裁剪保存中禁用重复点击） */
+  /** 是否正在处理（保存中禁用重复点击） */
   @State busy: boolean = false;
+  /** 原图像素尺寸（getImageInfo 只读文件头，不解码整图） */
+  @State srcW: number = 0;
+  @State srcH: number = 0;
+  /**
+   * 降采样后的解码尺寸：预览与裁剪都基于它，保证「所见即所裁」。
+   * 必须是 @State —— 预览图的 sourceSize 依赖它，普通字段变化不会让 Image 重新求值。
+   */
+  @State decodedW: number = 0;
+  @State decodedH: number = 0;
+  /** 预览区实际尺寸（vp，onAreaChange 采集） */
+  @State areaWidth: number = 0;
+  @State areaHeight: number = 0;
+  /** 裁剪框位置/尺寸（vp，预览区坐标系） */
+  @State cropX: number = 0;
+  @State cropY: number = 0;
+  @State cropWidth: number = 0;
 
+  /** 裁剪框宽高比（物理屏幕宽/高） */
+  private cropAspectRatio: number = 0.5625;
+  /** 图片 Contain 显示缩放比（预览 vp ↔ 解码 px 的换算桥梁） */
+  private displayScale: number = 1;
+  /** 图片显示区域（vp，预览区坐标系） */
+  private displayX: number = 0;
+  private displayY: number = 0;
+  private displayWidth: number = 0;
+  private displayHeight: number = 0;
   /** 沙箱内原图副本路径 */
   private srcPath: string = '';
-  /** 原图像素尺寸 */
-  private srcW: number = 0;
-  private srcH: number = 0;
-  /** 裁剪框实际尺寸（vp，onAreaChange 采集） */
-  private frameW: number = 0;
-  private frameH: number = 0;
   /** 手势起始值 */
-  private startTx: number = 0;
-  private startTy: number = 0;
-  private startZoom: number = MIN_ZOOM;
+  private gestureStartX: number = 0;
+  private gestureStartY: number = 0;
+  private gestureStartWidth: number = 0;
 
   aboutToAppear(): void {
+    this.resolveAspectRatio();
     this.pickImage();
   }
 
-  /** 裁剪框宽高比（屏幕宽/高；异常回落 9:16 竖屏） */
-  /** 裁剪框宽高比（改名避开 CustomComponent 自带属性 aspectRatio，否则 10505001 类型冲突） */
-  private cropAspect(): number {
+  /** 解析裁剪框的长宽比：物理屏幕宽/高（宽高比与单位无关，px 相除即可） */
+  private resolveAspectRatio(): void {
     try {
       const d: display.Display = display.getDefaultDisplaySync();
-      const w: number = this.getUIContext().px2vp(d.width);
-      const h: number = this.getUIContext().px2vp(d.height);
-      if (w > 0 && h > 0) {
-        return w / h;
+      if (d.width > 0 && d.height > 0) {
+        this.cropAspectRatio = d.width / d.height;
       }
     } catch (e) {
-      // 忽略：回落默认比例
+      // 忽略：保留默认 9:16 竖屏比例
     }
-    return 0.5625;
   }
 
-  /** Length → number（vp；非数值回落 0） */
-  private toNum(v: Length): number {
-    const n: number = Number.parseFloat(`${v}`);
-    return isNaN(n) ? 0 : n;
+  /** 裁剪框高（vp）：宽 ÷ 屏幕比例 */
+  private cropHeight(): number {
+    return this.cropWidth / this.cropAspectRatio;
   }
 
-  /**
-   * Cover 铺底尺寸（vp）：图片以 ImageFit.Cover 铺满裁剪框后的显示尺寸。
-   * 返回 [width, height]，未就绪返回 [0, 0]。
-   */
-  private coverBase(): number[] {
-    if (this.frameW <= 0 || this.frameH <= 0 || this.srcW <= 0 || this.srcH <= 0) {
-      return [0, 0];
-    }
-    const s: number = Math.max(this.frameW / this.srcW, this.frameH / this.srcH);
-    return [this.srcW * s, this.srcH * s];
+  /** 裁剪框最大宽（vp）：不超过图片显示区域 */
+  private maxCropWidth(): number {
+    return Math.min(this.displayWidth, this.displayHeight * this.cropAspectRatio);
   }
 
-  /** 平移量夹紧：保证图片始终铺满裁剪框（不出现空白边） */
-  private clampOffsets(): void {
-    const base: number[] = this.coverBase();
-    const bw: number = base[0] * this.zoom;
-    const bh: number = base[1] * this.zoom;
-    const mx: number = Math.max(0, (bw - this.frameW) / 2);
-    const my: number = Math.max(0, (bh - this.frameH) / 2);
-    this.tx = Math.max(-mx, Math.min(mx, this.tx));
-    this.ty = Math.max(-my, Math.min(my, this.ty));
-  }
-
-  /** 设置缩放（夹紧到 [MIN_ZOOM, MAX_ZOOM]；平移量按比例同步，避免缩放后跳位） */
-  private setZoom(z: number): void {
-    const old: number = this.zoom;
-    const nz: number = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z));
-    if (nz === old) {
+  /** 复位：按 Contain 重算图片显示区域，并把裁剪框置最大、居中 */
+  private resetCrop(): void {
+    if (this.decodedW <= 0 || this.decodedH <= 0 ||
+      this.areaWidth <= 0 || this.areaHeight <= 0) {
       return;
     }
-    const k: number = nz / old;
-    this.zoom = nz;
-    this.sliderVal = nz * 100;
-    this.tx = this.tx * k;
-    this.ty = this.ty * k;
-    this.clampOffsets();
+    // 用解码尺寸而非原图尺寸：预览就是按这个尺寸解码出来的，
+    // 两边用同一套坐标，「框住哪里就裁哪里」才成立。
+    this.displayScale = Math.min(this.areaWidth / this.decodedW,
+      this.areaHeight / this.decodedH);
+    this.displayWidth = this.decodedW * this.displayScale;
+    this.displayHeight = this.decodedH * this.displayScale;
+    this.displayX = (this.areaWidth - this.displayWidth) / 2;
+    this.displayY = (this.areaHeight - this.displayHeight) / 2;
+    const maxWidth: number = this.maxCropWidth();
+    this.cropWidth = Math.max(MIN_CROP_WIDTH, maxWidth);
+    this.cropX = this.displayX + (this.displayWidth - this.cropWidth) / 2;
+    this.cropY = this.displayY +
+      (this.displayHeight - this.cropHeight()) / 2;
   }
 
-  /** 复位（缩放 1、居中） */
-  private resetCrop(): void {
-    this.zoom = MIN_ZOOM;
-    this.sliderVal = MIN_ZOOM * 100;
-    this.tx = 0;
-    this.ty = 0;
-  }
-
-  /**
-   * 裁剪框对应的原图像素区域。
-   * 推导：显示尺寸 = Cover 尺寸 × zoom；左边界 = (框宽 - 显示宽)/2 + tx；
-   * 于是框内 (0,0) 对应原图 x = (0 - 左边界) / 显示宽 × 原图宽。
-   */
-  private cropBox(): CropBox {
-    const base: number[] = this.coverBase();
-    const bw: number = base[0] * this.zoom;
-    const bh: number = base[1] * this.zoom;
-    if (bw <= 0 || bh <= 0 || this.srcW <= 0 || this.srcH <= 0) {
-      return { x: 0, y: 0, w: 0, h: 0 };
+  /** 解码尺寸就绪后：预览区已量到尺寸就立即布框 */
+  private onImageInfoReady(): void {
+    if (this.areaWidth > 0 && this.areaHeight > 0) {
+      this.resetCrop();
     }
-    const left: number = (this.frameW - bw) / 2 + this.tx;
-    const top: number = (this.frameH - bh) / 2 + this.ty;
-    let w: number = this.frameW / bw * this.srcW;
-    let h: number = this.frameH / bh * this.srcH;
-    w = Math.min(w, this.srcW);
-    h = Math.min(h, this.srcH);
-    let x: number = (0 - left) / bw * this.srcW;
-    let y: number = (0 - top) / bh * this.srcH;
-    x = Math.max(0, Math.min(this.srcW - w, x));
-    y = Math.max(0, Math.min(this.srcH - h, y));
-    const box: CropBox = { x: x, y: y, w: w, h: h };
-    return box;
   }
 
-  /** 解码尺寸（长边限制在 MAX_DECODE_LONG_SIDE 内，保持比例） */
-  private decodeSize(): Size2D {
-    const w: number = this.srcW;
-    const h: number = this.srcH;
-    const long: number = Math.max(w, h);
-    if (long <= MAX_DECODE_LONG_SIDE) {
-      const same: Size2D = { width: w, height: h };
-      return same;
+  /** 预览区尺寸变化 → 记录并重新布框 */
+  private onPreviewAreaChange(oldValue: Area, newValue: Area): void {
+    const rawWidth: Length = newValue.width;
+    const rawHeight: Length = newValue.height;
+    const width: number = typeof rawWidth === 'number' ? rawWidth : Number.parseFloat(`${rawWidth}`);
+    const height: number = typeof rawHeight === 'number' ? rawHeight : Number.parseFloat(`${rawHeight}`);
+    if (Number.isNaN(width) || Number.isNaN(height) || width <= 0 || height <= 0) {
+      return;
     }
-    const k: number = MAX_DECODE_LONG_SIDE / long;
-    const small: Size2D = {
-      width: Math.max(1, Math.round(w * k)),
-      height: Math.max(1, Math.round(h * k))
-    };
-    return small;
+    this.areaWidth = width;
+    this.areaHeight = height;
+    this.resetCrop();
+  }
+
+  // ── 手势：白框拖动（改位置）──
+  private onCropBoxGestureStart(event: GestureEvent): void {
+    this.gestureStartX = this.cropX;
+    this.gestureStartY = this.cropY;
+  }
+
+  private onCropBoxGestureUpdate(event: GestureEvent): void {
+    const maxX: number = this.displayX + this.displayWidth - this.cropWidth;
+    const maxY: number = this.displayY + this.displayHeight - this.cropHeight();
+    this.cropX = Math.min(Math.max(this.gestureStartX + event.offsetX, this.displayX),
+      Math.max(maxX, this.displayX));
+    this.cropY = Math.min(Math.max(this.gestureStartY + event.offsetY, this.displayY),
+      Math.max(maxY, this.displayY));
+  }
+
+  // ── 手势：圆形把手（改大小）──
+  private onHandleGestureStart(event: GestureEvent): void {
+    this.gestureStartWidth = this.cropWidth;
+  }
+
+  private onHandleGestureUpdate(event: GestureEvent): void {
+    const maxWidth: number = this.maxCropWidth();
+    const minWidth: number = Math.min(MIN_CROP_WIDTH, maxWidth);
+    this.cropWidth = Math.min(Math.max(this.gestureStartWidth + event.offsetX, minWidth),
+      maxWidth);
+    const h: number = this.cropHeight();
+    if (this.cropX + this.cropWidth > this.displayX + this.displayWidth) {
+      this.cropX = this.displayX + this.displayWidth - this.cropWidth;
+    }
+    if (this.cropY + h > this.displayY + this.displayHeight) {
+      this.cropY = this.displayY + this.displayHeight - h;
+    }
+  }
+
+  /** 按长边上限等比算出解码尺寸；原图不超限时就是原尺寸 */
+  private computeDecodedSize(): void {
+    const longSide: number = Math.max(this.srcW, this.srcH);
+    if (longSide <= MAX_DECODE_LONG_SIDE) {
+      this.decodedW = this.srcW;
+      this.decodedH = this.srcH;
+      return;
+    }
+    const ratio: number = MAX_DECODE_LONG_SIDE / longSide;
+    this.decodedW = Math.max(1, Math.round(this.srcW * ratio));
+    this.decodedH = Math.max(1, Math.round(this.srcH * ratio));
   }
 
   /** 选择图片：文档选择器（免相册权限）→ 拷贝到沙箱 → 读原图尺寸 → 进入裁剪 */
@@ -249,7 +251,8 @@ export struct BackgroundCropPage {
       this.srcW = w;
       this.srcH = h;
       this.srcUri = `file://${tmpPath}`;
-      this.resetCrop();
+      this.computeDecodedSize();
+      this.onImageInfoReady();
       this.hasImage = true;
     } catch (e) {
       this.getUIContext().getPromptAction().showToast({ message: '图片读取失败（格式不支持或文件过大）' });
@@ -295,19 +298,21 @@ export struct BackgroundCropPage {
     }
   }
 
-  /** 完成：解码（限长边）→ 按裁剪框裁切 → JPEG 打包 → 写入壁纸文件 → 应用 */
+  /** 完成：裁剪框坐标经 displayScale 换算回解码像素 → 裁切 → JPEG 打包 → 本项目壁纸管线 */
   private confirmCrop(): void {
-    if (!this.hasImage || this.srcPath.length === 0 || this.busy) {
+    if (!this.hasImage || this.busy || this.cropWidth <= 0 || this.srcPath.length === 0) {
       return;
     }
     this.busy = true;
-    const box: CropBox = this.cropBox();
-    if (box.w <= 0 || box.h <= 0) {
-      this.busy = false;
-      this.getUIContext().getPromptAction().showToast({ message: '裁剪区域无效，请调整后重试' });
-      return;
-    }
-    this.doCrop(box).then(() => {
+    // 屏幕坐标 → 解码像素坐标（预览与裁剪同一套坐标：框住哪里就裁哪里）
+    const scale: number = this.displayScale;
+    const ix: number = Math.max(0, Math.round((this.cropX - this.displayX) / scale));
+    const iy: number = Math.max(0, Math.round((this.cropY - this.displayY) / scale));
+    const iw: number = Math.max(1, Math.min(Math.round(this.cropWidth / scale),
+      this.decodedW - ix));
+    const ih: number = Math.max(1, Math.min(Math.round(this.cropHeight() / scale),
+      this.decodedH - iy));
+    this.doCrop(ix, iy, iw, ih).then(() => {
       this.busy = false;
     }).catch(() => {
       this.busy = false;
@@ -315,41 +320,26 @@ export struct BackgroundCropPage {
     });
   }
 
-  /** 真正的裁剪与保存（异步） */
-  private async doCrop(box: CropBox): Promise<void> {
+  /** 真正的裁剪与保存（异步）：解码（限长边）→ crop → 打包 → 壁纸管线 */
+  private async doCrop(ix: number, iy: number, iw: number, ih: number): Promise<void> {
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    const dec: Size2D = this.decodeSize();
     const file: fileIo.File = fileIo.openSync(this.srcPath, fileIo.OpenMode.READ_ONLY);
     const src: image.ImageSource = image.createImageSource(file.fd);
     let pm: image.PixelMap | null = null;
     let packer: image.ImagePacker | null = null;
     try {
+      // 关键：按降采样后的尺寸解码，不要用原始尺寸
+      //（上亿像素图按原尺寸解码会失败或耗尽内存，背景本来也不需要那么大）
       const opts: image.DecodingOptions = {
-        desiredSize: { width: dec.width, height: dec.height }
+        desiredSize: { width: this.decodedW, height: this.decodedH }
       };
       pm = await src.createPixelMap(opts);
-      const info: image.ImageInfo = await pm.getImageInfo();
-      // 实际解码尺寸可能因解码器取整略有差异 → 用实际尺寸换算裁剪区域
-      const aw: number = info.size.width;
-      const ah: number = info.size.height;
-      const sx: number = aw / this.srcW;
-      const sy: number = ah / this.srcH;
-      let rw: number = Math.max(1, Math.round(box.w * sx));
-      let rh: number = Math.max(1, Math.round(box.h * sy));
-      let rx: number = Math.round(box.x * sx);
-      let ry: number = Math.round(box.y * sy);
-      rx = Math.max(0, Math.min(aw - 1, rx));
-      ry = Math.max(0, Math.min(ah - 1, ry));
-      rw = Math.min(rw, aw - rx);
-      rh = Math.min(rh, ah - ry);
-      if (rw < 1 || rh < 1) {
-        throw new Error('crop region invalid');
-      }
-      pm.cropSync({ x: rx, y: ry, size: { width: rw, height: rh } });
+      const region: image.Region = { size: { width: iw, height: ih }, x: ix, y: iy };
+      await pm.crop(region);
       packer = image.createImagePacker();
       const popts: image.PackingOption = { format: 'image/jpeg', quality: 95 };
       const packed: ArrayBuffer = await packer.packToData(pm, popts);
-      // 写入唯一命名壁纸文件（避免同路径覆盖导致界面不刷新）
+      // ── 以下为本项目壁纸管线（唯一命名 + 明暗分析 + 清理旧文件）──
       const dstPath: string = Wallpaper.newUserWallpaperPath(ctx.filesDir);
       const out: fileIo.File = fileIo.openSync(dstPath,
         fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC | fileIo.OpenMode.READ_WRITE);
@@ -412,15 +402,17 @@ export struct BackgroundCropPage {
           // 悬浮顶栏让位
           Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60)
 
-          // ── 裁剪区（屏幕比例固定框；图片 Cover 铺底 + 缩放/平移）──
-          Stack() {
-            if (this.hasImage) {
+          // ── 预览区：图片 Contain 居中固定，遮罩/裁剪框/把手叠加其上（移植参考项目）──
+          Stack({ alignContent: Alignment.TopStart }) {
+            // 等解码尺寸就绪再渲染：首帧 decodedW 还是 0，此时给 sourceSize 传 0
+            // 会让解码器无从下手，图照样出不来。
+            if (this.hasImage && this.decodedW > 0 && this.decodedH > 0) {
+              // sourceSize 让解码器直接按目标尺寸解码，避免整张上亿像素图解进内存
               Image(this.srcUri)
                 .width('100%')
                 .height('100%')
-                .objectFit(ImageFit.Cover)
-                .scale({ x: this.zoom, y: this.zoom })
-                .translate({ x: this.tx, y: this.ty })
+                .objectFit(ImageFit.Contain)
+                .sourceSize({ width: this.decodedW, height: this.decodedH })
                 .draggable(false)
             } else {
               Column() {
@@ -433,70 +425,76 @@ export struct BackgroundCropPage {
               .justifyContent(FlexAlign.Center)
               .backgroundColor(this.isDarkModeBg())
             }
-          }
-          .width('100%')
-          .aspectRatio(this.cropAspect())
-          .clip(true)
-          .borderRadius(16)
-          .border({ width: 2, color: 'rgba(255,255,255,0.65)' })
-          .onAreaChange((oldValue: Area, newValue: Area) => {
-            this.frameW = this.toNum(newValue.width);
-            this.frameH = this.toNum(newValue.height);
-            this.clampOffsets();
-          })
-          .gesture(
-            GestureGroup(GestureMode.Parallel,
-              PanGesture({ fingers: 1, direction: PanDirection.All, distance: 1 })
-                .onActionStart(() => {
-                  this.startTx = this.tx;
-                  this.startTy = this.ty;
-                })
-                .onActionUpdate((event: GestureEvent) => {
-                  this.tx = this.startTx + event.offsetX;
-                  this.ty = this.startTy + event.offsetY;
-                  this.clampOffsets();
-                }),
-              PinchGesture({ fingers: 2 })
-                .onActionStart(() => {
-                  this.startZoom = this.zoom;
-                })
-                .onActionUpdate((event: GestureEvent) => {
-                  this.setZoom(this.startZoom * event.scale);
-                })
-            )
-          )
-          .margin({ left: FRAME_MARGIN, right: FRAME_MARGIN })
 
-          // ── 缩放滑条（1.0x ~ 5.0x）──
-          Row() {
-            Text('缩放')
-              .fontSize(12)
-              .fontColor($r('app.color.text_secondary'))
-              .width(36)
-            Slider({
-              value: this.sliderVal,
-              min: MIN_ZOOM * 100,
-              max: MAX_ZOOM * 100,
-              step: 1,
-              style: SliderStyle.OutSet
-            })
-              .selectedColor($r('app.color.brand'))
-              .trackColor('rgba(255,255,255,0.35)')
-              .layoutWeight(1)
-              .onChange((value: number, mode: SliderChangeMode) => {
-                this.setZoom(value / 100);
+            // 遮罩 ×4：上 / 下 / 左 / 右（#66000000，与参考项目一致）
+            Column()
+              .width('100%')
+              .height(this.cropY)
+              .backgroundColor('#66000000')
+
+            Column()
+              .width('100%')
+              .height(Math.max(0, this.areaHeight - this.cropY - this.cropHeight()))
+              .position({ x: 0, y: this.cropY + this.cropHeight() })
+              .backgroundColor('#66000000')
+
+            Column()
+              .width(this.cropX)
+              .height(this.cropHeight())
+              .position({ x: 0, y: this.cropY })
+              .backgroundColor('#66000000')
+
+            Column()
+              .width(Math.max(0, this.areaWidth - this.cropX - this.cropWidth))
+              .height(this.cropHeight())
+              .position({ x: this.cropX + this.cropWidth, y: this.cropY })
+              .backgroundColor('#66000000')
+
+            // 白色裁剪框：单指拖动改位置
+            Column()
+              .width(this.cropWidth)
+              .height(this.cropHeight())
+              .position({ x: this.cropX, y: this.cropY })
+              .border({ width: 2, color: Color.White })
+              .gesture(
+                PanGesture({ fingers: 1, distance: 1 })
+                  .onActionStart((event: GestureEvent) => {
+                    this.onCropBoxGestureStart(event);
+                  })
+                  .onActionUpdate((event: GestureEvent) => {
+                    this.onCropBoxGestureUpdate(event);
+                  })
+              )
+
+            // 圆形把手（右下角）：拖动改大小
+            Column()
+              .width(32)
+              .height(32)
+              .borderRadius(16)
+              .backgroundColor(Color.White)
+              .border({ width: 3, color: $r('app.color.brand') })
+              .position({
+                x: this.cropX + this.cropWidth - 16,
+                y: this.cropY + this.cropHeight() - 16
               })
-            Text(`${this.zoom.toFixed(1)}x`)
-              .fontSize(12)
-              .fontColor($r('app.color.text_secondary'))
-              .width(44)
-              .textAlign(TextAlign.End)
+              .gesture(
+                PanGesture({ fingers: 1, distance: 1 })
+                  .onActionStart((event: GestureEvent) => {
+                    this.onHandleGestureStart(event);
+                  })
+                  .onActionUpdate((event: GestureEvent) => {
+                    this.onHandleGestureUpdate(event);
+                  })
+              )
           }
           .width('100%')
-          .padding({ left: FRAME_MARGIN, right: FRAME_MARGIN })
-          .margin({ top: 14 })
+          .layoutWeight(1)
+          .clip(true)
+          .onAreaChange((oldValue: Area, newValue: Area) => {
+            this.onPreviewAreaChange(oldValue, newValue);
+          })
 
-          // ── 操作区 ──
+          // ── 底部操作（本项目功能保留：换图 / 复位 / 清空背景）──
           Row({ space: 10 }) {
             Text('重新选择')
               .fontSize(13)
@@ -536,12 +534,12 @@ export struct BackgroundCropPage {
           .justifyContent(FlexAlign.Center)
           .margin({ top: 16 })
 
-          Text('提示：拖动图片平移位置，双指捏合或拖动滑条缩放；框内区域即最终背景。')
+          Text('提示：拖动白色框调整裁剪区域，拖动右下角圆形把手调整大小；框内区域即最终背景。')
             .fontSize(11)
             .fontColor($r('app.color.text_tertiary'))
             .textAlign(TextAlign.Center)
             .width('100%')
-            .padding({ left: FRAME_MARGIN, right: FRAME_MARGIN })
+            .padding({ left: 16, right: 16 })
             .margin({ top: 12, bottom: 24 })
         }
         .width('100%')
