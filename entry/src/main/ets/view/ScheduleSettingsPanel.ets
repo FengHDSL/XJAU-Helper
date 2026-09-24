@@ -38,6 +38,9 @@ const COLOR_PALETTE: string[] = [
 struct ColorPickCell {
   @Link hex: string;
   @StorageProp('themeColor') themeColor: string = 'green';
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   palette: string[] = [];
   label: string = '';
   onChange: () => void = () => {};

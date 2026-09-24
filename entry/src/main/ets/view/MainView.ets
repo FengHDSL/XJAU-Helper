@@ -67,7 +67,7 @@ export struct MainView {
   @StorageProp('fontWeightValue') fwValue: number = 400;
   /**
    * 底栏高亮专用状态（与页面解耦）：点击 tab 时立即更新（图标/文字即时变色），
-   * 页面切换只交给 changeIndex(index, true) 带动画执行；currentIndex 在 onChange
+   * 页面切换只交给 changeIndex(index) 带动画执行；currentIndex 在 onChange
    * （动画完成）才同步。此前点击直接赋值 currentIndex → HdsTabs 的 index 参数瞬跳，
    * 外观设置的「页面平滑切换」动画被完全绕过（开关无效的根因）。
    */
@@ -136,12 +136,12 @@ export struct MainView {
     .height('46vp')
     .justifyContent(FlexAlign.Center)
     .onClick(() => {
-      // 高亮即时更新（activeIndex），页面切换只走 changeIndex(index, true) 带动画：
+      // 高亮即时更新（activeIndex），页面切换只走 changeIndex(index) 带动画：
       // 直接赋值 currentIndex 会让 HdsTabs 的 index 参数瞬跳、绕过平滑切换动画（勿回退）。
       // 关闭平滑开关时 animationDuration(0)，changeIndex 瞬跳、行为不变。
       if (this.activeIndex !== index) {
         this.activeIndex = index;
-        this.tabsController.changeIndex(index, true);
+        this.tabsController.changeIndex(index);
       }
     })
   }
@@ -242,11 +242,11 @@ export struct MainView {
           TabContent() {
             HomeView({
               onSwitchTab: (index: number) => {
-                // 同 tabItem 点击：高亮即时更新，切换走 changeIndex(index, true) 带动画
+                // 同 tabItem 点击：高亮即时更新，切换走 changeIndex(index) 带动画
                 // （直接赋值 currentIndex 会瞬跳、绕过平滑切换动画）
                 if (this.activeIndex !== index) {
                   this.activeIndex = index;
-                  this.tabsController.changeIndex(index, true);
+                  this.tabsController.changeIndex(index);
                 }
               }
             })
