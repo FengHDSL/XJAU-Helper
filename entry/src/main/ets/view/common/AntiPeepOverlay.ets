@@ -6,10 +6,15 @@
  *
  * 用法：在页面 build() 中用 Stack 包裹页面内容，将本组件放在内容之后层叠覆盖。
  */
+import { AppearanceStore } from '../../common/AppearanceStore';
+
 @Component
 export struct AntiPeepOverlay {
   /** 是否检测到窥屏 */
   @Prop isPeeped: boolean = false;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
 
   build() {
     if (this.isPeeped) {
@@ -24,7 +29,7 @@ export struct AntiPeepOverlay {
 
         Text('防窥保护已启动')
           .fontSize(18)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
           .margin({ bottom: 8 })
 

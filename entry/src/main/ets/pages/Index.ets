@@ -12,6 +12,7 @@ import { TermInfo, UserProfile } from '../model/Models';
 import { promptAction } from '@kit.ArkUI';
 import { common } from '@kit.AbilityKit';
 import { DailyWallpaper } from '../common/DailyWallpaper';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 @Entry
 @Component
@@ -24,6 +25,9 @@ struct Index {
   @State forceReloginLoading: boolean = false;
   /** 系统深色模式（功能浏览水印颜色适配） */
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 功能浏览水印（进入功能浏览模式 5 秒后强制显示） */
   @State mockWatermark: boolean = false;
   /** 首启隐私引导页：未同意隐私协议时覆盖全屏，依次展示 隐私协议→开发者声明→账号风控 */
@@ -282,7 +286,7 @@ struct Index {
                 ForEach([0, 1, 2, 3, 4], (col: number) => {
                   Text('功能浏览模式，内容非真实信息')
                     .fontSize(15)
-                    .fontWeight(FontWeight.Medium)
+                    .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                     .fontColor(this.isDarkMode ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)')
                     .rotate({ angle: -28 })
                     .margin({ left: 34, right: 34, top: 30, bottom: 30 })

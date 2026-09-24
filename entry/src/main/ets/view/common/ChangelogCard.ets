@@ -10,11 +10,15 @@
  */
 import { GlassMaterial } from '../../common/GlassMaterial';
 import { MaterialCard } from './MaterialCard';
+import { AppearanceStore } from '../../common/AppearanceStore';
 
 @Component
 export struct ChangelogCard {
   @Prop version: string = '';
   @Prop date: string = '';
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 该版本的条目文本（静态数据，无需响应式） */
   items: string[] = [];
 
@@ -38,7 +42,7 @@ export struct ChangelogCard {
         Row() {
           Text(`v${this.version}`)
             .fontSize(15)
-            .fontWeight(FontWeight.Bold)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor($r('app.color.text_primary'))
           Text(`  ${this.date}`)
             .fontSize(12)
@@ -52,7 +56,7 @@ export struct ChangelogCard {
           if (item.startsWith('@新增@') || item.startsWith('@修复@')) {
             Text(item.substring(3))
               .fontSize(13)
-              .fontWeight(FontWeight.Bold)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
               .fontColor($r('app.color.brand'))
               .width('100%')
               .margin({ top: 6, bottom: 2 })
