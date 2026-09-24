@@ -749,7 +749,8 @@ export struct LoginView {
           .caretStyle({ color: $r('sys.color.font_emphasize') })
           .fontColor(Theme.colorOf(this.themeColor))
           .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-          .backgroundColor(Color.Transparent)
+          // 半透明灰底：玻璃/材质上输入框边界更清晰（用户反馈「加点灰色方便查看」）
+          .backgroundColor('#14808080')
           .padding({ left: 14, right: 8 })
           .layoutWeight(1)
           .onChange(onInput)
@@ -785,7 +786,8 @@ export struct LoginView {
         .caretStyle({ color: $r('sys.color.font_emphasize') })
         .fontColor(Theme.colorOf(this.themeColor))
         .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-        .backgroundColor(Color.Transparent)
+        // 半透明灰底：同 inputRow，玻璃/材质上边界更清晰
+        .backgroundColor('#14808080')
         .padding({ left: 14, right: 8 })
         .layoutWeight(1)
         .onChange((v: string) => {

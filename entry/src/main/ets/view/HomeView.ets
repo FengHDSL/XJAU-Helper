@@ -642,8 +642,8 @@ export struct HomeView {
       cardRadius: 16,
       cardBg: this.cardBgColor(),
       cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-      cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-      cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+      cardBorderW: GlassMaterial.borderWidth(),
+      cardBorderC: GlassMaterial.borderColor()
     }) {
       Row() {
         if (this.showAvatar) {
@@ -748,8 +748,8 @@ export struct HomeView {
         cardRadius: 18,
         cardBg: this.cardBgColor(),
         cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-        cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-        cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
+        cardBorderW: GlassMaterial.borderWidth(),
+        cardBorderC: GlassMaterial.borderColor(),
         // 标题行与卡片之间原有 12vp（迁移前挂在标题行上的 margin）→ 改由卡片的外边距承载
         cardMargin: { top: 12 }
       }) {
@@ -771,8 +771,8 @@ export struct HomeView {
               cardMaterialShadow: false,
               cardBg: this.subBg($r('app.color.bg_chip')),
               cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-              cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-              cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
+              cardBorderW: GlassMaterial.borderWidth(),
+              cardBorderC: GlassMaterial.borderColor(),
               cardShadow: GlassMaterial.capsuleShadow(),
               // 标题内容与子卡之间原有 12vp 上边距 → 改由卡片外边距承载
               cardMargin: { top: 12 }
@@ -862,8 +862,8 @@ export struct HomeView {
               cardMaterialShadow: false,
               cardBg: this.subBg($r('app.color.bg_chip')),
               cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-              cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-              cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
+              cardBorderW: GlassMaterial.borderWidth(),
+              cardBorderC: GlassMaterial.borderColor(),
               cardShadow: GlassMaterial.capsuleShadow(),
               cardMargin: { top: 12 }
             }) {
@@ -1016,8 +1016,8 @@ export struct HomeView {
         cardRadius: 18,
         cardBg: this.cardBgColor(),
         cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-        cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-        cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+        cardBorderW: GlassMaterial.borderWidth(),
+        cardBorderC: GlassMaterial.borderColor()
       }) {
       Column() {
         Grid() {
@@ -1034,8 +1034,8 @@ export struct HomeView {
                 cardMaterialShadow: false,
                 cardBg: this.subBg($r('app.color.bg_chip')),
                 cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-                cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-                cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
+                cardBorderW: GlassMaterial.borderWidth(),
+                cardBorderC: GlassMaterial.borderColor(),
                 cardOnClick: () => {
                   this.onEntryTap(item.key);
                 }
@@ -1088,8 +1088,8 @@ export struct HomeView {
           cardRadius: 18,
           cardBg: this.cardBgColor(),
           cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-          cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+          cardBorderW: GlassMaterial.borderWidth(),
+          cardBorderC: GlassMaterial.borderColor()
         }) {
           EmptyTip({ text: '近期没有考试安排' })
         }
@@ -1101,8 +1101,8 @@ export struct HomeView {
             cardRadius: 16,
             cardBg: this.cardBgColor(),
             cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-            cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-            cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
+            cardBorderW: GlassMaterial.borderWidth(),
+            cardBorderC: GlassMaterial.borderColor(),
             cardMargin: { bottom: 10 },
             cardOnClick: () => {
               AppState.stack.pushPath({ name: Const.ROUTE_EXAM });
@@ -1171,8 +1171,8 @@ export struct HomeView {
           cardRadius: 18,
           cardBg: this.cardBgColor(),
           cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-          cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+          cardBorderW: GlassMaterial.borderWidth(),
+          cardBorderC: GlassMaterial.borderColor()
         }) {
           EmptyTip({ text: '暂无消息' })
         }
@@ -1181,8 +1181,8 @@ export struct HomeView {
           cardRadius: 18,
           cardBg: this.cardBgColor(),
           cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-          cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+          cardBorderW: GlassMaterial.borderWidth(),
+          cardBorderC: GlassMaterial.borderColor()
         }) {
         Column() {
           ForEach(this.notices.slice(0, 3), (item: NoticeItem, index: number) => {
@@ -1260,8 +1260,8 @@ export struct HomeView {
           cardRadius: 18,
           cardBg: this.cardBgColor(),
           cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-          cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+          cardBorderW: GlassMaterial.borderWidth(),
+          cardBorderC: GlassMaterial.borderColor()
         }) {
           EmptyTip({ text: '暂无通知' })
         }
@@ -1270,8 +1270,8 @@ export struct HomeView {
           cardRadius: 18,
           cardBg: this.cardBgColor(),
           cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-          cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+          cardBorderW: GlassMaterial.borderWidth(),
+          cardBorderC: GlassMaterial.borderColor()
         }) {
         Column() {
           ForEach(this.jwcNotices, (item: NoticeItem, index: number) => {
@@ -1794,8 +1794,8 @@ export struct HomeView {
       btnMargin: { right: 8 },
       btnBg: this.subBg($r('app.color.bg_chip')),
       btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-      btnBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-      btnBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor()
     }) {
       Text(text)
         .fontSize(11)
@@ -1837,8 +1837,8 @@ export struct HomeView {
         cardRadius: 18,
         cardBg: this.cardBgColor(),
         cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-        cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-        cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+        cardBorderW: GlassMaterial.borderWidth(),
+        cardBorderC: GlassMaterial.borderColor()
       }) {
       if (this.teachingCal === null) {
         // "加载日历"占位卡：固定高度（不再套 padding，避免卡片被撑高）
@@ -1877,8 +1877,8 @@ export struct HomeView {
               btnMargin: { right: 8 },
               btnBg: this.subBg($r('app.color.bg_chip')),
               btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-              btnBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-              btnBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
+              btnBorderW: GlassMaterial.borderWidth(),
+              btnBorderC: GlassMaterial.borderColor(),
               btnOnClick: () => {
                 this.openStartPicker();
               }
@@ -1897,8 +1897,8 @@ export struct HomeView {
               btnMargin: { right: 8 },
               btnBg: this.subBg($r('app.color.bg_chip')),
               btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-              btnBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-              btnBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
+              btnBorderW: GlassMaterial.borderWidth(),
+              btnBorderC: GlassMaterial.borderColor(),
               btnOnClick: () => {
                 this.openEndPicker();
               }

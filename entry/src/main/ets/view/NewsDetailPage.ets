@@ -250,8 +250,8 @@ export struct NewsDetailPage {
                   cardAlignItems: ItemAlign.Start,
                   cardBg: $r('app.color.bg_card'),
                   cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-                  cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-                  cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+                  cardBorderW: GlassMaterial.borderWidth(),
+                  cardBorderC: GlassMaterial.borderColor()
                 }) {
                   Column() {
                     Text(this.detail.title)

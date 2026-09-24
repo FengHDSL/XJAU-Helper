@@ -75,7 +75,7 @@ struct SectionCard {
         cardRadius: 16,
         cardBg: $r('app.color.bg_card'),
         cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-        cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+        cardBorderW: GlassMaterial.borderWidth(),
         cardBorderC: GlassMaterial.borderColor(),
         cardShadow: GlassMaterial.cardShadowStyle()
       }) {

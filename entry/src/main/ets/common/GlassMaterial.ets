@@ -96,9 +96,18 @@ export class GlassMaterial {
     return 1;
   }
 
-  /** 细亮边颜色 */
+  /** 细亮边颜色：**跟随主题色**（10% 透明）——参考项目行为：描边是同色系淡描边，不写死灰白 */
   static borderColor(): string {
-    return GlassMaterial.BORDER;
+    return Theme.rgba(Theme.colorOf(Theme.current()), 0.1);
+  }
+
+  /**
+   * 玻璃卡片底色（移植参考项目 HwGlassCardColor.surface：70% 透明玻璃）。
+   * 沉浸光感**关闭**时的卡片降级观感：玻璃底 + Thin 磨砂 = 与光感开启同一观感，
+   * 替代原先不透明的 bg_card 死板色块。
+   */
+  static cardSurfaceColor(isDark: boolean): string {
+    return isDark ? '#B326364F' : '#B3E8F0F8';
   }
 
   /** 胶囊阴影（恒定微阴影） */

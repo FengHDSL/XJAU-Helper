@@ -73,6 +73,8 @@ export struct DissolveBurst {
   @Prop trigger: number = 0;
 
   build() {
+    // 0×0 覆盖点：靠宿主 Stack 的 Center 对齐落在卡片中心，**不参与撑高宿主**——
+    // 此前 100% 高在自适应高度的宿主里互相引用，把主题组合大卡片撑到一整屏（截图 bug 根因）
     Stack() {
       if (this.trigger > 0) {
         ForEach(PARTICLE_SPECS, (p: ParticleSpec) => {
@@ -85,8 +87,8 @@ export struct DissolveBurst {
         }, (p: ParticleSpec) => `dp${this.trigger}_${p.angle}_${p.distance}`)
       }
     }
-    .width('100%')
-    .height('100%')
+    .width(0)
+    .height(0)
     .hitTestBehavior(HitTestMode.None)
   }
 }

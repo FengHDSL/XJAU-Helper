@@ -722,7 +722,7 @@ export struct KxjsPage {
       cardPadding: 14,
       cardBg: $r('app.color.bg_card'),
       cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-      cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+      cardBorderW: GlassMaterial.borderWidth(),
       cardBorderC: GlassMaterial.borderColor(),
       cardMaterialShadow: false,
       cardOnClick: () => {
@@ -989,7 +989,7 @@ export struct KxjsPage {
                 cardRadius: 18,
                 cardBg: $r('app.color.bg_card'),
                 cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-                cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+                cardBorderW: GlassMaterial.borderWidth(),
                 cardBorderC: GlassMaterial.borderColor(),
                 cardMaterialShadow: false
               }) {
@@ -1011,7 +1011,7 @@ export struct KxjsPage {
                 cardPadding: 20,
                 cardBg: $r('app.color.bg_card'),
                 cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-                cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+                cardBorderW: GlassMaterial.borderWidth(),
                 cardBorderC: GlassMaterial.borderColor(),
                 cardMaterialShadow: false
               }) {
@@ -1166,7 +1166,7 @@ export struct KxjsPage {
                     cardRadius: 18,
                     cardBg: $r('app.color.bg_card'),
                     cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-                    cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+                    cardBorderW: GlassMaterial.borderWidth(),
                     cardBorderC: GlassMaterial.borderColor(),
                     cardMaterialShadow: false
                   }) {
@@ -1190,7 +1190,7 @@ export struct KxjsPage {
                     cardPadding: 20,
                     cardBg: $r('app.color.bg_card'),
                     cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-                    cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+                    cardBorderW: GlassMaterial.borderWidth(),
                     cardBorderC: GlassMaterial.borderColor(),
                     cardMaterialShadow: false
                   }) {

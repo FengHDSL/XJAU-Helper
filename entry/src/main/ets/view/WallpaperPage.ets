@@ -74,6 +74,8 @@ export struct WallpaperPage {
   @StorageProp('textStyleMode') textStyleMode: string = '';
   /** 荧光底颜色（#rrggbb；''=内置荧光黄） */
   @StorageProp('textGlowColor') textGlowColor: string = '';
+  /** 背景跟随主题色开关（false = 页面底色保持中性，不混入主题色） */
+  @StorageProp('pageBgTint') pageBgTint: boolean = true;
   /** 正在删除的组合名（粒子消散 + 淡出收起动画用） */
   @State deletingCombo: string = '';
   /** 粒子消散触发序号（自增触发新一轮爆散） */
@@ -684,7 +686,7 @@ export struct WallpaperPage {
     .clip(true)
     .backgroundColor(this.cardBg($r('app.color.bg_card')))
     .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
-    .border({ width: this.matOn() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
+    .border({ width: this.matOn() ? 0 : (GlassMaterial.borderWidth()), color: GlassMaterial.borderColor() })
     .margin({ top: 14 })
   }
 
@@ -833,7 +835,7 @@ export struct WallpaperPage {
     .clip(true)
     .backgroundColor(this.cardBg($r('app.color.bg_card')))
     .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
-    .border({ width: this.matOn() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
+    .border({ width: this.matOn() ? 0 : (GlassMaterial.borderWidth()), color: GlassMaterial.borderColor() })
     .margin({ top: 14 })
   }
 
@@ -929,8 +931,8 @@ export struct WallpaperPage {
         cardMargin: { top: 14, right: 0, bottom: 0, left: 0 },
         cardBg: $r('app.color.bg_card'),
         cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-        cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-        cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+        cardBorderW: GlassMaterial.borderWidth(),
+        cardBorderC: GlassMaterial.borderColor()
       }) {
         Column() {
           Row() {
@@ -960,6 +962,30 @@ export struct WallpaperPage {
           .width('100%')
           .alignItems(VerticalAlign.Center)
 
+          // 背景跟随主题色：光感开启后玻璃会透出底色，绿底/红底观感差 → 可关闭取色
+          Row() {
+            Column({ space: 3 }) {
+              Text('背景跟随主题色')
+                .fontSize(14)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+                .fontColor($r('app.color.text_primary'))
+              Text('关闭后页面底色不再混入主题色，保持中性底色（避免绿底/红底观感）')
+                .fontSize(11)
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+
+            Toggle({ type: ToggleType.Switch, isOn: this.pageBgTint })
+              .selectedColor(Theme.colorOf(this.themeColor))
+              .onChange((on: boolean) => {
+                AppearanceStore.setPageBgTint(on);
+              })
+          }
+          .width('100%')
+          .alignItems(VerticalAlign.Center)
+          .margin({ top: 12 })
+
         }
         .width('100%')
       }
@@ -976,8 +1002,8 @@ export struct WallpaperPage {
         cardMargin: { top: 14, right: 0, bottom: 0, left: 0 },
         cardBg: $r('app.color.bg_card'),
         cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-        cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-        cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+        cardBorderW: GlassMaterial.borderWidth(),
+        cardBorderC: GlassMaterial.borderColor()
       }) {
         Column() {
           Row() {
@@ -1142,8 +1168,8 @@ export struct WallpaperPage {
       cardMargin: { top: 14, right: 0, bottom: 0, left: 0 },
       cardBg: $r('app.color.bg_card'),
       cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-      cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-      cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+      cardBorderW: GlassMaterial.borderWidth(),
+      cardBorderC: GlassMaterial.borderColor()
     }) {
       Column() {
         // 字体管理入口（上传 / 选择中英文字体 / 删除）
@@ -1258,8 +1284,8 @@ export struct WallpaperPage {
       cardMargin: { top: 14, right: 0, bottom: 0, left: 0 },
       cardBg: $r('app.color.bg_card'),
       cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-      cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-      cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
+      cardBorderW: GlassMaterial.borderWidth(),
+      cardBorderC: GlassMaterial.borderColor()
     }) {
       Column() {
         Row() {
@@ -1495,7 +1521,7 @@ export struct WallpaperPage {
             .clip(true)
             .backgroundColor(this.cardBg($r('app.color.bg_card')))
             .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
-            .border({ width: this.matOn() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
+            .border({ width: this.matOn() ? 0 : (GlassMaterial.borderWidth()), color: GlassMaterial.borderColor() })
             .margin({ top: 14 })
 
             // ── 字体（字体管理入口 + 字重 + 字号）──
@@ -1659,7 +1685,7 @@ export struct WallpaperPage {
             .clip(true)
             .backgroundColor(this.cardBg($r('app.color.bg_card')))
             .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
-            .border({ width: this.matOn() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
+            .border({ width: this.matOn() ? 0 : (GlassMaterial.borderWidth()), color: GlassMaterial.borderColor() })
             .margin({ top: 14 })
 
           }

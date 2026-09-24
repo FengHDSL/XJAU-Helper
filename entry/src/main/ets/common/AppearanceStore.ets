@@ -214,10 +214,30 @@ export class AppearanceStore {
   /** 页面底色（开启主题染色时混入 PAGE_TINT_RATIO 比例主题色，否则原色） */
   static pageBackground(isDark: boolean, themeKey: string): string {
     const base: string = isDark ? AppearanceStore.PAGE_DARK : AppearanceStore.PAGE_LIGHT;
+    // 「背景跟随主题色」关闭：页面底色保持中性，不再混入主题色
+    // （用户反馈：沉浸光感开启后绿底/红底不好看，需要可取消的取色）
+    if (AppStorage.get<boolean>(AppearanceStore.KEY_PAGE_BG_TINT) === false) {
+      return base;
+    }
     if (!AppearanceStore.pageTintAllowed(themeKey)) {
       return base;
     }
     return AppearanceStore.mix(base, Theme.colorOf(themeKey), AppearanceStore.PAGE_TINT_RATIO);
+  }
+
+  /** AppStorage 键：页面背景是否混入主题色（true=默认取色；false=中性底色） */
+  static readonly KEY_PAGE_BG_TINT: string = 'pageBgTint';
+
+  /** 切换「背景跟随主题色」（写 AppStorage + 持久化 + 重新广播派生底色） */
+  static setPageBgTint(on: boolean): void {
+    AppStorage.setOrCreate(AppearanceStore.KEY_PAGE_BG_TINT, on);
+    DataStore.savePageBgTint(on);
+    AppearanceStore.broadcastDerived();
+  }
+
+  /** 启动恢复「背景跟随主题色」（EntryAbility 调用；缺省 true = 默认取色） */
+  static loadPageBgTint(): void {
+    AppStorage.setOrCreate(AppearanceStore.KEY_PAGE_BG_TINT, DataStore.loadPageBgTint());
   }
 
   /** 卡片底色（开启卡片沾色时混入 CARD_TINT_RATIO 比例主题色，否则原色） */

@@ -182,6 +182,8 @@ export struct MaterialCard {
   @StorageProp('cardTintBg') tintBg: string = '';
   /** 当前主题色（流光/沾色取色用） */
   @StorageProp('themeColor') themeColor: string = 'green';
+  /** 深浅色订阅：玻璃卡降级底色（cardSurfaceColor）按深浅切换 */
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
 
   /**
    * 流光状态。`glowOn` 手指是否落在卡片上，`glowX/glowY` 光斑中心（相对卡片左上角，vp）。
@@ -478,15 +480,17 @@ export struct MaterialCard {
     if (this.tintBg.length > 0) {
       return this.tintBg;
     }
-    return this.cardBg;
+    // 玻璃卡降级（参考项目完整移植）：70% 透明玻璃底 + Thin 磨砂，
+    // 替代原先不透明的 bg_card 死板色块——光感开/关观感一致
+    return GlassMaterial.cardSurfaceColor(this.isDarkMode);
   }
 
-  /** 外壳磨砂：材质生效时关掉（避免与材质叠加发灰）；关闭光感时回落**微微磨砂**（参考项目行为） */
+  /** 外壳磨砂：材质生效时关掉（避免与材质叠加发灰）；关闭光感时回落 **Thin 磨砂**（参考项目行为，恒定） */
   private shellBlurStyle(): BlurStyle {
     if (this.materialEffective()) {
       return BlurStyle.NONE;
     }
-    return this.cardBlur !== BlurStyle.NONE ? this.cardBlur : BlurStyle.Thin;
+    return BlurStyle.Thin;
   }
 
   /** 外壳阴影：材质生效时让出（材质自带的投影由 cardMaterialShadow 控制） */
@@ -504,7 +508,7 @@ export struct MaterialCard {
     .borderRadius(this.cardRadius)
     .backgroundColor(this.shellBackground())
     .backgroundBlurStyle(this.shellBlurStyle())
-    .border({ width: this.materialEffective() ? 0 : this.cardBorderW, color: this.cardBorderC })
+    .border({ width: this.cardBorderW, color: this.cardBorderC })
     .shadow(this.shellShadow())
     // 刻意**不设 clip(true)**：溢出光晕要漏到卡片外面去，clip 会把它整圈切掉。
     // 需要裁切的每一层都自己带圆角（材质层、沾色层、跟手光斑），效果等价。

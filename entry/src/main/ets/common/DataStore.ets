@@ -192,6 +192,8 @@ export class DataStore {
   static readonly KEY_TEXT_STYLE: string = 'text_style_mode';
   /** 荧光底颜色（#rrggbb） */
   static readonly KEY_TEXT_GLOW: string = 'text_glow_color';
+  /** 页面背景是否混入主题色（背景跟随主题色开关） */
+  static readonly KEY_PAGE_BG_TINT: string = 'page_bg_tint';
 
   /** 保存灰字模式 */
   static saveGrayMode(mode: string): void {
@@ -228,6 +230,16 @@ export class DataStore {
   /** 读取荧光底颜色（默认 ''＝用内置荧光黄） */
   static loadTextGlowColor(): string {
     return DataStore.get(DataStore.KEY_TEXT_GLOW);
+  }
+
+  /** 保存「背景跟随主题色」开关 */
+  static savePageBgTint(on: boolean): void {
+    DataStore.put(DataStore.KEY_PAGE_BG_TINT, on ? '1' : '0');
+  }
+
+  /** 读取「背景跟随主题色」开关（缺省 true＝默认取色） */
+  static loadPageBgTint(): boolean {
+    return DataStore.get(DataStore.KEY_PAGE_BG_TINT) !== '0';
   }
 
   /** 读取自定义灰字颜色（未设置返回空串） */
