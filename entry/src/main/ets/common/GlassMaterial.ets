@@ -597,8 +597,12 @@ export class GlassMaterial {
   static readonly KEY_TEXT_STYLE: string = 'textStyleMode';
   /** AppStorage 键：自动灰字色（按壁纸对比度算出；''＝未算出，用各站点默认灰） */
   static readonly KEY_GRAY_AUTO: string = 'grayAutoColor';
-  /** 荧光底色：荧光笔黄、半透明（醒目又不遮挡壁纸纹理） */
-  private static readonly TEXT_GLOW_BG: string = 'rgba(255, 233, 92, 0.38)';
+  /** AppStorage 键：荧光底颜色（#rrggbb；默认荧光笔黄） */
+  static readonly KEY_TEXT_GLOW: string = 'textGlowColor';
+  /** 荧光底默认色：荧光笔黄 */
+  private static readonly TEXT_GLOW_DEFAULT: string = '#FFE95C';
+  /** 荧光底不透明度（淡一些，醒目又不遮挡壁纸纹理） */
+  private static readonly TEXT_GLOW_ALPHA: number = 0.38;
   /** 「自动」配色的防抖定时器句柄 */
   private static autoGrayTimer: number = -1;
 
@@ -633,12 +637,38 @@ export class GlassMaterial {
     return FontWeight.Normal;
   }
 
-  /** 荧光底：样式='glow' 时给灰字铺一层荧光高亮底，其余样式透明（不影响默认观感） */
-  static styleGlowBg(tick: number): ResourceColor {
-    if (tick < 0) {
-      return Color.Transparent;
+  /**
+   * 荧光底渐变色标（收尾淡出）：样式='glow' 时给灰字铺「前段实色 → 尾部 28% 渐隐」的
+   * 荧光高亮（像荧光笔涂到末尾自然收笔），其余样式全透明。配合 Text.linearGradient 使用。
+   */
+  static styleGlowColors(tick: number): Array<[ResourceColor, number]> {
+    if (tick < 0 || GlassMaterial.styleMode() !== 'glow') {
+      return [[Color.Transparent, 0], [Color.Transparent, 1]];
     }
-    return GlassMaterial.styleMode() === 'glow' ? GlassMaterial.TEXT_GLOW_BG : Color.Transparent;
+    const c: string = GlassMaterial.glowColor();
+    return [
+      [Theme.rgba(c, GlassMaterial.TEXT_GLOW_ALPHA), 0],
+      [Theme.rgba(c, GlassMaterial.TEXT_GLOW_ALPHA * 0.85), 0.72],
+      [Theme.rgba(c, 0), 1]
+    ];
+  }
+
+  /** 当前荧光底颜色（#rrggbb；未设置/非法时用默认荧光黄） */
+  static glowColor(): string {
+    const c: string = AppStorage.get<string>(GlassMaterial.KEY_TEXT_GLOW) ?? '';
+    return /^#[0-9a-fA-F]{6}$/.test(c) ? c : GlassMaterial.TEXT_GLOW_DEFAULT;
+  }
+
+  /** 切换荧光底颜色（写 AppStorage + 持久化 + 广播灰字刷新） */
+  static setTextGlowColor(color: string): void {
+    AppStorage.setOrCreate(GlassMaterial.KEY_TEXT_GLOW, color);
+    DataStore.saveTextGlowColor(color);
+    GlassMaterial.broadcastGray();
+  }
+
+  /** 启动恢复荧光底颜色（EntryAbility 调用） */
+  static loadTextGlowColor(): void {
+    AppStorage.setOrCreate(GlassMaterial.KEY_TEXT_GLOW, DataStore.loadTextGlowColor());
   }
 
   /** 已算出的自动灰字色（''＝未算出/无壁纸） */

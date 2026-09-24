@@ -85,6 +85,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('grayTextMode', DataStore.loadGrayMode());
     AppStorage.setOrCreate('grayTextColor', DataStore.loadGrayCustom());
     GlassMaterial.loadTextStyle();
+    GlassMaterial.loadTextGlowColor();
     GlassMaterial.loadGrayPageMap();
     GlassMaterial.broadcastGray();
     // 「自动」灰字色：按壁纸亮度计算对比度更高的颜色（1.5s 防抖，壁纸刚变化时先静止再切换）

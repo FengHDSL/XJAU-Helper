@@ -21,7 +21,7 @@ import { AppearanceStore } from '../common/AppearanceStore';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
 import { GlassMaterial } from '../common/GlassMaterial';
-import { isApi26OrAbove, materialAvailable, materialDiagnostics } from '../common/SystemMaterial';
+import { isApi26OrAbove, materialAvailable } from '../common/SystemMaterial';
 import { MaterialCardLayer } from './common/MaterialCarrier';
 import { MaterialCard } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
@@ -71,6 +71,8 @@ export struct WallpaperPage {
   @StorageProp('grayTick') grayTick: number = 0;
   /** 文字样式增强（''=默认 | italic 斜体 | bold 加粗 | thin 减细 | glow 荧光底） */
   @StorageProp('textStyleMode') textStyleMode: string = '';
+  /** 荧光底颜色（#rrggbb；''=内置荧光黄） */
+  @StorageProp('textGlowColor') textGlowColor: string = '';
   /** 自定义灰字色输入区展开（带动画）与草稿（点「应用」才生效） */
   @State grayCustomExpanded: boolean = false;
   @State grayCustomDraft: string = '';
@@ -457,7 +459,7 @@ export struct WallpaperPage {
       .height(32)
       Text(name)
         .fontSize(10)
-        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
         .margin({ top: 6 })
     }
     .onClick(() => {
@@ -483,7 +485,7 @@ export struct WallpaperPage {
         Blank()
         Text(`当前：${this.themeNameText()}`)
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
       }
       .width('100%')
       .margin({ bottom: 12 })
@@ -542,7 +544,7 @@ export struct WallpaperPage {
       Row() {
         Text('自定义副标题色')
           .fontSize(12)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
           .margin({ right: 10 })
         // 自定义副标题色输入框：材质承载层包 Stack（材质生效时输入框底色透明让材质透出）
         Stack({ alignContent: Alignment.TopStart }) {
@@ -605,7 +607,7 @@ export struct WallpaperPage {
       Row() {
         Text('自定义')
           .fontSize(13)
-          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
           .margin({ right: 10 })
         // 顶栏主题色自定义输入框：材质承载层包 Stack
         Stack({ alignContent: Alignment.TopStart }) {
@@ -694,7 +696,7 @@ export struct WallpaperPage {
 
         Text('将全站次要/辅助灰色文字统一替换为所选颜色（自动=跟随深浅色主题）')
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
           .width('100%')
           .margin({ top: 3 })
 
@@ -712,11 +714,11 @@ export struct WallpaperPage {
         Row() {
           Text('文字样式')
             .fontSize(12)
-            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
           Blank()
           Text('作用于全站次要/辅助文字')
             .fontSize(11)
-            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
         }
         .width('100%')
         .margin({ top: 14 })
@@ -731,9 +733,25 @@ export struct WallpaperPage {
         .width('100%')
         .margin({ top: 8 })
 
+        // 荧光底颜色（选「荧光底」样式时出现）：5 个预设色，实时生效并持久化
+        if (this.textStyleMode === 'glow') {
+          Row({ space: 6 }) {
+            this.glowColorChip('荧光黄', '#FFE95C')
+            this.glowColorChip('荧光绿', '#8CF2A5')
+            this.glowColorChip('荧光粉', '#FFA8C8')
+            this.glowColorChip('荧光蓝', '#9CC8FF')
+            this.glowColorChip('荧光紫', '#D3B5FF')
+          }
+          .width('100%')
+          .margin({ top: 8 })
+          .transition(TransitionEffect.OPACITY
+            .combine(TransitionEffect.translate({ y: 8 }))
+            .animation({ duration: 220, curve: Curve.Friction }))
+        }
+
         Text('「自动」灰字色按壁纸明暗计算对比度（切换壁纸后约 1.5 秒生效）；无壁纸时沿用默认灰。')
           .fontSize(11)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
           .width('100%')
           .margin({ top: 10 })
 
@@ -862,6 +880,27 @@ export struct WallpaperPage {
     }
   }
 
+  /** 荧光底颜色胶囊：左侧色点 + 名称，选中描边（点击即生效并持久化） */
+  @Builder
+  glowColorChip(label: string, hex: string) {
+    Row({ space: 5 }) {
+      Circle()
+        .width(12)
+        .height(12)
+        .fill(hex)
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.textGlowColor === hex ? Theme.colorOf(this.themeColor) : $r('app.color.text_primary'))
+    }
+    .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+    .backgroundColor(this.textGlowColor === hex ? Theme.rgba(Theme.colorOf(this.themeColor), 0.14) : $r('app.color.bg_chip'))
+    .borderRadius(12)
+    .border({ width: this.textGlowColor === hex ? 1.5 : 0, color: Theme.colorOf(this.themeColor) })
+    .onClick(() => {
+      GlassMaterial.setTextGlowColor(hex);
+    })
+  }
+
   /** 沉浸光感节：全局开关 + 真机诊断行（API≥26 才显示；开关写入后全站卡片/按钮跟随切换） */
   @Builder
   immersiveSection() {
@@ -884,7 +923,7 @@ export struct WallpaperPage {
                 .fontColor($r('app.color.text_primary'))
               Text('沉浸光感需鸿蒙7及以上版本，开启后提升美观度，搭配壁纸更佳！注：开启后会导致掉帧卡顿和发热，请谨慎选择开启。')
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
@@ -903,15 +942,6 @@ export struct WallpaperPage {
           .width('100%')
           .alignItems(VerticalAlign.Center)
 
-          if (this.immersiveEffect) {
-            Text(materialDiagnostics(this.pressGlow, Theme.colorOf(this.themeColor)))
-              .fontSize(10)
-              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
-              .width('100%')
-              .maxLines(2)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .margin({ top: 10 })
-          }
         }
         .width('100%')
       }
@@ -940,7 +970,7 @@ export struct WallpaperPage {
                 .fontColor($r('app.color.text_primary'))
               Text('开启后所有卡片底色混入 10% 主题色')
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
@@ -966,7 +996,7 @@ export struct WallpaperPage {
                 .fontColor($r('app.color.text_primary'))
               Text('按压卡片的流光与光晕改用主题色；关闭后为系统默认白光')
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
@@ -992,7 +1022,7 @@ export struct WallpaperPage {
                 .fontColor($r('app.color.text_primary'))
               Text('开启后按压卡片出现跟手流光；关闭只有卡间缝隙的环境光')
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
@@ -1018,7 +1048,7 @@ export struct WallpaperPage {
                 .fontColor($r('app.color.text_primary'))
               Text('默认只有内置主题色会染到页面背景；开启后自定义颜色也会')
                 .fontSize(11)
-                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
@@ -1107,7 +1137,7 @@ export struct WallpaperPage {
               .fontColor($r('app.color.text_primary'))
             Text('上传字体 / 选择中英文字体 / 删除已上传字体')
               .fontSize(11)
-              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
           }
           .alignItems(HorizontalAlign.Start)
           .layoutWeight(1)
@@ -1167,7 +1197,7 @@ export struct WallpaperPage {
           Row() {
             Text('字号')
               .fontSize(12)
-              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
               .margin({ right: 10 })
             Slider({
               value: this.fontSizeValue,
@@ -1222,7 +1252,7 @@ export struct WallpaperPage {
               .fontColor($r('app.color.text_primary'))
             Text('底部页签切换时页面平滑滑动过渡，关闭后立即切换')
               .fontSize(11)
-              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
           }
           .alignItems(HorizontalAlign.Start)
           .layoutWeight(1)
@@ -1576,7 +1606,7 @@ export struct WallpaperPage {
                   })
                 Text('删除')
                   .fontSize(12)
-                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
                   .padding({ left: 12, right: 12, top: 5, bottom: 5 })
                   .backgroundColor($r('app.color.bg_chip'))
                   .borderRadius(12)

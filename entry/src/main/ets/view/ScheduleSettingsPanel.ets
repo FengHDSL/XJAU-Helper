@@ -431,8 +431,8 @@ export struct ScheduleSettingsPanel {
               Text(`第 ${idx + 1} 节`)
                 .fontSize(14).fontColor($r('app.color.text_primary')).layoutWeight(1)
               Text((this.editTimes[idx] ?? '').replace('-', ' ~ '))
-                .fontSize(13).fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
-              Text('›').fontSize(18).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick)).margin({ left: 6 })
+                .fontSize(13).fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+              Text('›').fontSize(18).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) }).margin({ left: 6 })
             }
             .width('100%')
             .height(46)
@@ -518,7 +518,7 @@ export struct ScheduleSettingsPanel {
 
       Column() {
         Row() {
-          Text('上课时间').fontSize(13).fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick)).width(72)
+          Text('上课时间').fontSize(13).fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) }).width(72)
           // 时间输入框：TextInput 属表单控件、不能走 Toggle 承载层 → Stack 兄弟结构（承载层画沉浸光感，
           // 受全局开关控制；材质关闭回落原 comp_background_tertiary 实色底）。原 layoutWeight(1) 由外壳承担。
           Stack() {
@@ -545,7 +545,7 @@ export struct ScheduleSettingsPanel {
         .width('100%').margin({ top: 12 }).alignItems(VerticalAlign.Center)
 
         Row() {
-          Text('下课时间').fontSize(13).fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick)).width(72)
+          Text('下课时间').fontSize(13).fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) }).width(72)
           // 同「上课时间」输入框：Stack 兄弟结构承载沉浸光感
           Stack() {
             if (materialActive()) {
@@ -571,7 +571,7 @@ export struct ScheduleSettingsPanel {
         .width('100%').margin({ top: 14 }).alignItems(VerticalAlign.Center)
 
         Text('时间格式：HH:MM，例如 08:00 ~ 08:45')
-          .fontSize(11).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+          .fontSize(11).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
           .width('100%').margin({ top: 10 })
 
         // 「返回列表」主题色实底 + 白字 → MaterialButton，btnTint 叠回主题色（比例 0.85）
@@ -663,7 +663,7 @@ export struct ScheduleSettingsPanel {
         Row() {
           Text(this.currentTermStart.length > 0 ? this.currentTermStart : DateUtil.defaultTermStart(this.currentTermId))
             .fontSize(15).fontColor($r('app.color.text_primary')).layoutWeight(1)
-          Text('›').fontSize(20).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+          Text('›').fontSize(20).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
         }.width('100%')
         .onClick(() => { this.openTermStartPicker(); })
 
@@ -672,8 +672,8 @@ export struct ScheduleSettingsPanel {
         Row() {
           Text('课程节数').fontSize(14).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
-          Text(`${this.secCount} 节`).fontSize(13).fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
-          Text('›').fontSize(20).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick)).margin({ left: 6 })
+          Text(`${this.secCount} 节`).fontSize(13).fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+          Text('›').fontSize(20).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) }).margin({ left: 6 })
         }.width('100%')
         .onClick(() => { this.openSectionEditor(); })
 
@@ -683,8 +683,8 @@ export struct ScheduleSettingsPanel {
           Text('每节课时间').fontSize(14).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Text(this.secTimeText.length > 0 ? '已自定义' : '默认作息').fontSize(13)
-            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
-          Text('›').fontSize(20).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick)).margin({ left: 6 })
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+          Text('›').fontSize(20).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) }).margin({ left: 6 })
         }.width('100%')
         .onClick(() => { this.openSectionEditor(); })
 
@@ -821,7 +821,7 @@ export struct ScheduleSettingsPanel {
               .fontColor($r('app.color.text_primary'))
               .width('100%')
             Text('关闭后，若当周周六/周日确实有课仍会显示，避免漏课').fontSize(11)
-              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
               .width('100%')
               .margin({ top: 2 })
           }
@@ -858,7 +858,7 @@ export struct ScheduleSettingsPanel {
               .width('100%')
             Text('课程格子改用沉浸光感材质渲染（API 26+），课程底色以半透明叠层保留；受全局沉浸光感开关影响')
               .fontSize(11)
-              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
               .width('100%')
               .margin({ top: 2 })
           }

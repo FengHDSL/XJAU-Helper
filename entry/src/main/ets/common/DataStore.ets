@@ -190,6 +190,8 @@ export class DataStore {
   static readonly KEY_GRAY_CUSTOM: string = 'gray_text_custom';
   /** 文字样式增强（''=默认 | 'italic' 斜体 | 'bold' 加粗 | 'thin' 减细 | 'glow' 荧光底） */
   static readonly KEY_TEXT_STYLE: string = 'text_style_mode';
+  /** 荧光底颜色（#rrggbb） */
+  static readonly KEY_TEXT_GLOW: string = 'text_glow_color';
 
   /** 保存灰字模式 */
   static saveGrayMode(mode: string): void {
@@ -216,6 +218,16 @@ export class DataStore {
   static loadTextStyle(): string {
     const v: string = DataStore.get(DataStore.KEY_TEXT_STYLE);
     return (v === 'italic' || v === 'bold' || v === 'thin' || v === 'glow') ? v : '';
+  }
+
+  /** 保存荧光底颜色 */
+  static saveTextGlowColor(color: string): void {
+    DataStore.put(DataStore.KEY_TEXT_GLOW, color);
+  }
+
+  /** 读取荧光底颜色（默认 ''＝用内置荧光黄） */
+  static loadTextGlowColor(): string {
+    return DataStore.get(DataStore.KEY_TEXT_GLOW);
   }
 
   /** 读取自定义灰字颜色（未设置返回空串） */

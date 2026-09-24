@@ -168,7 +168,7 @@ export struct AboutPage {
 
       Text('开源等级: MIT License')
         .fontSize(12)
-        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
         .width('100%')
         .textAlign(TextAlign.Center)
         .margin({ top: 18 })
@@ -333,7 +333,7 @@ export struct AboutPage {
     Row() {
       Text(title)
         .fontSize(13)
-        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
         .layoutWeight(1)
       Text(url.replace('https://github.com/', ''))
         .fontSize(12)
@@ -445,7 +445,7 @@ export struct AboutPage {
               Text('新农助手（XJAU Helper）是一款专为新疆农业大学学生打造的校园工具，原生鸿蒙开发，完全开源，完全免费，轻量小巧，集成个人课表、成绩查询、考试安排、学业情况、教室查询等功能于一体！数据来源于学校网页，数据不经过也不保存于非学校官方服务器。新农助手，让你的校园生活更便利！')
                 .fontSize(12)
                 .lineHeight(20)
-                .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+                .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
                 .textAlign(TextAlign.Center)
                 .width('100%')
             }
@@ -589,7 +589,7 @@ export struct AboutPage {
 
       Text(JwApi.USE_MOCK ? '输入密码以开启功能浏览模式的联网能力' : '输入密码以开启日志调试（收集使用日志）')
         .fontSize(12)
-        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).backgroundColor(GlassMaterial.styleGlowBg(this.grayTick))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
         .width('100%')
         .margin({ bottom: 12 })
 
