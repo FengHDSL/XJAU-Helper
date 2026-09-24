@@ -184,6 +184,8 @@ export struct MaterialCard {
   @StorageProp('themeColor') themeColor: string = 'green';
   /** 深浅色订阅：玻璃卡降级底色（cardSurfaceColor）按深浅切换 */
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 降级样式切换广播：cardFallbackMica(tick) 静态读值靠 tick 登记依赖，切换后外壳才重渲染 */
+  @StorageProp('cardFallbackTick') fallbackTick: number = 0;
 
   /**
    * 流光状态。`glowOn` 手指是否落在卡片上，`glowX/glowY` 光斑中心（相对卡片左上角，vp）。
