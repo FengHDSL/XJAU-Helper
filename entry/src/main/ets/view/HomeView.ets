@@ -10,8 +10,9 @@
  *    区块与区块之间的间距仍由外层 Column 的 margin 承载（原样保留）；
  *  - 卡片沾色：材质生效时由 `MaterialCard` 内部在材质**之上**铺一层沾色（材质不采样同 Stack 兄弟节点，
  *    所以沾色必须独立成层），非材质场景由 `cardSurface()` 直接返回沾色底；
- *  - 主题色流光 / 卡片流光触感：仍由**页面级**跟手流光层（`pressGlowLayer()`）+ `onPageTouch` 触摸跟踪实现，
- *    故卡片统一传 `cardGlow: false`，避免卡片自带流光与页面级流光重复；
+ *  - 主题色流光 / 卡片流光触感：由 MaterialCard **内置流光**承担（跟手光斑 + 溢出光晕，
+ *    与参考项目 miha_hm 完全同源）；首页曾用页面级流光层（128vp 光斑画在页面根 Stack，
+ *    不受卡片圆角裁切导致「范围错误」），已删除统一走卡内流光；
  *  - 卡片内的小卡片 / 小胶囊按钮同样接入材质（对应参考 README「按钮的沉浸光感」）：
  *    成排的快捷入口小卡用 `MaterialCard` + `cardMaterialShadow: false`（挨得近，投影会在卡间叠成暗带）；
  *    胶囊小按钮用公共组件 `MaterialButton`（Toggle 承载层 + 内容，普通 Button 直接挂材质真机不渲染）；
@@ -31,8 +32,8 @@ import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 // 玻璃质感（GlassMaterial）：按钮=玻璃胶囊 GlassCapsule / 卡片=玻璃卡片 GlassCard
 // 卡片容器统一走 MaterialCard（材质承载层在卡片内容之下，见 view/common/MaterialCard.ets）
-import { GLOW_RADIUS, MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
-import { materialActive, pressLightColor, sheetBlurStyle } from '../common/SystemMaterial';
+import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
+import { materialActive, sheetBlurStyle } from '../common/SystemMaterial';
 import { MaterialButton } from './common/MaterialButton';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
@@ -74,14 +75,7 @@ export struct HomeView {
   // ── 移植自参考项目的卡片外观开关（@StorageProp：开关变化即时触发本页重渲染）──
   /** 卡片沾色：卡片底色混入 10% 主题色 */
   @StorageProp('cardTint') cardTint: boolean = false;
-  /** 主题色流光：流光颜色改用主题色 */
-  @StorageProp('immersivePressGlow') pressGlow: boolean = true;
-  /** 卡片流光触感：关闭后按压无流光 */
-  @StorageProp('cardGlowTouch') glowTouch: boolean = true;
-  /** 按压流光状态与坐标（相对页面根容器，vp） */
-  @State glowOn: boolean = false;
-  @State glowX: number = 0;
-  @State glowY: number = 0;
+  /** 主题色流光 / 卡片流光触感：由 MaterialCard 内部订阅（cardGlowTouch / immersivePressGlow），本页不再跟踪 */
   @State todayCourses: TodayCourse[] = [];
   @State nextClass: TodayCourse | null = null;
   @State exams: ExamItem[] = [];
@@ -146,53 +140,7 @@ export struct HomeView {
     return GlassMaterial.cardSurface(this.isDarkMode);
   }
 
-  /** 流光颜色（主题色流光开启 → 主题色；否则默认白），纯函数取值见 SystemMaterial.pressLightColor */
-  private glowHex(): string {
-    const c: string = pressLightColor(this.pressGlow, Theme.colorOf(this.themeColor));
-    return c.length > 0 ? c : '#FFFFFF';
-  }
-
-  /** 流光径向渐变颜色段（中心 alpha → 边缘全透明） */
-  private glowColors(alpha: number): [ResourceColor, number][] {
-    const c: ResourceColor = Theme.rgba(this.glowHex(), alpha);
-    const t: ResourceColor = Theme.rgba(this.glowHex(), 0);
-    return [[c, 0], [t, 1]];
-  }
-
-  /** 页面级触摸跟踪：按压期间显示跟手光斑（卡片流光触感关闭或无流光时熄灭） */
-  private onPageTouch(event: TouchEvent): void {
-    if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-      this.glowOn = false;
-      return;
-    }
-    if (!this.glowTouch) {
-      this.glowOn = false;
-      return;
-    }
-    if (event.touches.length === 0) {
-      return;
-    }
-    const t: TouchObject = event.touches[0];
-    this.glowX = t.x;
-    this.glowY = t.y;
-    this.glowOn = true;
-  }
-
-  /** 跟手流光层（压在内容之上，跟随按压位置；半径与参考项目一致 GLOW_RADIUS=64） */
-  @Builder
-  pressGlowLayer() {
-    Column()
-      .width(GLOW_RADIUS * 2)
-      .height(GLOW_RADIUS * 2)
-      .borderRadius(GLOW_RADIUS)
-      .radialGradient({
-        center: ['50%', '50%'],
-        radius: `${GLOW_RADIUS}vp`,
-        colors: this.glowColors(0.22)
-      })
-      .position({ x: this.glowX - GLOW_RADIUS, y: this.glowY - GLOW_RADIUS })
-      .hitTestBehavior(HitTestMode.None)
-  }
+  /** 页面级触摸跟踪已删除：流光统一由 MaterialCard 内置实现（对齐参考项目） */
 
   /**
    * 卡片底色（作为 MaterialCard 的 cardBg 传入）。
@@ -688,9 +636,7 @@ export struct HomeView {
       cardBg: this.cardBgColor(),
       cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
       cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-      cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
-      // 流光由页面级 pressGlowLayer 统一绘制，卡片自带流光关闭以免重复
-      cardGlow: false
+      cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
     }) {
       Row() {
         if (this.showAvatar) {
@@ -798,8 +744,7 @@ export struct HomeView {
         cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
         cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
         // 标题行与卡片之间原有 12vp（迁移前挂在标题行上的 margin）→ 改由卡片的外边距承载
-        cardMargin: { top: 12 },
-        cardGlow: false
+        cardMargin: { top: 12 }
       }) {
       Column() {
       if (this.todayCourses.length === 0) {
@@ -823,8 +768,7 @@ export struct HomeView {
               cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
               cardShadow: GlassMaterial.capsuleShadow(),
               // 标题内容与子卡之间原有 12vp 上边距 → 改由卡片外边距承载
-              cardMargin: { top: 12 },
-              cardGlow: false
+              cardMargin: { top: 12 }
             }) {
             Row() {
               // 左侧竖条：下次课 三个字竖排
@@ -914,8 +858,7 @@ export struct HomeView {
               cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
               cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
               cardShadow: GlassMaterial.capsuleShadow(),
-              cardMargin: { top: 12 },
-              cardGlow: false
+              cardMargin: { top: 12 }
             }) {
             Row() {
               Column() {
@@ -1067,8 +1010,7 @@ export struct HomeView {
         cardBg: this.cardBgColor(),
         cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
         cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-        cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
-        cardGlow: false
+        cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
       }) {
       Column() {
         Grid() {
@@ -1087,8 +1029,6 @@ export struct HomeView {
                 cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
                 cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
                 cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
-                // 流光由页面级 pressGlowLayer 统一绘制，卡片自带流光关闭以免重复
-                cardGlow: false,
                 cardOnClick: () => {
                   this.onEntryTap(item.key);
                 }
@@ -1142,8 +1082,7 @@ export struct HomeView {
           cardBg: this.cardBgColor(),
           cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
           cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
-          cardGlow: false
+          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
         }) {
           EmptyTip({ text: '近期没有考试安排' })
         }
@@ -1158,7 +1097,6 @@ export struct HomeView {
             cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
             cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
             cardMargin: { bottom: 10 },
-            cardGlow: false,
             cardOnClick: () => {
               AppState.stack.pushPath({ name: Const.ROUTE_EXAM });
             }
@@ -1227,8 +1165,7 @@ export struct HomeView {
           cardBg: this.cardBgColor(),
           cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
           cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
-          cardGlow: false
+          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
         }) {
           EmptyTip({ text: '暂无消息' })
         }
@@ -1238,8 +1175,7 @@ export struct HomeView {
           cardBg: this.cardBgColor(),
           cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
           cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
-          cardGlow: false
+          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
         }) {
         Column() {
           ForEach(this.notices.slice(0, 3), (item: NoticeItem, index: number) => {
@@ -1318,8 +1254,7 @@ export struct HomeView {
           cardBg: this.cardBgColor(),
           cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
           cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
-          cardGlow: false
+          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
         }) {
           EmptyTip({ text: '暂无通知' })
         }
@@ -1329,8 +1264,7 @@ export struct HomeView {
           cardBg: this.cardBgColor(),
           cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
           cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
-          cardGlow: false
+          cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
         }) {
         Column() {
           ForEach(this.jwcNotices, (item: NoticeItem, index: number) => {
@@ -1884,8 +1818,7 @@ export struct HomeView {
         cardBg: this.cardBgColor(),
         cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
         cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
-        cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent,
-        cardGlow: false
+        cardBorderC: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent
       }) {
       if (this.teachingCal === null) {
         // "加载日历"占位卡：固定高度（不再套 padding，避免卡片被撑高）
@@ -2185,10 +2118,6 @@ export struct HomeView {
     .height('100%')
     // 壁纸功能：页面根背景透明，让主框架底层的全局壁纸透出（无壁纸时由 MainView 底层 bg_page 兜底）
     .backgroundColor(Color.Transparent)
-    // 按压流光：页面级触摸跟踪（坐标相对本容器，与流光层同一坐标系）
-    .onTouch((event: TouchEvent) => {
-      this.onPageTouch(event);
-    })
     .bindSheet($$this.showNoticeSheet, this.noticeSheet(), {
       width: SheetUtil.sheetWidth(),
       preferType: SheetType.BOTTOM,
@@ -2199,11 +2128,6 @@ export struct HomeView {
       backgroundColor: Color.Transparent,
       blurStyle: sheetBlurStyle()
     })
-
-    // 跟手流光层（压在内容之上；「卡片流光触感」关闭或未按压时不渲染）
-    if (this.glowOn && this.glowTouch) {
-      this.pressGlowLayer()
-    }
     }
     .width('100%')
     .height('100%')
