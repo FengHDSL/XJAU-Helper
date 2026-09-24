@@ -20,6 +20,7 @@ import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
+import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
@@ -52,6 +53,9 @@ export struct ScoreView {
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（顶栏文字/图标自适应用） */
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅（custom 调值触发重渲染） */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   @State terms: TermInfo[] = [];
   @State selectedTermIndex: number = 0;
   @State termScores: TermScore[] = [];
@@ -160,7 +164,7 @@ export struct ScoreView {
       Column() {
         Text(this.calcAvgScore(this.sortedItems()).toFixed(2))
           .fontSize(28)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.brand'))
         Text('平均分')
           .fontSize(11)
@@ -178,7 +182,7 @@ export struct ScoreView {
       Column() {
         Text(this.calcGpa(this.sortedItems()).toFixed(2))
           .fontSize(28)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.brand'))
         Text('平均学分绩点 GPA')
           .fontSize(11)
@@ -196,7 +200,7 @@ export struct ScoreView {
       Column() {
         Text(`${this.currentTermScore()?.items.length ?? 0}`)
           .fontSize(28)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.accent_orange'))
         Text('已修课程')
           .fontSize(11)
@@ -477,7 +481,7 @@ export struct ScoreView {
       Column() {
         Text(item.courseName)
           .fontSize(15)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor($r('app.color.text_primary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -510,7 +514,7 @@ export struct ScoreView {
       Column() {
         Text(item.scoreText)
           .fontSize(20)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor(this.scoreColor(item))
         Text(`绩点 ${item.gradePoint.toFixed(1)}`)
           .fontSize(10)
@@ -543,12 +547,12 @@ export struct ScoreView {
         Row() {
           Text(this.selectedItem.courseName)
             .fontSize(19)
-            .fontWeight(FontWeight.Bold)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor($r('app.color.text_primary'))
             .layoutWeight(1)
           Text(this.selectedItem.scoreText)
             .fontSize(28)
-            .fontWeight(FontWeight.Bold)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor(this.scoreColor(this.selectedItem))
         }
         .width('100%')
@@ -778,7 +782,7 @@ export struct ScoreView {
                 Row() {
                   Text(`共 ${this.currentTermScore()!.items.length} 门`)
                     .fontSize(16)
-                    .fontWeight(FontWeight.Bold)
+                    .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                     .fontColor($r('app.color.text_primary'))
                   Blank()
                   Text(this.sortByScore ? '按绩点排序 ⇅' : '默认排序 ⇅')
