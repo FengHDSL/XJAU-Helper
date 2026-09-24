@@ -43,8 +43,13 @@
  * （`MaterialButton({...}) { ... }.margin(...)` 会报 “Cannot find name 'margin'”），
  * 所以外边距 / 圆角 / 点击等一律走下面的 `btn*` 参数（与 `MaterialCard` 的 `card*` 约定一致）。
  */
-import { isApi26OrAbove, materialActive, materialAvailable } from '../../common/SystemMaterial';
+import { isApi26OrAbove, materialActive, materialAvailable, pressLightColor } from '../../common/SystemMaterial';
+import { Theme } from '../../common/ThemeUtil';
 import { MaterialCardLayer } from './MaterialCarrier';
+
+/** 按钮跟手光斑：半径（vp）与中心不透明度 —— 比卡片小，只覆盖手指周围一小片，避免变成整块高亮 */
+const BTN_GLOW_RADIUS: number = 56;
+const BTN_GLOW_ALPHA: number = 0.30;
 
 @Component
 export struct MaterialButton {
@@ -84,6 +89,17 @@ export struct MaterialButton {
   @Prop btnPersistent: boolean = false;
   /** 全局沉浸光感开关（登记依赖：拨动开关后已画出的按钮立即重渲染） */
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
+  /** 主题色（跟手光斑取色用；订阅以便切主题色后光斑即时换色） */
+  @StorageProp('themeColor') themeColor: string = 'green';
+  /** 「主题色流光」开关（与卡片同一开关，默认开）：开＝光斑用主题色，关＝不画自绘光斑（材质自带白光） */
+  @StorageProp('immersivePressGlow') pressGlowSwitch: boolean = true;
+  /**
+   * 跟手光斑状态：`glowOn` 手指是否落在按钮上，`glowX/glowY` 光斑中心（按钮局部坐标，vp）。
+   * 按钮内没有输入控件，用 @State 是安全的（卡片当初移除 onTouch 是因为内含 TextInput 会丢焦点）。
+   */
+  @State glowOn: boolean = false;
+  @State glowX: number = 0;
+  @State glowY: number = 0;
 
   /** 对应原有按钮上的 `.onClick()`；空实现即纯展示胶囊 */
   btnOnClick: () => void = (): void => {
@@ -128,6 +144,70 @@ export struct MaterialButton {
     return this.materialEffective() && this.autoTint().length > 0;
   }
 
+  // ── 跟手流光（与 MaterialCard 同源；标题栏按钮 / 半模态面板标题栏按钮靠它获得滑动光感）──
+
+  /** 光斑取色：开关开→主题色；关→空串（不画自绘光斑，交由材质自带白光） */
+  private glowAccent(): string {
+    return pressLightColor(this.pressGlowSwitch, Theme.colorOf(this.themeColor));
+  }
+
+  private glowVisible(): boolean {
+    return this.glowOn && this.btnEnabled && this.glowAccent().length > 0;
+  }
+
+  /** 光斑径向渐变：内亮外透三档淡出（只用一档实色会得到硬边圆盘） */
+  private glowGradientColors(): Array<[ResourceColor, number]> {
+    const accent: string = this.glowAccent();
+    return [
+      [Theme.rgba(accent, BTN_GLOW_ALPHA), 0],
+      [Theme.rgba(accent, BTN_GLOW_ALPHA * 0.55), 0.42],
+      [Theme.rgba(accent, BTN_GLOW_ALPHA * 0.18), 0.72],
+      [Color.Transparent, 1]
+    ];
+  }
+
+  /**
+   * 跟手流光：Down / Move 都更新位置（手指在按钮上滑动时光斑跟着走，即"拖拽"感），
+   * Up / Cancel 必须熄灭（否则按钮上留一块不消失的光斑）。
+   * 按钮尺寸小、不随页面滚动位移，直接用组件局部坐标 `touches[0].x/y` 即可，无需窗口坐标换算。
+   */
+  private updatePressGlow(event: TouchEvent): void {
+    if (this.glowAccent().length === 0) {
+      return;
+    }
+    if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+      this.glowOn = false;
+      return;
+    }
+    if (event.type !== TouchType.Down && event.type !== TouchType.Move) {
+      return;
+    }
+    if (event.touches.length === 0) {
+      return;
+    }
+    this.glowX = event.touches[0].x;
+    this.glowY = event.touches[0].y;
+    this.glowOn = true;
+  }
+
+  /** 光斑层：材质与沾色之上、内容之下；被按钮圆角收住 */
+  @Builder
+  pressGlowLayer() {
+    if (this.glowVisible()) {
+      Column()
+        .width(LayoutPolicy.matchParent)
+        .height(LayoutPolicy.matchParent)
+        .borderRadius(this.btnRadius)
+        .radialGradient({
+          center: [this.glowX, this.glowY],
+          radius: BTN_GLOW_RADIUS,
+          colors: this.glowGradientColors()
+        })
+        .hitTestBehavior(HitTestMode.None)
+        .accessibilityLevel('no')
+    }
+  }
+
   build() {
     Stack() {
       if (this.materialEffective()) {
@@ -148,6 +228,7 @@ export struct MaterialButton {
           .hitTestBehavior(HitTestMode.None)
           .accessibilityLevel('no')
       }
+      this.pressGlowLayer()
       this.btnContent()
     }
     .margin(this.btnMargin)
@@ -158,6 +239,10 @@ export struct MaterialButton {
     .border({ width: this.materialEffective() ? 0 : this.btnBorderW, color: this.btnBorderC })
     .clip(true)
     .enabled(this.btnEnabled)
+    // 跟手流光：按下与滑动都更新光斑位置（Up/Cancel 熄灭）
+    .onTouch((event: TouchEvent): void => {
+      this.updatePressGlow(event);
+    })
     .onClick(() => {
       this.btnOnClick();
     })
