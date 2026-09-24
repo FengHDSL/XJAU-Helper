@@ -117,8 +117,8 @@ export struct MainView {
 
   /** 页面出现：处理桌面卡片点击跳转（AppState.openPageRequest） */
   aboutToAppear(): void {
-    // 灰字高级调整：初始活动页 = 当前 Tab（默认首页）
-    GlassMaterial.setPageActive(MainView.tabPageKey(this.currentIndex));
+    // 灰字高级调整：初始活动页 = 当前 Tab（默认首页）；同时记录 Tab key 供路由页退出后恢复
+    GlassMaterial.setTabPage(MainView.tabPageKey(this.currentIndex));
     const req: string = AppState.openPageRequest;
     if (req.length === 0) {
       return;
@@ -338,7 +338,7 @@ export struct MainView {
           this.currentIndex = index;
           this.activeIndex = index;
           // 灰字高级调整：同步活动页面 key（常驻 Tab 页的每页单独灰字色随切换生效）
-          GlassMaterial.setPageActive(MainView.tabPageKey(index));
+          GlassMaterial.setTabPage(MainView.tabPageKey(index));
         })
       }
       .hideTitleBar(true)

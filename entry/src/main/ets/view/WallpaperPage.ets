@@ -459,7 +459,7 @@ export struct WallpaperPage {
       .height(32)
       Text(name)
         .fontSize(10)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
         .margin({ top: 6 })
     }
     .onClick(() => {
@@ -485,7 +485,7 @@ export struct WallpaperPage {
         Blank()
         Text(`当前：${this.themeNameText()}`)
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
       }
       .width('100%')
       .margin({ bottom: 12 })
@@ -544,7 +544,7 @@ export struct WallpaperPage {
       Row() {
         Text('自定义副标题色')
           .fontSize(12)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .margin({ right: 10 })
         // 自定义副标题色输入框：材质承载层包 Stack（材质生效时输入框底色透明让材质透出）
         Stack({ alignContent: Alignment.TopStart }) {
@@ -607,7 +607,7 @@ export struct WallpaperPage {
       Row() {
         Text('自定义')
           .fontSize(13)
-          .fontColor($r('app.color.text_secondary'))
+          .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
           .margin({ right: 10 })
         // 顶栏主题色自定义输入框：材质承载层包 Stack
         Stack({ alignContent: Alignment.TopStart }) {
@@ -694,7 +694,7 @@ export struct WallpaperPage {
 
         Text('将全站次要/辅助灰色文字统一替换为所选颜色（自动=跟随深浅色主题）')
           .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           .width('100%')
           .margin({ top: 3 })
 
@@ -856,7 +856,7 @@ export struct WallpaperPage {
                 .fontColor($r('app.color.text_primary'))
               Text('开启后卡片与按钮使用沉浸光感材质，关闭后回退为毛玻璃效果')
                 .fontSize(11)
-                .fontColor($r('app.color.text_tertiary'))
+                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
@@ -878,7 +878,7 @@ export struct WallpaperPage {
           if (this.immersiveEffect) {
             Text(materialDiagnostics(this.pressGlow, Theme.colorOf(this.themeColor)))
               .fontSize(10)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
               .width('100%')
               .maxLines(2)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -912,7 +912,7 @@ export struct WallpaperPage {
                 .fontColor($r('app.color.text_primary'))
               Text('开启后所有卡片底色混入 10% 主题色')
                 .fontSize(11)
-                .fontColor($r('app.color.text_tertiary'))
+                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
@@ -938,7 +938,7 @@ export struct WallpaperPage {
                 .fontColor($r('app.color.text_primary'))
               Text('按压卡片的流光与光晕改用主题色；关闭后为系统默认白光')
                 .fontSize(11)
-                .fontColor($r('app.color.text_tertiary'))
+                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
@@ -964,7 +964,7 @@ export struct WallpaperPage {
                 .fontColor($r('app.color.text_primary'))
               Text('开启后按压卡片出现跟手流光；关闭只有卡间缝隙的环境光')
                 .fontSize(11)
-                .fontColor($r('app.color.text_tertiary'))
+                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
@@ -990,7 +990,7 @@ export struct WallpaperPage {
                 .fontColor($r('app.color.text_primary'))
               Text('默认只有内置主题色会染到页面背景；开启后自定义颜色也会')
                 .fontSize(11)
-                .fontColor($r('app.color.text_tertiary'))
+                .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
@@ -1076,7 +1076,7 @@ export struct WallpaperPage {
               .fontColor($r('app.color.text_primary'))
             Text('上传字体 / 选择中英文字体 / 删除已上传字体')
               .fontSize(11)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           }
           .alignItems(HorizontalAlign.Start)
           .layoutWeight(1)
@@ -1136,7 +1136,7 @@ export struct WallpaperPage {
           Row() {
             Text('字号')
               .fontSize(12)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
               .margin({ right: 10 })
             Slider({
               value: this.fontSizeValue,
@@ -1187,7 +1187,7 @@ export struct WallpaperPage {
               .fontColor($r('app.color.text_primary'))
             Text('底部页签切换时页面平滑滑动过渡，关闭后立即切换')
               .fontSize(11)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
           }
           .alignItems(HorizontalAlign.Start)
           .layoutWeight(1)
@@ -1541,7 +1541,7 @@ export struct WallpaperPage {
                   })
                 Text('删除')
                   .fontSize(12)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
                   .padding({ left: 12, right: 12, top: 5, bottom: 5 })
                   .backgroundColor($r('app.color.bg_chip'))
                   .borderRadius(12)

@@ -45,6 +45,8 @@ export struct ScheduleView {
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
+  /** 灰字广播依赖登记：grayTick 变化触发整页重算（本页为常驻 Tab 页，缺此订阅灰字色不实时刷新） */
+  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
@@ -1166,7 +1168,7 @@ export struct ScheduleView {
         if (this.terms.length === 0) {
           Text('暂无可查询的学期')
             .fontSize(13)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor(GlassMaterial.grayTertiary($r('app.color.text_tertiary')))
             .width('100%')
             .textAlign(TextAlign.Center)
             .margin({ top: 12 })
@@ -1565,6 +1567,8 @@ export struct ScheduleView {
     .width('100%')
     .layoutWeight(1)
     .align(Alignment.Top)
+    // 灰字广播依赖登记：grayTick 变化触发整页重算 graySecondary/grayTertiary 文本色（恒真不改变视觉）
+    .opacity(this.grayTick >= 0 ? 1 : 1)
   }
 }
 }

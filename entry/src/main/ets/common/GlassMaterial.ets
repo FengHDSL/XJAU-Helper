@@ -410,6 +410,9 @@ export class GlassMaterial {
   static readonly KEY_GRAY_EFFECTIVE: string = 'grayEffectiveColor';
   /** AppStorage 键：当前活动页面 key（每页单独灰字色的生效上下文；''＝无页面上下文） */
   static readonly KEY_GRAY_PAGE_ACTIVE: string = 'grayActivePage';
+  /** AppStorage 键：当前 Tabs 页 key（MainView 切换 Tab 时写入；路由页退出时据此恢复活动页上下文，
+   *  否则路由页把上下文清空后，回到 Tab 页会回落全局灰字色、该 Tab 的单独色"像没生效"） */
+  static readonly KEY_GRAY_TAB_PAGE: string = 'grayTabPageKey';
   /** 每页单独灰字色（pageKey -> rrggbb），启动时从 DataStore 恢复 */
   private static grayPageMap: Map<string, string> = new Map();
 
@@ -464,6 +467,19 @@ export class GlassMaterial {
   static setPageActive(pageKey: string): void {
     AppStorage.setOrCreate(GlassMaterial.KEY_GRAY_PAGE_ACTIVE, pageKey);
     GlassMaterial.broadcastGray();
+  }
+
+  /** Tabs 页激活（MainView 调用）：记录当前 Tab key 并设为活动页上下文 */
+  static setTabPage(pageKey: string): void {
+    AppStorage.setOrCreate(GlassMaterial.KEY_GRAY_TAB_PAGE, pageKey);
+    GlassMaterial.setPageActive(pageKey);
+  }
+
+  /** 路由页（二级页）退出时调用：把活动页上下文恢复为「当前 Tab 页」。
+   *  此前直接 setPageActive('') 会把上下文清空 → 回到 Tab 页后该页的单独灰字色不生效（回落全局）。 */
+  static restoreTabPage(): void {
+    const k: string = AppStorage.get<string>(GlassMaterial.KEY_GRAY_TAB_PAGE) ?? '';
+    GlassMaterial.setPageActive(k);
   }
 
   /** 启动恢复：从 DataStore 读每页单独灰字色 map（EntryAbility 调用一次） */

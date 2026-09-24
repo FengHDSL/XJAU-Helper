@@ -52,9 +52,9 @@ export struct NoticePage {
     this.load();
   }
 
-  /** 页面消失：退出活动页上下文（回落全局灰字色） */
+  /** 页面消失：恢复活动页上下文为当前 Tab 页（避免回落后 Tab 的单独灰字色失效） */
   aboutToDisappear(): void {
-    GlassMaterial.setPageActive('');
+    GlassMaterial.restoreTabPage();
   }
 
   private async load(): Promise<void> {
