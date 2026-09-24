@@ -65,7 +65,7 @@ export struct HomeView {
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
   /** 灰字广播依赖登记：声明不进表达式=假订阅（实证），根容器 opacity 恒真表达式才真正登记 */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 玻璃档位（weak/mid/strong）：仅用于档位切换时触发本页重渲染（取值经 GlassMaterial 静态方法） */
   @StorageProp('glassLevel') glassLevel: string = 'strong';
   /** 通透程度（0~100 滑条）：材质风格/磨砂与底色透明度联动（实时切换） */

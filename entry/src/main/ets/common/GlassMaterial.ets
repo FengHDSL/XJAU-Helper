@@ -404,6 +404,10 @@ export class GlassMaterial {
    * 广播键：灰字刷新计数器。含灰字调用的页面必须 @StorageProp 订阅此键并在根容器
    * 属性表达式里引用（登记依赖）——静态函数 graySecondary/grayTertiary 内部读
    * AppStorage 不登记依赖（实证），不订阅则拨开关后已画出的文本不会重算。
+   *
+   * ⚠️ **订阅侧必须写字面量 `@StorageProp('grayTick')`，不能写 `@StorageProp(GlassMaterial.KEY_GRAY_TICK)`**：
+   * ArkUI 状态管理在编译期解析装饰器参数，传类静态字段无法登记订阅（2026-09-24 实测：
+   * 13 处如此写 → 灰字颜色不实时刷新，而用字面量键的主题色/副标题一直正常）。本常量仅供运行期读写使用。
    */
   static readonly KEY_GRAY_TICK: string = 'grayTick';
   /** 广播键：当前生效的全局覆盖色（''＝不覆盖；grayOverride 缓存读取，由 broadcastGray 维护） */

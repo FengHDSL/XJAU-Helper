@@ -49,7 +49,7 @@ export struct ScoreView {
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
   /** 灰字广播依赖登记：根容器 opacity 恒真表达式登记依赖，广播时本页重算灰字色 */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;

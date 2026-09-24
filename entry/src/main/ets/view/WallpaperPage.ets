@@ -69,7 +69,7 @@ export struct WallpaperPage {
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
   /** 灰字广播计数器：本页根容器表达式引用以登记依赖（拨开关后本页文本即时重算） */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 自定义灰字色输入区展开（带动画）与草稿（点「应用」才生效） */
   @State grayCustomExpanded: boolean = false;
   @State grayCustomDraft: string = '';

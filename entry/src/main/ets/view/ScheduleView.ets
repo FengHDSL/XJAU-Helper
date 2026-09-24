@@ -46,7 +46,7 @@ export struct ScheduleView {
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
   /** 灰字广播依赖登记：grayTick 变化触发整页重算（本页为常驻 Tab 页，缺此订阅灰字色不实时刷新） */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;

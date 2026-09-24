@@ -31,7 +31,7 @@ export struct GrayAdvancedPage {
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 灰字广播依赖登记：广播时本页整体重算（列表色样 / 预览色跟随刷新） */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
 
   /** 半模态面板开关 */
   @State sheetOpen: boolean = false;

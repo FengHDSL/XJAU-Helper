@@ -91,7 +91,7 @@ export struct NewsPage {
   @StorageProp('grayTextMode') grayTextMode: string = 'default';
   @StorageProp('grayTextColor') grayTextColor: string = '';
   /** 灰字广播依赖登记：根容器 opacity 恒真表达式登记依赖，广播时本页重算灰字色 */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 卡片材质响应（开关变化时触发本页重渲染） */
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */

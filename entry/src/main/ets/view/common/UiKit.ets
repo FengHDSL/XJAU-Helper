@@ -33,7 +33,7 @@ export struct SectionHeader {
   onAction: () => void = () => {
   };
   /** 灰字广播依赖登记：广播时本组件重算 grayTertiary 文本色 */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
 
   /** 标题字体族：读 this.ffZh/this.ffEn 登记依赖（字体族切换即时刷新）；空串=跟随系统 */
   private titleFontFamily(): string {
@@ -104,7 +104,7 @@ export struct EmptyTip {
   @Prop icon: string = '';
   @Prop text: string = '暂无数据';
   /** 灰字广播依赖登记：广播时本组件重算 grayTertiary 文本色 */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
 
   build() {
     Column() {
@@ -135,7 +135,7 @@ export struct LoadingTip {
   @Prop icon: string = '';
   @Prop text: string = '正在同步教务数据…';
   /** 灰字广播依赖登记：广播时本组件重算 grayTertiary 文本色 */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
 
   build() {
     Column() {
@@ -167,7 +167,7 @@ export struct StatCell {
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 灰字广播依赖登记：广播时本组件重算 grayTertiary 文本色 */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
 
   build() {
     Column() {
@@ -203,7 +203,7 @@ export struct SettingRow {
   @StorageProp('fontFamilyZh') ffZh: string = '';
   @StorageProp('fontFamilyEn') ffEn: string = '';
   /** 灰字广播依赖登记：广播时本组件重算 grayTertiary 文本色 */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
   onTap: () => void = () => {
   };
 
@@ -260,7 +260,7 @@ export struct PickRow {
   /** 全局沉浸光感开关：开 + 材质可用时用 Toggle 承载层画材质，否则回落原玻璃底 */
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 灰字广播依赖登记：广播时本组件重算 graySecondary/grayTertiary 文本色 */
-  @StorageProp(GlassMaterial.KEY_GRAY_TICK) grayTick: number = 0;
+  @StorageProp('grayTick') grayTick: number = 0;
   onTap: () => void = () => {
   };
 
