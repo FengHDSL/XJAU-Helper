@@ -18,6 +18,10 @@ import { Theme } from '../common/ThemeUtil';
 import { Wallpaper } from '../common/Wallpaper';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
+import { GlassMaterial } from '../common/GlassMaterial';
+import { materialAvailable, materialDiagnostics } from '../common/SystemMaterial';
+import { MaterialCardLayer } from './common/MaterialCarrier';
+import { MaterialButton } from './common/MaterialButton';
 
 @Component
 export struct WallpaperPage {
@@ -341,6 +345,10 @@ export struct WallpaperPage {
   /** 顶栏主题色节：三色预设 + 自定义 rrggbb */
   @Builder
   themeSection() {
+    Stack({ alignContent: Alignment.TopStart }) {
+      if (materialAvailable()) {
+        MaterialCardLayer({ layerRadius: 16, layerShadow: false, layerForce: true })
+      }
     Column() {
       Row() {
         Text('顶栏主题色')
@@ -480,11 +488,15 @@ export struct WallpaperPage {
           })
       }
       .width('100%')
+      .padding(16)
+      }
     }
     .width('100%')
-    .padding(16)
-    .backgroundColor($r('app.color.bg_card'))
     .borderRadius(16)
+    .clip(true)
+    .backgroundColor(materialAvailable() ? Color.Transparent : $r('app.color.bg_card'))
+    .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
+    .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
     .margin({ top: 14 })
   }
 
