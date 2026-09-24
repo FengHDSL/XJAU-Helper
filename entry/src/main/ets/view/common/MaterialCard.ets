@@ -507,9 +507,13 @@ export struct MaterialCard {
       this.areaReady = true;
     })
     .hoverEffect(this.effectiveHoverEffect())
-    // ⚠ 移除 `.onTouch(updatePressGlow)`：它会在每次触摸时写 @State 触发整卡重渲染，
-    // 导致卡内 TextInput 点按丢焦点（"输入框点击没反应"的根因）。
-    // 流光触感如需恢复，须改为不依赖 @State 的绘制方式后再接回。
+    // 按压跟手流光：「卡片流光触感 / 主题色流光」两个开关的消费端。
+    // 此前因「写 @State 整卡重渲染 → 卡内 TextInput 丢焦点」被移除；
+    // 现含输入框的卡片已全部改用普通卡 + 承载层结构（不再走 MaterialCard），恢复安全。
+    // 若未来某卡要同时装输入框与 MaterialCard，给该卡传 cardGlow:false。
+    .onTouch((event: TouchEvent) => {
+      this.updatePressGlow(event);
+    })
     .focusable(this.cardFocusable)
     .enabled(this.cardEnabled)
     .opacity(this.cardOpacity)

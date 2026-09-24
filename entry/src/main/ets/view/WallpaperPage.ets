@@ -82,6 +82,19 @@ export struct WallpaperPage {
     DataStore.setImmersive(on);
   }
 
+  /**
+   * 本页卡片底色（接入「卡片沾色」开关，让设置在本页立即可见）：
+   * 材质让出（materialAvailable）时——沾色开=保留沾色底（材质半透明可透出）/ 关=透明让材质渲染；
+   * 材质不可用时——沾色开=沾色底 / 关=原卡片色兜底。
+   */
+  private cardBg(orig: ResourceColor): ResourceColor {
+    const tintOn: boolean = AppearanceStore.cardTintOn();
+    if (materialAvailable()) {
+      return tintOn ? AppearanceStore.cardBackground(this.isDarkMode, this.themeColor) : Color.Transparent;
+    }
+    return tintOn ? AppearanceStore.cardBackground(this.isDarkMode, this.themeColor) : orig;
+  }
+
   /** 跳转壁纸裁剪页（选图 → 缩放/平移 → 按屏幕比例裁切应用） */
   private openCropPage(): void {
     AppState.stack.pushPath({ name: Const.ROUTE_BG_CROP });
@@ -496,7 +509,7 @@ export struct WallpaperPage {
     .width('100%')
     .borderRadius(16)
     .clip(true)
-    .backgroundColor(materialAvailable() ? Color.Transparent : $r('app.color.bg_card'))
+    .backgroundColor(this.cardBg($r('app.color.bg_card')))
     .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
     .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
     .margin({ top: 14 })
@@ -548,7 +561,7 @@ export struct WallpaperPage {
       .width('100%')
       .borderRadius(16)
       .clip(true)
-      .backgroundColor(materialAvailable() ? Color.Transparent : $r('app.color.bg_card'))
+      .backgroundColor(this.cardBg($r('app.color.bg_card')))
       .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
       .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
       .margin({ top: 14 })
@@ -669,7 +682,7 @@ export struct WallpaperPage {
       .width('100%')
       .borderRadius(16)
       .clip(true)
-      .backgroundColor(materialAvailable() ? Color.Transparent : $r('app.color.bg_card'))
+      .backgroundColor(this.cardBg($r('app.color.bg_card')))
       .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
       .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
       .margin({ top: 14 })
@@ -813,7 +826,7 @@ export struct WallpaperPage {
     .width('100%')
     .borderRadius(16)
     .clip(true)
-    .backgroundColor(materialAvailable() ? Color.Transparent : $r('app.color.bg_card'))
+    .backgroundColor(this.cardBg($r('app.color.bg_card')))
     .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
     .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
     .margin({ top: 14 })
@@ -854,7 +867,7 @@ export struct WallpaperPage {
     .width('100%')
     .borderRadius(16)
     .clip(true)
-    .backgroundColor(materialAvailable() ? Color.Transparent : $r('app.color.bg_card'))
+    .backgroundColor(this.cardBg($r('app.color.bg_card')))
     .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.bgBlur(this.immersiveEffect), GlassMaterial.blurOptions())
     .border({ width: materialAvailable() ? 0 : (this.immersiveEffect ? GlassMaterial.borderWidth() : 0), color: this.immersiveEffect ? GlassMaterial.borderColor() : Color.Transparent })
     .margin({ top: 14 })
@@ -1011,7 +1024,7 @@ export struct WallpaperPage {
             }
             .width('100%')
             .padding(16)
-            .backgroundColor($r('app.color.bg_card'))
+            .backgroundColor(this.cardBg($r('app.color.bg_card')))
             .borderRadius(16)
             .margin({ top: 14 })
 
@@ -1139,7 +1152,7 @@ export struct WallpaperPage {
             }
             .width('100%')
             .padding(16)
-            .backgroundColor($r('app.color.bg_card'))
+            .backgroundColor(this.cardBg($r('app.color.bg_card')))
             .borderRadius(16)
             .margin({ top: 14 })
 
