@@ -758,22 +758,29 @@ export struct WallpaperPage {
 
         if (this.grayCustomExpanded) {
           Row() {
-            TextInput({ text: this.grayCustomDraft, placeholder: 'RRGGBB（如 9AA0A6）' })
-              .height(48)
-              .enterKeyType(EnterKeyType.Done)
-              .borderRadius($r('sys.float.corner_radius_level12'))
-              .fontSize($r('sys.float.Body_L'))
-              .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
-              .backgroundColor($r('sys.color.comp_background_tertiary'))
-              .caretStyle({ color: $r('sys.color.font_emphasize') })
-              .type(InputType.Normal)
-              .fontColor('rgba(0, 85, 255, 1.0)')
-              .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
-              .layoutWeight(1)
-              .onChange((v: string) => {
-                // 草稿暂存：点「应用」才生效（不再 onChange 即存）
-                this.grayCustomDraft = v;
-              })
+            // 自定义色输入框：材质承载层与输入框做「兄弟」（Stack），保证沉浸光感同时输入框可获焦
+            Stack({ alignContent: Alignment.TopStart }) {
+              if (this.matOn()) {
+                MaterialCardLayer({ layerRadius: $r('sys.float.corner_radius_level12'), layerShadow: false })
+              }
+              TextInput({ text: this.grayCustomDraft, placeholder: 'RRGGBB（如 9AA0A6）' })
+                .height(48)
+                .enterKeyType(EnterKeyType.Done)
+                .borderRadius($r('sys.float.corner_radius_level12'))
+                .fontSize($r('sys.float.Body_L'))
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
+                .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+                .caretStyle({ color: $r('sys.color.font_emphasize') })
+                .type(InputType.Normal)
+                .fontColor('rgba(0, 85, 255, 1.0)')
+                .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
+                .width('100%')
+                .onChange((v: string) => {
+                  // 草稿暂存：点「应用」才生效（不再 onChange 即存）
+                  this.grayCustomDraft = v;
+                })
+            }
+            .layoutWeight(1)
             // 应用按钮（液态玻璃主题色胶囊，与页内其他操作按钮同款）
             MaterialButton({
               btnRadius: 18,
