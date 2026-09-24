@@ -760,8 +760,8 @@ export struct ScheduleView {
     .backgroundBlurStyle(this.cfg.headerColor.length === 0 && GlassMaterial.immSupported()
       ? BlurStyle.NONE
       : GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? false))
-    // 日期条圆角：左上/右上/右下；左下不圆——与下方时间条连接成整体
-    .borderRadius({ topLeft: 12, topRight: 12, bottomRight: 12, bottomLeft: 0 })
+    // 日期条圆角：仅上方两角圆角；下沿两角均为直角（左下与时间条相接、右下与课程表相接，整条下沿齐平）
+    .borderRadius({ topLeft: 12, topRight: 12, bottomRight: 0, bottomLeft: 0 })
     .border({
       width: this.cfg.headerColor.length === 0 && GlassMaterial.immSupported() ? 0 : 1,
       color: GlassMaterial.borderColor()
@@ -934,6 +934,7 @@ export struct ScheduleView {
     .shadow(GlassMaterial.immSupported()
       ? { radius: 0, color: 'rgba(0,0,0,0)', offsetX: 0, offsetY: 0 }
       : GlassMaterial.capsuleShadow())
+    // 时间条圆角：仅下方两角圆角；上沿两角均为直角（左/右上角取消，与上方日期条齐平相接）
     .borderRadius({ topLeft: 0, topRight: 0, bottomRight: 12, bottomLeft: 12 })
     .clip(true)
   }
@@ -1391,16 +1392,25 @@ export struct ScheduleView {
               .fontSize(11)
               .fontColor(this.schedTextSec())
             // 课表原文件：查看本次识别所用的原始导入文件（教务系统课表接口原始响应）
-            Text('课表原文件')
-              .fontSize(11)
-              .fontColor(Theme.colorOf(this.themeColor))
-              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-              .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
-              .borderRadius(10)
-              .margin({ left: 8 })
-              .onClick(() => {
+            //  改用材质按钮（透明 Toggle 承载层）→ 沉浸光感生效；外距走 btnMargin（自定义组件后不能链式属性）
+            MaterialButton({
+              btnRadius: 10,
+              btnBg: $r('app.color.bg_chip'),
+              btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+              btnBorderW: GlassMaterial.borderWidth(),
+              btnBorderC: GlassMaterial.borderColor(),
+              btnTint: '',
+              btnTintRatio: 0,
+              btnMargin: { top: 0, right: 0, bottom: 0, left: 8 },
+              btnOnClick: (): void => {
                 AppState.stack.pushPath({ name: Const.ROUTE_COURSE_RAW });
-              })
+              }
+            }) {
+              Text('课表原文件')
+                .fontSize(11)
+                .fontColor(Theme.colorOf(this.themeColor))
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            }
             Blank()
             Text('点击课程查看详情')
               .fontSize(11)

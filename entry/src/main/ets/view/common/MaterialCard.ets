@@ -639,7 +639,9 @@ export struct MaterialSheetPanel {
             .textAlign(TextAlign.Center)
         }
       }
-      .padding({ right: 12, top: 12 })
+      // 上边距 6：让 30vp 高的关闭按钮垂直中心（≈21）对齐面板内容首行标题的中心
+      // （各面板标题上边距 8~16 → 标题中心约 20~28），即「与左上角标题同一高度」
+      .padding({ right: 12, top: 6 })
     }
   }
 
