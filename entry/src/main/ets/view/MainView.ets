@@ -62,6 +62,13 @@ export struct MainView {
   /** 是否 PC 窗口化（非全屏/最大化）：窗口底部无系统安全区，底栏需额外留白 */
   @StorageProp('winFloating') winFloating: boolean = false;
   @State currentIndex: number = 0;
+  /**
+   * 底栏高亮专用状态（与页面解耦）：点击 tab 时立即更新（图标/文字即时变色），
+   * 页面切换只交给 changeIndex(index, true) 带动画执行；currentIndex 在 onChange
+   * （动画完成）才同步。此前点击直接赋值 currentIndex → HdsTabs 的 index 参数瞬跳，
+   * 外观设置的「页面平滑切换」动画被完全绕过（开关无效的根因）。
+   */
+  @State activeIndex: number = 0;
   /** 主页页面平滑切换（外观设置）：开启后页签切换带页面滑动过渡 */
   @StorageProp('smoothPageSwitch') smoothPageSwitch: boolean = true;
   private tabsController: HdsTabsController = new HdsTabsController();
@@ -95,6 +102,7 @@ export struct MainView {
     // 先切到首页 Tab（无论哪种 open，都以此为入口）
     if (this.currentIndex !== 0) {
       this.currentIndex = 0;
+      this.activeIndex = 0;
       this.tabsController.changeIndex(0);
     }
     if (req === 'exam-pick') {
@@ -107,28 +115,30 @@ export struct MainView {
     }
   }
 
-  /** Tab 按钮：图标 + 文字，选中品牌色、未选中灰 */
+  /** Tab 按钮：图标 + 文字，选中品牌色、未选中灰（高亮读 activeIndex：点击即时变色，与页面动画解耦） */
   @Builder
   tabItem(title: string, icon: Resource, index: number) {
     Column() {
       Image(icon)
         .width(20)
         .height(20)
-        .fillColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+        .fillColor(this.activeIndex === index ? Theme.colorOf(this.themeColor) : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
       Text(title)
         .fontSize(10)
-        .fontWeight(this.currentIndex === index ? FontWeight.Medium : FontWeight.Normal)
-        .fontColor(this.currentIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#FFFFFF' : '#000000'))
+        .fontWeight(this.activeIndex === index ? FontWeight.Medium : FontWeight.Normal)
+        .fontColor(this.activeIndex === index ? Theme.colorOf(this.themeColor) : (this.isDarkMode ? '#FFFFFF' : '#000000'))
         .margin({ top: 3 })
     }
     .width('100%')
     .height('46vp')
     .justifyContent(FlexAlign.Center)
     .onClick(() => {
-      // 点击立即更新选中态（图标/文字颜色即时变化），再切页（滑动动画照常）
-      if (this.currentIndex !== index) {
-        this.currentIndex = index;
-        this.tabsController.changeIndex(index);
+      // 高亮即时更新（activeIndex），页面切换只走 changeIndex(index, true) 带动画：
+      // 直接赋值 currentIndex 会让 HdsTabs 的 index 参数瞬跳、绕过平滑切换动画（勿回退）。
+      // 关闭平滑开关时 animationDuration(0)，changeIndex 瞬跳、行为不变。
+      if (this.activeIndex !== index) {
+        this.activeIndex = index;
+        this.tabsController.changeIndex(index, true);
       }
     })
   }
@@ -229,8 +239,12 @@ export struct MainView {
           TabContent() {
             HomeView({
               onSwitchTab: (index: number) => {
-                this.currentIndex = index;
-                this.tabsController.changeIndex(index);
+                // 同 tabItem 点击：高亮即时更新，切换走 changeIndex(index, true) 带动画
+                // （直接赋值 currentIndex 会瞬跳、绕过平滑切换动画）
+                if (this.activeIndex !== index) {
+                  this.activeIndex = index;
+                  this.tabsController.changeIndex(index, true);
+                }
               }
             })
           }
@@ -292,8 +306,11 @@ export struct MainView {
           if (index === this.currentIndex) {
             return;
           }
-          // 瞬时切换（无淡入淡出）：避免整页透明度 0→1 造成切换闪烁
+          // 瞬时切换（无淡入淡出）：避免整页透明度 0→1 造成切换闪烁。
+          // onChange 在切换（含滑动）完成后触发：currentIndex 同步给 HdsTabs 的 index 参数，
+          // activeIndex 同步让底栏高亮跟上手势滑动（点击路径已在 onClick 里先行更新）。
           this.currentIndex = index;
+          this.activeIndex = index;
         })
       }
       .hideTitleBar(true)
