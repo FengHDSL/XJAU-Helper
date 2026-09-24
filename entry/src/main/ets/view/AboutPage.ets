@@ -219,7 +219,7 @@ export struct AboutPage {
           title: '发现新版本',
           message: `发现新版本：v${remote}，请前往AppTest或前往HAP资源站更新！`,
           buttons: [
-            { text: '前往更新', color: Theme.colorOf(this.themeColor) },
+            { text: '前往更新', color: '#079841' },
             { text: '关闭', color: '#666666' }
           ]
         }).then((res) => {
@@ -232,7 +232,7 @@ export struct AboutPage {
           title: '版本超前',
           message: `当前版本（v${this.currentVersion}）比已发布版本（v${remote}）更高`,
           buttons: [
-            { text: '知道了', color: '#666666' }
+            { text: '知道了', color: '#079841' }
           ]
         });
       } else {

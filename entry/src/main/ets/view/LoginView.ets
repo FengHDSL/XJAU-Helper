@@ -969,6 +969,10 @@ export struct LoginView {
             .opacity(this.deletingAcct === (item['account'] ?? '') ? 0 : 1)
             DissolveBurst({ trigger: this.deletingAcct === (item['account'] ?? '') ? this.burstSeq : 0 })
             }
+            // 行删除转场：左移淡出（列表随之收起）
+            .transition(TransitionEffect.OPACITY
+              .combine(TransitionEffect.translate({ x: -24 }))
+              .animation({ duration: 220, curve: Curve.EaseOut }))
           }
           .swipeAction({
             end: this.swipeDeleteButton(index)
@@ -1265,7 +1269,7 @@ export struct LoginView {
                 Text(this.loginModeText())
                   .fontSize(13)
                   .fontColor($r('app.color.brand'))
-                ChevronRight({ iconSize: 13 }).margin({ left: 2 })
+                ChevronRight({ iconSize: 10 }).margin({ left: 2 })
               }
               .width('72%')
               .padding({ left: 18, right: 14, top: 10, bottom: 10 })
@@ -1374,7 +1378,7 @@ export struct LoginView {
                   Text(this.logCollecting ? '● 收集中' : '○ 已暂停')
                     .fontSize(12)
                     .fontColor(this.logCollecting ? $r('app.color.brand') : $r('app.color.text_tertiary'))
-                  ChevronRight({ iconSize: 13 }).margin({ left: 2 })
+                  ChevronRight({ iconSize: 10 }).margin({ left: 2 })
                 }
                 .width('72%')
                 .padding({ left: 18, right: 14, top: 10, bottom: 10 })

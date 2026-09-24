@@ -58,6 +58,12 @@ export struct IconCircleButton {
   @StorageProp('immersivePressGlow') pressGlowSwitch: boolean = true;
   /** 刷新类按钮：true 时图标持续旋转表示加载中 */
   @Prop @Watch('onSpinningChanged') spinning: boolean = false;
+  /**
+   * 图标改用图片资源（如 chevron_left.svg）：true 时渲染 Image(this.image) 而非 SymbolGlyph。
+   * 图片同样触摸穿透、fillColor 用 tint 染色（SVG 单色路径可跟随深浅色）。
+   */
+  hasImage: boolean = false;
+  image: Resource = $r('app.media.chevron_left');
   symbol: Resource = $r('sys.symbol.house');
   onAction: () => void = (): void => {
   };
@@ -144,12 +150,23 @@ export struct IconCircleButton {
         })
 
       // 图标层：触摸穿透到下面的 Toggle，保证按压与流光响应在材质上
-      SymbolGlyph(this.symbol)
-        .fontSize(this.iconSize)
-        .fontColor([this.tint])
-        .rotate({ angle: this.spinAngle })
-        .hitTestBehavior(HitTestMode.None)
-        .accessibilityLevel('no')
+      if (this.hasImage) {
+        Image(this.image)
+          .width(this.iconSize)
+          .height(this.iconSize)
+          .objectFit(ImageFit.Cover)
+          .fillColor(this.tint)
+          .draggable(false)
+          .hitTestBehavior(HitTestMode.None)
+          .accessibilityLevel('no')
+      } else {
+        SymbolGlyph(this.symbol)
+          .fontSize(this.iconSize)
+          .fontColor([this.tint])
+          .rotate({ angle: this.spinAngle })
+          .hitTestBehavior(HitTestMode.None)
+          .accessibilityLevel('no')
+      }
     }
     .width(this.buttonSize)
     .height(this.buttonSize)

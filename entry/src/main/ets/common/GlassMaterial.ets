@@ -638,8 +638,8 @@ export class GlassMaterial {
   }
 
   /**
-   * 荧光底渐变色标（收尾淡出）：样式='glow' 时给灰字铺「前段实色 → 尾部 28% 渐隐」的
-   * 荧光高亮（像荧光笔涂到末尾自然收笔），其余样式全透明。配合 Text.linearGradient 使用。
+   * 荧光底渐变色标（两端淡出）：样式='glow' 时给灰字铺「两端渐显 → 中段实色 → 两端渐隐」的
+   * 荧光高亮（荧光笔涂注观感，左右都自然收笔），其余样式全透明。配合 Text.linearGradient 使用。
    */
   static styleGlowColors(tick: number): Array<[ResourceColor, number]> {
     if (tick < 0 || GlassMaterial.styleMode() !== 'glow') {
@@ -647,8 +647,9 @@ export class GlassMaterial {
     }
     const c: string = GlassMaterial.glowColor();
     return [
-      [Theme.rgba(c, GlassMaterial.TEXT_GLOW_ALPHA), 0],
-      [Theme.rgba(c, GlassMaterial.TEXT_GLOW_ALPHA * 0.85), 0.72],
+      [Theme.rgba(c, 0), 0],
+      [Theme.rgba(c, GlassMaterial.TEXT_GLOW_ALPHA), 0.12],
+      [Theme.rgba(c, GlassMaterial.TEXT_GLOW_ALPHA), 0.88],
       [Theme.rgba(c, 0), 1]
     ];
   }

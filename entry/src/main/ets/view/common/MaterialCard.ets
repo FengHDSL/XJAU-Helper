@@ -695,7 +695,14 @@ export struct MaterialSheetPanel {
           if (this.panelTitle.length > 0) {
             this.panelTitleBar()
           }
-          this.panelContent()
+          // 内容占标题栏以外的**剩余高度**（layoutWeight）：fill 面板（固定高）内容过高时，
+          // 内部的 Scroll/List 才有约束高度可滚——此前内容按 100% 高排，加了标题栏后
+          // 底部被推出面板之外，表现为「最底部的按钮/文本无法上滑，全在屏幕之下」
+          Column() {
+            this.panelContent()
+          }
+          .width('100%')
+          .layoutWeight(1)
         }
         .width('100%')
         .height('100%')

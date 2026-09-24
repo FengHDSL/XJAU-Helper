@@ -419,9 +419,12 @@ export struct WallpaperPage {
       this.comboBurstSeq++;
     });
     setTimeout(() => {
-      DataStore.removeCombo(name);
-      this.combos = DataStore.combos();
-      this.deletingCombo = '';
+      // animateTo 包住数据移除：大卡片高度随之缩回（配合卡片 .transition 退出动效）
+      this.getUIContext().animateTo({ duration: 260, curve: Curve.EaseOut }, () => {
+        DataStore.removeCombo(name);
+        this.combos = DataStore.combos();
+        this.deletingCombo = '';
+      });
     }, 400);
   }
 
@@ -1642,6 +1645,10 @@ export struct WallpaperPage {
               }
               .width('100%')
               .margin({ top: 10 })
+              // 卡片增删转场：删除时高度收缩淡出（大卡片随之缩回），保存时淡入
+              .transition(TransitionEffect.OPACITY
+                .combine(TransitionEffect.translate({ y: 16 }))
+                .animation({ duration: 260, curve: Curve.EaseOut }))
             }, (c: ThemeCombo) => c.name)
             }
             .width('100%')

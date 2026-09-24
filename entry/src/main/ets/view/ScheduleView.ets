@@ -692,7 +692,7 @@ export struct ScheduleView {
                 this.showWeekSheet = true;
               })
             Row() {
-              ChevronRight({ iconSize: 16 })
+              ChevronRight({ iconSize: 12 })
             }
             .width(22)
             .justifyContent(FlexAlign.Center)

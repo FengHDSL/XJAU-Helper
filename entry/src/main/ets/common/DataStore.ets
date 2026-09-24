@@ -585,16 +585,15 @@ export class DataStore {
     }
   }
 
-  /** 保存组合（同名覆盖） */
+  /** 保存组合（同名覆盖；新组合插到最前，保存后立即可见、不用翻到列表底部） */
   static saveCombo(c: ThemeCombo): void {
     const list: ThemeCombo[] = DataStore.combos();
-    const out: ThemeCombo[] = [];
+    const out: ThemeCombo[] = [c];
     for (let i = 0; i < list.length; i++) {
       if (list[i].name !== c.name) {
         out.push(list[i]);
       }
     }
-    out.push(c);
     DataStore.put(DataStore.KEY_THEME_COMBOS, JSON.stringify(out));
   }
 

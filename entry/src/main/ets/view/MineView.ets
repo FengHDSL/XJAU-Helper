@@ -739,7 +739,7 @@ export struct MineView {
       }
       .layoutWeight(1)
 
-      ChevronRight({ iconSize: 18 })
+      ChevronRight({ iconSize: 13 })
     }
     .width('100%')
     }

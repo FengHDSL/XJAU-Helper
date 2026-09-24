@@ -433,7 +433,7 @@ export struct ScheduleSettingsPanel {
                 .fontSize(14).fontColor($r('app.color.text_primary')).layoutWeight(1)
               Text((this.editTimes[idx] ?? '').replace('-', ' ~ '))
                 .fontSize(13).fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-              ChevronRight({ iconSize: 18 }).margin({ left: 6 })
+              ChevronRight({ iconSize: 13 }).margin({ left: 6 })
             }
             .width('100%')
             .height(46)
@@ -664,7 +664,7 @@ export struct ScheduleSettingsPanel {
         Row() {
           Text(this.currentTermStart.length > 0 ? this.currentTermStart : DateUtil.defaultTermStart(this.currentTermId))
             .fontSize(15).fontColor($r('app.color.text_primary')).layoutWeight(1)
-          ChevronRight({ iconSize: 20 })
+          ChevronRight({ iconSize: 14 })
         }.width('100%')
         .onClick(() => { this.openTermStartPicker(); })
 
@@ -674,7 +674,7 @@ export struct ScheduleSettingsPanel {
           Text('课程节数').fontSize(14).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Text(`${this.secCount} 节`).fontSize(13).fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-          ChevronRight({ iconSize: 20 }).margin({ left: 6 })
+          ChevronRight({ iconSize: 14 }).margin({ left: 6 })
         }.width('100%')
         .onClick(() => { this.openSectionEditor(); })
 
@@ -685,7 +685,7 @@ export struct ScheduleSettingsPanel {
             .fontColor($r('app.color.text_primary')).layoutWeight(1)
           Text(this.secTimeText.length > 0 ? '已自定义' : '默认作息').fontSize(13)
             .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-          ChevronRight({ iconSize: 20 }).margin({ left: 6 })
+          ChevronRight({ iconSize: 14 }).margin({ left: 6 })
         }.width('100%')
         .onClick(() => { this.openSectionEditor(); })
 
