@@ -31,7 +31,7 @@ import { CourseDetailPanel } from './CourseDetailPanel';
 import { MaterialButton } from './common/MaterialButton';
 import { MaterialSheetPanel } from './common/MaterialCard';
 import { MaterialCardLayer } from './common/MaterialCarrier';
-import { sheetBlurStyle } from '../common/SystemMaterial';
+import { materialAvailable, sheetBlurStyle } from '../common/SystemMaterial';
 
 @Component
 export struct ScheduleView {
@@ -960,50 +960,72 @@ export struct ScheduleView {
     .height(this.cellH() * SectionUtil.count(this.cfg))
   }
 
-  /** 课程格子：支持文字色/叠加/边框/圆角/透明度/大小/对齐/时间/地点/@/老师全套配置 */
+  /** 课程格子沉浸光感是否生效：课表级开关 + 全局沉浸光感开关 + API≥26 + 材质构造成功（三重判定） */
+  private cellMatOn(): boolean {
+    return this.cfg.cellMaterial && this.immersiveEffect && materialAvailable();
+  }
+
+  /** 课程格子：支持文字色/叠加/边框/圆角/透明度/大小/对齐/时间/地点/@/老师全套配置
+   *  材质路径：Stack{ 材质承载层 + 课程底色半透明叠层 + 内容 }——材质让出格子实底，
+   *  课程颜色作为叠层压在材质之上保留颜色语义（与 MaterialCard 的 tintOverlay 同源思路）。 */
   @Builder
   courseBlock(course: CourseItem, isNext: boolean) {
-    Column() {
-      if (this.cfg.showTimeInCell) {
-        Text(this.cellTimeText(course))
-          .fontSize(this.cfg.textSize - 2)
+    Stack({ alignContent: Alignment.TopStart }) {
+      if (this.cellMatOn()) {
+        MaterialCardLayer({ layerRadius: this.cfg.cellRadius, layerShadow: false })
+        Column()
+          .width('100%')
+          .height('100%')
+          .borderRadius(this.cfg.cellRadius)
+          .backgroundColor(this.bgOf(course, isNext))
+          .opacity(0.62)
+          .hitTestBehavior(HitTestMode.None)
+          .accessibilityLevel('no')
+      }
+      Column() {
+        if (this.cfg.showTimeInCell) {
+          Text(this.cellTimeText(course))
+            .fontSize(this.cfg.textSize - 2)
+            .fontColor(this.fgOf(course, isNext))
+            .width('100%')
+            .textAlign(this.cellTextAlign())
+            .margin({ bottom: 2 })
+        }
+        Text(course.name)
+          .fontSize(this.cfg.textSize)
+          .lineHeight(this.cfg.textSize + 3)
+          .fontWeight(FontWeight.Medium)
           .fontColor(this.fgOf(course, isNext))
           .width('100%')
           .textAlign(this.cellTextAlign())
-          .margin({ bottom: 2 })
+        if (this.cfg.showLocation && course.location.length > 0) {
+          Text(this.cellLocationText(course))
+            .fontSize(this.cfg.textSize - 2)
+            .fontColor(this.fgOf(course, isNext))
+            .opacity(0.85)
+            .width('100%')
+            .textAlign(this.cellTextAlign())
+            .margin({ top: 2 })
+        }
+        if (this.cfg.showTeacher && course.teacher.length > 0) {
+          Text(course.teacher)
+            .fontSize(this.cfg.textSize - 2)
+            .fontColor(this.fgOf(course, isNext))
+            .opacity(0.75)
+            .width('100%')
+            .textAlign(this.cellTextAlign())
+            .margin({ top: 1 })
+        }
       }
-      Text(course.name)
-        .fontSize(this.cfg.textSize)
-        .lineHeight(this.cfg.textSize + 3)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.fgOf(course, isNext))
-        .width('100%')
-        .textAlign(this.cellTextAlign())
-      if (this.cfg.showLocation && course.location.length > 0) {
-        Text(this.cellLocationText(course))
-          .fontSize(this.cfg.textSize - 2)
-          .fontColor(this.fgOf(course, isNext))
-          .opacity(0.85)
-          .width('100%')
-          .textAlign(this.cellTextAlign())
-          .margin({ top: 2 })
-      }
-      if (this.cfg.showTeacher && course.teacher.length > 0) {
-        Text(course.teacher)
-          .fontSize(this.cfg.textSize - 2)
-          .fontColor(this.fgOf(course, isNext))
-          .opacity(0.75)
-          .width('100%')
-          .textAlign(this.cellTextAlign())
-          .margin({ top: 1 })
-      }
+      .width('100%')
+      .height((course.endSection - course.startSection + 1) * this.cellH() - 4)
+      .padding(6)
+      .justifyContent(this.cfg.textVCenter ? FlexAlign.Center : FlexAlign.Start)
+      .alignItems(this.cellHAlign())
     }
     .width('100%')
     .height((course.endSection - course.startSection + 1) * this.cellH() - 4)
-    .padding(6)
-    .justifyContent(this.cfg.textVCenter ? FlexAlign.Center : FlexAlign.Start)
-    .alignItems(this.cellHAlign())
-    .backgroundColor(this.bgOf(course, isNext))
+    .backgroundColor(this.cellMatOn() ? Color.Transparent : this.bgOf(course, isNext))
     .opacity(isNext ? this.cfg.nextWeekOpacity / 100 : this.cfg.cellOpacity / 100)
     .border(this.cellBorder(course, isNext))
     .borderRadius(this.cfg.cellRadius)

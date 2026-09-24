@@ -148,6 +148,8 @@ export struct ScheduleSettingsPanel {
   @State weekend: boolean = true;
   @State nextWeek: boolean = false;
   @State textMix: boolean = false;
+  /** 课程格子沉浸光感（格子挂材质承载层，与全局沉浸光感开关联动） */
+  @State cellMaterial: boolean = false;
   @State bdrCourse: boolean = false;
   @State bdrDash: boolean = false;
   @State showTime: boolean = false;
@@ -188,6 +190,7 @@ export struct ScheduleSettingsPanel {
     this.showLoc = c.showLocation;
     this.showAt = c.showAtPrefix;
     this.showTch = c.showTeacher;
+    this.cellMaterial = c.cellMaterial;
     this.vCenter = c.textVCenter;
     this.secCount = c.sectionCount;
     this.secTimeText = c.sectionTimeText;
@@ -303,6 +306,7 @@ export struct ScheduleSettingsPanel {
     c.showLocation = this.showLoc;
     c.showAtPrefix = this.showAt;
     c.showTeacher = this.showTch;
+    c.cellMaterial = this.cellMaterial;
     c.textVCenter = this.vCenter;
     c.gridWidth = this.gridW;
     c.gridDashed = this.lineStyle === 1;
@@ -795,6 +799,23 @@ export struct ScheduleSettingsPanel {
             .selectedColor(Theme.colorOf(this.themeColor))
             .onChange((on: boolean) => { this.textMix = on; this.apply(); })
         }.width('100%').margin({ top: 14, bottom: 14 })
+        Row() {
+          Column() {
+            Text('课程格子沉浸光感').fontSize(14).fontWeight(FontWeight.Medium)
+              .fontColor($r('app.color.text_primary'))
+              .width('100%')
+            Text('课程格子改用沉浸光感材质渲染（API 26+），课程底色以半透明叠层保留；受全局沉浸光感开关影响')
+              .fontSize(11)
+              .fontColor($r('app.color.text_tertiary'))
+              .width('100%')
+              .margin({ top: 2 })
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+          Toggle({ type: ToggleType.Switch, isOn: this.cellMaterial })
+            .selectedColor(Theme.colorOf(this.themeColor))
+            .onChange((on: boolean) => { this.cellMaterial = on; this.apply(); })
+        }.width('100%').margin({ top: 14, bottom: 14 })
 
         Divider().color($r('app.color.divider'))
         ColorPickCell({ hex: $bdrColor, palette: COLOR_PALETTE, label: '格子边框颜色', onChange: () => { this.apply(); } })
@@ -971,6 +992,7 @@ export struct ScheduleSettingsPanel {
             this.bdrDash = c.borderDashed; this.showTime = c.showTimeInCell;
             this.showLoc = c.showLocation; this.showAt = c.showAtPrefix;
             this.showTch = c.showTeacher; this.vCenter = c.textVCenter;
+            this.cellMaterial = c.cellMaterial;
             this.gridW = c.gridWidth; this.hdrSize = c.headerFontSize;
             this.borderW = c.borderWidth; this.cellH = c.cellHeight;
             this.cellR = c.cellRadius; this.cellOp = c.cellOpacity;

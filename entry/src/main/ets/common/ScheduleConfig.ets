@@ -82,6 +82,8 @@ export class ScheduleConfig {
   showAtPrefix: boolean = false;
   /** 格子内显示授课老师 */
   showTeacher: boolean = false;
+  /** 课程格子沉浸光感（格子挂 API 26 材质承载层；与全局沉浸光感开关联动） */
+  cellMaterial: boolean = false;
 
   /** 深拷贝（@State 赋值触发重渲染用） */
   clone(): ScheduleConfig {
@@ -116,6 +118,7 @@ export class ScheduleConfig {
     c.showLocation = this.showLocation;
     c.showAtPrefix = this.showAtPrefix;
     c.showTeacher = this.showTeacher;
+    c.cellMaterial = this.cellMaterial;
     return c;
   }
 
@@ -162,6 +165,7 @@ export class ScheduleConfig {
       if (typeof o['showLocation'] === 'boolean') { c.showLocation = o['showLocation'] as boolean; }
       if (typeof o['showAtPrefix'] === 'boolean') { c.showAtPrefix = o['showAtPrefix'] as boolean; }
       if (typeof o['showTeacher'] === 'boolean') { c.showTeacher = o['showTeacher'] as boolean; }
+      if (typeof o['cellMaterial'] === 'boolean') { c.cellMaterial = o['cellMaterial'] as boolean; }
     } catch (e) {
       // 解析失败用默认值
     }
@@ -200,7 +204,8 @@ export class ScheduleConfig {
       'showTimeInCell': this.showTimeInCell,
       'showLocation': this.showLocation,
       'showAtPrefix': this.showAtPrefix,
-      'showTeacher': this.showTeacher
+      'showTeacher': this.showTeacher,
+      'cellMaterial': this.cellMaterial
     };
     DataStore.setScheduleCfg(JSON.stringify(o));
   }
