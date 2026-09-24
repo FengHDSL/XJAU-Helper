@@ -17,7 +17,7 @@ export const CHANGELOG_MAX: number = 5;
 
 /** 全部更新日志（新版本在最前插入） */
 export const CHANGELOG_ALL: ChangelogItem[] = [
-  { version: '1.3.9', date: '2026-09-21', items: ['修复了一些已知问题'] },
+  { version: '1.3.9', date: '2026-09-21', items: ['适配全新沉浸光感！多项细节优化', '修复了一些已知问题'] },
   { version: '1.3.8', date: '2026-09-19', items: ['修复课程表不显示周六周日课程的问题'] },
   { version: '1.3.7', date: '2026-09-16', items: ['修复了一些已知问题'] },
   { version: '1.3.6', date: '2026-09-15', items: ['学期日历支持手动调节', '日历样式微调', '课程表支持调整每节课的时间和节数', '隐私协议优化', '备份功能优化'] },

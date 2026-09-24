@@ -436,8 +436,10 @@ export struct NewsPage {
     MaterialButton({
       btnRadius: 16,
       btnMargin: { right: 8 },
-      // 未选中：原玻璃胶囊底（光感关闭回落）；选中：材质生效时 btnTint 叠主题色 0.85
-      btnBg: GlassMaterial.surface(this.isDarkMode),
+      // 未选中：原玻璃胶囊底（光感关闭回落）；选中：材质生效时 btnTint 叠主题色 0.85；
+      // 光感关闭/材质不可用时选中恢复**实色主题底**（用户反馈：关闭光感后选中标签要回到之前的绿底）
+      btnBg: (materialAvailable() && this.immersiveEffect) ? GlassMaterial.surface(this.isDarkMode)
+        : (this.currentTab === index ? Theme.colorOf(this.themeColor) : GlassMaterial.surface(this.isDarkMode)),
       btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
       btnBorderW: GlassMaterial.borderWidth(),
       btnBorderC: GlassMaterial.borderColor(),

@@ -21,6 +21,7 @@ import { Theme } from '../common/ThemeUtil';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { ChevronRight } from './common/ChevronRight';
+import { ChevronLeft } from './common/ChevronLeft';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { CourseItem, TermInfo } from '../model/Models';
@@ -674,14 +675,14 @@ export struct ScheduleView {
           }
         }) {
           Row() {
-            Text('‹')
-              .fontSize(16)
-              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-              .width(22)
-              .textAlign(TextAlign.Center)
-              .onClick(() => {
-                this.changeWeek(-1);
-              })
+            Row() {
+              ChevronLeft({ iconSize: 12 })
+            }
+            .width(22)
+            .justifyContent(FlexAlign.Center)
+            .onClick(() => {
+              this.changeWeek(-1);
+            })
             Text(`第 ${this.viewWeek} 周`)
               .fontSize(12)
               .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))

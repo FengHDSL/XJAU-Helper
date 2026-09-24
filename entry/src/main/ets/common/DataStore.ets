@@ -194,6 +194,8 @@ export class DataStore {
   static readonly KEY_TEXT_GLOW: string = 'text_glow_color';
   /** 页面背景是否混入主题色（背景跟随主题色开关） */
   static readonly KEY_PAGE_BG_TINT: string = 'page_bg_tint';
+  /** 上次弹过更新提示的应用版本号（每版本只弹一次更新内容） */
+  static readonly KEY_LAST_SEEN_VERSION: string = 'last_seen_version';
 
   /** 保存灰字模式 */
   static saveGrayMode(mode: string): void {
@@ -240,6 +242,16 @@ export class DataStore {
   /** 读取「背景跟随主题色」开关（缺省 true＝默认取色） */
   static loadPageBgTint(): boolean {
     return DataStore.get(DataStore.KEY_PAGE_BG_TINT) !== '0';
+  }
+
+  /** 读取上次弹过更新提示的版本号（''＝从未弹过） */
+  static getLastSeenVersion(): string {
+    return DataStore.get(DataStore.KEY_LAST_SEEN_VERSION);
+  }
+
+  /** 记录已弹过更新提示的版本号 */
+  static setLastSeenVersion(v: string): void {
+    DataStore.put(DataStore.KEY_LAST_SEEN_VERSION, v);
   }
 
   /** 读取自定义灰字颜色（未设置返回空串） */

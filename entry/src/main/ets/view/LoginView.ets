@@ -54,6 +54,8 @@ export struct LoginView {
   @State remember7d: boolean = AppState.remember7d;
   @State loading: boolean = false;
   @State showWeb: boolean = false;
+  /** 网页登录「手动识别登录状态」触发序号（自增触发 WebSurface 立即抓取一次会话） */
+  @State webScanSeq: number = 0;
   /** 网页版登录目标（jw=教务系统直登 / hall=服务大厅），标题栏切换用 */
   @State webLoginTarget: string = AppState.webLoginTarget;
   /** 网页版登录 WebView 控制器（标题栏切换网址时重新加载用） */
@@ -1533,6 +1535,7 @@ export struct LoginView {
   @Builder
   webSheet() {
     WebSurface({
+      scanTrigger: this.webScanSeq,
       onControllerReady: (ctrl: webview.WebviewController) => {
         this.webCtrl = ctrl;
       }
@@ -1576,6 +1579,20 @@ export struct LoginView {
         .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
         .borderRadius(16)
         .padding(3)
+      }
+      // 手动识别登录状态：自动轮询漏判（登录成功没反应）时，点一下立即抓取会话 Cookie 完成判定
+      if (AppState.webLoginMode) {
+        Text('手动识别登录')
+          .fontSize(11)
+          .fontColor($r('app.color.brand'))
+          .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+          .backgroundColor($r('app.color.bg_chip'))
+          .borderRadius(13)
+          .margin({ left: 8 })
+          .onClick(() => {
+            this.webScanSeq++;
+            this.getUIContext().getPromptAction().showToast({ message: '正在识别登录状态…' });
+          })
       }
     }
     .width('100%')

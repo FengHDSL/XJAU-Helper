@@ -30,6 +30,11 @@ export struct WebSurface {
   /** 页面加载完成（onPageEnd）后回调（外层可执行初始滚动让位等） */
   onLoadEnd: () => void = () => {
   };
+  /**
+   * 手动识别登录状态触发器：外部自增时**立即执行一次**会话抓取（tryGrabSession）。
+   * 兜底场景：轮询漏判/登录成功没反应时，用户点「手动识别登录」按钮手动完成判定。
+   */
+  @Prop @Watch('onManualScanChanged') scanTrigger: number = 0;
   /** 是否使用电脑端 UA（智慧学工默认开启） */
   desktopUa: boolean = false;
   private controller: webview.WebviewController = new webview.WebviewController();
@@ -67,6 +72,14 @@ export struct WebSurface {
     // （网页端查询等只同步 Cookie 的场景 onWebLogin 为 null，不轮询、不自动进主页）
     if (AppState.webLoginMode && AppState.onWebLogin !== null) {
       this.startLoginPoll();
+    }
+  }
+
+  /** 手动识别触发：立即抓取一次会话（已判定登录成功则忽略） */
+  onManualScanChanged(): void {
+    if (this.scanTrigger > 0 && !this.loggedIn) {
+      this.tryGrabSession().catch(() => {
+      });
     }
   }
 

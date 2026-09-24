@@ -42,6 +42,7 @@ import { CourseItem, ExamItem, NoticeItem, QuickEntry, TermInfo, TodayCourse } f
 import { TeachingCalendar } from '../model/TeachingCalendar';
 import { BarTitle, EmptyTip, LoadingTip, SectionHeader, TagChip } from './common/UiKit';
 import { WebSurface } from './WebSurface';
+import { Changelog, ChangelogItem } from '../common/Changelog';
 import { ResponsiveUtil } from '../common/ResponsiveUtil';
 
 /** 下一次非今日课的预告（首页课程无课时展示） */
@@ -167,6 +168,17 @@ export struct HomeView {
 
   /** 页面出现：加载数据并监听横竖屏 */
   aboutToAppear(): void {
+    // 版本更新提示：每个版本在更新后**首次进首页**弹一次，内容直接引用更新日志最新一条
+    // （无需随版本手动改弹窗文案）；弹过即记录版本号，之后不再打扰
+    const latest: ChangelogItem = Changelog.CHANGELOG_ALL[0];
+    if (DataStore.getLastSeenVersion() !== latest.version) {
+      DataStore.setLastSeenVersion(latest.version);
+      this.getUIContext().getPromptAction().showDialog({
+        title: `已更新到 v${latest.version}`,
+        message: latest.items.map((s: string): string => `· ${s}`).join('\n'),
+        buttons: [{ text: '知道了', color: '#079841' }]
+      });
+    }
     // 功能浏览模式优先用 AppState.mockCurrentWeek > 0 指定的周次，确保所有功能有数据
     if (AppState.mockCurrentWeek > 0) {
       this.currentWeek = AppState.mockCurrentWeek;

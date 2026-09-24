@@ -607,6 +607,8 @@ export struct MaterialSheetPanel {
   /** 关闭图标颜色（空串=默认次要文字色；可传 sys.color.font_primary 做黑白自适应） */
   @Prop panelCloseTint: ResourceColor = '';
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
+  /** 深浅色订阅：面板玻璃兜底底色按深浅切换 */
+  @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 全局字重订阅（面板内标题加粗时跟随字体管理设置） */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @BuilderParam panelContent: () => void = this.emptyPanel;
@@ -620,9 +622,15 @@ export struct MaterialSheetPanel {
     return this.immersiveEffect && isApi26OrAbove() && materialActive();
   }
 
-  /** 面板根背景：材质生效时让出底色，否则补卡片底色兜底（bindSheet 的 backgroundColor 通常是 Color.Transparent） */
+  /** 面板根背景：材质生效时让出底色；**否则用 70% 透明玻璃底**（+Thin 磨砂，见 panelBlur）——
+   *  此前兜底是 bg_card 不透明纯色，光感关闭时面板呈纯黑/纯白色块（用户反馈「部分卡片纯黑纯白」） */
   private panelBackground(): ResourceColor {
-    return this.materialEffective() ? Color.Transparent : $r('app.color.bg_card');
+    return this.materialEffective() ? Color.Transparent : GlassMaterial.cardSurfaceColor(this.isDarkMode);
+  }
+
+  /** 面板磨砂：材质生效时关掉；关闭光感时回落 Thin（玻璃降级观感，参考项目行为） */
+  private panelBlur(): BlurStyle {
+    return this.materialEffective() ? BlurStyle.NONE : BlurStyle.Thin;
   }
 
   /**
@@ -749,8 +757,9 @@ export struct MaterialSheetPanel {
         bottomRight: 0
       })
       // 材质生效时必须让出底色，否则底色会垫在材质之下叠出灰感；
-      // 不生效时补上卡片底色兜底（bindSheet 的 backgroundColor 通常是 Color.Transparent）。
+      // 不生效时玻璃底 + Thin 磨砂兜底（bindSheet 的 backgroundColor 通常是 Color.Transparent）。
       .backgroundColor(this.panelBackground())
+      .backgroundBlurStyle(this.panelBlur())
       .clip(true)
     } else {
       Stack() {
@@ -764,6 +773,7 @@ export struct MaterialSheetPanel {
         bottomRight: 0
       })
       .backgroundColor(this.panelBackground())
+      .backgroundBlurStyle(this.panelBlur())
       .clip(true)
     }
   }
