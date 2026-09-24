@@ -37,6 +37,8 @@ const COURSE_PALETTES: string[][] = [
 
 @Component
 export struct CourseDetailPanel {
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
@@ -144,7 +146,7 @@ export struct CourseDetailPanel {
         .margin({ right: 10 })
       Text(label)
         .fontSize(13)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         .width(62)
       Text(value)
         .fontSize(13)
@@ -225,7 +227,7 @@ export struct CourseDetailPanel {
 
           Text('为当前课程单独设置颜色（空=按课程名自动取色）')
             .fontSize(11)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             .width('100%')
             .margin({ bottom: 6 })
 

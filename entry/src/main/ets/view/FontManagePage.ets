@@ -557,7 +557,7 @@ export struct FontManagePage {
             })
           Text(`${this.weightValue}`)
             .fontSize(12)
-            .fontColor($r('app.color.text_secondary'))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
             .width(40)
             .textAlign(TextAlign.End)
         }
@@ -575,7 +575,7 @@ export struct FontManagePage {
       Row() {
         Text('当前：' + (target === 'zh' ? this.familyLabel(this.fontFamilyZh) : this.familyLabel(this.fontFamilyEn)))
           .fontSize(12)
-          .fontColor($r('app.color.text_secondary'))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
           .layoutWeight(1)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })

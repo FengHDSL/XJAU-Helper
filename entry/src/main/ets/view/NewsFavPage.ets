@@ -16,6 +16,8 @@ import { AppearanceStore } from '../common/AppearanceStore';
 @Component
 export struct NewsFavPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
@@ -136,10 +138,10 @@ export struct NewsFavPage {
           Column() {
             Text('暂无收藏')
               .fontSize(14)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             Text('在新闻详情页点击"收藏"即可收藏')
               .fontSize(12)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
               .margin({ top: 8 })
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
@@ -153,7 +155,7 @@ export struct NewsFavPage {
                       Text(item.title).fontSize(15).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                         .fontColor($r('app.color.text_primary')).maxLines(2)
                         .textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
-                      Text(item.date).fontSize(11).fontColor($r('app.color.text_tertiary'))
+                      Text(item.date).fontSize(11).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                         .margin({ top: 6 }).width('100%')
                     }
                     .layoutWeight(1).alignItems(HorizontalAlign.Start)

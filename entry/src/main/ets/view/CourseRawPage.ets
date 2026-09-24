@@ -25,6 +25,8 @@ const PREVIEW_MAX: number = 20000;
 @Component
 export struct CourseRawPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
@@ -132,11 +134,11 @@ export struct CourseRawPage {
     Row() {
       Text(label)
         .fontSize(12)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         .width(66)
       Text(value.length > 0 ? value : '—')
         .fontSize(12)
-        .fontColor($r('app.color.text_secondary'))
+        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
         .layoutWeight(1)
     }
     .width('100%')
@@ -207,7 +209,7 @@ export struct CourseRawPage {
                 }) {
                   Text('复制原文')
                     .fontSize(12)
-                    .fontColor($r('app.color.text_secondary'))
+                    .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
                     .padding({ left: 14, right: 14, top: 7, bottom: 7 })
                 }
               }
@@ -238,7 +240,7 @@ export struct CourseRawPage {
                     ? `原始识别文件（仅预览前 ${PREVIEW_MAX} 字符）`
                     : '原始识别文件（教务系统接口原文）')
                     .fontSize(11)
-                    .fontColor($r('app.color.text_tertiary'))
+                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                     .layoutWeight(1)
                   // 「复制全文」淡灰玻璃底小胶囊：同上走 MaterialButton（光感关闭回落 bg_chip 玻璃底）
                   MaterialButton({
@@ -262,7 +264,7 @@ export struct CourseRawPage {
 
                 Text(this.preview)
                   .fontSize(10)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
                   .lineHeight(15)
                   .width('100%')
                   .textSelectable(TextSelectableMode.SELECTABLE_UNFOCUSABLE)
@@ -289,7 +291,7 @@ export struct CourseRawPage {
                 Text('原文件在每次成功拉取课表时生成。点上方「重新获取」，或回到课程表页点标题旁的刷新按钮即可生成。')
                   .fontSize(12)
                   .lineHeight(18)
-                  .fontColor($r('app.color.text_tertiary'))
+                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                   .margin({ top: 6 })
               }
               .width('100%')

@@ -16,6 +16,8 @@ import { AppearanceStore } from '../common/AppearanceStore';
 @Component
 struct SearchRow {
   @Prop item: SearchItem | null = null;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
@@ -57,7 +59,7 @@ struct SearchRow {
               .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
               .layoutWeight(1)
             Text(this.item.date)
-              .fontSize(11).fontColor($r('app.color.text_tertiary'))
+              .fontSize(11).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
               .margin({ left: 8 })
           }
           .width('100%').margin({ top: 6 })
@@ -74,6 +76,8 @@ struct SearchRow {
 @Component
 export struct SearchResultPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
@@ -186,12 +190,12 @@ export struct SearchResultPage {
         if (this.loading) {
           Column() {
             LoadingProgress().width(32).height(32).color(Theme.colorOf(this.themeColor))
-            Text('搜索中').fontSize(12).fontColor($r('app.color.text_tertiary')).margin({ top: 10 })
+            Text('搜索中').fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).margin({ top: 10 })
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else if (this.results.length === 0) {
           Column() {
-            Text('未找到相关新闻').fontSize(14).fontColor($r('app.color.text_tertiary'))
+            Text('未找到相关新闻').fontSize(14).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else {
@@ -216,15 +220,15 @@ export struct SearchResultPage {
               Column() {
                 if (this.loadingMore) {
                   LoadingProgress().width(24).height(24).color(Theme.colorOf(this.themeColor))
-                  Text('加载中').fontSize(11).fontColor($r('app.color.text_tertiary')).margin({ top: 6 })
+                  Text('加载中').fontSize(11).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).margin({ top: 6 })
                 } else if (this.hasMore) {
                   Text('上拉加载更多')
-                    .fontSize(12).fontColor($r('app.color.text_tertiary'))
+                    .fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                     .padding({ top: 12, bottom: 12 })
                     .onClick(() => { this.loadMore(); })
                 } else {
                   Text('— 已加载全部结果 —')
-                    .fontSize(11).fontColor($r('app.color.text_tertiary'))
+                    .fontSize(11).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                     .padding({ top: 12, bottom: 12 })
                 }
                 Column().height(20)

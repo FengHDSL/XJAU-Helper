@@ -38,6 +38,8 @@ const MAX_DECODE_LONG_SIDE: number = 2560;
 @Component
 export struct BackgroundCropPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 预览图 uri（file:// 沙箱路径） */
   @State srcUri: string = '';
   /** 是否已选到图片 */
@@ -418,7 +420,7 @@ export struct BackgroundCropPage {
               Column() {
                 Text(this.busy ? '正在处理…' : '请选择一张图片')
                   .fontSize(14)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
               }
               .width('100%')
               .height('100%')
@@ -536,7 +538,7 @@ export struct BackgroundCropPage {
 
           Text('提示：拖动白色框调整裁剪区域，拖动右下角圆形把手调整大小；框内区域即最终背景。')
             .fontSize(11)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             .textAlign(TextAlign.Center)
             .width('100%')
             .padding({ left: 16, right: 16 })

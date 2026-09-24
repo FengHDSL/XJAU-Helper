@@ -11,6 +11,8 @@ import { ChangelogCard } from './common/ChangelogCard';
 @Component
 export struct ChangelogPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   @StorageProp('bottomInsetPx') bottomInsetPx: number = 0;
 
   build() {
@@ -29,7 +31,7 @@ export struct ChangelogPage {
 
             Text(`共 ${CHANGELOG_ALL.length} 个版本`)
               .fontSize(12)
-              .fontColor($r('app.color.text_tertiary'))
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
               .width('100%')
               .margin({ bottom: 10 })
 

@@ -42,6 +42,8 @@ const UA_TABLET: number = 2;
 @Component
 export struct WebViewPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
@@ -320,7 +322,7 @@ export struct WebViewPage {
         } else {
           Text('清空')
             .fontSize(13)
-            .fontColor($r('app.color.text_tertiary'))
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
             .padding({ left: 12, right: 12, top: 4, bottom: 4 })
             .borderRadius(12)
             .backgroundColor('#14FFFFFF')
@@ -334,7 +336,7 @@ export struct WebViewPage {
       if (this.historyItems.length === 0) {
         Text('暂无历史记录')
           .fontSize(14)
-          .fontColor($r('app.color.text_tertiary'))
+          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
           .margin({ top: 40 })
       } else {
         List({ space: 6 }) {
@@ -361,7 +363,7 @@ export struct WebViewPage {
 
                 Text(item.url)
                   .fontSize(11)
-                  .fontColor($r('app.color.text_tertiary'))
+                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
                   .maxLines(1)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
                   .width('100%')
@@ -414,7 +416,7 @@ export struct WebViewPage {
         .fontColor($r('app.color.text_primary'))
       Text('该外部链接不可用，请使用真实账号登录后访问')
         .fontSize(12)
-        .fontColor($r('app.color.text_tertiary'))
+        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
         .margin({ top: 8 })
         .textAlign(TextAlign.Center)
     }

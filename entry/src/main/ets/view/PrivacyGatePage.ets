@@ -27,6 +27,8 @@ import { AppearanceStore } from '../common/AppearanceStore';
 @Component
 export struct PrivacyGatePage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
+  @StorageProp('grayTick') grayTick: number = 0;
   /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
@@ -166,7 +168,7 @@ export struct PrivacyGatePage {
         }) {
           Text(secondaryText)
             .fontSize(14)
-            .fontColor($r('app.color.text_secondary'))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
             .height(42)
             .width('100%')
             .textAlign(TextAlign.Center)
@@ -258,7 +260,7 @@ export struct PrivacyGatePage {
         Column() {
           Text('在你使用「新农助手」前，请阅读并同意以下隐私保护指引：')
             .fontSize(13)
-            .fontColor($r('app.color.text_secondary'))
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
             .width('100%')
             .padding({ left: 20, right: 20, top: 14, bottom: 6 })
           Web({ src: $rawfile('privacy.html'), controller: this.privacyController })
@@ -275,7 +277,7 @@ export struct PrivacyGatePage {
                 .onChange((v: boolean) => { this.agreeTerms = v; })
               Text('我已阅读并同意')
                 .fontSize(12)
-                .fontColor($r('app.color.text_secondary'))
+                .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
               Text('《用户协议》')
                 .fontSize(12)
                 .fontColor(Theme.colorOf(this.themeColor))
@@ -291,7 +293,7 @@ export struct PrivacyGatePage {
                 .onChange((v: boolean) => { this.agreePrivacy = v; })
               Text('我已阅读并同意')
                 .fontSize(12)
-                .fontColor($r('app.color.text_secondary'))
+                .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
               Text('《隐私政策》')
                 .fontSize(12)
                 .fontColor(Theme.colorOf(this.themeColor))
@@ -324,7 +326,7 @@ export struct PrivacyGatePage {
                 }) {
                   Text('不同意')
                     .fontSize(14)
-                    .fontColor($r('app.color.text_secondary'))
+                    .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
                     .height(42)
                     .width('100%')
                     .textAlign(TextAlign.Center)
@@ -385,7 +387,7 @@ export struct PrivacyGatePage {
                 Text(sec.content)
                   .fontSize(14)
                   .lineHeight(22)
-                  .fontColor($r('app.color.text_secondary'))
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
                   .width('100%')
               }, (sec: DeclarationSection) => sec.title)
             }
@@ -474,7 +476,7 @@ export struct PrivacyGatePage {
               .layoutWeight(1)
             Text('✕')
               .fontSize(18)
-              .fontColor($r('app.color.text_secondary'))
+              .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
               .width(36)
               .height(36)
               .textAlign(TextAlign.Center)

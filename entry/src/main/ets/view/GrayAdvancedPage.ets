@@ -407,7 +407,7 @@ export struct GrayAdvancedPage {
         Blank()
         Text('✕')
           .fontSize(15)
-          .fontColor($r('app.color.text_secondary'))
+          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
           .padding(6)
           .onClick(() => {
             this.sheetOpen = false;
