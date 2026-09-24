@@ -34,6 +34,7 @@ import { WebViewPage } from './WebViewPage';
 import { WallpaperPage } from './WallpaperPage';
 import { BackgroundCropPage } from './BackgroundCropPage';
 import { FontManagePage } from './FontManagePage';
+import { GrayAdvancedPage } from './GrayAdvancedPage';
 import { NoticeDetailPage, NoticePage } from './NoticePage';
 import { PrivacyPage } from './PrivacyPage';
 import { TermsPage } from './TermsPage';
@@ -206,6 +207,8 @@ export struct MainView {
       BackgroundCropPage()
     } else if (name === Const.ROUTE_FONT_MANAGE) {
       FontManagePage()
+    } else if (name === Const.ROUTE_GRAY_ADV) {
+      GrayAdvancedPage()
     }
   }
 
