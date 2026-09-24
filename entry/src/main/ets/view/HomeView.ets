@@ -1682,7 +1682,7 @@ export struct HomeView {
           .backgroundColor(materialActive() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
           .caretStyle({ color: $r('sys.color.font_emphasize') })
           .type(InputType.Normal)
-          .fontColor('rgba(0, 85, 255, 1.0)')
+          .fontColor(Theme.colorOf(this.themeColor))
           .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
           .onChange((v: string) => {
             this.labelInput = v;

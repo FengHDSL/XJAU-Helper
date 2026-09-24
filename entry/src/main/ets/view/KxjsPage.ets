@@ -828,7 +828,7 @@ export struct KxjsPage {
             .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
             .border({ width: this.matOn() ? 1 : 0, color: GlassMaterial.borderColor() })
             .caretStyle({ color: $r('sys.color.font_emphasize') })
-            .fontColor('rgba(0, 85, 255, 1.0)')
+            .fontColor(Theme.colorOf(this.themeColor))
             .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
             .width(72)
             .onChange((v: string) => {
@@ -848,7 +848,7 @@ export struct KxjsPage {
             .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
             .border({ width: this.matOn() ? 1 : 0, color: GlassMaterial.borderColor() })
             .caretStyle({ color: $r('sys.color.font_emphasize') })
-            .fontColor('rgba(0, 85, 255, 1.0)')
+            .fontColor(Theme.colorOf(this.themeColor))
             .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
             .width(72)
             .onChange((v: string) => {
@@ -890,7 +890,7 @@ export struct KxjsPage {
             .border({ width: this.matOn() ? 1 : 0, color: GlassMaterial.borderColor() })
             .caretStyle({ color: $r('sys.color.font_emphasize') })
             .type(InputType.Normal)
-            .fontColor('rgba(0, 85, 255, 1.0)')
+            .fontColor(Theme.colorOf(this.themeColor))
             .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
             .textAlign(TextAlign.End)
             .layoutWeight(1)

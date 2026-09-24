@@ -212,7 +212,10 @@ export struct FontManagePage {
 
   /** 设置字重方案 */
   private applyWeightMode(mode: string): void {
-    AppearanceStore.setFontWeightMode(mode);
+    // 在 animateTo 里改模式，下面的自定义数值滑条才能播放 .transition 弹出/收回动效
+    this.getUIContext().animateTo({ duration: 220, curve: Curve.Friction }, () => {
+      AppearanceStore.setFontWeightMode(mode);
+    });
   }
 
   /** 设置自定义字重数值 */
@@ -563,6 +566,10 @@ export struct FontManagePage {
         }
         .width('100%')
         .margin({ top: 4 })
+        // 自定义数值滑条：切到「自定义」时淡入下移、切走时淡出收回
+        .transition(TransitionEffect.OPACITY
+          .combine(TransitionEffect.translate({ y: 8 }))
+          .animation({ duration: 220, curve: Curve.Friction }))
       }
     }
     .width('100%')
