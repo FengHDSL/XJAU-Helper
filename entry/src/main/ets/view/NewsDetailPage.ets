@@ -16,10 +16,14 @@ import { GlassMaterial } from '../common/GlassMaterial';
 import { MaterialCard } from './common/MaterialCard';
 import { BackButton } from './common/BackButton';
 import { WallpaperFill } from './common/WallpaperFill';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 @Component
 export struct NewsDetailPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
@@ -174,7 +178,7 @@ export struct NewsDetailPage {
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
           Text('新闻详情')
-            .fontSize(18).fontWeight(FontWeight.Bold)
+            .fontSize(18).fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .margin({ left: 6 })
             .layoutWeight(1)
@@ -249,7 +253,7 @@ export struct NewsDetailPage {
                 }) {
                   Column() {
                     Text(this.detail.title)
-                  .fontSize(20).fontWeight(FontWeight.Bold)
+                  .fontSize(20).fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                   .fontColor($r('app.color.text_primary')).width('100%')
                   .margin({ bottom: 12 })
 

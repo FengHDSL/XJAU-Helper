@@ -11,10 +11,14 @@ import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { BackButton } from './common/BackButton';
 import { WallpaperFill } from './common/WallpaperFill';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 @Component
 export struct NewsFavPage {
   @StorageProp('topInsetPx') topInsetPx: number = 0;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 响应式依赖：玻璃/灰字设置变化时触发本页重渲染（取值经 GlassMaterial 静态方法读取） */
   @StorageProp('glassStrength') glassStrength: number = 70;
   @StorageProp('cardMaterial') cardMaterial: boolean = false;
@@ -104,7 +108,7 @@ export struct NewsFavPage {
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
           Text('我的收藏')
-            .fontSize(18).fontWeight(FontWeight.Bold)
+            .fontSize(18).fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
             .margin({ left: 6 })
             .layoutWeight(1)
@@ -146,7 +150,7 @@ export struct NewsFavPage {
                 Column() {
                   Row() {
                     Column() {
-                      Text(item.title).fontSize(15).fontWeight(FontWeight.Medium)
+                      Text(item.title).fontSize(15).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                         .fontColor($r('app.color.text_primary')).maxLines(2)
                         .textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
                       Text(item.date).fontSize(11).fontColor($r('app.color.text_tertiary'))
