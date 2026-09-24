@@ -1528,8 +1528,9 @@ export struct WallpaperPage {
                   .height(42)
               }
             }
-            // layoutWeight 必须挂在内置容器 Row 上（自定义组件尾随闭包后不能链式加属性）
-            .layoutWeight(1)
+            // 注意：本 Row 是竖向 Column 的子节点，绝不能挂 layoutWeight(1)
+            // （会在主轴上分配竖向空间 → 按钮行被撑高、间距变大）；
+            // 整宽由 Row.width('100%') + 按钮内容 width('100%') 共同保证。
             .width('100%')
             .margin({ top: 18 })
             // 取消壁纸：恢复默认纯色背景（淡红玻璃按钮；材质生效时淡红叠层保留颜色语义）
@@ -1555,8 +1556,7 @@ export struct WallpaperPage {
                   .height(42)
               }
             }
-            // layoutWeight 必须挂在内置容器 Row 上（自定义组件尾随闭包后不能链式加属性）
-            .layoutWeight(1)
+            // 同上：竖向 Column 的子节点不挂 layoutWeight(1)，避免间距被撑大
             .width('100%')
             .margin({ top: 12 })
             // 壁纸蒙版开关：关闭后不叠加可读性遮罩（文字仍会自动适配颜色）
