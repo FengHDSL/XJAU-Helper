@@ -28,6 +28,13 @@ import { BarTitle, EmptyTip, LoadingTip, PickRow } from './common/UiKit';
 import { BackButton } from './common/BackButton';
 import { WebSurface } from './WebSurface';
 import { WallpaperFill } from './common/WallpaperFill';
+// 沉浸光感：主条件卡（含 TextInput）用 Stack+MaterialCardLayer 兄弟结构；结果卡/空态卡走 MaterialCard
+// 本体（自带按压流光）；顶栏按钮走 MaterialButton（常驻材质）；卡内小行恒定普通磨砂（参考项目材质卡内小元素观感）
+import { MaterialCard } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
+import { MaterialCardLayer } from './common/MaterialCarrier';
+import { GlassMaterial } from '../common/GlassMaterial';
+import { materialAvailable } from '../common/SystemMaterial';
 
 /** 静态条件数据（模板演示用，后续接真实接口时替换为服务端下发的选项） */
 const STATIC_CAMPUS: EmptyRoomCondition[] = [
@@ -419,6 +426,14 @@ export struct KxjsPage {
     this.refreshing = false;
   }
 
+  /**
+   * 沉浸光感生效判定（与 WallpaperPage 同款）：全局开关 + 材质可用性。
+   * 条件卡承载层是否画材质、外壳是否回落 bg_card，都以此为准。
+   */
+  private matOn(): boolean {
+    return this.immersiveEffect && materialAvailable();
+  }
+
   /** 一键清空（保留学年学期 + 校区，其余全部重置/清空） */
   private resetAll(): void {
     this.buildingIndex = 0;
@@ -689,74 +704,87 @@ export struct KxjsPage {
     .padding({ top: 10, bottom: 4 })
   }
 
-  /** 房间卡片：精简为 场地名称 / 座位数 / 是否可用，点击看详情 */
+  /** 房间卡片：精简为 场地名称 / 座位数 / 是否可用，点击看详情（MaterialCard 本体：自带按压流光） */
   @Builder
   roomCard(item: EmptyRoomItem) {
-    Column() {
-      Row() {
-        Text(item.cdmc)
-          .fontSize(16)
-          .fontWeight(FontWeight.Bold)
-          .fontColor($r('app.color.text_primary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .layoutWeight(1)
-        if (item.sfkfy.length > 0) {
-          Text(this.borrowableLabel(item.sfkfy))
-            .fontSize(11)
-            .fontColor(this.borrowableColor(item.sfkfy))
-            .backgroundColor(this.borrowableBg(item.sfkfy))
-            .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-            .borderRadius(10)
-            .margin({ left: 8 })
+    MaterialCard({
+      cardRadius: 14,
+      cardPadding: 14,
+      cardBg: $r('app.color.bg_card'),
+      cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+      cardBorderC: GlassMaterial.borderColor(),
+      cardMaterialShadow: false,
+      cardOnClick: () => {
+        this.selectedRoom = item;
+        this.showDetail = true;
+      }
+    }) {
+      Column() {
+        Row() {
+          Text(item.cdmc)
+            .fontSize(16)
+            .fontWeight(FontWeight.Bold)
+            .fontColor($r('app.color.text_primary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+          if (item.sfkfy.length > 0) {
+            Text(this.borrowableLabel(item.sfkfy))
+              .fontSize(11)
+              .fontColor(this.borrowableColor(item.sfkfy))
+              .backgroundColor(this.borrowableBg(item.sfkfy))
+              .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+              .borderRadius(10)
+              .margin({ left: 8 })
+          }
         }
-      }
-      .width('100%')
+        .width('100%')
 
-      Row() {
-        Column()
-          .width(6)
-          .height(6)
-          .borderRadius(3)
-          .backgroundColor(Theme.colorOf(this.themeColor))
-          .margin({ right: 6 })
-        Text(`${item.sjzws} 人`)
-          .fontSize(12)
-          .fontColor(Theme.colorOf(this.themeColor))
-          .padding({ left: 8, right: 8, top: 2, bottom: 2 })
-          .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
-          .borderRadius(4)
-        Column()
-          .width(6)
-          .height(6)
-          .borderRadius(3)
-          .backgroundColor($r('app.color.text_tertiary'))
-          .margin({ left: 12, right: 6 })
-        Text(item.time)
-          .fontSize(11)
-          .fontColor($r('app.color.text_tertiary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .layoutWeight(1)
+        Row() {
+          Column()
+            .width(6)
+            .height(6)
+            .borderRadius(3)
+            .backgroundColor(Theme.colorOf(this.themeColor))
+            .margin({ right: 6 })
+          Text(`${item.sjzws} 人`)
+            .fontSize(12)
+            .fontColor(Theme.colorOf(this.themeColor))
+            .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+            .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
+            .borderRadius(4)
+          Column()
+            .width(6)
+            .height(6)
+            .borderRadius(3)
+            .backgroundColor($r('app.color.text_tertiary'))
+            .margin({ left: 12, right: 6 })
+          Text(item.time)
+            .fontSize(11)
+            .fontColor($r('app.color.text_tertiary'))
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+        }
+        .width('100%')
+        .margin({ top: 8 })
       }
       .width('100%')
-      .margin({ top: 8 })
+      .alignItems(HorizontalAlign.Start)
     }
-    .width('100%')
-    .padding(14)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(14)
-    .alignItems(HorizontalAlign.Start)
-    .onClick(() => {
-      this.selectedRoom = item;
-      this.showDetail = true;
-    })
   }
 
-  /** 查询条件卡（横竖屏共用）：学年学期/校区/楼号/场地类别/二级/周次/星期/节次/座位数/名称 + 查询按钮 */
+  /** 查询条件卡（横竖屏共用）：学年学期/校区/楼号/场地类别/二级/周次/星期/节次/座位数/名称 + 查询按钮。
+   *  卡内含 TextInput（座位数/场地名称）→ 不能套 MaterialCard（onTouch 打断输入焦点），
+   *  用 Stack 兄弟结构：MaterialCardLayer 纯视觉承载层画材质，内容 Column 独立叠上。 */
   @Builder
   queryOptionsCard() {
-    Column() {
+    Stack() {
+      if (this.matOn()) {
+        MaterialCardLayer({ layerRadius: 18, layerShadow: true })
+      }
+      Column() {
       // 单选：学年学期 / 校区 / 楼号 / 场地类别 / 场地二级类别
       PickRow({ label: '学年学期', value: this.termLabel, placeholder: '请选择', onTap: () => this.openTermPicker() })
       PickRow({ label: '校区', value: this.campusLabel, placeholder: '请选择', onTap: () => this.openCampusPicker() })
@@ -819,6 +847,8 @@ export struct KxjsPage {
       .height(56)
       .padding({ left: 10, right: 10 })
       .backgroundColor($r('app.color.bg_chip'))
+      // 卡内小卡直接普通磨砂（参考项目材质卡内小元素的观感；不挂材质，恒定生效）
+      .backgroundBlurStyle(BlurStyle.Thin)
       .borderRadius(10)
       .margin({ bottom: 10 })
 
@@ -850,6 +880,8 @@ export struct KxjsPage {
       .height(56)
       .padding({ left: 10, right: 10 })
       .backgroundColor($r('app.color.bg_chip'))
+      // 卡内小卡直接普通磨砂（参考项目材质卡内小元素的观感；不挂材质，恒定生效）
+      .backgroundBlurStyle(BlurStyle.Thin)
       .borderRadius(10)
       .margin({ bottom: 10 })
 
@@ -865,11 +897,13 @@ export struct KxjsPage {
         .onClick(() => {
           this.query();
         })
+      }
+      .width('100%')
+      .padding(16)
+      .backgroundColor(this.matOn() ? Color.Transparent : $r('app.color.bg_card'))
+      .borderRadius(18)
     }
     .width('100%')
-    .padding(16)
-    .backgroundColor($r('app.color.bg_card'))
-    .borderRadius(18)
     .margin({ bottom: 14 })
   }
 
@@ -917,11 +951,18 @@ export struct KxjsPage {
             .margin({ bottom: 10 })
 
             if (this.loading) {
+              MaterialCard({
+                cardRadius: 18,
+                cardBg: $r('app.color.bg_card'),
+                cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+                cardBorderC: GlassMaterial.borderColor(),
+                cardMaterialShadow: false
+              }) {
                 LoadingTip({ text: '正在查询空闲教室…' })
                   .width('100%')
                   .height(140)
-                .backgroundColor($r('app.color.bg_card'))
-                  .borderRadius(18)
+              }
             } else if (this.rooms.length > 0) {
               ForEach(this.pagedRooms(), (item: EmptyRoomItem) => {
                 Column() {
@@ -931,17 +972,24 @@ export struct KxjsPage {
               }, (item: EmptyRoomItem) => `${item.cdbh}-${item.cdmc}-${item.time}`)
               this.pageControl()
             } else {
-              Column() {
-                EmptyTip({ text: this.resultMessage.length > 0 ? this.resultMessage : '点击左侧"查询"获取空闲教室情况' })
-                Text(`当前条件: ${this.weekLabel} ${this.weekdayLabel} ${this.sectionLabel}`)
-                  .fontSize(11)
-                  .fontColor($r('app.color.text_tertiary'))
-                  .margin({ top: 8 })
+              MaterialCard({
+                cardRadius: 18,
+                cardPadding: 20,
+                cardBg: $r('app.color.bg_card'),
+                cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+                cardBorderC: GlassMaterial.borderColor(),
+                cardMaterialShadow: false
+              }) {
+                Column() {
+                  EmptyTip({ text: this.resultMessage.length > 0 ? this.resultMessage : '点击左侧"查询"获取空闲教室情况' })
+                  Text(`当前条件: ${this.weekLabel} ${this.weekdayLabel} ${this.sectionLabel}`)
+                    .fontSize(11)
+                    .fontColor($r('app.color.text_tertiary'))
+                    .margin({ top: 8 })
+                }
+                .width('100%')
               }
-              .width('100%')
-              .padding(20)
-              .backgroundColor($r('app.color.bg_card'))
-              .borderRadius(18)
             }
             Column()
               .height(this.getUIContext().px2vp(this.bottomInsetPx) + 100)
@@ -996,27 +1044,42 @@ export struct KxjsPage {
           BarTitle({ title: '空闲教室查询' })
             .margin({ left: 6 })
             .layoutWeight(1)
-          Text('网页端')
-            .fontSize(13)
-            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-            .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-            .backgroundColor(this.barStyle === 'legacy' ? '#33FFFFFF' : (this.isDarkMode ? $r('app.color.bg_chip') : '#26FFFFFF'))
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-            .borderRadius(14)
-            .onClick(() => {
+          // 网页端按钮 → MaterialButton（Toggle 承载层，btnPersistent 常驻：不随全局沉浸光感开关关闭而消失；
+          // 光感关闭回落原玻璃胶囊。原 Text 底色挪到 btnBg，内容不再自带底色）
+          MaterialButton({
+            btnRadius: 14,
+            btnPersistent: true,
+            btnBg: this.barStyle === 'legacy' ? '#33FFFFFF' : (this.isDarkMode ? $r('app.color.bg_chip') : '#26FFFFFF'),
+            btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+            btnBorderW: 1,
+            btnBorderC: 'rgba(255,255,255,0.28)',
+            btnOnClick: () => {
               this.openWebQuery();
-            })
-          Text('清空')
-            .fontSize(13)
-            .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-            .padding({ left: 10, right: 10, top: 5, bottom: 5 })
-            .backgroundColor(this.barStyle === 'legacy' ? '#33FFFFFF' : (this.isDarkMode ? $r('app.color.bg_chip') : '#26FFFFFF'))
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
-            .borderRadius(14)
-            .margin({ left: 8 })
-            .onClick(() => {
+            }
+          }) {
+            Text('网页端')
+              .fontSize(13)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+          }
+          // 清空按钮 → MaterialButton（同上；间距走 btnMargin——尾随闭包后不能再链式 .margin）
+          MaterialButton({
+            btnRadius: 14,
+            btnPersistent: true,
+            btnBg: this.barStyle === 'legacy' ? '#33FFFFFF' : (this.isDarkMode ? $r('app.color.bg_chip') : '#26FFFFFF'),
+            btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+            btnBorderW: 1,
+            btnBorderC: 'rgba(255,255,255,0.28)',
+            btnMargin: { left: 8 },
+            btnOnClick: () => {
               this.resetAll();
-            })
+            }
+          }) {
+            Text('清空')
+              .fontSize(13)
+              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
+              .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+          }
         }
         .width('100%')
         .alignItems(VerticalAlign.Top)
@@ -1065,11 +1128,18 @@ export struct KxjsPage {
                 .margin({ bottom: 10 })
 
                 if (this.loading) {
+                  MaterialCard({
+                    cardRadius: 18,
+                    cardBg: $r('app.color.bg_card'),
+                    cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                    cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+                    cardBorderC: GlassMaterial.borderColor(),
+                    cardMaterialShadow: false
+                  }) {
                     LoadingTip({ text: '正在查询空闲教室…' })
                       .width('100%')
                       .height(140)
-                  .backgroundColor($r('app.color.bg_card'))
-                      .borderRadius(18)
+                  }
                 } else if (this.rooms.length > 0) {
                   // 当前页卡片
                   ForEach(this.pagedRooms(), (item: EmptyRoomItem) => {
@@ -1081,17 +1151,24 @@ export struct KxjsPage {
                   // 底部翻页（左右按钮 + 页数）
                   this.pageControl()
                 } else {
-                  Column() {
-                    EmptyTip({ text: this.resultMessage.length > 0 ? this.resultMessage : '点击上方"查询"获取空闲教室情况' })
-                    Text(`当前条件: ${this.weekLabel} ${this.weekdayLabel} ${this.sectionLabel}`)
-                      .fontSize(11)
-                      .fontColor($r('app.color.text_tertiary'))
-                      .margin({ top: 8 })
+                  MaterialCard({
+                    cardRadius: 18,
+                    cardPadding: 20,
+                    cardBg: $r('app.color.bg_card'),
+                    cardBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                    cardBorderW: this.immersiveEffect ? GlassMaterial.borderWidth() : 0,
+                    cardBorderC: GlassMaterial.borderColor(),
+                    cardMaterialShadow: false
+                  }) {
+                    Column() {
+                      EmptyTip({ text: this.resultMessage.length > 0 ? this.resultMessage : '点击上方"查询"获取空闲教室情况' })
+                      Text(`当前条件: ${this.weekLabel} ${this.weekdayLabel} ${this.sectionLabel}`)
+                        .fontSize(11)
+                        .fontColor($r('app.color.text_tertiary'))
+                        .margin({ top: 8 })
+                    }
+                    .width('100%')
                   }
-                  .width('100%')
-                  .padding(20)
-                .backgroundColor($r('app.color.bg_card'))
-                  .borderRadius(18)
                 }
                 // 底部抬高（参考学业情况页，避免内容贴底；+100 保证翻页控件滚到底可见）
                 Column()
