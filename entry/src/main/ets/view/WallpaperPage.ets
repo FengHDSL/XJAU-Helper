@@ -25,7 +25,6 @@ import { isApi26OrAbove, materialAvailable, materialDiagnostics } from '../commo
 import { MaterialCardLayer } from './common/MaterialCarrier';
 import { MaterialCard } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
-import { GRAY_ADV_PAGES } from '../common/GrayAdvMeta';
 
 @Component
 export struct WallpaperPage {
@@ -115,20 +114,6 @@ export struct WallpaperPage {
     this.getUIContext().getPromptAction().showToast({ message: '已应用自定义灰字色' });
   }
 
-  /** 高级调整入口摘要：已单独设色的页面名（整页或按文本角色设置均计入）；无则「未设置」 */
-  private grayAdvSummary(): string {
-    const names: string[] = [];
-    for (let i = 0; i < GRAY_ADV_PAGES.length; i++) {
-      const k: string = GRAY_ADV_PAGES[i].key;
-      const touched: boolean = GlassMaterial.grayPageColor(k) !== ''
-        || GlassMaterial.grayRoleColor(k, GlassMaterial.GRAY_ROLE_SECONDARY) !== ''
-        || GlassMaterial.grayRoleColor(k, GlassMaterial.GRAY_ROLE_TERTIARY) !== '';
-      if (touched) {
-        names.push(GRAY_ADV_PAGES[i].name);
-      }
-    }
-    return names.length > 0 ? names.join('、') : '未设置';
-  }
 
   /** 全局沉浸光感开关（AppStorage 实时 + DataStore 持久化，重启后保持） */
   private setImmersive(on: boolean): void {
@@ -719,28 +704,6 @@ export struct WallpaperPage {
         .width('100%')
         .margin({ top: 12 })
 
-        // 高级调整入口：跳转独立页面（列出全部含灰字的页面，逐页设置单独颜色）
-        Row() {
-          Text('高级调整')
-            .fontSize(13)
-            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-            .fontColor(Theme.colorOf(this.themeColor))
-          Blank()
-          Text(this.grayAdvSummary())
-            .fontSize(11)
-            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
-          Text(' ›')
-            .fontSize(14)
-            .fontColor(Theme.colorOf(this.themeColor))
-        }
-        .width('100%')
-        .margin({ top: 12 })
-        .padding({ top: 4 })
-        .onClick(() => {
-          // 跳转「灰字高级调整」独立页面（不在本页弹面板）
-          AppState.stack.pushPath({ name: Const.ROUTE_GRAY_ADV });
-        })
-
         if (this.grayCustomExpanded) {
           Row() {
             // 自定义色输入框：材质承载层与输入框做「兄弟」（Stack），保证沉浸光感同时输入框可获焦
@@ -840,7 +803,7 @@ export struct WallpaperPage {
     }
   }
 
-  // 灰字高级调整已改为独立页面（见 view/GrayAdvancedPage.ets），本页仅保留入口跳转。
+  // 灰字「高级调整」（逐页设色）已按用户要求下线，改为下方的「文字样式」设置。
 
   /** 灰字模式胶囊：MaterialButton（选中=主题色叠层白字，未选中=bg_chip 玻璃胶囊，与字重胶囊同款） */
 

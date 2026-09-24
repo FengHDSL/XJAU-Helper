@@ -34,7 +34,6 @@ import { WebViewPage } from './WebViewPage';
 import { WallpaperPage } from './WallpaperPage';
 import { BackgroundCropPage } from './BackgroundCropPage';
 import { FontManagePage } from './FontManagePage';
-import { GrayAdvancedPage } from './GrayAdvancedPage';
 import { NoticeDetailPage, NoticePage } from './NoticePage';
 import { PrivacyPage } from './PrivacyPage';
 import { TermsPage } from './TermsPage';
@@ -98,7 +97,7 @@ export struct MainView {
     return base;
   }
 
-  /** Tab 序号 → 灰字高级调整页面 key（与 WallpaperPage GRAY_ADV_PAGES 一致） */
+  /** Tab 序号 → 灰字活动页 key（每页/角色单独灰字色的生效上下文） */
   static tabPageKey(index: number): string {
     if (index === 1) {
       return 'schedule';
@@ -207,8 +206,6 @@ export struct MainView {
       BackgroundCropPage()
     } else if (name === Const.ROUTE_FONT_MANAGE) {
       FontManagePage()
-    } else if (name === Const.ROUTE_GRAY_ADV) {
-      GrayAdvancedPage()
     }
   }
 
