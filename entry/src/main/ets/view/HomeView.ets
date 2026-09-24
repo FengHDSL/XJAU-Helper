@@ -104,6 +104,10 @@ export struct HomeView {
   @State customSemesterLabel: string = '';
   @State labelInput: string = '';
   @State showCalEditor: boolean = false;
+  /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖（静态函数内读 AppStorage 不登记），
+   *  fwValue 声明即订阅（custom 模式调数值时触发本页重渲染） */
+  @StorageProp('fontWeightMode') fwMode: string = 'follow';
+  @StorageProp('fontWeightValue') fwValue: number = 400;
   // 课程无课时：随机鼓励文案 + 下次课预告
   @State randomRestText: string = '';
   @State nextFutureCourse: NextFutureCourse | null = null;
@@ -517,7 +521,7 @@ export struct HomeView {
       if (this.shouldShowRelogin()) {
         Text('重登')
           .fontSize(11)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor('#FFFFFF')
           .backgroundColor('#FF9800')
           .height(22)
@@ -543,7 +547,7 @@ export struct HomeView {
       }) {
         Text(this.isTermStarted() ? `第 ${this.todayTeachingWeek()} 周` : '未开学')
           .fontSize(12)
-          .fontWeight(FontWeight.Medium)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
           .padding({ left: 10, right: 10, top: 5, bottom: 5 })
       }
@@ -659,7 +663,7 @@ export struct HomeView {
         } else {
           Text(AppState.avatarText())
             .fontSize(17)
-            .fontWeight(FontWeight.Medium)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
             .fontColor(Theme.colorOf(this.themeColor))
             .width(52)
             .height(52)
@@ -672,7 +676,7 @@ export struct HomeView {
       Column() {
         Text(`${AppState.displayName()}，${this.greeting()}`)
           .fontSize(17)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -725,7 +729,7 @@ export struct HomeView {
           .margin({ right: 8 })
         Text('下一节课')
           .fontSize(16)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
         Blank()
         if (this.todayCourses.length > 0) {
@@ -774,9 +778,9 @@ export struct HomeView {
             Row() {
               // 左侧竖条：下次课 三个字竖排
               Column() {
-                Text('下').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
-                Text('次').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
-                Text('课').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
+                Text('下').fontSize(13).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium)).fontColor(Theme.colorOf(this.themeColor))
+                Text('次').fontSize(13).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium)).fontColor(Theme.colorOf(this.themeColor))
+                Text('课').fontSize(13).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium)).fontColor(Theme.colorOf(this.themeColor))
               }
               .padding(10)
               .backgroundColor(this.subBg(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
@@ -788,7 +792,7 @@ export struct HomeView {
               Column() {
                 Text(this.nextFutureCourse.course.name)
                   .fontSize(18)
-                  .fontWeight(FontWeight.Bold)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                   .fontColor($r('app.color.text_primary'))
                   .maxLines(1)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -810,12 +814,12 @@ export struct HomeView {
               Column() {
                 Text(this.nextFutureCourse.dateLabel)
                   .fontSize(11)
-                  .fontWeight(FontWeight.Medium)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                   .fontColor(Theme.colorOf(this.themeColor))
                   .textAlign(TextAlign.Center)
                 Text(this.nextFutureCourse.timeRange)
                   .fontSize(11)
-                  .fontWeight(FontWeight.Medium)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                   .fontColor($r('app.color.text_primary'))
                   .textAlign(TextAlign.Center)
                   .margin({ top: 3 })
@@ -837,7 +841,7 @@ export struct HomeView {
             Column() {
               Text('今日课程已全部结束')
                 .fontSize(16)
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .fontColor($r('app.color.text_primary'))
               Text(`今天共 ${this.todayCourses.length} 节课，辛苦啦`)
                 .fontSize(12)
@@ -863,9 +867,9 @@ export struct HomeView {
             }) {
             Row() {
               Column() {
-                Text('下').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
-                Text('次').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
-                Text('课').fontSize(13).fontWeight(FontWeight.Medium).fontColor(Theme.colorOf(this.themeColor))
+                Text('下').fontSize(13).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium)).fontColor(Theme.colorOf(this.themeColor))
+                Text('次').fontSize(13).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium)).fontColor(Theme.colorOf(this.themeColor))
+                Text('课').fontSize(13).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium)).fontColor(Theme.colorOf(this.themeColor))
               }
               .padding(10)
               .backgroundColor(this.subBg(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? true) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
@@ -876,7 +880,7 @@ export struct HomeView {
               Column() {
                 Text(this.nextFutureCourse.course.name)
                   .fontSize(18)
-                  .fontWeight(FontWeight.Bold)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                   .fontColor($r('app.color.text_primary'))
                   .maxLines(1)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -897,12 +901,12 @@ export struct HomeView {
               Column() {
                 Text(this.nextFutureCourse.dateLabel)
                   .fontSize(11)
-                  .fontWeight(FontWeight.Medium)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                   .fontColor(Theme.colorOf(this.themeColor))
                   .textAlign(TextAlign.Center)
                 Text(this.nextFutureCourse.timeRange)
                   .fontSize(11)
-                  .fontWeight(FontWeight.Medium)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                   .fontColor($r('app.color.text_primary'))
                   .textAlign(TextAlign.Center)
                   .margin({ top: 3 })
@@ -920,7 +924,7 @@ export struct HomeView {
           Column() {
             Text(this.nextClass!.timeRange.split('-')[0])
               .fontSize(14)
-              .fontWeight(FontWeight.Medium)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
               .fontColor($r('app.color.text_primary'))
             Text(this.nextClass!.timeRange.split('-')[1])
               .fontSize(11)
@@ -943,7 +947,7 @@ export struct HomeView {
             Row() {
               Text(this.nextClass!.course.name)
                 .fontSize(18)
-                .fontWeight(FontWeight.Bold)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor($r('app.color.text_primary'))
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -1043,7 +1047,7 @@ export struct HomeView {
                     .fillColor(Theme.colorOf(this.themeColor))
                   Text(item.title)
                     .fontSize(14)
-                    .fontWeight(FontWeight.Medium)
+                    .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                     .fontColor($r('app.color.text_primary'))
                     .margin({ left: 8 })
                 }
@@ -1106,7 +1110,7 @@ export struct HomeView {
               Column() {
                 Text(`${DateUtil.parse(item.date).getMonth() + 1}/${DateUtil.parse(item.date).getDate()}`)
                   .fontSize(15)
-                  .fontWeight(FontWeight.Bold)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                   .fontColor($r('app.color.accent_orange'))
                 Text(DateUtil.relativeDay(DateUtil.parse(item.date)))
                   .fontSize(10)
@@ -1121,7 +1125,7 @@ export struct HomeView {
               Column() {
                 Text(item.courseName)
                   .fontSize(15)
-                  .fontWeight(FontWeight.Medium)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                   .fontColor($r('app.color.text_primary'))
                   .maxLines(1)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -1344,7 +1348,7 @@ export struct HomeView {
       if (this.sheetNotice !== null) {
         Text(this.sheetNotice.title)
           .fontSize(17)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
           .width('100%')
         Row() {
@@ -1657,7 +1661,7 @@ export struct HomeView {
     Column() {
       Text('学期标题')
         .fontSize(13)
-        .fontWeight(FontWeight.Medium)
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
         .fontColor($r('app.color.text_primary'))
         .width('100%')
       // 学期标题输入框：TextInput 属表单控件，不能走 Toggle 承载层 → Stack 兄弟结构：
@@ -1672,7 +1676,7 @@ export struct HomeView {
           .enterKeyType(EnterKeyType.Done)
           .borderRadius($r('sys.float.corner_radius_level12'))
           .fontSize($r('sys.float.Body_L'))
-          .fontWeight(FontWeight.Regular)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
           .backgroundColor(materialActive() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
           .caretStyle({ color: $r('sys.color.font_emphasize') })
           .type(InputType.Normal)
@@ -1791,7 +1795,7 @@ export struct HomeView {
       Text(text)
         .fontSize(11)
         .fontColor(color)
-        .fontWeight(FontWeight.Medium)
+        .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
         .padding({ left: 10, right: 10, top: 5, bottom: 5 })
     }
   }
@@ -1845,7 +1849,7 @@ export struct HomeView {
         // 学期标题：点击可自定义（留空恢复校历原标题）
         Text(this.effLabel())
           .fontSize(13)
-          .fontWeight(FontWeight.Bold)
+          .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
           .width('100%')
           .margin({ bottom: 8 })
@@ -1877,7 +1881,7 @@ export struct HomeView {
               Text(`开学 ${this.effStart().slice(5)}`)
                 .fontSize(11)
                 .fontColor($r('app.color.accent_blue'))
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .padding({ left: 10, right: 10, top: 5, bottom: 5 })
             }
           }
@@ -1897,7 +1901,7 @@ export struct HomeView {
               Text(`结束 ${this.effEnd().slice(5)}`)
                 .fontSize(11)
                 .fontColor($r('app.color.accent_orange'))
-                .fontWeight(FontWeight.Medium)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
                 .padding({ left: 10, right: 10, top: 5, bottom: 5 })
             }
           }
@@ -1911,7 +1915,7 @@ export struct HomeView {
             Column() {
               Text(`${ym % 100}月 ${Math.floor(ym / 100)}`)
                 .fontSize(13)
-                .fontWeight(FontWeight.Bold)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor($r('app.color.text_primary'))
                 .width('100%')
                 .margin({ top: 6, bottom: 6 })
@@ -1946,7 +1950,7 @@ export struct HomeView {
                                     : $r('app.color.text_primary'))
                                   : GlassMaterial.grayTertiary($r('app.color.text_tertiary'))))
                           )
-                          .fontWeight(day === this.effectiveToday() ? FontWeight.Bold : FontWeight.Normal)
+                          .fontWeight(this.fwMode === 'follow' ? (day === this.effectiveToday() ? FontWeight.Bold : FontWeight.Normal) : AppearanceStore.fontWeight(day === this.effectiveToday() ? FontWeight.Bold : FontWeight.Normal))
                           .width('100%')
                           .height(28)
                           .textAlign(TextAlign.Center)
@@ -2009,7 +2013,7 @@ export struct HomeView {
         Column() {
           Text('校历说明')
             .fontSize(11)
-            .fontWeight(FontWeight.Bold)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
             .fontColor(GlassMaterial.graySecondary($r('app.color.text_secondary')))
             .width('100%')
           Text('第 1~20 周为秋季学期教学活动，第 21 周起放寒假。中秋节(9月25日)、国庆节(10月1日)、元旦(1月1日)、春节(2月6日)等节假日放假安排按照国家及自治区规定执行，详见校办通知。')
