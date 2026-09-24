@@ -30,10 +30,14 @@ struct NewsRow {
   @Prop item: NewsItem | null = null;
   @StorageProp('wallpaperTone') wallpaperTone: number = -1;
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 主题色订阅：缩略图占位图标（picture_damage / livephoto_slash）跟随主题色 */
+  @StorageProp('themeColor') themeColor: string = 'green';
   /** 全局字重响应式订阅：表达式读 this.fwMode 才登记依赖，fwValue 声明即订阅 */
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
   @Prop showThumb: boolean = true;
+  /** 缩略图加载失败标记（区分「失败」与「本来就没有图」两种占位） */
+  @State thumbFailed: boolean = false;
   @State thumb: image.PixelMap | null = null;
   onTap: () => void = () => {};
 
@@ -43,6 +47,7 @@ struct NewsRow {
         this.thumb = pm;
       }).catch(() => {
         this.thumb = null;
+        this.thumbFailed = true;
       });
     }
   }
@@ -54,10 +59,32 @@ struct NewsRow {
           if (this.thumb !== null) {
             Image(this.thumb).width(72).height(54).borderRadius(6)
               .objectFit(ImageFit.Cover).margin({ right: 12 })
+          } else if (this.thumbFailed) {
+            // 加载失败：picture_damage 占位（图标居中、跟随主题色）
+            Column() {
+              Image($r('app.media.picture_damage'))
+                .width(26)
+                .height(26)
+                .fillColor(Theme.colorOf(this.themeColor))
+            }
+            .width(72).height(54).borderRadius(6)
+            .backgroundColor($r('app.color.bg_chip'))
+            .justifyContent(FlexAlign.Center)
+            .alignItems(HorizontalAlign.Center)
+            .margin({ right: 12 })
           } else {
-            Column().width(72).height(54).borderRadius(6)
-              .backgroundColor($r('app.color.bg_chip')).justifyContent(FlexAlign.Center)
-              .margin({ right: 12 })
+            // 本来就没有图片：livephoto_slash 占位（图标居中、跟随主题色）
+            Column() {
+              Image($r('app.media.livephoto_slash'))
+                .width(26)
+                .height(26)
+                .fillColor(Theme.colorOf(this.themeColor))
+            }
+            .width(72).height(54).borderRadius(6)
+            .backgroundColor($r('app.color.bg_chip'))
+            .justifyContent(FlexAlign.Center)
+            .alignItems(HorizontalAlign.Center)
+            .margin({ right: 12 })
           }
         }
         Column() {

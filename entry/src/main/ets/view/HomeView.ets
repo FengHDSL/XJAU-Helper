@@ -2001,13 +2001,21 @@ export struct HomeView {
         .width('100%')
 
         // 页码指示器（自绘）：位于月份内容下方，位置可精确控制，不遮挡日期
+        // 彩色指示条加沉浸光感：材质承载层常驻，色条改半透明叠在材质上（彩色玻璃观感）
         Row({ space: 6 }) {
           ForEach(this.calMonthList(), (ym: number, i: number) => {
-            Column()
-              .width(i === this.calPageIndex ? 14 : 6)
-              .height(6)
-              .borderRadius(3)
-              .backgroundColor(i === this.calPageIndex ? Theme.colorOf(this.themeColor) : '#33000000')
+            Stack() {
+              if (GlassMaterial.immSupported()) {
+                MaterialCardLayer({ layerRadius: 3, layerShadow: false, layerForce: true })
+              }
+              Column()
+                .width(i === this.calPageIndex ? 14 : 6)
+                .height(6)
+                .borderRadius(3)
+                .backgroundColor(i === this.calPageIndex
+                  ? Theme.rgba(Theme.colorOf(this.themeColor), 0.62)
+                  : '#33000000')
+            }
           }, (ym: number, i: number) => `caldot${i}`)
         }
         .width('100%')

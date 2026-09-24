@@ -23,6 +23,7 @@ import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
+import { ChevronRight } from './common/ChevronRight';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { AcademicReport, UserProfile } from '../model/Models';
@@ -738,9 +739,7 @@ export struct MineView {
       }
       .layoutWeight(1)
 
-      Text('›')
-        .fontSize(18)
-        .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+      ChevronRight({ iconSize: 18 })
     }
     .width('100%')
     }

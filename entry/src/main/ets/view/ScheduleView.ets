@@ -20,6 +20,7 @@ import { ScheduleConfig, COURSE_BG_HEX, COURSE_FG_HEX } from '../common/Schedule
 import { Theme } from '../common/ThemeUtil';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
+import { ChevronRight } from './common/ChevronRight';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { CourseItem, TermInfo } from '../model/Models';
@@ -690,14 +691,14 @@ export struct ScheduleView {
               .onClick(() => {
                 this.showWeekSheet = true;
               })
-            Text('›')
-              .fontSize(16)
-              .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-              .width(22)
-              .textAlign(TextAlign.Center)
-              .onClick(() => {
-                this.changeWeek(1);
-              })
+            Row() {
+              ChevronRight({ iconSize: 16 })
+            }
+            .width(22)
+            .justifyContent(FlexAlign.Center)
+            .onClick(() => {
+              this.changeWeek(1);
+            })
           }
           .padding({ top: 4, bottom: 4 })
         }

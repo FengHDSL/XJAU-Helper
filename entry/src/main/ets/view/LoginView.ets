@@ -22,6 +22,8 @@ import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { DataStore } from '../common/DataStore';
 import { GlassMaterial } from '../common/GlassMaterial';
+import { DissolveBurst } from './common/DissolveBurst';
+import { ChevronRight } from './common/ChevronRight';
 import { MaterialButton } from './common/MaterialButton';
 // 沉浸光感：半模态弹窗内容走 MaterialSheetPanel（WebSurface/Web 内容弹窗例外，保持 bg_page 不透底）
 import { MaterialSheetPanel } from './common/MaterialCard';
@@ -57,6 +59,10 @@ export struct LoginView {
   /** 网页版登录 WebView 控制器（标题栏切换网址时重新加载用） */
   private webCtrl: webview.WebviewController | null = null;
   @State showHistory: boolean = false;
+  /** 正在删除的历史账号（粒子消散 + 淡出收起动画用） */
+  @State deletingAcct: string = '';
+  /** 粒子消散触发序号（自增触发新一轮爆散） */
+  @State burstSeq: number = 0;
   @State historyList: Record<string, string>[] = [];
   @State isLandscape: boolean = false;
   @State showPwd: boolean = false; // 密码明文/密文切换
@@ -683,26 +689,36 @@ export struct LoginView {
     this.captchaInput = '';
   }
 
-  /** 删除单个历史账号（带动画，swipeAction 滑动删除） */
+  /** 删除单个历史账号：先播粒子消散 + 行淡出收起，再真正移除数据 */
   private deleteHistory(index: number): void {
-    if (index < 0 || index >= this.historyList.length) {
+    if (index < 0 || index >= this.historyList.length || this.deletingAcct.length > 0) {
       return;
     }
     const removedAcct: string = this.historyList[index]['account'] ?? '';
-    this.getUIContext().animateTo({ duration: 250, curve: Curve.EaseOut }, () => {
-      this.historyList.splice(index, 1);
+    this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseIn }, () => {
+      this.deletingAcct = removedAcct;
+      this.burstSeq++;
     });
-    // 持久化剩余列表
-    DataStore.put(DataStore.KEY_ACCOUNTS, JSON.stringify(this.historyList));
-    // 若删除的是"最近登录"，回退到剩余列表第一个
-    if (DataStore.get(DataStore.KEY_LAST_ACCOUNT) === removedAcct) {
-      DataStore.put(DataStore.KEY_LAST_ACCOUNT,
-        this.historyList.length > 0 ? (this.historyList[0]['account'] ?? '') : '');
-    }
-    // 全部删完时收起面板
-    if (this.historyList.length === 0) {
-      this.showHistory = false;
-    }
+    setTimeout(() => {
+      this.getUIContext().animateTo({ duration: 220, curve: Curve.EaseOut }, () => {
+        const idx: number = this.historyList.findIndex((item: Record<string, string>): boolean => (item['account'] ?? '') === removedAcct);
+        if (idx >= 0) {
+          this.historyList.splice(idx, 1);
+        }
+        // 持久化剩余列表
+        DataStore.put(DataStore.KEY_ACCOUNTS, JSON.stringify(this.historyList));
+        // 若删除的是"最近登录"，回退到剩余列表第一个
+        if (DataStore.get(DataStore.KEY_LAST_ACCOUNT) === removedAcct) {
+          DataStore.put(DataStore.KEY_LAST_ACCOUNT,
+            this.historyList.length > 0 ? (this.historyList[0]['account'] ?? '') : '');
+        }
+        // 全部删完时收起面板
+        if (this.historyList.length === 0) {
+          this.showHistory = false;
+        }
+        this.deletingAcct = '';
+      });
+    }, 380);
   }
 
   /** 清空历史账号列表并持久化 */
@@ -909,6 +925,8 @@ export struct LoginView {
       List({ space: 6 }) {
         ForEach(this.historyList, (item: Record<string, string>, index: number) => {
           ListItem() {
+            // 行套 Stack：DissolveBurst 覆盖其上，删除时从行中心爆散主题色粒子
+            Stack() {
             Row() {
               if (index === 0) {
                 Text('最近')
@@ -947,6 +965,10 @@ export struct LoginView {
             .padding({ left: 12, right: 12, top: 10, bottom: 10 })
             .backgroundColor(GlassMaterial.cardSurface(AppStorage.get<boolean>('isDarkMode') ?? false)).backgroundBlurStyle(BlurStyle.Thin).border({ width: 1, color: GlassMaterial.borderColor() }).shadow(GlassMaterial.capsuleShadow()).clip(true)
             .borderRadius(10)
+            // 删除中的行淡出收起
+            .opacity(this.deletingAcct === (item['account'] ?? '') ? 0 : 1)
+            DissolveBurst({ trigger: this.deletingAcct === (item['account'] ?? '') ? this.burstSeq : 0 })
+            }
           }
           .swipeAction({
             end: this.swipeDeleteButton(index)
@@ -1243,10 +1265,7 @@ export struct LoginView {
                 Text(this.loginModeText())
                   .fontSize(13)
                   .fontColor($r('app.color.brand'))
-                Text('›')
-                  .fontSize(13)
-                  .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-                  .margin({ left: 2 })
+                ChevronRight({ iconSize: 13 }).margin({ left: 2 })
               }
               .width('72%')
               .padding({ left: 18, right: 14, top: 10, bottom: 10 })
@@ -1355,10 +1374,7 @@ export struct LoginView {
                   Text(this.logCollecting ? '● 收集中' : '○ 已暂停')
                     .fontSize(12)
                     .fontColor(this.logCollecting ? $r('app.color.brand') : $r('app.color.text_tertiary'))
-                  Text('›')
-                    .fontSize(13)
-                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-                    .margin({ left: 2 })
+                  ChevronRight({ iconSize: 13 }).margin({ left: 2 })
                 }
                 .width('72%')
                 .padding({ left: 18, right: 14, top: 10, bottom: 10 })

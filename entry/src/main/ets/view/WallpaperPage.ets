@@ -25,6 +25,7 @@ import { isApi26OrAbove, materialAvailable } from '../common/SystemMaterial';
 import { MaterialCardLayer } from './common/MaterialCarrier';
 import { MaterialCard } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
+import { DissolveBurst } from './common/DissolveBurst';
 
 @Component
 export struct WallpaperPage {
@@ -73,6 +74,10 @@ export struct WallpaperPage {
   @StorageProp('textStyleMode') textStyleMode: string = '';
   /** 荧光底颜色（#rrggbb；''=内置荧光黄） */
   @StorageProp('textGlowColor') textGlowColor: string = '';
+  /** 正在删除的组合名（粒子消散 + 淡出收起动画用） */
+  @State deletingCombo: string = '';
+  /** 粒子消散触发序号（自增触发新一轮爆散） */
+  @State comboBurstSeq: number = 0;
   /** 自定义灰字色输入区展开（带动画）与草稿（点「应用」才生效） */
   @State grayCustomExpanded: boolean = false;
   @State grayCustomDraft: string = '';
@@ -404,10 +409,20 @@ export struct WallpaperPage {
     this.getUIContext().getPromptAction().showToast({ message: `已应用「${c.name}」` });
   }
 
-  /** 删除组合 */
+  /** 删除组合：先播粒子消散 + 卡片淡出收起，再真正移除数据 */
   private deleteCombo(name: string): void {
-    DataStore.removeCombo(name);
-    this.combos = DataStore.combos();
+    if (this.deletingCombo.length > 0) {
+      return;
+    }
+    this.getUIContext().animateTo({ duration: 300, curve: Curve.EaseIn }, () => {
+      this.deletingCombo = name;
+      this.comboBurstSeq++;
+    });
+    setTimeout(() => {
+      DataStore.removeCombo(name);
+      this.combos = DataStore.combos();
+      this.deletingCombo = '';
+    }, 400);
   }
 
   /** 副标题颜色胶囊：MaterialButton（Toggle 承载层）——选中态材质生效时 btnTint 半透明主题色叠层
@@ -1546,6 +1561,8 @@ export struct WallpaperPage {
             .width('100%')
             .alignItems(VerticalAlign.Center)
             ForEach(this.combos, (c: ThemeCombo) => {
+              // 卡片套 Stack：DissolveBurst 覆盖其上，删除时从卡片中心爆散主题色粒子
+              Stack() {
               Row() {
                 // 壁纸缩略图（自定义壁纸走 file://；未设置时显示占位块）
                 if (c.wallpaper.startsWith('c:')) {
@@ -1617,9 +1634,14 @@ export struct WallpaperPage {
               }
               .width('100%')
               .padding({ left: 14, right: 14, top: 10, bottom: 10 })
-              .margin({ top: 10 })
               .backgroundColor($r('app.color.bg_chip'))
               .borderRadius(14)
+              // 删除中的卡片淡出收起
+              .opacity(this.deletingCombo === c.name ? 0 : 1)
+              DissolveBurst({ trigger: this.deletingCombo === c.name ? this.comboBurstSeq : 0 })
+              }
+              .width('100%')
+              .margin({ top: 10 })
             }, (c: ThemeCombo) => c.name)
             }
             .width('100%')

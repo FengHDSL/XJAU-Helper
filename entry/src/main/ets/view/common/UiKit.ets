@@ -9,6 +9,7 @@ import { Theme } from '../../common/ThemeUtil';
 import { AppearanceStore } from '../../common/AppearanceStore';
 import { Immersive } from './Immersive';
 import { GlassMaterial } from '../../common/GlassMaterial';
+import { ChevronRight } from './ChevronRight';
 import { MaterialButton } from './MaterialButton';
 import { MaterialCardLayer } from './MaterialCarrier';
 import { isApi26OrAbove, materialAvailable } from '../../common/SystemMaterial';
@@ -64,10 +65,7 @@ export struct SectionHeader {
           Text(this.action)
             .fontSize(12)
             .fontColor(WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
-          Text('›')
-            .fontSize(14)
-            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-            .margin({ left: 2 })
+          ChevronRight({ iconSize: 14 }).margin({ left: 2 })
         }
         .onClick(() => {
           this.onAction();
@@ -230,10 +228,7 @@ export struct SettingRow {
         .fontSize(13)
         .fontColor(GlassMaterial.grayTertiary(this.grayTick, this.valueColor)).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
       if (this.showArrow) {
-        Text('›')
-          .fontSize(16)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, this.valueColor)).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-          .margin({ left: 6 })
+        ChevronRight({ iconSize: 16 }).margin({ left: 6 })
       }
     }
     .width('100%')
@@ -288,10 +283,7 @@ export struct PickRow {
           .maxLines(1)
           .textAlign(TextAlign.End)
           .textOverflow({ overflow: TextOverflow.MARQUEE })
-        Text('›')
-          .fontSize(16)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-          .margin({ left: 6 })
+        ChevronRight({ iconSize: 16 }).margin({ left: 6 })
       }
       .width('100%')
       .height(46)
