@@ -605,12 +605,14 @@ export struct ScoreView {
         this.detailRow('所属学期', this.currentTermLabel(), this.courseAttrColor(this.selectedItem.courseType))
 
         // 关闭按钮：材质走 MaterialButton 的 Toggle 承载层（普通 Button 直接挂材质真机不渲染）；
-        // 原 .width('100%')/.height(44)/.margin({ top: 18 })/.onClick 改由内容与 btnMargin/btnOnClick 承担，
-        // 点击行为与文案不变。原按钮是纯色底（无边框、无磨砂）→ 光感关闭时按原样回落（NONE / 无边）。
+        // 底部矩形关闭按钮改红色（与考试页底部关闭按钮同款）：
+        // 红底 + 沉浸光感（开启呈红玻璃观感）+ 文本系统黑白自适应。
         MaterialButton({
           btnRadius: 12,
-          btnBg: $r('app.color.brand_light'),
-          btnBlur: BlurStyle.NONE,
+          btnBg: '#DB5252',
+          btnBlur: this.immersiveEffect ? BlurStyle.Thin : BlurStyle.NONE,
+          btnBorderW: 1,
+          btnBorderC: 'rgba(255,255,255,0.28)',
           btnMargin: { top: 18 },
           btnOnClick: () => {
             this.showSheet = false;
@@ -618,7 +620,8 @@ export struct ScoreView {
         }) {
           Text('关闭')
             .fontSize(15)
-            .fontColor($r('app.color.brand'))
+            // 红底上的文字黑白自适应（系统 font_primary 随深浅色切换）
+            .fontColor($r('sys.color.font_primary'))
             .width('100%')
             .height(44)
             .textAlign(TextAlign.Center)

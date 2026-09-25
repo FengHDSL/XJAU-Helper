@@ -720,6 +720,7 @@ export struct ScheduleSettingsPanel {
             MaterialButton({
               btnRadius: 10,
               btnBg: Theme.colorOf(this.themeColor),
+              btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
               btnTint: Theme.colorOf(this.themeColor),
               btnTintRatio: 0.85,
               btnOnClick: () => { this.onPickBg(); }
@@ -858,7 +859,7 @@ export struct ScheduleSettingsPanel {
             Text('课程格子沉浸光感').fontSize(14).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
               .fontColor($r('app.color.text_primary'))
               .width('100%')
-            Text('课程格子改用沉浸光感材质渲染（API 26+），课程底色以半透明叠层保留；受全局沉浸光感开关影响')
+            Text('课程格子改用沉浸光感材质渲染（API 26+），课程底色以半透明叠层保留；独立于外观设置的沉浸光感开关，可单独开启')
               .fontSize(11)
               .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
               .width('100%')

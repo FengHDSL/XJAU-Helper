@@ -130,6 +130,8 @@ export struct NewsPage {
   @State showNewsSetting: boolean = false;
   /** 是否获取封面缩略图（设置项，默认开） */
   @StorageProp('newsThumb') newsThumb: boolean = true;
+  /** 内容背景大卡片（设置项，默认开）：顶栏下方延伸到屏幕底的材质大卡 */
+  @StorageProp('newsBgCard') newsBgCard: boolean = true;
   @State currentTab: number = 0;
   @State showWeb: boolean = false;
   @State keyword: string = '';
@@ -501,6 +503,32 @@ export struct NewsPage {
         }
         .width('100%')
         .alignItems(VerticalAlign.Center)
+        .margin({ top: 14 })
+
+        // 内容背景大卡片开关
+        Row() {
+          Column() {
+            Text('内容背景大卡片')
+              .fontSize(14)
+              .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+              .fontColor($r('app.color.text_primary'))
+            Text('新闻列表底部显示一张延伸到屏幕底的大卡片（沉浸光感材质）')
+              .fontSize(11)
+              .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+              .margin({ top: 2 })
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+          Toggle({ type: ToggleType.Switch, isOn: this.newsBgCard })
+            .selectedColor(Theme.colorOf(this.themeColor))
+            .onChange((on: boolean) => {
+              AppStorage.setOrCreate('newsBgCard', on);
+              DataStore.setNewsBgCard(on);
+            })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+        .margin({ top: 14 })
       }
       .width('100%')
       .padding({ left: 20, right: 20, top: 12, bottom: 26 })
@@ -654,6 +682,34 @@ export struct NewsPage {
     Column() {
       // 三层悬浮顶栏：内容(底) / 全透明模糊(中) / 主题渐变(顶)
       Stack({ alignContent: Alignment.TopStart }) {
+      // 内容背景大卡片（新闻设置可关）：从顶栏下方延伸到屏幕底部；
+      // 最小光感卡结构（材质承载层 + 底色层），hitTestBehavior(None) 纯背景不拦截列表滚动/点击。
+      // 置于 Stack 首个子节点：板块栏(zIndex 1)/顶栏(zIndex 2) 与新闻列表都悬浮其上。
+      if (this.newsBgCard) {
+        Column() {
+          Stack({ alignContent: Alignment.TopStart }) {
+            if (this.matOn()) {
+              MaterialCardLayer({ layerRadius: 18, layerShadow: false })
+            }
+            Column()
+              .width('100%')
+              .height('100%')
+              .backgroundColor(this.matOn() ? Color.Transparent
+                : GlassMaterial.cardBg($r('app.color.bg_card'), this.isDarkMode))
+              .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.cardBlur())
+              .border({ width: this.matOn() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
+              .clip(true)
+          }
+          .width('100%')
+          .height('100%')
+        }
+        .width('100%')
+        .height('100%')
+        // 顶边从顶栏（topInset + 60）下沿起，底部直达屏幕底（延伸感）；左右各留 12
+        .padding({ left: 12, right: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 56, bottom: 0 })
+        .hitTestBehavior(HitTestMode.None)
+        .zIndex(0)
+      }
       // 模糊层已取消（用户要求：内容直接透渐变）
         Column()
           .width('100%')

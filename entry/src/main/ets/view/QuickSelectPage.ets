@@ -614,14 +614,22 @@ export struct QuickSelectPage {
             .fontSize(13)
             .fontColor($r('app.color.text_primary'))
             .width('100%')
-          TextInput({ placeholder: '完整课程名称', text: this.manualName })
-            .height(44)
-            .borderRadius(10)
-            .fontSize($r('sys.float.Body_L'))
-            .backgroundColor($r('sys.color.comp_background_tertiary'))
-            .onChange((v: string) => {
-              this.manualName = v;
-            })
+          // TextInput 沉浸光感：Stack{ 材质承载层 + 输入框 }（材质生效时输入框底透明让材质透出）
+          Stack({ alignContent: Alignment.TopStart }) {
+            if (materialAvailable() && this.immersiveEffect) {
+              MaterialCardLayer({ layerRadius: 10, layerShadow: false })
+            }
+            TextInput({ placeholder: '完整课程名称', text: this.manualName })
+              .height(44)
+              .borderRadius(10)
+              .fontSize($r('sys.float.Body_L'))
+              .backgroundColor(materialAvailable() && this.immersiveEffect
+                ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+              .onChange((v: string) => {
+                this.manualName = v;
+              })
+          }
+          .width('100%')
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
@@ -631,14 +639,21 @@ export struct QuickSelectPage {
             .fontSize(13)
             .fontColor($r('app.color.text_primary'))
             .width('100%')
-          TextInput({ placeholder: '例如：篮球0003', text: this.manualJxb })
-            .height(44)
-            .borderRadius(10)
-            .fontSize($r('sys.float.Body_L'))
-            .backgroundColor($r('sys.color.comp_background_tertiary'))
-            .onChange((v: string) => {
-              this.manualJxb = v;
-            })
+          Stack({ alignContent: Alignment.TopStart }) {
+            if (materialAvailable() && this.immersiveEffect) {
+              MaterialCardLayer({ layerRadius: 10, layerShadow: false })
+            }
+            TextInput({ placeholder: '例如：篮球0003', text: this.manualJxb })
+              .height(44)
+              .borderRadius(10)
+              .fontSize($r('sys.float.Body_L'))
+              .backgroundColor(materialAvailable() && this.immersiveEffect
+                ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+              .onChange((v: string) => {
+                this.manualJxb = v;
+              })
+          }
+          .width('100%')
           Text('按教学班名称匹配，留空则不限')
             .fontSize(11)
             .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
@@ -652,14 +667,21 @@ export struct QuickSelectPage {
             .fontSize(13)
             .fontColor($r('app.color.text_primary'))
             .width('100%')
-          TextInput({ placeholder: '留空默认「秾大云上平台」', text: this.manualTeacher })
-            .height(44)
-            .borderRadius(10)
-            .fontSize($r('sys.float.Body_L'))
-            .backgroundColor($r('sys.color.comp_background_tertiary'))
-            .onChange((v: string) => {
-              this.manualTeacher = v;
-            })
+          Stack({ alignContent: Alignment.TopStart }) {
+            if (materialAvailable() && this.immersiveEffect) {
+              MaterialCardLayer({ layerRadius: 10, layerShadow: false })
+            }
+            TextInput({ placeholder: '留空默认「秾大云上平台」', text: this.manualTeacher })
+              .height(44)
+              .borderRadius(10)
+              .fontSize($r('sys.float.Body_L'))
+              .backgroundColor(materialAvailable() && this.immersiveEffect
+                ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+              .onChange((v: string) => {
+                this.manualTeacher = v;
+              })
+          }
+          .width('100%')
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
@@ -669,14 +691,21 @@ export struct QuickSelectPage {
             .fontSize(13)
             .fontColor($r('app.color.text_primary'))
             .width('100%')
-          TextInput({ placeholder: '例如 周三 5-6 节', text: this.manualTime })
-            .height(44)
-            .borderRadius(10)
-            .fontSize($r('sys.float.Body_L'))
-            .backgroundColor($r('sys.color.comp_background_tertiary'))
-            .onChange((v: string) => {
-              this.manualTime = v;
-            })
+          Stack({ alignContent: Alignment.TopStart }) {
+            if (materialAvailable() && this.immersiveEffect) {
+              MaterialCardLayer({ layerRadius: 10, layerShadow: false })
+            }
+            TextInput({ placeholder: '例如 周三 5-6 节', text: this.manualTime })
+              .height(44)
+              .borderRadius(10)
+              .fontSize($r('sys.float.Body_L'))
+              .backgroundColor(materialAvailable() && this.immersiveEffect
+                ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
+              .onChange((v: string) => {
+                this.manualTime = v;
+              })
+          }
+          .width('100%')
         }
         .width('100%')
         .alignItems(HorizontalAlign.Start)
@@ -1060,7 +1089,8 @@ export struct QuickSelectPage {
               Column() {
                 MaterialButton({
                   btnRadius: 21,
-                  btnBg: $r('app.color.bg_chip'),
+                  // 手动添加课程改绿色实底（同弹窗内「添加」按钮），文字黑白自动对比度
+                  btnBg: '#079841',
                   btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
                   btnBorderW: GlassMaterial.borderWidth(),
                   btnBorderC: GlassMaterial.borderColor(),
@@ -1070,7 +1100,7 @@ export struct QuickSelectPage {
                 }) {
                   Text('手动添加课程')
                     .fontSize(14)
-                    .fontColor($r('app.color.text_primary'))
+                    .fontColor(Theme.onColor('#079841'))
                     .width('100%')
                     .height(42)
                     .textAlign(TextAlign.Center)
@@ -1158,21 +1188,29 @@ export struct QuickSelectPage {
                   .fontSize(12)
                   .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
                   .layoutWeight(1)
-                // 档位胶囊保留实色底：选中态靠实色背景（选中=主题色 / 未选中=浅灰）+ 白字表达，
-                // 沉浸光感材质会让出底色、把选中态吃掉，故这一组不改为材质按钮。
+                // 档位胶囊 → MaterialButton：光感开启走玻璃底，选中态靠 btnTint 主题色叠层（0.85）
+                // 表达（与外观页字重/字号胶囊同款）；关闭时回落实色底原观感。
                 ForEach([0.5, 1, 2, 3, 5], (sec: number) => {
-                  Text(`${sec}s`)
-                    .fontSize(12)
-                    .fontColor(this.intervalSec === sec ? Color.White : GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
-                    .padding({ left: 11, right: 11, top: 5, bottom: 5 })
-                    .backgroundColor(this.intervalSec === sec
-                      ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-                    .borderRadius(10)
-                    .margin({ left: 5 })
-                    .onClick(() => {
+                  MaterialButton({
+                    btnRadius: 10,
+                    btnMargin: { left: 5 },
+                    btnBg: (materialAvailable() && this.immersiveEffect) ? GlassMaterial.surface(this.isDarkMode)
+                      : (this.intervalSec === sec ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip')),
+                    btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                    btnBorderW: GlassMaterial.borderWidth(),
+                    btnBorderC: GlassMaterial.borderColor(),
+                    btnTint: Theme.colorOf(this.themeColor),
+                    btnTintRatio: this.intervalSec === sec ? 0.85 : 0,
+                    btnOnClick: () => {
                       this.intervalSec = sec;
                       this.savePolicy();
-                    })
+                    }
+                  }) {
+                    Text(`${sec}s`)
+                      .fontSize(12)
+                      .fontColor(this.intervalSec === sec ? Color.White : GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                      .padding({ left: 11, right: 11, top: 5, bottom: 5 })
+                  }
                 }, (sec: number) => `sec${sec}`)
               }
               .width('100%')
@@ -1182,20 +1220,28 @@ export struct QuickSelectPage {
                   .fontSize(12)
                   .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
                   .layoutWeight(1)
-                // 档位胶囊保留实色底（选中态靠实色背景表达，原因同「重试间隔」）
+                // 档位胶囊 → MaterialButton（同「重试间隔」：玻璃底 + btnTint 叠层表达选中态）
                 ForEach([50, 200, 500, 0], (r: number) => {
-                  Text(r === 0 ? '不限' : `${r}`)
-                    .fontSize(12)
-                    .fontColor(this.maxRounds === r ? Color.White : GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
-                    .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-                    .backgroundColor(this.maxRounds === r
-                      ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-                    .borderRadius(10)
-                    .margin({ left: 6 })
-                    .onClick(() => {
+                  MaterialButton({
+                    btnRadius: 10,
+                    btnMargin: { left: 6 },
+                    btnBg: (materialAvailable() && this.immersiveEffect) ? GlassMaterial.surface(this.isDarkMode)
+                      : (this.maxRounds === r ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip')),
+                    btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                    btnBorderW: GlassMaterial.borderWidth(),
+                    btnBorderC: GlassMaterial.borderColor(),
+                    btnTint: Theme.colorOf(this.themeColor),
+                    btnTintRatio: this.maxRounds === r ? 0.85 : 0,
+                    btnOnClick: () => {
                       this.maxRounds = r;
                       this.savePolicy();
-                    })
+                    }
+                  }) {
+                    Text(r === 0 ? '不限' : `${r}`)
+                      .fontSize(12)
+                      .fontColor(this.maxRounds === r ? Color.White : GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                      .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                  }
                 }, (r: number) => `mr${r}`)
               }
               .width('100%')
@@ -1206,20 +1252,28 @@ export struct QuickSelectPage {
                   .fontSize(12)
                   .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
                   .layoutWeight(1)
-                // 档位胶囊保留实色底（选中态靠实色背景表达，原因同「重试间隔」）
+                // 档位胶囊 → MaterialButton（同「重试间隔」：玻璃底 + btnTint 叠层表达选中态）
                 ForEach([1, 2, 3], (w: number) => {
-                  Text(w === 1 ? '顺序' : `${w} 路`)
-                    .fontSize(12)
-                    .fontColor(this.parallelWorkers === w ? Color.White : GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
-                    .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-                    .backgroundColor(this.parallelWorkers === w
-                      ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-                    .borderRadius(10)
-                    .margin({ left: 6 })
-                    .onClick(() => {
+                  MaterialButton({
+                    btnRadius: 10,
+                    btnMargin: { left: 6 },
+                    btnBg: (materialAvailable() && this.immersiveEffect) ? GlassMaterial.surface(this.isDarkMode)
+                      : (this.parallelWorkers === w ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip')),
+                    btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                    btnBorderW: GlassMaterial.borderWidth(),
+                    btnBorderC: GlassMaterial.borderColor(),
+                    btnTint: Theme.colorOf(this.themeColor),
+                    btnTintRatio: this.parallelWorkers === w ? 0.85 : 0,
+                    btnOnClick: () => {
                       this.parallelWorkers = w;
                       this.savePolicy();
-                    })
+                    }
+                  }) {
+                    Text(w === 1 ? '顺序' : `${w} 路`)
+                      .fontSize(12)
+                      .fontColor(this.parallelWorkers === w ? Color.White : GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary')))
+                      .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                  }
                 }, (w: number) => `pw${w}`)
               }
               .width('100%')

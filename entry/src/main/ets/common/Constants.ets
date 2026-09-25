@@ -82,6 +82,8 @@ export class Const {
   static readonly ROUTE_BG_CROP: string = 'BackgroundCropPage';
   /** 字体管理页（外观设置 → 字体 → 字体管理） */
   static readonly ROUTE_FONT_MANAGE: string = 'FontManagePage';
+  /** 校公众号页（我的 → 校园服务 → 校公众号，展示学校各微信公众号并引导关注） */
+  static readonly ROUTE_WECHAT_OA: string = 'WechatOAPage';
 
   /** 教务系统网址（应用内 WebView 打开） */
   static readonly WEB_PORTAL_URL: string = 'https://jwxt.xjau.edu.cn/jwglxt/xtgl/index_initMenu.html';

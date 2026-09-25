@@ -13,6 +13,7 @@ import { GlassMaterial } from '../common/GlassMaterial';
 import { COURSE_BG_HEX } from '../common/ScheduleConfig';
 import { CourseItem } from '../model/Models';
 import { EMPTY_COURSE } from '../model/Empty';
+import { MaterialButton } from './common/MaterialButton';
 
 /** 课程独立颜色：3 套 × 20 色（套1 鲜艳 / 套2 柔和浅色 / 套3 深邃） */
 const COURSE_PALETTES: string[][] = [
@@ -44,6 +45,8 @@ export struct CourseDetailPanel {
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('themeColor') themeColor: string = 'green';
+  /** 沉浸光感订阅：底部关闭按钮的材质判定（订阅与使用点须在同一 struct） */
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 当前课程（只读展示 + 颜色选择目标） */
   @Prop selected: CourseItem = EMPTY_COURSE;
   /** 父组件颜色 map（只读输入，初始化镜像用） */
@@ -278,18 +281,26 @@ export struct CourseDetailPanel {
           .width('100%')
           .margin({ bottom: 6 })
 
-          // 关闭
-          Button('关闭')
-            .width('100%')
-            .height(44)
-            .fontSize(15)
-            .fontColor(Theme.colorOf(this.themeColor))
-            .backgroundColor(Theme.rgba(Theme.colorOf(this.themeColor), 0.12))
-            .borderRadius(12)
-            .margin({ top: 12 })
-            .onClick(() => {
+          // 关闭：胶囊小按钮 → MaterialButton（材质走 Toggle 承载层；光感开启呈玻璃底，
+          // 关闭回落原主题色 12% 半透明实底，观感与原 Button 一致）
+          MaterialButton({
+            btnRadius: 12,
+            btnBg: Theme.rgba(Theme.colorOf(this.themeColor), 0.12),
+            btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+            btnBorderW: GlassMaterial.borderWidth(),
+            btnBorderC: GlassMaterial.borderColor(),
+            btnMargin: { top: 12 },
+            btnOnClick: () => {
               this.onClose();
-            })
+            }
+          }) {
+            Text('关闭')
+              .fontSize(15)
+              .fontColor(Theme.colorOf(this.themeColor))
+              .width('100%')
+              .height(44)
+              .textAlign(TextAlign.Center)
+          }
         }
       }
       .width('100%')

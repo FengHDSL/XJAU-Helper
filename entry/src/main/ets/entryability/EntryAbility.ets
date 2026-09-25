@@ -72,6 +72,8 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate('wallpaperMask', DataStore.wallpaperMaskOn());
     // 新闻封面缩略图开关（默认开启）
     AppStorage.setOrCreate('newsThumb', DataStore.newsThumbOn());
+    // 新闻内容背景大卡片开关（默认开启）
+    AppStorage.setOrCreate('newsBgCard', DataStore.newsBgCardOn());
     // 壁纸明暗（对比度自动适配用，-1=未分析）
     AppStorage.setOrCreate('wallpaperTone', WallpaperTone.load());
 

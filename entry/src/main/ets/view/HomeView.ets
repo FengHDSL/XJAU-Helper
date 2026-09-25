@@ -895,6 +895,14 @@ export struct HomeView {
               .justifyContent(FlexAlign.Center)
             }
             .width('100%')
+            // 点击「下次课」子卡：跳转课程表并自动打开该课的课程详情
+            // （ScheduleView aboutToAppear 消费 AppState.pendingCourse）
+            .onClick(() => {
+              if (this.nextFutureCourse !== null) {
+                AppState.pendingCourse = this.nextFutureCourse.course;
+              }
+              this.onSwitchTab(1);
+            })
             }
           }
         }
@@ -982,6 +990,13 @@ export struct HomeView {
               .justifyContent(FlexAlign.Center)
             }
             .width('100%')
+            // 点击「下次课」子卡：跳转课程表并自动打开该课的课程详情（同上一分支）
+            .onClick(() => {
+              if (this.nextFutureCourse !== null) {
+                AppState.pendingCourse = this.nextFutureCourse.course;
+              }
+              this.onSwitchTab(1);
+            })
             }
           }
         }
@@ -1062,6 +1077,10 @@ export struct HomeView {
         }
           .width('100%')
           .alignItems(VerticalAlign.Top)
+          // 点击「下一节课」主体：跳转课程表（今日下一节即课表当前视图，不传详情）
+          .onClick(() => {
+            this.onSwitchTab(1);
+          })
         }
       }
       .width('100%')

@@ -765,13 +765,15 @@ export struct MineView {
         // 胶囊按钮：材质走 MaterialButton 的 Toggle 承载层（普通 Button 直接挂材质真机不渲染）。
         // 原 Button 的 layoutWeight 移到外层 Column（MaterialButton 的 Stack 内部不支持 layoutWeight），
         // 内容自己写 width('100%') 把点击区撑满。
+        // 胶囊按钮：导出备份固定天蓝色（不随主题色变化；文字黑白自动对比度）
         Column() {
           MaterialButton({
             btnRadius: 21,
-            btnBg: Theme.colorOf(this.themeColor),
+            btnBg: '#4FC3F7',
             btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
             btnBorderW: GlassMaterial.borderWidth(),
             btnBorderC: GlassMaterial.borderColor(),
+            btnTint: '',
             btnOnClick: () => {
               this.showBackupSheet = false;
               this.exportBackup();
@@ -780,7 +782,8 @@ export struct MineView {
             Text('导出备份')
               .fontSize(14)
               .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-              .fontColor(Color.White)
+              // 天蓝浅底上的文字黑白自适应（WCAG）
+              .fontColor(Theme.onColor('#4FC3F7'))
               .width('100%')
               .height(42)
               .textAlign(TextAlign.Center)
@@ -994,6 +997,13 @@ export struct MineView {
                 AppState.webUrl = 'https://www.xjau.edu.cn/';
                 AppState.webTitle = '学校官网';
                 AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
+              }
+            })
+            Divider().color($r('app.color.divider'))
+            // 5. 校公众号（独立页面：学校各官方微信公众号，点击去关注）
+            SettingRow({
+              icon: '', title: '校公众号', value: '', onTap: () => {
+                AppState.stack.pushPath({ name: Const.ROUTE_WECHAT_OA });
               }
             })
           }
@@ -1376,6 +1386,13 @@ export struct MineView {
           AppState.webUrl = 'https://www.xjau.edu.cn/';
           AppState.webTitle = '学校官网';
           AppState.stack.pushPath({ name: Const.ROUTE_WEB_PAGE });
+        }
+      })
+      Divider().color($r('app.color.divider'))
+      // 1.4 校公众号（独立页面：学校各官方微信公众号，点击去关注）
+      SettingRow({
+        icon: '', title: '校公众号', value: '', onTap: () => {
+          AppState.stack.pushPath({ name: Const.ROUTE_WECHAT_OA });
         }
       })
       Divider().color($r('app.color.divider'))

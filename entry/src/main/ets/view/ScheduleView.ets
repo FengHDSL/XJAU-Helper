@@ -979,9 +979,9 @@ export struct ScheduleView {
     .height(this.cellH() * SectionUtil.count(this.cfg))
   }
 
-  /** 课程格子沉浸光感是否生效：课表级开关 + 全局沉浸光感开关 + API≥26 + 材质构造成功（三重判定） */
+  /** 课程格子沉浸光感是否生效：课表级开关（独立于全局沉浸光感开关）+ API≥26 + 材质构造成功 */
   private cellMatOn(): boolean {
-    return this.cfg.cellMaterial && this.immersiveEffect && materialAvailable();
+    return this.cfg.cellMaterial && materialAvailable();
   }
 
   /** 课程格子：支持文字色/叠加/边框/圆角/透明度/大小/对齐/时间/地点/@/老师全套配置

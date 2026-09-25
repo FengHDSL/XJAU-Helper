@@ -945,6 +945,18 @@ export class DataStore {
     DataStore.put(DataStore.KEY_NEWS_THUMB, on ? '1' : '0');
   }
 
+  /** 新闻页：内容背景大卡片（'1'=开（默认） / '0'=关） */
+  static readonly KEY_NEWS_BG_CARD: string = 'news_bg_card';
+
+  /** 新闻内容背景大卡片是否显示（默认开启） */
+  static newsBgCardOn(): boolean {
+    return DataStore.get(DataStore.KEY_NEWS_BG_CARD) !== '0';
+  }
+
+  static setNewsBgCard(on: boolean): void {
+    DataStore.put(DataStore.KEY_NEWS_BG_CARD, on ? '1' : '0');
+  }
+
   /** 读取共享网页历史 JSON 数组（未记录返回空串） */
   static loadWebHistoryJson(): string {
     return DataStore.get(DataStore.KEY_WEB_HISTORY);
