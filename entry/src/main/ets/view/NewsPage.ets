@@ -679,12 +679,11 @@ export struct NewsPage {
   }
 
   build() {
-    Column() {
-      // 三层悬浮顶栏：内容(底) / 全透明模糊(中) / 主题渐变(顶)
-      Stack({ alignContent: Alignment.TopStart }) {
+    // 根容器改 Stack：内容背景大卡片挂在「根 Stack 首子节点」才是真底层——
+    // 此前误放进下方 zIndex(2) 的顶栏悬浮 Stack，跟着顶栏一起盖在了新闻列表上（2026-09-25 修复）
+    Stack({ alignContent: Alignment.TopStart }) {
       // 内容背景大卡片（新闻设置可关）：从顶栏下方延伸到屏幕底部；
       // 最小光感卡结构（材质承载层 + 底色层），hitTestBehavior(None) 纯背景不拦截列表滚动/点击。
-      // 置于 Stack 首个子节点：板块栏(zIndex 1)/顶栏(zIndex 2) 与新闻列表都悬浮其上。
       if (this.newsBgCard) {
         Column() {
           Stack({ alignContent: Alignment.TopStart }) {
@@ -705,11 +704,14 @@ export struct NewsPage {
         }
         .width('100%')
         .height('100%')
-        // 顶边从顶栏（topInset + 60）下沿起，底部直达屏幕底（延伸感）；左右各留 12
-        .padding({ left: 12, right: 12, top: this.getUIContext().px2vp(this.topInsetPx) + 56, bottom: 0 })
+        // 顶边从顶栏（topInset + 60）下沿起，底部直达屏幕底（延伸感）；左右各留 8（比 12 稍微加宽）
+        .padding({ left: 8, right: 8, top: this.getUIContext().px2vp(this.topInsetPx) + 56, bottom: 0 })
         .hitTestBehavior(HitTestMode.None)
-        .zIndex(0)
       }
+      // 底层大卡片之上的原内容包裹层（原根 Column，内部结构不变）
+      Column() {
+      // 三层悬浮顶栏：内容(底) / 全透明模糊(中) / 主题渐变(顶)
+      Stack({ alignContent: Alignment.TopStart }) {
       // 模糊层已取消（用户要求：内容直接透渐变）
         Column()
           .width('100%')
@@ -884,5 +886,9 @@ export struct NewsPage {
     })
     // 灰字广播依赖登记：grayTick 变化触发整页重算 grayTertiary 文本色（恒真不改变视觉）
     .opacity(this.grayTick >= 0 ? 1 : 1)
+    }
+    // 根 Stack 铺满：底层大卡片 height('100%') 以此为基准解析（直达屏幕底）
+    .width('100%')
+    .height('100%')
   }
 }

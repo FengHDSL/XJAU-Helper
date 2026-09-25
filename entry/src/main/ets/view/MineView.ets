@@ -782,15 +782,15 @@ export struct MineView {
             Text('导出备份')
               .fontSize(14)
               .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-              // 天蓝浅底上的文字黑白自适应（WCAG）
-              .fontColor(Theme.onColor('#4FC3F7'))
+              // 固定天蓝实底上的文字随系统深浅色自动黑白（Theme.onColor 恒定深色，深色模式不合理）
+              .fontColor($r('sys.color.font_primary'))
               .width('100%')
               .height(42)
               .textAlign(TextAlign.Center)
           }
         }
         .layoutWeight(1)
-        // 胶囊按钮：导入备份改**绿色实底白字**（与导出并排；材质仍走 Toggle 承载层）
+        // 胶囊按钮：导入备份改**绿色实底**（与导出并排；文字随系统深浅色自动黑白）
         Column() {
           MaterialButton({
             btnRadius: 21,
@@ -807,7 +807,7 @@ export struct MineView {
             Text('导入备份')
               .fontSize(14)
               .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-              .fontColor(Color.White)
+              .fontColor($r('sys.color.font_primary'))
               .width('100%')
               .height(42)
               .textAlign(TextAlign.Center)

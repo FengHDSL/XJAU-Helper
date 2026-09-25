@@ -59,12 +59,19 @@ export struct AboutPage {
   /** 调试模式密码输入弹窗开关 */
   @State showDebugSheet: boolean = false;
   @State debugPwd: string = '';
+  /** 调试模式是否开启（日志/联网任一）：驱动「退出调试」红胶囊显隐（AppState 静态字段非响应式，需本地镜像） */
+  @State debugActive: boolean = false;
   /** 当前应用版本（与界面「版本」文本保持同步，发版时两处一起改） */
   private readonly currentVersion: string = '1.3.9';
   /** 检查更新请求进行中 */
   @State checkingUpdate: boolean = false;
   /** 连点计时器（超时重置计数） */
   private iconTapTimer: number = -1;
+
+  aboutToAppear(): void {
+    // 进入页面同步一次调试模式状态（「退出调试」红胶囊显隐）
+    this.debugActive = AppState.logEnabled || AppState.debugNetwork;
+  }
 
   /** 应用图标连点：5 次内累计，满 5 次——
    *  已开启对应模式 → 弹"是否退出"；未开启 → 弹密码输入 */
@@ -83,30 +90,36 @@ export struct AboutPage {
     this.iconTapCount = 0;
     const active: boolean = AppState.logEnabled || AppState.debugNetwork;
     if (active) {
-      // 已开启：询问是否退出（按当前生效的模式提示）
-      const isLog: boolean = AppState.logEnabled;
-      const isNet: boolean = AppState.debugNetwork;
-      this.getUIContext().getPromptAction().showDialog({
-        title: isLog ? '日志调试已开启' : '调试模式已开启',
-        message: isLog && isNet ? '当前正在收集使用日志，且功能浏览模式允许联网。是否退出调试模式？' :
-          (isLog ? '当前正在收集功能使用日志。是否退出日志调试？' : '当前功能浏览模式允许联网。是否退出调试模式？'),
-        buttons: [
-          { text: '取消', color: '#888888' },
-          { text: '退出调试模式', color: '#DB5252', primary: true }
-        ]
-      }).then((res) => {
-        if (res.index === 1) {
-          AppState.logEnabled = false;
-          AppState.debugNetwork = false;
-          LogStore.clearAll(); // 退出调试：自动删除已收集日志与附件
-          this.getUIContext().getPromptAction().showToast({ message: '已退出调试模式，日志已清除' });
-        }
-      });
+      // 已开启：询问是否退出（按当前生效的模式提示）——与「退出调试」红胶囊共用
+      this.confirmExitDebug();
     } else {
       // 未开启：弹密码输入
       this.debugPwd = '';
       this.showDebugSheet = true;
     }
+  }
+
+  /** 退出调试模式确认弹窗：应用图标连点 5 次 / 「退出调试」红胶囊共用入口 */
+  private confirmExitDebug(): void {
+    const isLog: boolean = AppState.logEnabled;
+    const isNet: boolean = AppState.debugNetwork;
+    this.getUIContext().getPromptAction().showDialog({
+      title: isLog ? '日志调试已开启' : '调试模式已开启',
+      message: isLog && isNet ? '当前正在收集使用日志，且功能浏览模式允许联网。是否退出调试模式？' :
+        (isLog ? '当前正在收集功能使用日志。是否退出日志调试？' : '当前功能浏览模式允许联网。是否退出调试模式？'),
+      buttons: [
+        { text: '取消', color: '#888888' },
+        { text: '退出调试模式', color: '#DB5252', primary: true }
+      ]
+    }).then((res) => {
+      if (res.index === 1) {
+        AppState.logEnabled = false;
+        AppState.debugNetwork = false;
+        LogStore.clearAll(); // 退出调试：自动删除已收集日志与附件
+        this.debugActive = false;
+        this.getUIContext().getPromptAction().showToast({ message: '已退出调试模式，日志已清除' });
+      }
+    });
   }
 
   /** 提交调试模式密码：admin——
@@ -134,6 +147,7 @@ export struct AboutPage {
       LogStore.log('日志调试', '开启', '成功', '真实登录模式');
       this.getUIContext().getPromptAction().showToast({ message: '日志调试已开启，开始收集使用日志' });
     }
+    this.debugActive = true;
   }
 
   /** 底部链接 + 开源等级 */
@@ -328,6 +342,28 @@ export struct AboutPage {
     }
   }
 
+  /** 「退出调试」红胶囊：调试模式开启时常驻（免去连点 5 次应用图标退出） */
+  @Builder
+  exitDebugChip() {
+    MaterialButton({
+      btnRadius: 18,
+      btnBg: '#DB5252',
+      btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? false),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: '#DB5252',
+      btnTintRatio: 0.85,
+      btnOnClick: (): void => {
+        this.confirmExitDebug();
+      }
+    }) {
+      Text('退出调试')
+        .fontSize(13)
+        .fontColor($r('sys.color.font_primary'))
+        .padding({ left: 18, right: 18, top: 8, bottom: 8 })
+    }
+  }
+
   @Builder
   linkRow(title: string, url: string) {
     Row() {
@@ -420,9 +456,12 @@ export struct AboutPage {
             .alignItems(HorizontalAlign.Center)
             .padding({ top: 10, bottom: 16 })
 
-            // 检查更新胶囊（应用介绍上方）
-            Row() {
+            // 检查更新胶囊（应用介绍上方）；调试模式开启时右侧并列「退出调试」红胶囊
+            Row({ space: 10 }) {
               this.checkUpdateChip()
+              if (this.debugActive) {
+                this.exitDebugChip()
+              }
             }
             .width('100%')
             .justifyContent(FlexAlign.Center)
@@ -623,13 +662,15 @@ export struct AboutPage {
       .borderRadius($r('sys.float.corner_radius_level12'))
 
       // 确认按钮：材质走 MaterialButton 的 Toggle 承载层（普通 Button 直接挂材质真机不渲染）；
-      // 原 .width('100%') / .height(40) / .margin 由内容与 btnMargin 承担，点击行为不变
+      // 绿色语义在材质生效时靠 btnTint 叠回（比例 0.85），文字随系统深浅色自动黑白
       MaterialButton({
         btnRadius: 20,
         btnBg: $r('app.color.brand'),
         btnBlur: GlassMaterial.bgBlur(AppStorage.get<boolean>('immersiveEffect') ?? false),
         btnBorderW: GlassMaterial.borderWidth(),
         btnBorderC: GlassMaterial.borderColor(),
+        btnTint: '#079841',
+        btnTintRatio: 0.85,
         btnMargin: { top: 12, bottom: 16 },
         btnOnClick: () => {
           this.submitDebugPwd();
@@ -638,7 +679,7 @@ export struct AboutPage {
         Text('确认')
           .fontSize(14)
           .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-          .fontColor($r('app.color.brand_on'))
+          .fontColor($r('sys.color.font_primary'))
           .width('100%')
           .height(40)
           .textAlign(TextAlign.Center)

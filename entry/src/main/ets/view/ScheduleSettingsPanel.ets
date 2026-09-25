@@ -715,18 +715,20 @@ export struct ScheduleSettingsPanel {
             Image(`data:image/jpeg;base64,${this.scheduleBg}`)
               .width(48).height(48).borderRadius(8).objectFit(ImageFit.Cover).margin({ right: 12 })
           }
-          // 「选择/更换图片」主题色实底 + brand_on 文字 → MaterialButton，btnTint 叠回主题色（比例 0.85）
+          // 「选择/更换图片」沉浸光感玻璃胶囊 → MaterialButton：主题色 12% 半透明玻璃底 + 材质承载层
+          // （此前 btnTintRatio 0.85 近乎实底、把材质整块盖住，用户看不出光感；改用课程详情「关闭」
+          // 同款配方：材质开=玻璃光感，材质关=12% 半透明主题色兜底，见 CourseDetailPanel）
           Column() {
             MaterialButton({
               btnRadius: 10,
-              btnBg: Theme.colorOf(this.themeColor),
+              btnBg: Theme.rgba(Theme.colorOf(this.themeColor), 0.12),
               btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-              btnTint: Theme.colorOf(this.themeColor),
-              btnTintRatio: 0.85,
+              btnBorderW: GlassMaterial.borderWidth(),
+              btnBorderC: GlassMaterial.borderColor(),
               btnOnClick: () => { this.onPickBg(); }
             }) {
               Text(this.scheduleBg.length > 0 ? '更换图片' : '选择图片')
-                .fontSize(13).fontColor($r('app.color.brand_on'))
+                .fontSize(13).fontColor(Theme.colorOf(this.themeColor))
                 .height(36).width('100%').textAlign(TextAlign.Center)
             }
           }

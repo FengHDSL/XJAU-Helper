@@ -734,7 +734,7 @@ export struct QuickSelectPage {
             }) {
               Text('添加')
                 .fontSize(15)
-                .fontColor(Color.White)
+                .fontColor($r('sys.color.font_primary'))
                 .textAlign(TextAlign.Center)
                 .height(42)
                 .width('100%')
@@ -1089,7 +1089,8 @@ export struct QuickSelectPage {
               Column() {
                 MaterialButton({
                   btnRadius: 21,
-                  // 手动添加课程改绿色实底（同弹窗内「添加」按钮），文字黑白自动对比度
+                  // 手动添加课程改绿色实底（同弹窗内「添加」按钮）；文字随系统深浅色自动黑白
+                  // （Theme.onColor 是按背景亮度算的恒定深色，深色模式下黑字不合理，2026-09-25 全仓整改）
                   btnBg: '#079841',
                   btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
                   btnBorderW: GlassMaterial.borderWidth(),
@@ -1100,7 +1101,7 @@ export struct QuickSelectPage {
                 }) {
                   Text('手动添加课程')
                     .fontSize(14)
-                    .fontColor(Theme.onColor('#079841'))
+                    .fontColor($r('sys.color.font_primary'))
                     .width('100%')
                     .height(42)
                     .textAlign(TextAlign.Center)

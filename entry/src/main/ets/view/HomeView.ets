@@ -1077,8 +1077,12 @@ export struct HomeView {
         }
           .width('100%')
           .alignItems(VerticalAlign.Top)
-          // 点击「下一节课」主体：跳转课程表（今日下一节即课表当前视图，不传详情）
+          // 点击「下一节课」主体：跳课程表并打开对应课程详情（与下方「下次课」子卡同语义）；
+          // 今日课程已结束（nextClass 为空）时仅切 tab
           .onClick(() => {
+            if (this.nextClass !== null) {
+              AppState.pendingCourse = this.nextClass.course;
+            }
             this.onSwitchTab(1);
           })
         }

@@ -809,10 +809,12 @@ export struct KxjsPage {
       PickRow({ label: '星期', value: this.weekdayLabel, placeholder: '请选择', onTap: () => this.openWeekdayPicker() })
       PickRow({ label: '节次', value: this.sectionLabel, placeholder: '请选择', onTap: () => this.openSectionPicker() })
 
-      // 座位数范围（从 ~ 至）；卡内小卡：材质承载层（开）或普通磨砂（关）
+      // 座位数范围（从 ~ 至）：PickRow 同款长条胶囊（行距 margin 必须挂 Stack 根——
+      // Stack 子组件重叠布局，挂在内部 Row 上不参与排列也不撑高 Stack，行与行会挤在一起）；
+      // TextInput 自带小玻璃：半透明白 + Thin 磨砂 + 亮边（不透明底会打断小玻璃观感）
       Stack({ alignContent: Alignment.TopStart }) {
         if (this.matOn()) {
-          MaterialCardLayer({ layerRadius: 10, layerShadow: false })
+          MaterialCardLayer({ layerRadius: 23, layerShadow: false })
         }
         Row() {
           Text('座位数')
@@ -822,13 +824,14 @@ export struct KxjsPage {
           Blank()
           TextInput({ placeholder: '不限', text: this.seatMinText })
             .type(InputType.Number)
-            .height(40)
+            .height(34)
             .enterKeyType(EnterKeyType.Done)
-            .borderRadius($r('sys.float.corner_radius_level12'))
+            .borderRadius(12)
             .fontSize($r('sys.float.Body_L'))
             .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
-            .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
-            .border({ width: this.matOn() ? 1 : 0, color: GlassMaterial.borderColor() })
+            .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)')
+            .backgroundBlurStyle(BlurStyle.Thin)
+            .border({ width: 1, color: GlassMaterial.borderColor() })
             .caretStyle({ color: $r('sys.color.font_emphasize') })
             .fontColor(Theme.colorOf(this.themeColor))
             .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
@@ -842,13 +845,14 @@ export struct KxjsPage {
             .margin({ left: 6, right: 6 })
           TextInput({ placeholder: '不限', text: this.seatMaxText })
             .type(InputType.Number)
-            .height(40)
+            .height(34)
             .enterKeyType(EnterKeyType.Done)
-            .borderRadius($r('sys.float.corner_radius_level12'))
+            .borderRadius(12)
             .fontSize($r('sys.float.Body_L'))
             .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
-            .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
-            .border({ width: this.matOn() ? 1 : 0, color: GlassMaterial.borderColor() })
+            .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)')
+            .backgroundBlurStyle(BlurStyle.Thin)
+            .border({ width: 1, color: GlassMaterial.borderColor() })
             .caretStyle({ color: $r('sys.color.font_emphasize') })
             .fontColor(Theme.colorOf(this.themeColor))
             .placeholderFont({ size: $r('sys.float.Body_L'), weight: FontWeight.Regular })
@@ -862,19 +866,20 @@ export struct KxjsPage {
             .margin({ left: 6 })
         }
         .width('100%')
-        .height(56)
+        .height(46)
         .padding({ left: 10, right: 10 })
         .backgroundColor(this.matOn() ? Color.Transparent : $r('app.color.bg_chip'))
         // 材质生效时不再叠普通磨砂（避免发灰）；关闭时保留原磨砂观感
         .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : BlurStyle.Thin)
-        .borderRadius(10)
-        .margin({ bottom: 14 })
+        .borderRadius(23)
       }
+      // 行距挂 Stack 根（挂内部 Row 上无效，教室查询实测坑）
+      .margin({ bottom: 12 })
 
-      // 场地名称；卡内小卡：材质承载层（开）或普通磨砂（关）
+      // 场地名称：PickRow 同款长条胶囊 + TextInput 小玻璃（同「座位数」行）
       Stack({ alignContent: Alignment.TopStart }) {
         if (this.matOn()) {
-          MaterialCardLayer({ layerRadius: 10, layerShadow: false })
+          MaterialCardLayer({ layerRadius: 23, layerShadow: false })
         }
         Row() {
           Text('场地名称')
@@ -883,13 +888,14 @@ export struct KxjsPage {
             .width(86)
           Blank()
           TextInput({ placeholder: '场地名称或编号', text: this.roomName })
-            .height(40)
+            .height(34)
             .enterKeyType(EnterKeyType.Done)
-            .borderRadius($r('sys.float.corner_radius_level12'))
+            .borderRadius(12)
             .fontSize($r('sys.float.Body_L'))
             .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
-            .backgroundColor(this.matOn() ? Color.Transparent : $r('sys.color.comp_background_tertiary'))
-            .border({ width: this.matOn() ? 1 : 0, color: GlassMaterial.borderColor() })
+            .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)')
+            .backgroundBlurStyle(BlurStyle.Thin)
+            .border({ width: 1, color: GlassMaterial.borderColor() })
             .caretStyle({ color: $r('sys.color.font_emphasize') })
             .type(InputType.Normal)
             .fontColor(Theme.colorOf(this.themeColor))
@@ -902,13 +908,14 @@ export struct KxjsPage {
             })
         }
         .width('100%')
-        .height(56)
+        .height(46)
         .padding({ left: 10, right: 10 })
         .backgroundColor(this.matOn() ? Color.Transparent : $r('app.color.bg_chip'))
         .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : BlurStyle.Thin)
-        .borderRadius(10)
-        .margin({ bottom: 14 })
+        .borderRadius(23)
       }
+      // 行距挂 Stack 根（挂内部 Row 上无效）
+      .margin({ bottom: 12 })
 
       // 查询按钮：材质按钮（液态玻璃主题色，材质关闭回落主题色实底）
       MaterialButton({
