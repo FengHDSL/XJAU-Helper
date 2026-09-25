@@ -689,28 +689,46 @@ export struct NewsPage {
       // 内容背景大卡片（新闻设置可关）：从顶栏下方延伸到屏幕底部；
       // 最小光感卡结构（材质承载层 + 底色层），hitTestBehavior(None) 纯背景不拦截列表滚动/点击。
       if (this.newsBgCard) {
+        // 左右 16 内缩不能用「width('100%') + 自身 padding」实现——content-box 会把 padding
+        // 加在 100% 之外导致总宽 = 100%+32 超屏（2026-09-25 修复）。
+        // 改用固定占位 + layoutWeight 分配：顶部占位行高 = topInset+56，左右占位列宽 16，
+        // 中间卡片宽度精确 = 屏宽-32、高度占剩余全部，永不超屏。
         Column() {
-          Stack({ alignContent: Alignment.TopStart }) {
-            if (this.matOn()) {
-              MaterialCardLayer({ layerRadius: 18, layerShadow: false })
-            }
-            Column()
+          Row()
+            .width('100%')
+            .height(this.getUIContext().px2vp(this.topInsetPx) + 56)
+          Row() {
+            Row()
+              .width(16)
+              .height('100%')
+            Column() {
+              Stack({ alignContent: Alignment.TopStart }) {
+                if (this.matOn()) {
+                  MaterialCardLayer({ layerRadius: 18, layerShadow: false })
+                }
+                Column()
+                  .width('100%')
+                  .height('100%')
+                  .backgroundColor(this.matOn() ? Color.Transparent
+                    : GlassMaterial.cardBg($r('app.color.bg_card'), this.isDarkMode))
+                  .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.cardBlur())
+                  .border({ width: this.matOn() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
+                  .clip(true)
+              }
               .width('100%')
               .height('100%')
-              .backgroundColor(this.matOn() ? Color.Transparent
-                : GlassMaterial.cardBg($r('app.color.bg_card'), this.isDarkMode))
-              .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.cardBlur())
-              .border({ width: this.matOn() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
-              .clip(true)
+            }
+            .layoutWeight(1)
+            .height('100%')
+            Row()
+              .width(16)
+              .height('100%')
           }
           .width('100%')
-          .height('100%')
+          .layoutWeight(1)
         }
         .width('100%')
         .height('100%')
-        // 顶边从顶栏（topInset + 60）下沿起，底部直达屏幕底（延伸感）；
-        // 左右 16 与新闻列表内容 padding 对齐——卡片边缘即文本边缘，整体水平居中于屏幕
-        .padding({ left: 16, right: 16, top: this.getUIContext().px2vp(this.topInsetPx) + 56, bottom: 0 })
         .hitTestBehavior(HitTestMode.None)
       }
       // 底层大卡片之上的原内容包裹层（原根 Column，内部结构不变）
