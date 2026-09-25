@@ -410,6 +410,11 @@ export struct MineView {
 
   /** 立即重新拉取全部数据并写入本地缓存 */
   private async syncNow(): Promise<void> {
+    // 功能浏览模式（未登录）：无法联网同步（用户要求给出明确提示）
+    if (JwApi.USE_MOCK && !AppState.debugNetwork) {
+      this.getUIContext().getPromptAction().showToast({ message: '功能浏览模式，未登录，无法同步' });
+      return;
+    }
     if (this.syncing) {
       return;
     }

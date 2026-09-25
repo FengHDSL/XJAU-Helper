@@ -196,10 +196,9 @@ export struct NewsPage {
    *  不用 minWidth '100%'——横向 Scroll 滚动方向无确定约束，百分比 minWidth 解析不可靠 */
   @State tabViewportW: number = 0;
   @State tabContentW: number = 0;
-  /** 背景大卡片基准：根 Stack 实测宽/高（vp）——超屏宽 = 实测宽+32（宽度加大直接出屏）；高 = 滚动跟随钳制上限 */
+  /** 背景大卡片基准：根 Stack 实测宽（vp）——超屏宽 = 实测宽+32（宽度加大直接出屏） */
   @State bgCardW: number = 0;
-  @State bgCardH: number = 0;
-  /** 各板块大卡片跟随滚动偏移（vp，0=贴顶）：列表滚多少卡片移多少，完全滑出屏幕后钳住不再动（用户要求） */
+  /** 各板块大卡片跟随滚动偏移（vp，0=贴顶）：只用于收缩卡片顶部占位，上限=顶栏让位高度（覆盖完屏幕即停） */
   @State bgCardOffsets: number[] = [0, 0, 0, 0, 0];
   /** 各板块 List 滚动控制器：onDidScroll 每帧读绝对偏移用（每板块独立实例，防绑定互相覆盖） */
   private listScrollers: Scroller[] = [
@@ -358,6 +357,18 @@ export struct NewsPage {
   /** 下拉刷新当前板块（重置分页从第 1 页重新加载） */
   private async refreshCurrent(): Promise<void> {
     const index: number = this.currentTab;
+    // 功能浏览模式：不联网，直接用虚拟数据重灌当前板块（否则 fetchPage 返回 [] 会把列表清空）
+    if (JwApi.USE_MOCK && !this.debugNetwork) {
+      // 收藏板块（index=4）无虚拟数据：来自本地，无需刷新，直接收尾
+      if (index >= 0 && index < MOCK_NEWS.length) {
+        this.lists[index] = MOCK_NEWS[index].slice(0, 10);
+        this.pendingMore[index] = [];
+        this.pageIdx[index] = 1;
+        this.hasMore[index] = false;
+      }
+      this.refreshing = false;
+      return;
+    }
     try {
       this.pageIdx[index] = 1;
       this.pendingMore[index] = [];
@@ -509,13 +520,14 @@ export struct NewsPage {
   }
 
   /**
-   * 大卡片滚动跟随（用户要求：跟随列表上下滑动，滑出屏幕后就不动了）：
+   * 大卡片滚动跟随（用户要求：跟随列表上下滑动，上滑覆盖完屏幕就停止跟随；卡片底部始终覆盖到屏幕）：
    * onDidScroll 每帧读所在板块 List 的绝对偏移（不用增量累计——回弹/丢帧会漂移），
-   * 钳制 0..卡片全高：负值（下拉回弹）贴顶不跟随；完全滑出屏幕（=卡片全高）后停住。
+   * 偏移只用于收缩卡片顶部占位（材质顶边跟随上移、layoutWeight 让材质底边钉在屏幕底），
+   * 上限=顶栏让位高度：顶边到达屏幕顶（覆盖完屏幕）后钳住，列表可无限滑、卡片保持全屏覆盖。
    */
   private syncBgCardOffset(index: number): void {
     const raw: number = this.listScrollers[index].currentOffset().yOffset;
-    const max: number = this.bgCardH > 0 ? this.bgCardH : 0;
+    const max: number = this.getUIContext().px2vp(this.topInsetPx) + 56;
     const v: number = Math.min(Math.max(raw, 0), max);
     if (this.bgCardOffsets[index] !== v) {
       this.bgCardOffsets[index] = v;
@@ -798,9 +810,11 @@ export struct NewsPage {
         // 不像 position 改布局定位有兼容疑点），不影响布局流，背景卡本就是独立叠层。
         // 材质固定开启（bgMatOn 不看全局沉浸开关）。
         Column() {
+          // 顶部占位随滚动收缩：材质顶边跟随上移、底边（layoutWeight 补足）始终钉在屏幕底；
+          // 占位归零（顶边到屏幕顶=覆盖完屏幕）后 offset 已钳住 → 停止跟随，列表无限滑卡片保持全屏覆盖
           Row()
             .width('100%')
-            .height(this.getUIContext().px2vp(this.topInsetPx) + 56)
+            .height(Math.max(0, this.getUIContext().px2vp(this.topInsetPx) + 56 - this.bgCardOffsets[this.currentTab]))
           Stack({ alignContent: Alignment.TopStart }) {
             if (this.bgMatOn()) {
               MaterialCardLayer({ layerRadius: 18, layerShadow: false })
@@ -819,9 +833,9 @@ export struct NewsPage {
         }
         .width(this.bgCardW > 0 ? this.bgCardW + 32 : '100%')
         .height('100%')
-        // 跟随当前板块列表滚动（y=-偏移，钳制见 syncBgCardOffset）；切板块时 currentTab 在
-        // Tabs.onChange 的 animateTo 闭包内赋值，跳变自动获得 220ms 平滑过渡，无需另加动画
-        .translate({ x: -16, y: -this.bgCardOffsets[this.currentTab] })
+        // x 出血保持；纵向跟随由顶部占位高度收缩承担（底边贴屏底），translate 不再做 y 偏移；
+        // 切板块时 currentTab 在 Tabs.onChange 的 animateTo 闭包内赋值，占位高度跳变自动平滑过渡
+        .translate({ x: -16, y: 0 })
         .hitTestBehavior(HitTestMode.None)
       }
       // 底层大卡片之上的原内容包裹层（原根 Column，内部结构不变）
@@ -1023,9 +1037,8 @@ export struct NewsPage {
     .width('100%')
     .height('100%')
     .onAreaChange((_o: Area, n: Area) => {
-      // 实测根 Stack 宽/高：背景大卡片超屏宽 = 宽+32（宽度加大直接出屏）；高 = 滚动跟随钳制上限
+      // 实测根 Stack 宽：背景大卡片超屏宽 = 此值+32（宽度加大直接出屏效果）
       this.bgCardW = n.width as number;
-      this.bgCardH = n.height as number;
     })
   }
 }
