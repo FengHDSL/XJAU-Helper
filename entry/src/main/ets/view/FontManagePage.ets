@@ -600,30 +600,38 @@ export struct FontManagePage {
           .layoutWeight(1)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text('选择')
-          .fontSize(13)
-          .fontColor(Color.White)
-          .height(34)
-          .padding({ left: 16, right: 16 })
-          .backgroundColor(Theme.colorOf(this.themeColor))
-          .borderRadius(17)
-          .textAlign(TextAlign.Center)
-          .onClick(() => {
+        // 「选择」「跟随系统」：胶囊小按钮 → MaterialButton（沉浸光感开启走材质/玻璃，关闭回落实底）
+        MaterialButton({
+          btnRadius: 17,
+          btnBg: Theme.colorOf(this.themeColor),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+          btnOnClick: (): void => {
             this.openFamilySheet(target);
-          })
-        Text('跟随系统')
-          .fontSize(13)
-          .fontColor($r('app.color.text_primary'))
-          .height(34)
-          .padding({ left: 14, right: 14 })
-          .backgroundColor($r('app.color.bg_chip'))
-          .borderRadius(17)
-          .textAlign(TextAlign.Center)
-          .margin({ left: 8 })
-          .onClick(() => {
+          }
+        }) {
+          Text('选择')
+            .fontSize(13)
+            .fontColor(Color.White)
+            .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+        }
+        MaterialButton({
+          btnRadius: 17,
+          btnMargin: { left: 8 },
+          btnBg: (materialAvailable() && this.immersiveEffect) ? GlassMaterial.surface(this.isDarkMode)
+            : $r('app.color.bg_chip'),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnOnClick: (): void => {
             this.pickTarget = target;
             this.applyFamily('');
-          })
+          }
+        }) {
+          Text('跟随系统')
+            .fontSize(13)
+            .fontColor($r('app.color.text_primary'))
+            .padding({ left: 14, right: 14, top: 8, bottom: 8 })
+        }
       }
       .width('100%')
     }

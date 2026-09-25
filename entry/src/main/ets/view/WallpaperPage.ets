@@ -138,7 +138,11 @@ export struct WallpaperPage {
 
   /** 全局沉浸光感开关（AppStorage 实时 + DataStore 持久化，重启后保持） */
   private setImmersive(on: boolean): void {
-    AppStorage.setOrCreate('immersiveEffect', on);
+    // 显式动画包裹状态写入：下方「卡片降级样式」区块的 if 出现/消失按 .transition 播放
+    // （AppStorage 写入同步发生在闭包内，@StorageProp 订阅随之被 animateTo 捕获）
+    this.getUIContext().animateTo({ duration: 240, curve: Curve.Friction }, () => {
+      AppStorage.setOrCreate('immersiveEffect', on);
+    });
     DataStore.setImmersive(on);
   }
 
@@ -1060,6 +1064,10 @@ export struct WallpaperPage {
           .width('100%')
           .alignItems(VerticalAlign.Center)
           .margin({ top: 12 })
+          // 开关沉浸光感时：区块淡入下移出现 / 淡出上收消失（配合 setImmersive 内 animateTo）
+          .transition(TransitionEffect.OPACITY
+            .combine(TransitionEffect.translate({ y: 8 }))
+            .animation({ duration: 240, curve: Curve.Friction }))
           }
 
         }

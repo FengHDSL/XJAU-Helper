@@ -603,6 +603,10 @@ export struct AcademicPage {
           .width('100%')
           .alignItems(VerticalAlign.Center)
           .padding({ top: 7, bottom: 7 })
+          // 展开/收起：新增行淡入下移、移除行淡出上收（配合点击处 animateTo）
+          .transition(TransitionEffect.OPACITY
+            .combine(TransitionEffect.translate({ y: 6 }))
+            .animation({ duration: 260, curve: Curve.Friction }))
         }, (item: ScoreItem) => `${item.courseName}-${item.termId}`)
 
         if (this.overallCourses.length > 8) {
@@ -614,7 +618,11 @@ export struct AcademicPage {
             .textAlign(TextAlign.Center)
             .padding({ top: 10 })
             .onClick(() => {
-              this.detailExpanded = !this.detailExpanded;
+              // 显式动画包裹状态切换：新增/收起的课程行按 .transition 播放淡入淡出，
+              // 卡片高度变化也随动画平滑过渡（参照 WallpaperPage 数据增删同款模式）
+              this.getUIContext().animateTo({ duration: 260, curve: Curve.Friction }, () => {
+                this.detailExpanded = !this.detailExpanded;
+              });
             })
         }
       }

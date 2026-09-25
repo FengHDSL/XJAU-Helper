@@ -298,14 +298,16 @@ export struct PickRow {
       .border({ width: this.matOn() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
       .shadow(GlassMaterial.shadowEx(GlassMaterial.cardShadowStyle()))
       .clip(true)
-      // 长条胶囊样式：全圆角（radius=高度一半）+ 行间距加大（教室查询选项卡）
+      // 长条胶囊样式：全圆角（radius=高度一半）
       .borderRadius(23)
-      .margin({ bottom: 12 })
       .onClick(() => {
         this.onTap();
       })
     }
     .width('100%')
+    // 行间距必须挂在 Stack 根上：Stack 子组件重叠布局，挂在内部 Row 上的
+    // margin({bottom}) 不参与排列也不撑高 Stack → 行与行挤在一起（教室查询实测）
+    .margin({ bottom: 12 })
     // 灰字广播依赖登记（恒真，不改变视觉）
     .opacity(this.grayTick >= 0 ? 1 : 1)
   }
