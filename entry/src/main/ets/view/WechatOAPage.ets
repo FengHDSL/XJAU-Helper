@@ -143,8 +143,10 @@ export struct WechatOAPage {
             .margin({ top: 12 })
 
           // 兜底：复制主页链接并拉起微信（扫一扫不便时在微信聊天窗口粘贴打开）
+          // margin 必须走 btnMargin 参数——MaterialButton 尾随闭包后不能再链式属性
           MaterialButton({
             btnRadius: 21,
+            btnMargin: { top: 14 },
             btnBg: '#079841',
             btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
             btnBorderW: GlassMaterial.borderWidth(),
@@ -163,7 +165,6 @@ export struct WechatOAPage {
               .textAlign(TextAlign.Center)
               .height(42)
           }
-          .margin({ top: 14 })
         }
       }
       .width('100%')
