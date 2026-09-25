@@ -368,6 +368,8 @@ export struct WallpaperPage {
         // 自动分析壁纸明暗 → 适配文字对比度
         WallpaperTone.analyze(arr).then((tone: number) => {
           WallpaperTone.save(tone);
+          // 明暗分析完成后重算「自动」灰字色并广播（换壁纸动作处的调度早于本异步分析，用的是旧 tone）
+          GlassMaterial.scheduleAutoGray();
         });
         this.applyWallpaper(`c:${dstPath}`);
         // 记录图像地址与更新日期：之后每天首次启动自动下载新壁纸

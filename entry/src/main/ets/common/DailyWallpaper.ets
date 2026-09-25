@@ -9,6 +9,7 @@ import { DataStore } from './DataStore';
 import { DateUtil } from './DateUtil';
 import { WallpaperTone } from './WallpaperTone';
 import { Wallpaper } from './Wallpaper';
+import { GlassMaterial } from './GlassMaterial';
 
 export class DailyWallpaper {
   /** 防止同一时刻重复下载 */
@@ -58,6 +59,8 @@ export class DailyWallpaper {
         // 自动分析明暗并适配文字对比度
         WallpaperTone.analyze(arr).then((tone: number) => {
           WallpaperTone.save(tone);
+          // 明暗分析完成后重算「自动」灰字色并广播（静默换壁纸也要刷新灰字自动色）
+          GlassMaterial.scheduleAutoGray();
         });
       } catch (e) {
         // 静默：写入失败不影响启动

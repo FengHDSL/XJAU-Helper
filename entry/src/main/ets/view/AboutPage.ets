@@ -398,8 +398,9 @@ export struct AboutPage {
       title: '取消同意',
       message: '取消同意后将无法使用本应用，下次打开需重新同意。是否同时清除本地数据？',
       buttons: [
-        { text: '清除数据并退出', color: '#DB5252' },
-        { text: '保留数据并退出', color: '#666666' },
+        // 用户指定配色：「清除数据并退出」绿、「保留数据并退出」天蓝（原 红/灰）
+        { text: '清除数据并退出', color: '#4CAF50' },
+        { text: '保留数据并退出', color: '#1E90FF' },
         { text: '取消', color: '#666666' }
       ]
     }).then((res) => {

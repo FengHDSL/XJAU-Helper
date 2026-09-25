@@ -351,6 +351,9 @@ export struct BackgroundCropPage {
       // 明暗分析 → 文字对比度自适应
       WallpaperTone.analyze(packed).then((tone: number) => {
         WallpaperTone.save(tone);
+        // 明暗分析完成后重算「自动」灰字色并广播——换壁纸动作处的 scheduleAutoGray 早于本异步分析，
+        // 用的还是旧 tone，导致换壁纸后灰字自动色不刷新（必须重进外观设置才变）
+        GlassMaterial.scheduleAutoGray();
       });
       AppStorage.setOrCreate('wallpaperId', `c:${dstPath}`);
       DataStore.saveWallpaper(`c:${dstPath}`);
