@@ -1455,10 +1455,7 @@ export struct ScheduleView {
               this.weekDotsPanel()
             }
             .width('100%')
-            // 限高让 Grid 内部可滚（用户要求：点阵周次区域也支持上下滑动）——
-            // Grid 高度受父级约束后自带滚动能力，标题保持固定可见，周数多时在面板内上下滑
-            .constraintSize({ maxHeight: 430 })
-            // 底部预留 = 安全区：点阵最后一行不被导航栏/手势条遮挡
+            // 底部预留 = 安全区 + 180：提高滚动到底部的余量，点阵最后一行不被导航栏/手势条遮挡
             .padding({ left: 16, right: 16, bottom: this.getUIContext().px2vp(this.bottomInsetPx) + 0 })
             .margin({ top: 8 })
           }
@@ -1556,6 +1553,8 @@ export struct ScheduleView {
       // 显式交叉轴拉伸：横屏 Row 里 height('100%') 可能不生效，导致该列高度塌缩、滚动受限
       .alignSelf(ItemAlign.Stretch)
       .scrollBar(BarState.Off)
+      // 回弹反馈动效：与其他页面滚动容器一致的 Spring 手感（用户要求：横屏点阵支持上下滑+反馈动效）
+      .edgeEffect(EdgeEffect.Spring)
       .align(Alignment.Top)
 
       // 右列：日期栏 + 课程表（与竖屏同一渲染，大小不变）

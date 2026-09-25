@@ -189,7 +189,9 @@ export struct NewsDetailPage {
         // 的系统材质 blur「喂」成纯色 → 玻璃完全隐形；透壁纸后材质才有内容感（用户反馈修复）
         WallpaperFill()
         // 内容背景玻璃大卡片（用户要求，同农大新闻页）：出血宽 + 材质固定开启 + 跟随正文滚动平移；
-        // hitTestBehavior(None) 纯背景不拦截滚动/点击；恒定高度（屏幕高+顶栏让位）滚动零重排
+        // hitTestBehavior(None) 纯背景不拦截滚动/点击；恒定高度（屏幕高+顶栏让位）滚动零重排。
+        // layerForce:true = 常驻材质（不看全局沉浸光感开关，与 NewsPage bgMatOn 注释语义对齐）；
+        // 若仍隐形先确认装的是本提交之后的包：大卡片依赖 WallpaperFill 底层（中性灰 bg_page 会把 blur 喂成纯色隐形）
         Column() {
           // 顶部占位恒定：初始把材质区顶边让到顶栏下方
           Row()
@@ -197,7 +199,7 @@ export struct NewsDetailPage {
             .height(this.getUIContext().px2vp(this.topInsetPx) + 56)
           Stack({ alignContent: Alignment.TopStart }) {
             if (materialAvailable()) {
-              MaterialCardLayer({ layerRadius: 18, layerShadow: false })
+              MaterialCardLayer({ layerRadius: 18, layerShadow: false, layerForce: true })
             }
             Column()
               .width('100%')
