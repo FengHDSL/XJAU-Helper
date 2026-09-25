@@ -196,8 +196,15 @@ export struct NewsPage {
    *  不用 minWidth '100%'——横向 Scroll 滚动方向无确定约束，百分比 minWidth 解析不可靠 */
   @State tabViewportW: number = 0;
   @State tabContentW: number = 0;
-  /** 背景大卡片基准：根 Stack 实测宽（vp）——卡片超屏宽 = 实测宽+32（用户要求宽度加大直接出屏） */
+  /** 背景大卡片基准：根 Stack 实测宽/高（vp）——超屏宽 = 实测宽+32（宽度加大直接出屏）；高 = 滚动跟随钳制上限 */
   @State bgCardW: number = 0;
+  @State bgCardH: number = 0;
+  /** 各板块大卡片跟随滚动偏移（vp，0=贴顶）：列表滚多少卡片移多少，完全滑出屏幕后钳住不再动（用户要求） */
+  @State bgCardOffsets: number[] = [0, 0, 0, 0, 0];
+  /** 各板块 List 滚动控制器：onDidScroll 每帧读绝对偏移用（每板块独立实例，防绑定互相覆盖） */
+  private listScrollers: Scroller[] = [
+    new Scroller(), new Scroller(), new Scroller(), new Scroller(), new Scroller()
+  ];
   /** 各板块列表上次滚动起始下标（用于判断滚动方向） */
   private lastTabStart: number[] = [0, 0, 0, 0];
   /** 每个板块的新闻列表 */
@@ -446,7 +453,7 @@ export struct NewsPage {
       .width('100%').height('100%')
       .alignItems(HorizontalAlign.Center)
     } else {
-      List() {
+      List({ scroller: this.listScrollers[4] }) {
         ListItem() {
           Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60 + 44)
         }
@@ -468,6 +475,8 @@ export struct NewsPage {
         }
       }
       .width('100%').height('100%')
+      // 收藏板块大卡片同样跟随滚动（板块序号固定 4，与 listScrollers/bgCardOffsets 分桶对齐）
+      .onDidScroll((_offset: number, _state: ScrollState) => { this.syncBgCardOffset(4); })
     }
   }
 
@@ -497,6 +506,20 @@ export struct NewsPage {
   /** 背景大卡片材质判定：固定开启沉浸光感（用户要求，不受全局沉浸开关控制，仅看设备材质能力） */
   private bgMatOn(): boolean {
     return materialAvailable();
+  }
+
+  /**
+   * 大卡片滚动跟随（用户要求：跟随列表上下滑动，滑出屏幕后就不动了）：
+   * onDidScroll 每帧读所在板块 List 的绝对偏移（不用增量累计——回弹/丢帧会漂移），
+   * 钳制 0..卡片全高：负值（下拉回弹）贴顶不跟随；完全滑出屏幕（=卡片全高）后停住。
+   */
+  private syncBgCardOffset(index: number): void {
+    const raw: number = this.listScrollers[index].currentOffset().yOffset;
+    const max: number = this.bgCardH > 0 ? this.bgCardH : 0;
+    const v: number = Math.min(Math.max(raw, 0), max);
+    if (this.bgCardOffsets[index] !== v) {
+      this.bgCardOffsets[index] = v;
+    }
   }
 
   /** 站内搜索：跳转搜索结果页（原生页面，点击结果进详情） */
@@ -640,7 +663,7 @@ export struct NewsPage {
       })
     } else {
       Refresh({ refreshing: $$this.refreshing }) {
-        List() {
+        List({ scroller: this.listScrollers[index] }) {
           // 顶栏占位（随内容滚走）：列表初始从悬浮头（渐变顶栏+透明板块栏）下方开始，上滑后内容进入其下层
           ListItem() {
             Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60 + 44)
@@ -734,6 +757,8 @@ export struct NewsPage {
             this.setTabsHidden(false); // 下滑即展示板块栏（不必滑回顶部）
           }
         })
+        // 大卡片滚动跟随：每帧同步绝对偏移到 bgCardOffsets[index]（钳制与停驻逻辑见 syncBgCardOffset）
+        .onDidScroll((_offset: number, _state: ScrollState) => { this.syncBgCardOffset(index); })
       }
       .width('100%').height('100%')
       .onRefreshing(() => { this.refreshCurrent(); })
@@ -794,7 +819,9 @@ export struct NewsPage {
         }
         .width(this.bgCardW > 0 ? this.bgCardW + 32 : '100%')
         .height('100%')
-        .translate({ x: -16, y: 0 })
+        // 跟随当前板块列表滚动（y=-偏移，钳制见 syncBgCardOffset）；切板块时 currentTab 在
+        // Tabs.onChange 的 animateTo 闭包内赋值，跳变自动获得 220ms 平滑过渡，无需另加动画
+        .translate({ x: -16, y: -this.bgCardOffsets[this.currentTab] })
         .hitTestBehavior(HitTestMode.None)
       }
       // 底层大卡片之上的原内容包裹层（原根 Column，内部结构不变）
@@ -996,8 +1023,9 @@ export struct NewsPage {
     .width('100%')
     .height('100%')
     .onAreaChange((_o: Area, n: Area) => {
-      // 实测根 Stack 宽：背景大卡片超屏宽 = 此值+32（宽度加大直接出屏效果）
+      // 实测根 Stack 宽/高：背景大卡片超屏宽 = 宽+32（宽度加大直接出屏）；高 = 滚动跟随钳制上限
       this.bgCardW = n.width as number;
+      this.bgCardH = n.height as number;
     })
   }
 }
