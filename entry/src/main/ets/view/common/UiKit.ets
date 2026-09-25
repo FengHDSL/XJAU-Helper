@@ -298,8 +298,9 @@ export struct PickRow {
       .border({ width: this.matOn() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
       .shadow(GlassMaterial.shadowEx(GlassMaterial.cardShadowStyle()))
       .clip(true)
-      // 长条胶囊样式：全圆角（radius=高度一半）
-      .borderRadius(23)
+      // 圆角 10：与材质层(10) 一致——23 会在关闭光感后与材质态圆角不一致（开关跳变），
+      // 且教室查询页座位数/场地名称行同为 10，整页统一
+      .borderRadius(10)
       .onClick(() => {
         this.onTap();
       })
