@@ -196,9 +196,10 @@ export struct NewsPage {
    *  不用 minWidth '100%'——横向 Scroll 滚动方向无确定约束，百分比 minWidth 解析不可靠 */
   @State tabViewportW: number = 0;
   @State tabContentW: number = 0;
-  /** 背景大卡片基准：根 Stack 实测宽（vp）——超屏宽 = 实测宽+32（宽度加大直接出屏） */
+  /** 背景大卡片基准：根 Stack 实测宽/高（vp）——超屏宽 = 实测宽+32；高 = 卡片恒定高度基准（跟随全程尺寸不变，防每帧重排卡顿） */
   @State bgCardW: number = 0;
-  /** 各板块大卡片跟随滚动偏移（vp，0=贴顶）：只用于收缩卡片顶部占位，上限=顶栏让位高度（覆盖完屏幕即停） */
+  @State bgCardH: number = 0;
+  /** 各板块大卡片跟随滚动偏移（vp，0=贴顶）：只驱动 translate.y 平移（渲染级变换，不触发布局），上限=顶栏让位高度 */
   @State bgCardOffsets: number[] = [0, 0, 0, 0, 0];
   /** 各板块 List 滚动控制器：onDidScroll 每帧读绝对偏移用（每板块独立实例，防绑定互相覆盖） */
   private listScrollers: Scroller[] = [
@@ -520,10 +521,10 @@ export struct NewsPage {
   }
 
   /**
-   * 大卡片滚动跟随（用户要求：跟随列表上下滑动，上滑覆盖完屏幕就停止跟随；卡片底部始终覆盖到屏幕）：
+   * 大卡片滚动跟随（用户要求：跟随列表上下滑动、上滑覆盖完屏幕就停止跟随；防卡顿）：
    * onDidScroll 每帧读所在板块 List 的绝对偏移（不用增量累计——回弹/丢帧会漂移），
-   * 偏移只用于收缩卡片顶部占位（材质顶边跟随上移、layoutWeight 让材质底边钉在屏幕底），
-   * 上限=顶栏让位高度：顶边到达屏幕顶（覆盖完屏幕）后钳住，列表可无限滑、卡片保持全屏覆盖。
+   * 偏移只驱动 translate.y 平移（渲染级变换，卡片布局尺寸全程恒定→材质层零重排）。
+   * 上限=顶栏让位高度：覆盖完屏幕后钳住（列表可无限滑，卡片保持全屏覆盖不再动）。
    */
   private syncBgCardOffset(index: number): void {
     const raw: number = this.listScrollers[index].currentOffset().yOffset;
@@ -810,11 +811,10 @@ export struct NewsPage {
         // 不像 position 改布局定位有兼容疑点），不影响布局流，背景卡本就是独立叠层。
         // 材质固定开启（bgMatOn 不看全局沉浸开关）。
         Column() {
-          // 顶部占位随滚动收缩：材质顶边跟随上移、底边（layoutWeight 补足）始终钉在屏幕底；
-          // 占位归零（顶边到屏幕顶=覆盖完屏幕）后 offset 已钳住 → 停止跟随，列表无限滑卡片保持全屏覆盖
+          // 顶部占位恒定：初始把材质区顶边让到顶栏下方（占位不随滚动变化——跟随靠整卡平移）
           Row()
             .width('100%')
-            .height(Math.max(0, this.getUIContext().px2vp(this.topInsetPx) + 56 - this.bgCardOffsets[this.currentTab]))
+            .height(this.getUIContext().px2vp(this.topInsetPx) + 56)
           Stack({ alignContent: Alignment.TopStart }) {
             if (this.bgMatOn()) {
               MaterialCardLayer({ layerRadius: 18, layerShadow: false })
@@ -832,10 +832,13 @@ export struct NewsPage {
           .layoutWeight(1)
         }
         .width(this.bgCardW > 0 ? this.bgCardW + 32 : '100%')
-        .height('100%')
-        // x 出血保持；纵向跟随由顶部占位高度收缩承担（底边贴屏底），translate 不再做 y 偏移；
-        // 切板块时 currentTab 在 Tabs.onChange 的 animateTo 闭包内赋值，占位高度跳变自动平滑过渡
-        .translate({ x: -16, y: 0 })
+        // 恒定高度 = 屏幕高+顶栏让位：跟随全程布局尺寸不变（材质层不重排不重采样，滚动零重排开销），
+        // 视觉「实时拉长覆盖屏幕」由 translate.y 平移呈现：offset=0 材质从顶栏下方开始（底边超出屏幕底），
+        // offset=顶栏让位 材质恰好全屏覆盖，之后钳住停跟随（syncBgCardOffset）。
+        .height(this.bgCardH > 0 ? this.bgCardH + this.getUIContext().px2vp(this.topInsetPx) + 56 : '100%')
+        // x 出血保持；y=-偏移为渲染级平移（GPU 合成，不触发布局/材质重算）；
+        // 切板块时 currentTab 在 Tabs.onChange 的 animateTo 闭包内赋值，平移跳变自动平滑过渡
+        .translate({ x: -16, y: -this.bgCardOffsets[this.currentTab] })
         .hitTestBehavior(HitTestMode.None)
       }
       // 底层大卡片之上的原内容包裹层（原根 Column，内部结构不变）
@@ -1037,8 +1040,9 @@ export struct NewsPage {
     .width('100%')
     .height('100%')
     .onAreaChange((_o: Area, n: Area) => {
-      // 实测根 Stack 宽：背景大卡片超屏宽 = 此值+32（宽度加大直接出屏效果）
+      // 实测根 Stack 宽/高：背景大卡片超屏宽 = 宽+32；高 = 卡片恒定高度基准（屏幕高+顶栏让位）
       this.bgCardW = n.width as number;
+      this.bgCardH = n.height as number;
     })
   }
 }

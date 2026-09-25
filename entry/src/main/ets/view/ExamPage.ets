@@ -468,6 +468,7 @@ export struct ExamPage {
         }
         .scrollBar(BarState.Off)
         .constraintSize({ maxHeight: 360 })
+        .edgeEffect(EdgeEffect.Spring)
       }
     }
     .width('100%')
@@ -645,6 +646,7 @@ export struct ExamPage {
       }
       .scrollBar(BarState.Off)
       .constraintSize({ maxHeight: 380 })
+      .edgeEffect(EdgeEffect.Spring)
 
       // 底部关闭按钮
       Row() {
@@ -818,6 +820,7 @@ Row() {
             .scrollBar(BarState.Off)
             .layoutWeight(1)
             .align(Alignment.Top)
+            .edgeEffect(EdgeEffect.Spring)
             }
             .layoutWeight(1)
             .height('100%')
