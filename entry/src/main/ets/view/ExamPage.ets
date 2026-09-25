@@ -14,7 +14,6 @@
  */
 import { SheetUtil } from '../common/SheetUtil';
 import { common } from '@kit.AbilityKit';
-import { promptAction } from '@kit.ArkUI';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
 import { CalendarUtil } from '../common/CalendarUtil';

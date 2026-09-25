@@ -3,7 +3,6 @@
  *  - 颜色选择器：独立 @Component ColorPickCell，用 @Link 双向绑定 hex
  *  - 滑动条/开关/单选框：纯华为官方组件，无自定义 builder
  */
-import { promptAction } from '@kit.ArkUI';
 import { ScheduleConfig } from '../common/ScheduleConfig';
 import { DataStore } from '../common/DataStore';
 import { Const, SectionTime } from '../common/Constants';

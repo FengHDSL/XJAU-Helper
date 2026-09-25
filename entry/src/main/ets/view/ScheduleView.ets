@@ -8,7 +8,7 @@
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { image } from '@kit.ImageKit';
 import { fileIo } from '@kit.CoreFileKit';
-import { promptAction, display, mediaquery } from '@kit.ArkUI';
+import { display, mediaquery } from '@kit.ArkUI';
 import { ResponsiveUtil } from '../common/ResponsiveUtil';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';

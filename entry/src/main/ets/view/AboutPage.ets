@@ -13,7 +13,6 @@
  */
 import { SheetUtil } from '../common/SheetUtil';
 import { http } from '@kit.NetworkKit';
-import { promptAction } from '@kit.ArkUI';
 import { AppState } from '../common/AppState';
 import { Theme } from '../common/ThemeUtil';
 import { GlassMaterial } from '../common/GlassMaterial';

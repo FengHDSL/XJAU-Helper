@@ -10,7 +10,6 @@
  */
 import { http } from '@kit.NetworkKit';
 import { util } from '@kit.ArkTS';
-import { JwApi } from './JwApi';
 import { AppState } from '../common/AppState';
 import { LogStore } from '../common/LogStore';
 

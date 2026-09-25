@@ -9,14 +9,12 @@
 import { common } from '@kit.AbilityKit';
 import { fileIo } from '@kit.CoreFileKit';
 import { http } from '@kit.NetworkKit';
-import { promptAction } from '@kit.ArkUI';
 import { AppState } from '../common/AppState';
 import { Const } from '../common/Constants';
 import { DataStore, ThemeCombo } from '../common/DataStore';
 import { DateUtil } from '../common/DateUtil';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Theme } from '../common/ThemeUtil';
-import { Wallpaper } from '../common/Wallpaper';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';

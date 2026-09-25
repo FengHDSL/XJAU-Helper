@@ -12,7 +12,7 @@
  * - 不发起任何真实网络请求、不注入 Cookie、无网页版兜底
  */
 import { SheetUtil } from '../common/SheetUtil';
-import { promptAction, mediaquery } from '@kit.ArkUI';
+import { mediaquery } from '@kit.ArkUI';
 import { ResponsiveUtil } from '../common/ResponsiveUtil';
 import { webview } from '@kit.ArkWeb';
 import { JwApi } from '../api/JwApi';

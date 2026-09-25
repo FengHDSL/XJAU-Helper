@@ -19,7 +19,6 @@
  *    半模态弹窗内容用 `MaterialSheetPanel`，且 `bindSheet` 必须显式 `backgroundColor: Color.Transparent`。
  */
 import { SheetUtil } from '../common/SheetUtil';
-import { promptAction } from '@kit.ArkUI';
 import { mediaquery } from '@kit.ArkUI';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';

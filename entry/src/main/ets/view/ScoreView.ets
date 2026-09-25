@@ -22,14 +22,13 @@ import { Const } from '../common/Constants';
 import { Theme } from '../common/ThemeUtil';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
-import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { ScoreItem, TermInfo, TermScore } from '../model/Models';
 import { BarTitle, EmptyTip, LoadingTip, TagChip } from './common/UiKit';
 import { AntiPeepOverlay } from './common/AntiPeepOverlay';
 import { AntiPeepManager } from '../common/AntiPeepManager';
 import { WebSurface } from './WebSurface';
-import { promptAction, mediaquery } from '@kit.ArkUI';
+import { mediaquery } from '@kit.ArkUI';
 import { ResponsiveUtil } from '../common/ResponsiveUtil';
 // 沉浸光感：卡片统一走 MaterialCard（材质承载层在卡片内容之下，材质生效时卡片底色/磨砂/亮边/阴影一并让出，
 // 每张卡只剩一层视觉），胶囊小按钮走 MaterialButton，半模态弹窗内容走 MaterialSheetPanel

@@ -4,7 +4,6 @@
  *  - 通过 onColorsChange 回调父组件 → 父 @State customColors 更新 → 课表格子实时变色
  * 不依赖 bindSheet/@Link 的刷新行为（该场景实测均不刷新，这是最终解法）。
  */
-import { promptAction } from '@kit.ArkUI';
 import { JwApi } from '../api/JwApi';
 import { DataStore } from '../common/DataStore';
 import { Theme } from '../common/ThemeUtil';

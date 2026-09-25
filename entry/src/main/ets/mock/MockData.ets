@@ -4,7 +4,6 @@
  * 接入真实教务系统后，本文件可整体删除，只需保证 JwApi 返回同样的模型即可。
  */
 import { DateUtil } from '../common/DateUtil';
-import { MonthGroup } from '../model/TeachingCalendar';
 import { AcademicReport, CourseItem, CreditCategory, ExamItem, NoticeItem, ScoreItem, TermGpa, TermInfo,
   TermScore, UserProfile } from '../model/Models';
 

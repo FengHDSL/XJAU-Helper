@@ -6,7 +6,6 @@
  */
 import { SheetUtil } from '../common/SheetUtil';
 import { pasteboard } from '@kit.BasicServicesKit';
-import { promptAction } from '@kit.ArkUI';
 import { systemShare } from '@kit.ShareKit';
 import { common, Want } from '@kit.AbilityKit';
 import { webview } from '@kit.ArkWeb';

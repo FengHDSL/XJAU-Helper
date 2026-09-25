@@ -8,7 +8,6 @@
  *  - 长按进入多选导出（导出栏原地切换为 已选 N 条/取消/导出选中）
  */
 import { fileIo, picker } from '@kit.CoreFileKit';
-import { promptAction } from '@kit.ArkUI';
 import { common } from '@kit.AbilityKit';
 import zlib from '@ohos.zlib';
 import { AppState } from '../common/AppState';

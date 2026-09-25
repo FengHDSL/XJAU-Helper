@@ -3,7 +3,6 @@
  */
 import { image } from '@kit.ImageKit';
 import { common } from '@kit.AbilityKit';
-import { promptAction } from '@kit.ArkUI';
 import { systemShare } from '@kit.ShareKit';
 import { uniformTypeDescriptor as utd } from '@kit.ArkData';
 import { NewsApi, ContentBlock, NewsDetail, NewsItem } from '../api/NewsApi';
@@ -15,7 +14,6 @@ import { Immersive } from './common/Immersive';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { MaterialCard } from './common/MaterialCard';
 import { BackButton } from './common/BackButton';
-import { WallpaperFill } from './common/WallpaperFill';
 import { AppearanceStore } from '../common/AppearanceStore';
 
 @Component

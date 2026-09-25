@@ -12,7 +12,7 @@ import { GlassMaterial } from '../../common/GlassMaterial';
 import { ChevronRight } from './ChevronRight';
 import { MaterialButton } from './MaterialButton';
 import { MaterialCardLayer } from './MaterialCarrier';
-import { isApi26OrAbove, materialAvailable } from '../../common/SystemMaterial';
+import { materialAvailable } from '../../common/SystemMaterial';
 import { WallpaperTone } from '../../common/WallpaperTone';
 import { BackButton } from './BackButton';
 
