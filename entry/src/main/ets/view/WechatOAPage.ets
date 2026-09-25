@@ -21,11 +21,10 @@ import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
 
-/** 公众号条目（homeUrl 非空 = 已知主页 profile_ext 直达链接：扫码/复制后微信内打开即达关注页；
- *  homeUrl 空 = 无公开主页链接，走「复制名称→微信搜索」路径） */
+/** 公众号条目（homeUrl 非空 = 点「去关注」弹出二维码面板：码内容为该链接 + 复制链接兜底；
+ *  homeUrl 空 = 复制名称 → 弹窗确认后拉起微信搜索） */
 interface OAItem {
   name: string;
-  desc: string;
   homeUrl: string;
   /** 分组：'通用'（校级/公共服务/学生组织）| '学院'（各学院官方号） */
   group: string;
@@ -42,38 +41,37 @@ function homeUrlOf(biz: string): string {
  *  group 为自动分类：校级部门/公共服务/学生组织归「通用」，各学院官方号归「学院」 */
 const OA_LIST: OAItem[] = [
   // ── 通用 ──
-  { name: '新疆农业大学', desc: '学校官方订阅号：校园资讯、通知公告、文化活动', homeUrl: homeUrlOf('MjM5MTY3OTEwNQ=='), group: '通用' },
-  { name: '新农大小薇', desc: '迎新与学工服务号：录取查询、迎新预报到、缴费、学工服务', homeUrl: homeUrlOf('MzA5MjM5MzgyMw=='), group: '通用' },
-  { name: '新疆农业大学图书馆', desc: '图书馆官方号：书目检索、讲座培训、开放安排', homeUrl: homeUrlOf('MzA5ODg4NTA5Mg=='), group: '通用' },
-  { name: '新疆农业大学学生会', desc: '校学生会：二课学时、校园活动、权益服务', homeUrl: homeUrlOf('MzAwMzQ3MzEzNw=='), group: '通用' },
-  { name: '新农大研究生', desc: '研究生教育服务：招生培养、学位学术活动', homeUrl: homeUrlOf('MzI0ODExODIwNg=='), group: '通用' },
-  { name: '新农暖阳心理', desc: '心理健康教育中心：心理科普、咨询预约、朋辈活动', homeUrl: homeUrlOf('Mzk0NjU2OTk5OA=='), group: '通用' },
-  { name: '新疆农业大学校友会', desc: '校友之家：校友动态、返校服务、征稿活动', homeUrl: homeUrlOf('MzU5OTEzMTIxNw=='), group: '通用' },
-  { name: '新疆农业大学网信中心', desc: '信息化服务：上网认证、软件正版化、网络报修', homeUrl: homeUrlOf('MzkwNDU5NTEzNA=='), group: '通用' },
-  { name: '新疆农业大学塔城校区', desc: '塔城校区官方号：校区资讯与学生活动', homeUrl: homeUrlOf('MzY5NjQ1MTI4Mg=='), group: '通用' },
-  { name: '新疆农业大学学报', desc: '学术期刊：论文荐读、编委动态、投稿指南', homeUrl: homeUrlOf('MzE5ODE1Mjk5MA=='), group: '通用' },
-  { name: '平安新农大', desc: '安全保卫：安全提醒、反诈宣传、户籍服务', homeUrl: homeUrlOf('MzkzMjU2MjQzNw=='), group: '通用' },
-  { name: '农大科研', desc: '科研管理处：项目申报、学术讲座、科研政策', homeUrl: homeUrlOf('Mzg5Mjg4MjU3NQ=='), group: '通用' },
-  { name: '新疆农业大学动物中心医院', desc: '第一动物医院：诊疗服务、行业交流', homeUrl: homeUrlOf('Mzg4OTQ1MzY5NQ=='), group: '通用' },
-  // 智慧新农大：二维码解出的是学校 App 统一认证页（app.xjau.edu.cn/site/publicsso），非公众号主页链接，
-  // 无法拼 profile_ext → 走「复制名称→微信搜索」路径
-  { name: '智慧新农大', desc: '学校智慧校园平台官方号：网上办事大厅、消息通知、校园应用入口', homeUrl: '', group: '通用' },
+  { name: '新疆农业大学', homeUrl: homeUrlOf('MjM5MTY3OTEwNQ=='), group: '通用' },
+  { name: '新农大小薇', homeUrl: homeUrlOf('MzA5MjM5MzgyMw=='), group: '通用' },
+  { name: '新疆农业大学图书馆', homeUrl: homeUrlOf('MzA5ODg4NTA5Mg=='), group: '通用' },
+  { name: '新疆农业大学学生会', homeUrl: homeUrlOf('MzAwMzQ3MzEzNw=='), group: '通用' },
+  { name: '新农大研究生', homeUrl: homeUrlOf('MzI0ODExODIwNg=='), group: '通用' },
+  { name: '新农暖阳心理', homeUrl: homeUrlOf('Mzk0NjU2OTk5OA=='), group: '通用' },
+  { name: '新疆农业大学校友会', homeUrl: homeUrlOf('MzU5OTEzMTIxNw=='), group: '通用' },
+  { name: '新疆农业大学网信中心', homeUrl: homeUrlOf('MzkwNDU5NTEzNA=='), group: '通用' },
+  { name: '新疆农业大学塔城校区', homeUrl: homeUrlOf('MzY5NjQ1MTI4Mg=='), group: '通用' },
+  { name: '新疆农业大学学报', homeUrl: homeUrlOf('MzE5ODE1Mjk5MA=='), group: '通用' },
+  { name: '平安新农大', homeUrl: homeUrlOf('MzkzMjU2MjQzNw=='), group: '通用' },
+  { name: '农大科研', homeUrl: homeUrlOf('Mzg5Mjg4MjU3NQ=='), group: '通用' },
+  { name: '新疆农业大学动物中心医院', homeUrl: homeUrlOf('Mzg4OTQ1MzY5NQ=='), group: '通用' },
+  // 智慧新农大：用户提供二维码，解码链接为学校 App 统一认证页——直接以该链接出码/复制
+  { name: '智慧新农大', homeUrl: 'https://app.xjau.edu.cn/site/publicsso/index', group: '通用' },
   // ── 学院 ──
-  { name: '新疆农业大学农学院', desc: '农学院官方号：学院资讯、教学科研、学生活动', homeUrl: homeUrlOf('MzAxMTA5NDIzNg=='), group: '学院' },
-  { name: '新疆农业大学化学化工学院', desc: '化学化工学院官方号：招聘宣讲、实验安全、学生活动', homeUrl: homeUrlOf('MzA3MDQ1NzUwOQ=='), group: '学院' },
-  { name: '新疆农业大学外国语学院', desc: '外国语学院官方号：教学科研、外语竞赛、学院资讯', homeUrl: homeUrlOf('MjM5Nzc5ODk4MQ=='), group: '学院' },
-  { name: '新疆农业大学国际教育学院', desc: '国际教育学院官方号：国际合作、留学项目、学院资讯', homeUrl: homeUrlOf('MzA4OTAxMDQxMw=='), group: '学院' },
-  { name: '新疆农业大学动物科学学院', desc: '动物科学学院官方号：学院资讯、宣讲实践、学生活动', homeUrl: homeUrlOf('MzA3NzY0MDQxNA=='), group: '学院' },
-  { name: '新疆农业大学园艺学院', desc: '园艺学院官方号：耕读教育、学院资讯、学生活动', homeUrl: homeUrlOf('MzkwOTI3NzU5NQ=='), group: '学院' },
-  { name: '新农资环', desc: '资源与环境学院官方号：田间实践、科研动态、学生活动', homeUrl: homeUrlOf('MzI4MDI3MTAxNw=='), group: '学院' },
-  { name: '阳光中语', desc: '中国语言文学与艺术学院官方号：文化活动、学院资讯', homeUrl: homeUrlOf('MzA4NTAwODU5MQ=='), group: '学院' },
-  { name: '新疆农业大学生命科学学院', desc: '生命科学学院官方号：学院资讯、教学科研、学生活动', homeUrl: homeUrlOf('Mzg5NTY3NjkyMQ=='), group: '学院' },
-  { name: '新农大动医', desc: '动物医学学院官方号：学院资讯、三进两联一交友、学生活动', homeUrl: homeUrlOf('MzA5MDc0MjcyNg=='), group: '学院' },
-  { name: '新农ITShow', desc: '计算机与信息工程学院官方号：技术活动、学院资讯', homeUrl: homeUrlOf('MzI1MzE1MDM0Mw=='), group: '学院' },
-  { name: '新疆农业大学机电工程学院', desc: '机电工程学院官方号：学院资讯、师生交流、学生活动', homeUrl: homeUrlOf('Mzg3NjE3MDI0Mg=='), group: '学院' },
-  { name: '新农大淼垚之声', desc: '水利与土木工程学院官方号：学院资讯、文化活动', homeUrl: homeUrlOf('MzA4Mzk1OTQ5OQ=='), group: '学院' },
-  // 文章页未暴露 __biz（仅 gh_ 原始 id，无法拼主页链接）→ 走「复制名称搜索」路径
-  { name: '公共管理学院（法学院）', desc: '学院官方号：微信内搜索名称后关注', homeUrl: '', group: '学院' }
+  { name: '新疆农业大学农学院', homeUrl: homeUrlOf('MzAxMTA5NDIzNg=='), group: '学院' },
+  { name: '新疆农业大学化学化工学院', homeUrl: homeUrlOf('MzA3MDQ1NzUwOQ=='), group: '学院' },
+  { name: '新疆农业大学外国语学院', homeUrl: homeUrlOf('MjM5Nzc5ODk4MQ=='), group: '学院' },
+  { name: '新疆农业大学国际教育学院', homeUrl: homeUrlOf('MzA4OTAxMDQxMw=='), group: '学院' },
+  { name: '新疆农业大学动物科学学院', homeUrl: homeUrlOf('MzA3NzY0MDQxNA=='), group: '学院' },
+  { name: '新疆农业大学园艺学院', homeUrl: homeUrlOf('MzkwOTI3NzU5NQ=='), group: '学院' },
+  { name: '新农资环', homeUrl: homeUrlOf('MzI4MDI3MTAxNw=='), group: '学院' },
+  { name: '阳光中语', homeUrl: homeUrlOf('MzA4NTAwODU5MQ=='), group: '学院' },
+  { name: '新疆农业大学生命科学学院', homeUrl: homeUrlOf('Mzg5NTY3NjkyMQ=='), group: '学院' },
+  { name: '新农大动医', homeUrl: homeUrlOf('MzA5MDc0MjcyNg=='), group: '学院' },
+  { name: '新农ITShow', homeUrl: homeUrlOf('MzI1MzE1MDM0Mw=='), group: '学院' },
+  { name: '新疆农业大学机电工程学院', homeUrl: homeUrlOf('Mzg3NjE3MDI0Mg=='), group: '学院' },
+  { name: '新农大淼垚之声', homeUrl: homeUrlOf('MzA4Mzk1OTQ5OQ=='), group: '学院' },
+  // 文章页未暴露 __biz（仅 gh_ 原始 id，无法拼主页链接）→ 复制名称搜索
+  { name: '公共管理学院（法学院）', homeUrl: '', group: '学院' }
 ];
 
 @Component
@@ -104,14 +102,33 @@ export struct WechatOAPage {
     this.copyTextAndLaunch(item.name, false);
   }
 
-  /** 复制文本并拉起微信（二维码面板的兜底按钮与无链接公众号共用） */
+  /** 复制文本 → 弹窗确认 → 拉起微信（用户要求：打开微信必须弹窗确认，不可直接跳转）。
+   *  二维码面板的兜底按钮与无链接公众号共用 */
   private copyTextAndLaunch(copyText: string, isHomeLink: boolean): void {
     const pasteData: pasteboard.PasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, copyText);
     pasteboard.getSystemPasteboard().setData(pasteData).then(() => {
-      this.launchWechat(copyText, isHomeLink);
+      this.confirmLaunchWechat(copyText, isHomeLink);
     }).catch(() => {
-      // 剪贴板失败不阻断：仍尝试拉起微信
-      this.launchWechat(copyText, isHomeLink);
+      // 剪贴板失败不阻断：仍弹确认（用户可回 App 手动复制后再试）
+      this.confirmLaunchWechat(copyText, isHomeLink);
+    });
+  }
+
+  /** 打开微信确认弹窗（系统 showDialog，AboutPage 退出调试同款写法） */
+  private confirmLaunchWechat(copyText: string, isHomeLink: boolean): void {
+    this.getUIContext().getPromptAction().showDialog({
+      title: '打开微信',
+      message: isHomeLink
+        ? '已复制链接。是否打开微信？在微信任意聊天窗口粘贴并打开该链接'
+        : `已复制「${copyText}」。是否打开微信？在微信搜索粘贴即可关注`,
+      buttons: [
+        { text: '取消', color: '#888888' },
+        { text: '打开微信', color: '#079841', primary: true }
+      ]
+    }).then((res) => {
+      if (res.index === 1) {
+        this.launchWechat(copyText, isHomeLink);
+      }
     });
   }
 
@@ -122,10 +139,10 @@ export struct WechatOAPage {
    *  ③ weixin:// scheme 隐式拉起（系统路由到微信） */
   private launchWechat(copied: string, isHomeLink: boolean): void {
     const okMsg: string = isHomeLink
-      ? '已复制公众号主页链接，在微信任意聊天窗口粘贴并打开，即可直达关注页'
+      ? '已复制链接，在微信任意聊天窗口粘贴并打开'
       : `已复制「${copied}」，在微信搜索粘贴即可关注`;
     const failMsg: string = isHomeLink
-      ? '已复制公众号主页链接，未检测到微信，请手动打开微信粘贴打开'
+      ? '已复制链接，未检测到微信，请手动打开微信粘贴打开'
       : `已复制「${copied}」，未检测到微信，请手动打开微信搜索关注`;
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     const wantHm: Want = { deviceId: '', bundleName: 'com.tencent.wechat', abilityName: 'EntryAbility' };
@@ -175,15 +192,15 @@ export struct WechatOAPage {
           .padding(10)
           .margin({ top: 12 })
 
-          // 微信无公开「携带 URL 拉起」scheme，profile_ext 链接仅微信内可渲染 → 扫码是唯一直达路径
-          Text('微信限制无法从外部直接打开公众号链接，请用微信「扫一扫」扫描上方二维码直达主页')
+          // 微信无公开「携带 URL 拉起」scheme，链接仅微信内可打开 → 扫码是最直接路径
+          Text('微信限制无法从外部直接打开链接，请用微信「扫一扫」扫描上方二维码')
             .fontSize(12)
             .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
             .width('100%')
             .textAlign(TextAlign.Center)
             .margin({ top: 12 })
 
-          // 兜底：复制主页链接并拉起微信（扫一扫不便时在微信聊天窗口粘贴打开）
+          // 兜底：复制链接 → 弹窗确认 → 拉起微信（扫一扫不便时在微信聊天窗口粘贴打开）
           // margin 必须走 btnMargin 参数——MaterialButton 尾随闭包后不能再链式属性
           MaterialButton({
             btnRadius: 21,
@@ -225,7 +242,7 @@ export struct WechatOAPage {
     return n;
   }
 
-  /** 分组列表卡：按 group 过滤渲染；行内不放头像徽标（用户要求），名称+简介+去关注按钮 */
+  /** 分组列表卡：按 group 过滤渲染；行内不放头像徽标与描述文本（用户要求），仅名称+去关注按钮 */
   @Builder
   oaGroupCard(groupName: string) {
     MaterialCard({
@@ -255,20 +272,13 @@ export struct WechatOAPage {
         ForEach(OA_LIST.filter((it: OAItem): boolean => it.group === groupName), (item: OAItem, index: number) => {
           Column() {
             Row() {
-              Column({ space: 3 }) {
-                Text(item.name)
-                  .fontSize(15)
-                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-                  .fontColor($r('app.color.text_primary'))
-                  .maxLines(1)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-                Text(item.desc)
-                  .fontSize(11)
-                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-                  .lineHeight(16)
-              }
-              .layoutWeight(1)
-              .alignItems(HorizontalAlign.Start)
+              Text(item.name)
+                .fontSize(15)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+                .fontColor($r('app.color.text_primary'))
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .layoutWeight(1)
 
               // 右：去关注（绿色实底，文字黑白自动对比度）
               MaterialButton({

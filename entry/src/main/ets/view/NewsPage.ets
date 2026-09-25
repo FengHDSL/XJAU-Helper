@@ -142,6 +142,8 @@ export struct NewsPage {
    *  不用 minWidth '100%'——横向 Scroll 滚动方向无确定约束，百分比 minWidth 解析不可靠 */
   @State tabViewportW: number = 0;
   @State tabContentW: number = 0;
+  /** 背景大卡片基准：根 Stack 实测宽（vp）——卡片超屏宽 = 实测宽+32（用户要求宽度加大直接出屏） */
+  @State bgCardW: number = 0;
   /** 各板块列表上次滚动起始下标（用于判断滚动方向） */
   private lastTabStart: number[] = [0, 0, 0, 0];
   /** 每个板块的新闻列表 */
@@ -689,46 +691,32 @@ export struct NewsPage {
       // 内容背景大卡片（新闻设置可关）：从顶栏下方延伸到屏幕底部；
       // 最小光感卡结构（材质承载层 + 底色层），hitTestBehavior(None) 纯背景不拦截列表滚动/点击。
       if (this.newsBgCard) {
-        // 左右 16 内缩不能用「width('100%') + 自身 padding」实现——content-box 会把 padding
-        // 加在 100% 之外导致总宽 = 100%+32 超屏（2026-09-25 修复）。
-        // 改用固定占位 + layoutWeight 分配：顶部占位行高 = topInset+56，左右占位列宽 16，
-        // 中间卡片宽度精确 = 屏宽-32、高度占剩余全部，永不超屏。
+        // 宽度加大直接超出屏幕（用户要求）：卡片宽 = 屏宽+32、position x=-16 → 左右各出屏 16，
+        // 边缘与圆角完全在屏外，形成全宽延伸底板。宽度用根 Stack onAreaChange 实测
+        // （百分比无法表达 100%+32；position 定位不受 alignContent 影响，背景卡本就是独立叠层）。
         Column() {
           Row()
             .width('100%')
             .height(this.getUIContext().px2vp(this.topInsetPx) + 56)
-          Row() {
-            Row()
-              .width(16)
-              .height('100%')
-            Column() {
-              Stack({ alignContent: Alignment.TopStart }) {
-                if (this.matOn()) {
-                  MaterialCardLayer({ layerRadius: 18, layerShadow: false })
-                }
-                Column()
-                  .width('100%')
-                  .height('100%')
-                  .backgroundColor(this.matOn() ? Color.Transparent
-                    : GlassMaterial.cardBg($r('app.color.bg_card'), this.isDarkMode))
-                  .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.cardBlur())
-                  .border({ width: this.matOn() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
-                  .clip(true)
-              }
+          Stack({ alignContent: Alignment.TopStart }) {
+            if (this.matOn()) {
+              MaterialCardLayer({ layerRadius: 18, layerShadow: false })
+            }
+            Column()
               .width('100%')
               .height('100%')
-            }
-            .layoutWeight(1)
-            .height('100%')
-            Row()
-              .width(16)
-              .height('100%')
+              .backgroundColor(this.matOn() ? Color.Transparent
+                : GlassMaterial.cardBg($r('app.color.bg_card'), this.isDarkMode))
+              .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.cardBlur())
+              .border({ width: this.matOn() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
+              .clip(true)
           }
           .width('100%')
           .layoutWeight(1)
         }
-        .width('100%')
+        .width(this.bgCardW > 0 ? this.bgCardW + 32 : '100%')
         .height('100%')
+        .position({ x: -16, y: 0 })
         .hitTestBehavior(HitTestMode.None)
       }
       // 底层大卡片之上的原内容包裹层（原根 Column，内部结构不变）
@@ -929,5 +917,9 @@ export struct NewsPage {
     // 根 Stack 铺满：底层大卡片 height('100%') 以此为基准解析（直达屏幕底）
     .width('100%')
     .height('100%')
+    .onAreaChange((_o: Area, n: Area) => {
+      // 实测根 Stack 宽：背景大卡片超屏宽 = 此值+32（宽度加大直接出屏效果）
+      this.bgCardW = n.width as number;
+    })
   }
 }
