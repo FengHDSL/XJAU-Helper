@@ -22,7 +22,7 @@
 - **GitHub Release**：[XJAU-Helper_v1.3.9.hap](https://github.com/FengHDSL/XJAU-Helper/releases/download/v1.3.9/XJAU-Helper_v1.3.9.hap)
 - **Gitee**：[XJAU-Helper](https://gitee.com/pandasoos/XJAU-Helper)
 - **HAP Store资源站**：[https://www.sydxky.cn/detail.php?id=796](https://www.sydxky.cn/detail.php?id=796)
-- **华为应用市场（邀测）**：[https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP](https://appgallery.huawei.com/link/invite-test-wap?taskId=82f1443858af73cfea1e58018fdab13c&invitationCode=7f0Oz56PxoP)，邀测邀请码：`7f0Oz56PxoP`
+- **华为应用市场（邀测）**：[华为邀测](https://appgallery.huawei.com/link/invite-test-wap?taskId=c13bfdfb1acf9c45dd841d4a06402dac&invitationCode=7f0Oz56PxoP)，邀测邀请码：`7f0Oz56PxoP`
 
 ---
 
@@ -165,63 +165,6 @@ XJAU-Helper/
 ├── LICENSE                  # MIT 许可证
 └── README.md                # 本文件
 ```
-
----
-
-## 更新日志
-
-### v1.3.9（2026-09-25）
-
-- 新增「校公众号」，关注学校公众号更方便
-- 全新主题中心，自定义项目更丰富
-- 适配 API26 沉浸光感效果，界面更绚丽
-- 多处细节微调
-- 修复了一些已知问题
-
-### v1.3.8（2026-09-19）
-
-- 修复课程表不显示周六周日课程的问题
-
-### v1.3.7（2026-09-16）
-
-- 修复已知问题
-
-### v1.3.6（2026-09-15）
-
-- 学期日历支持手动调节
-- 日历样式微调
-- 课程表支持调整每节课的时间和节数
-- 隐私协议优化
-- 备份功能优化
-
-### v1.3.5（2026-09-11）
-
-- 修复了一些已知问题
-
-### v1.3.4（2026-09-11）
-
-- 修复了一些已知问题
-
-### v1.3.3（2026-09-10）
-
-- 修复了一些已知问题
-
-### v1.3.2（2026-09-06）
-
-- 新增个性主题功能
-- UI界面换新
-
----
-
-### v1.3.1（2026-09-05）
-
-- API 变更为 API 26 正式版，同时移除 API 26 部分官方阉割的组件
-- 修复日历显示错误
-- 部分细节调整优化，以完成华为审核要求
-- 优化部分界面 UI 效果
-- 优化部分功能逻辑
-- 修复了一些已知问题
-
 ---
 
 ## 已知限制
