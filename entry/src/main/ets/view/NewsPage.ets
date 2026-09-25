@@ -16,6 +16,60 @@ import { AppState } from '../common/AppState';
 import { DataStore } from '../common/DataStore';
 import { Const } from '../common/Constants';
 import { NewsApi, NewsItem } from '../api/NewsApi';
+
+/** 功能浏览模式虚拟新闻条目（中性示例数据，不联网） */
+function mockNews(prefix: string, idx: number, title: string): NewsItem {
+  const it: NewsItem = new NewsItem();
+  it.title = title;
+  it.date = idx <= 2 ? '2026-09-25' : (idx <= 5 ? '2026-09-24' : '2026-09-23');
+  // 唯一假 URL 仅作 ForEach key 使用，详情入口已拦截不会真实打开
+  it.url = `mock://xjau-news/${prefix}/${idx}`;
+  return it;
+}
+
+/** 功能浏览模式虚拟新闻数据：4 板块各 8 条（要闻/综合/科研/媒体） */
+const MOCK_NEWS: NewsItem[][] = [
+  [
+    mockNews('yw', 1, '示例新闻：学校召开新学期工作部署会议'),
+    mockNews('yw', 2, '示例新闻：学校举行秋季学期开学典礼'),
+    mockNews('yw', 3, '示例新闻：校领导带队开展校园安全检查'),
+    mockNews('yw', 4, '示例新闻：学校召开人才工作会议'),
+    mockNews('yw', 5, '示例新闻：我校与多家单位签署合作协议'),
+    mockNews('yw', 6, '示例新闻：学校举办教师节表彰大会'),
+    mockNews('yw', 7, '示例新闻：本科教育教学审核评估动员会召开'),
+    mockNews('yw', 8, '示例新闻：校领导走访慰问一线教职工'),
+  ],
+  [
+    mockNews('zh', 1, '示例新闻：校园文化艺术节拉开帷幕'),
+    mockNews('zh', 2, '示例新闻：学生社团招新活动顺利举行'),
+    mockNews('zh', 3, '示例新闻：志愿服务队开展社区服务活动'),
+    mockNews('zh', 4, '示例新闻：校园歌手大赛圆满落幕'),
+    mockNews('zh', 5, '示例新闻：运动会各项赛事有序进行'),
+    mockNews('zh', 6, '示例新闻：图书馆举办读书分享会'),
+    mockNews('zh', 7, '示例新闻：创新创业大赛校内选拔结束'),
+    mockNews('zh', 8, '示例新闻：食堂满意度调查活动开展'),
+  ],
+  [
+    mockNews('ky', 1, '示例新闻：科研团队在核心期刊发表研究成果'),
+    mockNews('ky', 2, '示例新闻：重点实验室顺利通过年度评估'),
+    mockNews('ky', 3, '示例新闻：我校获多项自然科学基金立项'),
+    mockNews('ky', 4, '示例新闻：研究生学术论坛成功举行'),
+    mockNews('ky', 5, '示例新闻：科研平台开放共享仪式举行'),
+    mockNews('ky', 6, '示例新闻：校企联合实验室揭牌成立'),
+    mockNews('ky', 7, '示例新闻：学术报告周活动安排发布'),
+    mockNews('ky', 8, '示例新闻：科研成果转化项目集中签约'),
+  ],
+  [
+    mockNews('mt', 1, '示例新闻：媒体报道我校教育教学改革'),
+    mockNews('mt', 2, '示例新闻：媒体聚焦校园文化建设'),
+    mockNews('mt', 3, '示例新闻：多家媒体探访实验实训基地'),
+    mockNews('mt', 4, '示例新闻：我校师生事迹获媒体关注'),
+    mockNews('mt', 5, '示例新闻：媒体报道毕业生就业工作'),
+    mockNews('mt', 6, '示例新闻：社会实践团队事迹获报道'),
+    mockNews('mt', 7, '示例新闻：媒体关注智慧校园建设'),
+    mockNews('mt', 8, '示例新闻：媒体专访优秀校友代表'),
+  ],
+];
 import { JwApi } from '../api/JwApi';
 // 沉浸光感：顶栏自绘按钮走 MaterialButton（常驻材质），分类标签用 btnTint 保留选中态，
 // 半模态弹窗内容走 MaterialSheetPanel（WebSurface/Web 内容弹窗例外，保持 bg_page 不透底）
@@ -214,9 +268,9 @@ export struct NewsPage {
     this.isLandscape = ResponsiveUtil.isWideLayout(this.wideMq, this.landscapeMq);
   }
 
-  /** 调试模式状态变化：功能浏览模式下开启调试 → 强制重新加载当前板块（清列表 + 加载态） */
+  /** 调试模式状态变化：功能浏览 ↔ 调试联网切换 → 清空当前板块并按新模式重新加载（虚拟数据 / 真实新闻） */
   private onDebugNetworkChanged(): void {
-    if (JwApi.USE_MOCK && this.debugNetwork) {
+    if (JwApi.USE_MOCK) {
       for (let i = 0; i < this.loadedTabs.length; i++) {
         this.loadedTabs[i] = false;
       }
@@ -242,6 +296,14 @@ export struct NewsPage {
    * @param append 是否追加到现有列表（false = 首次/刷新重置）
    */
   private async loadPage(index: number, officialPage: number, append: boolean): Promise<void> {
+    // 功能浏览模式（不联网）：填充虚拟新闻数据，页面保持完整可浏览的演示态
+    if (JwApi.USE_MOCK && !this.debugNetwork) {
+      this.lists[index] = MOCK_NEWS[index].slice(0, 10);
+      this.pendingMore[index] = [];
+      this.hasMore[index] = false;
+      this.listLoading[index] = false;
+      return;
+    }
     this.listLoading[index] = true;
     try {
       const raw: NewsItem[] = await NewsApi.fetchPage(this.tabs[index], officialPage);
@@ -305,6 +367,11 @@ export struct NewsPage {
 
   /** 打开新闻：本站走详情页，外链用 WebView 打开 */
   private openDetail(item: NewsItem): void {
+    // 功能浏览模式：虚拟新闻不进入详情（不联网）
+    if (JwApi.USE_MOCK && !this.debugNetwork) {
+      this.getUIContext().getPromptAction().showToast({ message: '示例数据，暂不支持查看详情' });
+      return;
+    }
     if (NewsApi.isLocalUrl(item.url)) {
       AppState.currentNewsUrl = item.url;
       AppState.stack.pushPath({ name: Const.ROUTE_NEWS_DETAIL });
@@ -427,6 +494,11 @@ export struct NewsPage {
     return this.immersiveEffect && materialAvailable();
   }
 
+  /** 背景大卡片材质判定：固定开启沉浸光感（用户要求，不受全局沉浸开关控制，仅看设备材质能力） */
+  private bgMatOn(): boolean {
+    return materialAvailable();
+  }
+
   /** 站内搜索：跳转搜索结果页（原生页面，点击结果进详情） */
   private doSearch(): void {
     const kw: string = this.keyword.trim();
@@ -542,16 +614,9 @@ export struct NewsPage {
   }
 
   /** 通用新闻列表（index = 板块下标），支持下拉刷新；
-   *  功能浏览模式默认禁用（不加载新闻），调试模式开启后自动加载 */
+   *  功能浏览模式展示虚拟示例数据（loadPage 短路填充），调试模式开启后加载真实新闻 */
   @Builder tabNewsList(index: number) {
-    if (JwApi.USE_MOCK && !this.debugNetwork) {
-      Column() {
-        Text('当前模式禁止使用')
-          .fontSize(14)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-      }
-      .width('100%').height('100%').justifyContent(FlexAlign.Center)
-    } else if (this.listLoading[index]) {
+    if (this.listLoading[index]) {
       Column() {
         LoadingProgress().width(32).height(32).color(Theme.colorOf(this.themeColor))
         Text('加载中').fontSize(12).fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) }).margin({ top: 10 })
@@ -579,6 +644,17 @@ export struct NewsPage {
           // 顶栏占位（随内容滚走）：列表初始从悬浮头（渐变顶栏+透明板块栏）下方开始，上滑后内容进入其下层
           ListItem() {
             Column().width('100%').height(this.getUIContext().px2vp(this.topInsetPx) + 60 + 44)
+          }
+          // 功能浏览模式：虚拟数据标识
+          if (JwApi.USE_MOCK && !this.debugNetwork) {
+            ListItem() {
+              Text('示例数据 · 功能浏览模式')
+                .fontSize(11)
+                .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+                .width('100%')
+                .textAlign(TextAlign.Center)
+                .margin({ bottom: 4 })
+            }
           }
           // 横屏：每 ListItem 一行两列新闻；竖屏：单列
           if (this.isLandscape) {
@@ -694,21 +770,22 @@ export struct NewsPage {
         // 宽度加大直接超出屏幕（用户要求）：卡片宽 = 屏宽+32、position x=-16 → 左右各出屏 16，
         // 边缘与圆角完全在屏外，形成全宽延伸底板。宽度用根 Stack onAreaChange 实测
         // （百分比无法表达 100%+32；position 定位不受 alignContent 影响，背景卡本就是独立叠层）。
+        // 材质固定开启（bgMatOn 不看全局沉浸开关）。
         Column() {
           Row()
             .width('100%')
             .height(this.getUIContext().px2vp(this.topInsetPx) + 56)
           Stack({ alignContent: Alignment.TopStart }) {
-            if (this.matOn()) {
+            if (this.bgMatOn()) {
               MaterialCardLayer({ layerRadius: 18, layerShadow: false })
             }
             Column()
               .width('100%')
               .height('100%')
-              .backgroundColor(this.matOn() ? Color.Transparent
+              .backgroundColor(this.bgMatOn() ? Color.Transparent
                 : GlassMaterial.cardBg($r('app.color.bg_card'), this.isDarkMode))
-              .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : GlassMaterial.cardBlur())
-              .border({ width: this.matOn() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
+              .backgroundBlurStyle(this.bgMatOn() ? BlurStyle.NONE : GlassMaterial.cardBlur())
+              .border({ width: this.bgMatOn() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
               .clip(true)
           }
           .width('100%')

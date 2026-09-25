@@ -871,7 +871,8 @@ export struct KxjsPage {
         .backgroundColor(this.matOn() ? Color.Transparent : $r('app.color.bg_chip'))
         // 材质生效时不再叠普通磨砂（避免发灰）；关闭时保留原磨砂观感
         .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : BlurStyle.Thin)
-        .borderRadius(23)
+        // 外壳圆角 10：与材质层(10)/TextInput(10) 一致——23 在关闭光感后与文本框圆角不一致
+        .borderRadius(10)
       }
       // 行距挂 Stack 根（挂内部 Row 上无效，教室查询实测坑）
       .margin({ bottom: 12 })
@@ -912,7 +913,7 @@ export struct KxjsPage {
         .padding({ left: 10, right: 10 })
         .backgroundColor(this.matOn() ? Color.Transparent : $r('app.color.bg_chip'))
         .backgroundBlurStyle(this.matOn() ? BlurStyle.NONE : BlurStyle.Thin)
-        .borderRadius(23)
+        .borderRadius(10)
       }
       // 行距挂 Stack 根（挂内部 Row 上无效）
       .margin({ bottom: 12 })

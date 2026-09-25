@@ -481,7 +481,7 @@ export struct AboutPage {
               cardMargin: { bottom: 12 }
             }) {
             Column() {
-              Text('新农助手（XJAU Helper）是一款专为新疆农业大学学生打造的校园工具，原生鸿蒙开发，完全开源，完全免费，轻量小巧，集成个人课表、成绩查询、考试安排、学业情况、教室查询等功能于一体！数据来源于学校网页，数据不经过也不保存于非学校官方服务器。新农助手，让你的校园生活更便利！')
+              Text('新农助手（XJAU Helper）是一款专为新疆农业大学学生打造的校园工具：原生鸿蒙开发，完全开源，完全免费，轻量小巧。课表、成绩、考试、学业、教室查询一站集成，农大新闻、校公众号随时掌握校园动态。数据来源于学校官方网页，不经过也不保存于非学校官方服务器。新农助手，让你的校园生活更便利！')
                 .fontSize(12)
                 .lineHeight(20)
                 .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
