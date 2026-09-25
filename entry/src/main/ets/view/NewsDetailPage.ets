@@ -284,9 +284,10 @@ export struct NewsDetailPage {
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else {
-          // 下拉刷新：Refresh 包 Scroll
+          // 下拉刷新：Refresh 包 Scroll（⚠ Scroll 构造第一参数是 Scroller 本体（位置参数），
+          // 不像 List 用 { scroller } 对象字面量——写错报 10505001）
           Refresh({ refreshing: $$this.refreshing }) {
-            Scroll({ scroller: this.bodyScroller }) {
+            Scroll(this.bodyScroller) {
               Column() {
                 // 顶栏让位（悬浮顶栏之下才开始正文卡片）
                 Column()
