@@ -16,6 +16,14 @@ import { AppState } from '../common/AppState';
 import { DataStore } from '../common/DataStore';
 import { Const } from '../common/Constants';
 import { NewsApi, NewsItem } from '../api/NewsApi';
+import { JwApi } from '../api/JwApi';
+// 沉浸光感：顶栏自绘按钮走 MaterialButton（常驻材质），分类标签用 btnTint 保留选中态，
+// 半模态弹窗内容走 MaterialSheetPanel（WebSurface/Web 内容弹窗例外，保持 bg_page 不透底）
+import { MaterialButton } from './common/MaterialButton';
+import { MaterialSheetPanel } from './common/MaterialCard';
+import { MaterialCardLayer } from './common/MaterialCarrier';
+import { materialAvailable, sheetBlurStyle } from '../common/SystemMaterial';
+import { AppearanceStore } from '../common/AppearanceStore';
 
 /** 功能浏览模式虚拟新闻条目（中性示例数据，不联网） */
 function mockNews(prefix: string, idx: number, title: string): NewsItem {
@@ -70,14 +78,6 @@ const MOCK_NEWS: NewsItem[][] = [
     mockNews('mt', 8, '示例新闻：媒体专访优秀校友代表'),
   ],
 ];
-import { JwApi } from '../api/JwApi';
-// 沉浸光感：顶栏自绘按钮走 MaterialButton（常驻材质），分类标签用 btnTint 保留选中态，
-// 半模态弹窗内容走 MaterialSheetPanel（WebSurface/Web 内容弹窗例外，保持 bg_page 不透底）
-import { MaterialButton } from './common/MaterialButton';
-import { MaterialSheetPanel } from './common/MaterialCard';
-import { MaterialCardLayer } from './common/MaterialCarrier';
-import { materialAvailable, sheetBlurStyle } from '../common/SystemMaterial';
-import { AppearanceStore } from '../common/AppearanceStore';
 
 @Component
 struct NewsRow {
