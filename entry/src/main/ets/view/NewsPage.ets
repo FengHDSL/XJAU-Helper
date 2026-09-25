@@ -839,7 +839,8 @@ export struct NewsPage {
             }
             .alignItems(VerticalAlign.Top)
             .onAreaChange((_o: Area, n: Area) => {
-              this.tabContentW = n.width;
+              // Area.width 类型是 Length（运行时为 vp 数值），需断言成 number
+              this.tabContentW = n.width as number;
             })
           }
           .height(44)
@@ -856,7 +857,8 @@ export struct NewsPage {
         .width('100%')
         .height(44)
         .onAreaChange((_o: Area, n: Area) => {
-          this.tabViewportW = n.width;
+          // Area.width 类型是 Length（运行时为 vp 数值），需断言成 number
+          this.tabViewportW = n.width as number;
         })
       }
       .width('100%')
