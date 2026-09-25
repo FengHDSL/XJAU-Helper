@@ -120,6 +120,8 @@ export struct FontManagePage {
   @StorageProp('fontWeightValue') fwValue: number = 400;
   @StorageProp('themeColor') themeColor: string = 'green';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
+  /** 沉浸光感订阅：字重/字号胶囊的材质与玻璃底判定（订阅与使用点须在同一 struct） */
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
   /** 已上传字体别名列表（AppStorage 实时联动：上传/删除后列表立即刷新） */
   @StorageLink('customFonts') customFonts: string[] = [];
   /** 中文字体族（空=跟随系统） */

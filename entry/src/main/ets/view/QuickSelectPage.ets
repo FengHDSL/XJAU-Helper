@@ -40,7 +40,6 @@ import { MaterialCardLayer } from './common/MaterialCarrier';
 import { MaterialSheetPanel } from './common/MaterialCard';
 import { materialAvailable, sheetBlurStyle } from '../common/SystemMaterial';
 import { SheetUtil } from '../common/SheetUtil';
-import { materialAvailable } from '../common/SystemMaterial';
 
 @Component
 export struct QuickSelectPage {
@@ -1057,23 +1056,27 @@ export struct QuickSelectPage {
               // 手动添加：提前把要抢的课程订好（不依赖选课系统开放查询）——
               // 点击弹出「添加课程到队列」弹窗（课程名称/教学班/教师/上课时间，对照参考项目抢课工作台）
               Divider().color($r('app.color.divider')).margin({ top: 4, bottom: 10 })
-              MaterialButton({
-                btnRadius: 21,
-                btnBg: $r('app.color.bg_chip'),
-                btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-                btnBorderW: GlassMaterial.borderWidth(),
-                btnBorderC: GlassMaterial.borderColor(),
-                btnOnClick: (): void => {
-                  this.showManualSheet = true;
+              // bindSheet 不能链在尾随闭包组件（MaterialButton）之后 → 包一层 Column 承载
+              Column() {
+                MaterialButton({
+                  btnRadius: 21,
+                  btnBg: $r('app.color.bg_chip'),
+                  btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                  btnBorderW: GlassMaterial.borderWidth(),
+                  btnBorderC: GlassMaterial.borderColor(),
+                  btnOnClick: (): void => {
+                    this.showManualSheet = true;
+                  }
+                }) {
+                  Text('手动添加课程')
+                    .fontSize(14)
+                    .fontColor($r('app.color.text_primary'))
+                    .width('100%')
+                    .height(42)
+                    .textAlign(TextAlign.Center)
                 }
-              }) {
-                Text('手动添加课程')
-                  .fontSize(14)
-                  .fontColor($r('app.color.text_primary'))
-                  .width('100%')
-                  .height(42)
-                  .textAlign(TextAlign.Center)
               }
+              .width('100%')
               .bindSheet($$this.showManualSheet, this.manualSheet(), {
                 height: SheetSize.FIT_CONTENT,
                 dragBar: false,

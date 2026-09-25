@@ -258,8 +258,8 @@ export struct MainView {
         }
       }
       Navigation(AppState.stack) {
-        // scrollable=false：禁止左右滑动切换页面——课程表页的横向滑动用于切换周次，二者冲突
-        HdsTabs({ barPosition: BarPosition.End, index: this.currentIndex, controller: this.tabsController, scrollable: false }) {
+        // scrollable=false 见下方属性链：禁止左右滑动切换页面——课程表页的横向滑动用于切换周次，二者冲突
+        HdsTabs({ barPosition: BarPosition.End, index: this.currentIndex, controller: this.tabsController }) {
           TabContent() {
             HomeView({
               onSwitchTab: (index: number) => {
@@ -302,7 +302,9 @@ export struct MainView {
           }
           .tabBar(this.tabItem('我的', $r('app.media.person'), 4))
         }
-        .scrollable(this.smoothPageSwitch)
+        // 手势左右滑动固定禁用（scrollable 不在 HdsTabsOptions 中，只能走属性链）；
+        // smoothPageSwitch 仅控制点击切页的滑动动画时长，不再控制手势
+        .scrollable(false)
         .animationDuration(this.smoothPageSwitch ? 240 : 0) // 平滑切换：开启时页面滑动过渡（移植自参考项目）
         .barMode(BarMode.Fixed)
         // 悬浮底栏（自适应长度 + 紧凑高度 + 沉浸光感）
