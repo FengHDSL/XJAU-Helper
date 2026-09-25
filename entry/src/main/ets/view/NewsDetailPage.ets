@@ -206,7 +206,10 @@ export struct NewsDetailPage {
               .height('100%')
               .backgroundColor(materialAvailable() ? Color.Transparent
                 : GlassMaterial.cardBg($r('app.color.bg_card'), this.isDarkMode))
-              .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.cardBlur())
+              // blur 常挂兜底：systemMaterial 优先级高于模糊（材质下发成功时覆盖此处毛玻璃，
+              // 观感仍是纯系统材质）；若材质渲染异常则毛玻璃必然可见——
+              // 消除「判定可用却画不出 → 全透明隐形」死角（与内容 MaterialCard 降级路径同款）
+              .backgroundBlurStyle(GlassMaterial.cardBlur())
               .border({ width: materialAvailable() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
               .clip(true)
           }
@@ -218,6 +221,9 @@ export struct NewsDetailPage {
         // y=-偏移为渲染级平移：offset=0 材质从顶栏下方开始（底边超出屏幕底），offset=顶栏让位 恰好全屏覆盖后钳住
         .translate({ x: -16, y: -this.bgCardOffset })
         .hitTestBehavior(HitTestMode.None)
+        // 显式层级（用户反馈不可见后加固）：壁纸0(默认) < 大卡片1 < 内容2，
+        // 不依赖 Stack 声明序的隐式渲染顺序
+        .zIndex(1)
       Column() {
         // 顶栏（两层）：内容(底)/主题渐变(顶)；模糊层已取消
         Stack({ alignContent: Alignment.TopStart }) {
@@ -372,6 +378,8 @@ export struct NewsDetailPage {
       .width('100%').height('100%')
       // 全局壁纸：二级页根背景透明，透出主框架底层壁纸（无壁纸时由 MainView 底层纯色兜底）
       .backgroundColor(Color.Transparent)
+      // 显式层级顶端：内容(文字/正文卡片)永远在背景大卡片(zIndex 1)之上
+      .zIndex(2)
       }
       .width('100%')
       .height('100%')
