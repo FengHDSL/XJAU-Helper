@@ -803,11 +803,18 @@ export struct WallpaperPage {
             .animation({ duration: 220, curve: Curve.Friction }))
         }
 
-        Text('「自动」灰字色按壁纸明暗计算对比度（切换壁纸后约 1.5 秒生效）；无壁纸时沿用默认灰。')
+        Text('「自动」灰字色按壁纸明暗计算对比度；无壁纸时沿用默认灰。')
           .fontSize(11)
           .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
           .width('100%')
           .margin({ top: 10 })
+
+        // 红字告知（用户要求）：自动灰字色随壁纸切换暂不能实时刷新，需重进本页才更新
+        Text('由于能力有限，需要重新进入外观设置页面，灰体文本自动调整才会刷新。')
+          .fontSize(11)
+          .fontColor('#DB5252')
+          .width('100%')
+          .margin({ top: 4 })
 
         if (this.grayCustomExpanded) {
           Row() {
