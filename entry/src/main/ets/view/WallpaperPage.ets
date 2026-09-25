@@ -317,6 +317,14 @@ export struct WallpaperPage {
     }
     AppStorage.setOrCreate('wallpaperId', id);
     DataStore.saveWallpaper(id);
+    // 清空壁纸：tone 一并失效（持久化写 -1），自动灰字色回落各站点默认灰
+    if (id === 'none') {
+      AppStorage.setOrCreate('wallpaperTone', -1);
+      DataStore.put(WallpaperTone.KEY, '-1');
+    }
+    // 灰字「自动」色重算+广播（1.5s 防抖）：此前只有裁剪/URL/每日三条 analyze 管线会触发，
+    // 直接应用（判重外的切换/清空）与组合应用均无广播 → 换壁纸后其他页面灰字不刷新
+    GlassMaterial.scheduleAutoGray();
     this.getUIContext().getPromptAction().showToast({ message: '壁纸已应用' });
   }
 
@@ -433,6 +441,26 @@ export struct WallpaperPage {
     Theme.apply(c.theme);
     AppStorage.setOrCreate('subtitleColor', c.subtitle);
     DataStore.setSubtitleColor(c.subtitle);
+    // 组合恢复的壁纸可能不是当前 tone 对应的图（tone 只在导入时分析）→ 重读文件分析刷新，
+    // 并调度灰字「自动」色重算+广播（此前组合路径完全不触发，其他页面灰字不刷新）
+    if (c.wallpaper.startsWith('c:')) {
+      try {
+        const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+        const f: fileIo.File = fileIo.openSync(c.wallpaper.substring(2), fileIo.OpenMode.READ_ONLY);
+        const buf: ArrayBuffer = new ArrayBuffer(fileIo.statSync(f.fd).size);
+        fileIo.readSync(f.fd, buf);
+        fileIo.closeSync(f);
+        WallpaperTone.analyze(buf).then((tone: number) => {
+          WallpaperTone.save(tone);
+          GlassMaterial.scheduleAutoGray();
+        });
+      } catch (e) {
+        // 读文件/分析失败不影响组合应用本身
+        GlassMaterial.scheduleAutoGray();
+      }
+    } else {
+      GlassMaterial.scheduleAutoGray();
+    }
     this.getUIContext().getPromptAction().showToast({ message: `已应用「${c.name}」` });
   }
 

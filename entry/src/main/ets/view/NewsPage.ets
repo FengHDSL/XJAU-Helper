@@ -186,6 +186,8 @@ export struct NewsPage {
   @StorageProp('newsThumb') newsThumb: boolean = true;
   /** 内容背景大卡片（设置项，默认开）：顶栏下方延伸到屏幕底的材质大卡 */
   @StorageProp('newsBgCard') newsBgCard: boolean = true;
+  /** 大卡片存活开关：false 时卸载大卡片分支，80ms 后重新挂载——强制重建组件树，材质随新节点重新下发（偶发不显示的恢复手段，用户要求） */
+  @State bgCardAlive: boolean = true;
   @State currentTab: number = 0;
   @State showWeb: boolean = false;
   @State keyword: string = '';
@@ -355,9 +357,19 @@ export struct NewsPage {
     });
   }
 
+  /** 强制重建大卡片组件树：先卸载再挂载，材质层随新节点重新下发（下拉刷新/新闻设置开关时调用） */
+  private rebuildBgCard(): void {
+    this.bgCardAlive = false;
+    setTimeout(() => {
+      this.bgCardAlive = true;
+    }, 80);
+  }
+
   /** 下拉刷新当前板块（重置分页从第 1 页重新加载） */
   private async refreshCurrent(): Promise<void> {
     const index: number = this.currentTab;
+    // 大卡片刷新重建（用户要求：偶发不显示时下拉刷新即可恢复；mock 短路之前也要执行）
+    this.rebuildBgCard();
     // 功能浏览模式：不联网，直接用虚拟数据重灌当前板块（否则 fetchPage 返回 [] 会把列表清空）
     if (JwApi.USE_MOCK && !this.debugNetwork) {
       // 收藏板块（index=4）无虚拟数据：来自本地，无需刷新，直接收尾
@@ -638,6 +650,8 @@ export struct NewsPage {
             .onChange((on: boolean) => {
               AppStorage.setOrCreate('newsBgCard', on);
               DataStore.setNewsBgCard(on);
+              // 开关切换即强制重建大卡片（用户要求：偶发不显示时开关一次即可恢复显示）
+              this.rebuildBgCard();
             })
         }
         .width('100%')
@@ -804,7 +818,7 @@ export struct NewsPage {
     Stack({ alignContent: Alignment.TopStart }) {
       // 内容背景大卡片（新闻设置可关）：从顶栏下方延伸到屏幕底部；
       // 最小光感卡结构（材质承载层 + 底色层），hitTestBehavior(None) 纯背景不拦截列表滚动/点击。
-      if (this.newsBgCard) {
+      if (this.newsBgCard && this.bgCardAlive) {
         // 宽度加大直接超出屏幕（用户要求）：卡片宽 = 屏宽实测+32，translate x=-16 纯绘制左移
         // → 视觉左右各出屏 16，边缘与圆角完全在屏外，形成全宽延伸底板。宽度用根 Stack
         // onAreaChange 实测（百分比无法表达 100%+32）；translate 是渲染级偏移（负值零兼容风险，
