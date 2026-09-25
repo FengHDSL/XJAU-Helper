@@ -13,8 +13,6 @@ import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { MaterialCard } from './common/MaterialCard';
-import { MaterialCardLayer } from './common/MaterialCarrier';
-import { materialAvailable } from '../common/SystemMaterial';
 import { WallpaperFill } from './common/WallpaperFill';
 import { BackButton } from './common/BackButton';
 import { AppearanceStore } from '../common/AppearanceStore';
@@ -46,28 +44,6 @@ export struct NewsDetailPage {
   @State faved: boolean = false;
   /** 图片 PixelMap，按下标对应 blocks 中 image 块顺序 */
   @State imgPms: (image.PixelMap | null)[] = [];
-
-  /** 内容背景玻璃大卡片（同农大新闻页）：根 Stack 实测宽/高（出血宽 = 宽+32） */
-  @State bgCardW: number = 0;
-  @State bgCardH: number = 0;
-  /** 大卡片跟随滚动偏移（vp）：只驱动 translate.y 平移（恒定尺寸零重排），上限=顶栏让位高度（覆盖完屏幕即停） */
-  @State bgCardOffset: number = 0;
-  /** 正文滚动控制器：onDidScroll 每帧读绝对偏移用 */
-  private bodyScroller: Scroller = new Scroller();
-
-  /**
-   * 大卡片滚动跟随（同 NewsPage 机制）：onDidScroll 每帧读绝对偏移，
-   * 偏移只驱动 translate.y 平移（渲染级变换，卡片布局尺寸全程恒定→材质层零重排）。
-   * 上限=顶栏让位高度：覆盖完屏幕后钳住（正文可无限滑，卡片保持全屏覆盖不再动）。
-   */
-  private syncBgCardOffset(): void {
-    const raw: number = this.bodyScroller.currentOffset().yOffset;
-    const max: number = this.getUIContext().px2vp(this.topInsetPx) + 56;
-    const v: number = Math.min(Math.max(raw, 0), max);
-    if (this.bgCardOffset !== v) {
-      this.bgCardOffset = v;
-    }
-  }
 
   aboutToAppear(): void {
     this.faved = DataStore.isNewsFav(AppState.currentNewsUrl);
@@ -185,45 +161,8 @@ export struct NewsDetailPage {
     NavDestination() {
   /** 顶部装饰层（背景为整页纯色底，见根 Stack） */
   Stack({ alignContent: Alignment.TopStart }) {
-        // 底层用壁纸填充（同校公众号等二级页惯例）：此前不透明 bg_page 纯色底会把大卡片
-        // 的系统材质 blur「喂」成纯色 → 玻璃完全隐形；透壁纸后材质才有内容感（用户反馈修复）
+        // 底层壁纸填充（同校公众号/消息页等二级页惯例）：透出全局壁纸，无壁纸时页面底色兜底
         WallpaperFill()
-        // 内容背景玻璃大卡片（用户要求，同农大新闻页）：出血宽 + 材质固定开启 + 跟随正文滚动平移；
-        // hitTestBehavior(None) 纯背景不拦截滚动/点击；恒定高度（屏幕高+顶栏让位）滚动零重排。
-        // layerForce:true = 常驻材质（不看全局沉浸光感开关，与 NewsPage bgMatOn 注释语义对齐）；
-        // 若仍隐形先确认装的是本提交之后的包：大卡片依赖 WallpaperFill 底层（中性灰 bg_page 会把 blur 喂成纯色隐形）
-        Column() {
-          // 顶部占位恒定：初始把材质区顶边让到顶栏下方
-          Row()
-            .width('100%')
-            .height(this.getUIContext().px2vp(this.topInsetPx) + 56)
-          Stack({ alignContent: Alignment.TopStart }) {
-            if (materialAvailable()) {
-              MaterialCardLayer({ layerRadius: 18, layerShadow: false, layerForce: true })
-            }
-            Column()
-              .width('100%')
-              .height('100%')
-              .backgroundColor(materialAvailable() ? Color.Transparent
-                : GlassMaterial.cardBg($r('app.color.bg_card'), this.isDarkMode))
-              // blur 常挂兜底：systemMaterial 优先级高于模糊（材质下发成功时覆盖此处毛玻璃，
-              // 观感仍是纯系统材质）；若材质渲染异常则毛玻璃必然可见——
-              // 消除「判定可用却画不出 → 全透明隐形」死角（与内容 MaterialCard 降级路径同款）
-              .backgroundBlurStyle(GlassMaterial.cardBlur())
-              .border({ width: materialAvailable() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
-              .clip(true)
-          }
-          .width('100%')
-          .layoutWeight(1)
-        }
-        .width(this.bgCardW > 0 ? this.bgCardW + 32 : '100%')
-        .height(this.bgCardH > 0 ? this.bgCardH + this.getUIContext().px2vp(this.topInsetPx) + 56 : '100%')
-        // y=-偏移为渲染级平移：offset=0 材质从顶栏下方开始（底边超出屏幕底），offset=顶栏让位 恰好全屏覆盖后钳住
-        .translate({ x: -16, y: -this.bgCardOffset })
-        .hitTestBehavior(HitTestMode.None)
-        // 显式层级（用户反馈不可见后加固）：壁纸0(默认) < 大卡片1 < 内容2，
-        // 不依赖 Stack 声明序的隐式渲染顺序
-        .zIndex(1)
       Column() {
         // 顶栏（两层）：内容(底)/主题渐变(顶)；模糊层已取消
         Stack({ alignContent: Alignment.TopStart }) {
@@ -292,10 +231,9 @@ export struct NewsDetailPage {
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else {
-          // 下拉刷新：Refresh 包 Scroll（⚠ Scroll 构造第一参数是 Scroller 本体（位置参数），
-          // 不像 List 用 { scroller } 对象字面量——写错报 10505001）
+          // 下拉刷新：Refresh 包 Scroll
           Refresh({ refreshing: $$this.refreshing }) {
-            Scroll(this.bodyScroller) {
+            Scroll() {
               Column() {
                 // 顶栏让位（悬浮顶栏之下才开始正文卡片）
                 Column()
@@ -368,8 +306,6 @@ export struct NewsDetailPage {
             }
             .width('100%').layoutWeight(1).scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring)
-            // 大卡片滚动跟随：每帧同步绝对偏移（钳制与停驻逻辑见 syncBgCardOffset）
-            .onDidScroll((_offset: number, _state: ScrollState) => { this.syncBgCardOffset(); })
           }
           .width('100%').height('100%')
           .onRefreshing(() => { this.refreshData(); })
@@ -378,16 +314,9 @@ export struct NewsDetailPage {
       .width('100%').height('100%')
       // 全局壁纸：二级页根背景透明，透出主框架底层壁纸（无壁纸时由 MainView 底层纯色兜底）
       .backgroundColor(Color.Transparent)
-      // 显式层级顶端：内容(文字/正文卡片)永远在背景大卡片(zIndex 1)之上
-      .zIndex(2)
       }
       .width('100%')
       .height('100%')
-      .onAreaChange((_o: Area, n: Area) => {
-        // 实测根 Stack 宽/高：玻璃大卡片超屏宽 = 宽+32；高 = 卡片恒定高度基准（屏幕高+顶栏让位）
-        this.bgCardW = n.width as number;
-        this.bgCardH = n.height as number;
-      })
     }
     .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)
