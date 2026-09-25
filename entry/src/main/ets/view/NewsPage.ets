@@ -767,9 +767,10 @@ export struct NewsPage {
       // 内容背景大卡片（新闻设置可关）：从顶栏下方延伸到屏幕底部；
       // 最小光感卡结构（材质承载层 + 底色层），hitTestBehavior(None) 纯背景不拦截列表滚动/点击。
       if (this.newsBgCard) {
-        // 宽度加大直接超出屏幕（用户要求）：卡片宽 = 屏宽+32、position x=-16 → 左右各出屏 16，
-        // 边缘与圆角完全在屏外，形成全宽延伸底板。宽度用根 Stack onAreaChange 实测
-        // （百分比无法表达 100%+32；position 定位不受 alignContent 影响，背景卡本就是独立叠层）。
+        // 宽度加大直接超出屏幕（用户要求）：卡片宽 = 屏宽实测+32，translate x=-16 纯绘制左移
+        // → 视觉左右各出屏 16，边缘与圆角完全在屏外，形成全宽延伸底板。宽度用根 Stack
+        // onAreaChange 实测（百分比无法表达 100%+32）；translate 是渲染级偏移（负值零兼容风险，
+        // 不像 position 改布局定位有兼容疑点），不影响布局流，背景卡本就是独立叠层。
         // 材质固定开启（bgMatOn 不看全局沉浸开关）。
         Column() {
           Row()
@@ -793,7 +794,7 @@ export struct NewsPage {
         }
         .width(this.bgCardW > 0 ? this.bgCardW + 32 : '100%')
         .height('100%')
-        .position({ x: -16, y: 0 })
+        .translate({ x: -16, y: 0 })
         .hitTestBehavior(HitTestMode.None)
       }
       // 底层大卡片之上的原内容包裹层（原根 Column，内部结构不变）
