@@ -39,6 +39,9 @@ import { MaterialCard } from './common/MaterialCard';
 
 @Component
 export struct AcademicPage {
+  /** 会话级拉取节流：5 分钟内重复进入不再全量拉取（缓存照常展示，下拉刷新强制拉取） */
+  private static lastFetchMs: number = 0;
+  private static readonly FETCH_TTL_MS: number = 5 * 60 * 1000;
   @StorageProp('topInsetPx') topInsetPx: number = 0;
   /** 灰字广播订阅：颜色表达式需传 this.grayTick 才登记响应式依赖（否则改色不实时刷新） */
   @StorageProp('grayTick') grayTick: number = 0;
@@ -87,7 +90,7 @@ export struct AcademicPage {
     this.peepMgr.stop();
   }
 
-  private async load(): Promise<void> {
+  private async load(force: boolean = false): Promise<void> {
     this.loading = true;
     const cached: AcademicReport = JwApi.loadCachedAcademic();
     if (cached.gpa > 0 || cached.totalRequired > 0) {
@@ -107,23 +110,42 @@ export struct AcademicPage {
     // 日志调试：记录本地操作（先展示缓存）+ 实际反馈
     LogStore.log('学业', '页面加载', '开始',
       `先展示缓存 GPA=${cached.gpa} 课程${cachedCourses.length}节 成绩${this.termScores.length}学期`);
+    // 缓存节流：5 分钟内重复进入不再全量拉取（下拉刷新强制拉取）
+    if (!force && Date.now() - AcademicPage.lastFetchMs < AcademicPage.FETCH_TTL_MS) {
+      this.loading = false;
+      LogStore.log('学业', '页面加载', '缓存有效', '5 分钟内已拉取过，跳过网络更新');
+      return;
+    }
     try {
-      const report: AcademicReport = await JwApi.getAcademic();
-      this.report = report;
-      const courses: CourseItem[] = await JwApi.getCoursesSmart(AppState.term.id, false);
-      this.courses = courses;
-      const scores: TermScore[] = await JwApi.getTermScores();
-      this.termScores = scores;
-      LogStore.log('学业', '页面加载', '完成',
-        `网络更新 GPA=${report.gpa} 课程${courses.length}节 成绩${scores.length}学期`);
-      // 总体成绩（累计绩点/已修学分/成绩分布/课程明细）：独立拉取，失败不影响其它数据
-      try {
-        const overall: OverallGrades = await JwApi.getOverallGrades();
-        this.overallStats = overall.stats;
-        this.overallCourses = overall.courses;
-      } catch (e2) {
-        LogStore.log('学业', '总体成绩', '异常', LogStore.errorOf(e2 as Object));
-      }
+      // 四路**并行**拉取：谁先完成谁先上屏（此前串行 await，后面的数据要干等前面的）
+      const p1: Promise<void> = JwApi.getAcademic()
+        .then((r: AcademicReport): void => {
+          this.report = r;
+        })
+        .catch((): void => {
+        });
+      const p2: Promise<void> = JwApi.getCoursesSmart(AppState.term.id, false)
+        .then((c: CourseItem[]): void => {
+          this.courses = c;
+        })
+        .catch((): void => {
+        });
+      const p3: Promise<void> = JwApi.getTermScores()
+        .then((s: TermScore[]): void => {
+          this.termScores = s;
+        })
+        .catch((): void => {
+        });
+      const p4: Promise<void> = JwApi.getOverallGrades()
+        .then((o: OverallGrades): void => {
+          this.overallStats = o.stats;
+          this.overallCourses = o.courses;
+        })
+        .catch((): void => {
+        });
+      await Promise.all([p1, p2, p3, p4]);
+      AcademicPage.lastFetchMs = Date.now();
+      LogStore.log('学业', '页面加载', '完成', '四路并行拉取结束（各数据完成即上屏）');
     } catch (e) {
       // 网络异常时保持缓存
       LogStore.log('学业', '页面加载', '网络异常', LogStore.errorOf(e as Object));
@@ -137,12 +159,12 @@ export struct AcademicPage {
       return;
     }
     this.refreshing = true;
-    await this.load();
+    await this.load(true);
     this.refreshing = false;
   }
 
   private async onRefresh(): Promise<void> {
-    await this.load();
+    await this.load(true);
     this.refreshing = false;
   }
   private currentGpa(): number {

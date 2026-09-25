@@ -100,6 +100,10 @@ export class DateUtil {
     const parts: string[] = termId.split('-');
     const s: string = parts[parts.length - 1];
     const y: number = Number.parseInt(parts[0], 10);
+    // 2026-2027 学年第一学期实际开学日为 8-31（先按此默认，后续学期随校历更新）
+    if (y === 2026 && s === '1') {
+      return '2026-08-31';
+    }
     return s === '2' ? `${y + 1}-03-01` : `${y}-09-01`;
   }
 

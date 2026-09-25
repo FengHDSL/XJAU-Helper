@@ -787,14 +787,15 @@ export struct MineView {
           }
         }
         .layoutWeight(1)
-        // 胶囊按钮：与「导出备份」同款（材质走 MaterialButton 的 Toggle 承载层）
+        // 胶囊按钮：导入备份改**绿色实底白字**（与导出并排；材质仍走 Toggle 承载层）
         Column() {
           MaterialButton({
             btnRadius: 21,
-            btnBg: $r('app.color.bg_chip'),
+            btnBg: '#079841',
             btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
             btnBorderW: GlassMaterial.borderWidth(),
             btnBorderC: GlassMaterial.borderColor(),
+            btnTint: '',
             btnOnClick: () => {
               this.showBackupSheet = false;
               this.importBackup();
@@ -803,7 +804,7 @@ export struct MineView {
             Text('导入备份')
               .fontSize(14)
               .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-              .fontColor(Theme.colorOf(this.themeColor))
+              .fontColor(Color.White)
               .width('100%')
               .height(42)
               .textAlign(TextAlign.Center)

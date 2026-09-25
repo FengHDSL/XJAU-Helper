@@ -37,6 +37,9 @@ import { WallpaperFill } from './common/WallpaperFill';
 import { MaterialCard } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
 import { MaterialCardLayer } from './common/MaterialCarrier';
+import { MaterialSheetPanel } from './common/MaterialCard';
+import { materialAvailable, sheetBlurStyle } from '../common/SystemMaterial';
+import { SheetUtil } from '../common/SheetUtil';
 import { materialAvailable } from '../common/SystemMaterial';
 
 @Component
@@ -97,8 +100,14 @@ export struct QuickSelectPage {
   @State fTeacher: string = '';
   /** 手动添加抢课目标：课程名称（必填） */
   @State manualName: string = '';
+  /** 手动添加抢课目标：教学班（选填，按教学班名称匹配，留空则不限） */
+  @State manualJxb: string = '';
+  /** 手动添加抢课目标：教师（选填，留空默认「秾大云上平台」） */
+  @State manualTeacher: string = '';
   /** 手动添加抢课目标：上课时间（选填） */
   @State manualTime: string = '';
+  /** 「添加课程到队列」弹窗（对照参考项目抢课工作台） */
+  @State showManualSheet: boolean = false;
   @State fTime: string = '';
   @State fLoc: string = '';
   @State fCredit: string = '';
@@ -357,19 +366,20 @@ export struct QuickSelectPage {
   }
 
   /** 手动添加抢课目标（提前订好队列，不依赖选课系统开放查询）：
-   *  课程名称必填、上课时间选填；授课教师默认「秾大云上平台」；按课程名模糊提交 */
+   *  课程名称必填；教学班/教师/上课时间选填（教师留空默认「秾大云上平台」）；按课程名模糊提交 */
   private doEnqueueManual(): void {
     const name: string = this.manualName.trim();
     if (name.length === 0) {
       this.getUIContext().getPromptAction().showToast({ message: '请输入课程名称' });
       return;
     }
+    const teacher: string = this.manualTeacher.trim().length > 0 ? this.manualTeacher.trim() : '秾大云上平台';
     const target: GrabTarget = {
       kchId: '',
       courseName: name,
-      teacher: '秾大云上平台',
+      teacher: teacher,
       time: this.manualTime.trim(),
-      jxbId: '',
+      jxbId: this.manualJxb.trim(),
       doJxbId: '',
       enabled: true,
       status: 'waiting',
@@ -380,8 +390,11 @@ export struct QuickSelectPage {
     this.queue = SelectApi.copyQueue(this.queue);
     if (ok) {
       this.manualName = '';
+      this.manualJxb = '';
+      this.manualTeacher = '';
       this.manualTime = '';
-      this.log(`已手动加入队列：${name}`);
+      this.showManualSheet = false;
+      this.log(`已手动加入队列：${name}${teacher.length > 0 ? `（${teacher}）` : ''}`);
     } else {
       this.getUIContext().getPromptAction().showToast({ message: '该课程已在队列中' });
     }
@@ -589,6 +602,127 @@ export struct QuickSelectPage {
       return $r('app.color.accent_orange');
     }
     return GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'));
+  }
+
+  /** 「添加课程到队列」弹窗（对照参考项目抢课工作台）：课程名称必填，教学班/教师/上课时间选填 */
+  @Builder
+  manualSheet() {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false,
+      panelTitle: '添加课程到队列', panelShowClose: true, panelOnClose: (): void => { this.showManualSheet = false; } }) {
+      Column({ space: 12 }) {
+        Column({ space: 6 }) {
+          Text('课程名称')
+            .fontSize(13)
+            .fontColor($r('app.color.text_primary'))
+            .width('100%')
+          TextInput({ placeholder: '完整课程名称', text: this.manualName })
+            .height(44)
+            .borderRadius(10)
+            .fontSize($r('sys.float.Body_L'))
+            .backgroundColor($r('sys.color.comp_background_tertiary'))
+            .onChange((v: string) => {
+              this.manualName = v;
+            })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+
+        Column({ space: 6 }) {
+          Text('教学班（选填）')
+            .fontSize(13)
+            .fontColor($r('app.color.text_primary'))
+            .width('100%')
+          TextInput({ placeholder: '例如：篮球0003', text: this.manualJxb })
+            .height(44)
+            .borderRadius(10)
+            .fontSize($r('sys.float.Body_L'))
+            .backgroundColor($r('sys.color.comp_background_tertiary'))
+            .onChange((v: string) => {
+              this.manualJxb = v;
+            })
+          Text('按教学班名称匹配，留空则不限')
+            .fontSize(11)
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary')))
+            .width('100%')
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+
+        Column({ space: 6 }) {
+          Text('教师（选填）')
+            .fontSize(13)
+            .fontColor($r('app.color.text_primary'))
+            .width('100%')
+          TextInput({ placeholder: '留空默认「秾大云上平台」', text: this.manualTeacher })
+            .height(44)
+            .borderRadius(10)
+            .fontSize($r('sys.float.Body_L'))
+            .backgroundColor($r('sys.color.comp_background_tertiary'))
+            .onChange((v: string) => {
+              this.manualTeacher = v;
+            })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+
+        Column({ space: 6 }) {
+          Text('上课时间（选填）')
+            .fontSize(13)
+            .fontColor($r('app.color.text_primary'))
+            .width('100%')
+          TextInput({ placeholder: '例如 周三 5-6 节', text: this.manualTime })
+            .height(44)
+            .borderRadius(10)
+            .fontSize($r('sys.float.Body_L'))
+            .backgroundColor($r('sys.color.comp_background_tertiary'))
+            .onChange((v: string) => {
+              this.manualTime = v;
+            })
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+
+        Row() {
+          Text('取消')
+            .fontSize(15)
+            .fontColor($r('app.color.text_secondary'))
+            .textAlign(TextAlign.Center)
+            .height(42)
+            .layoutWeight(1)
+            .onClick(() => {
+              this.showManualSheet = false;
+            })
+          Column() {
+            MaterialButton({
+              btnRadius: 21,
+              btnBg: '#079841',
+              btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+              btnBorderW: GlassMaterial.borderWidth(),
+              btnBorderC: GlassMaterial.borderColor(),
+              btnTint: '',
+              btnOnClick: (): void => {
+                this.doEnqueueManual();
+              }
+            }) {
+              Text('添加')
+                .fontSize(15)
+                .fontColor(Color.White)
+                .textAlign(TextAlign.Center)
+                .height(42)
+                .width('100%')
+            }
+          }
+          .layoutWeight(1)
+          .margin({ left: 10 })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+        .margin({ top: 4 })
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+      .padding({ left: 20, right: 20, top: 12, bottom: 20 })
+    }
   }
 
   /** 单个教学班卡片 */
@@ -851,6 +985,7 @@ export struct QuickSelectPage {
                         .width('100%')
                       Text(`${item.teacher.length > 0 ? item.teacher : '教师未知'}`
                         + `${item.time.length > 0 ? ` · ${item.time}` : ''}`
+                        + `${item.jxbId.length > 0 ? ` · 班级 ${item.jxbId}` : ''}`
                         + ` · ${item.matchMode === 'fuzzy' ? '模糊' : '精确'}`
                         + ` · 第 ${item.attempts} 次`)
                         .fontSize(11)
@@ -919,53 +1054,35 @@ export struct QuickSelectPage {
                 }, (item: GrabTarget, qIdx: number) => `q${qIdx}_${item.kchId}-${item.doJxbId}${item.jxbId}`)
               }
 
-              // 手动添加：提前把要抢的课程订好（不依赖选课系统开放查询），教师默认「秾大云上平台」
+              // 手动添加：提前把要抢的课程订好（不依赖选课系统开放查询）——
+              // 点击弹出「添加课程到队列」弹窗（课程名称/教学班/教师/上课时间，对照参考项目抢课工作台）
               Divider().color($r('app.color.divider')).margin({ top: 4, bottom: 10 })
-              Text('手动添加课程')
-                .fontSize(13)
-                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-                .fontColor($r('app.color.text_primary'))
-              TextInput({ placeholder: '课程名称（必填）', text: this.manualName })
-                .height(40)
-                .borderRadius(10)
-                .fontSize($r('sys.float.Body_L'))
-                .backgroundColor($r('sys.color.comp_background_tertiary'))
-                .margin({ top: 8 })
-                .onChange((v: string) => {
-                  this.manualName = v;
-                })
-              Row({ space: 8 }) {
-                TextInput({ placeholder: '上课时间（选填，如 周三 5-6 节）', text: this.manualTime })
-                  .height(40)
-                  .borderRadius(10)
-                  .fontSize($r('sys.float.Body_L'))
-                  .backgroundColor($r('sys.color.comp_background_tertiary'))
-                  .layoutWeight(1)
-                  .onChange((v: string) => {
-                    this.manualTime = v;
-                  })
-                MaterialButton({
-                  btnRadius: 10,
-                  btnBg: Theme.colorOf(this.themeColor),
-                  btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-                  btnBorderW: GlassMaterial.borderWidth(),
-                  btnBorderC: GlassMaterial.borderColor(),
-                  btnTint: Theme.colorOf(this.themeColor),
-                  btnTintRatio: 0.55,
-                  btnOnClick: (): void => {
-                    this.doEnqueueManual();
-                  }
-                }) {
-                  Text('添加')
-                    .fontSize(13)
-                    .fontColor(Color.White)
-                    .padding({ left: 14, right: 14 })
-                    .height(40)
+              MaterialButton({
+                btnRadius: 21,
+                btnBg: $r('app.color.bg_chip'),
+                btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                btnBorderW: GlassMaterial.borderWidth(),
+                btnBorderC: GlassMaterial.borderColor(),
+                btnOnClick: (): void => {
+                  this.showManualSheet = true;
                 }
+              }) {
+                Text('手动添加课程')
+                  .fontSize(14)
+                  .fontColor($r('app.color.text_primary'))
+                  .width('100%')
+                  .height(42)
+                  .textAlign(TextAlign.Center)
               }
-              .width('100%')
-              .alignItems(VerticalAlign.Center)
-              .margin({ top: 8 })
+              .bindSheet($$this.showManualSheet, this.manualSheet(), {
+                height: SheetSize.FIT_CONTENT,
+                dragBar: false,
+                showClose: false,
+                preferType: SheetType.BOTTOM,
+                width: SheetUtil.sheetWidth(),
+                backgroundColor: Color.Transparent,
+                blurStyle: sheetBlurStyle()
+              })
 
               // 定时设置：启动时间（日期 + 时间选择）
               Divider().color($r('app.color.divider')).margin({ top: 4, bottom: 10 })

@@ -31,11 +31,11 @@ import { WebSurface } from './WebSurface';
 import { WallpaperFill } from './common/WallpaperFill';
 // 沉浸光感：主条件卡（含 TextInput）用 Stack+MaterialCardLayer 兄弟结构；结果卡/空态卡走 MaterialCard
 // 本体（自带按压流光）；顶栏按钮走 MaterialButton（常驻材质）；卡内小行恒定普通磨砂（参考项目材质卡内小元素观感）
-import { MaterialCard } from './common/MaterialCard';
+import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
 import { MaterialCardLayer } from './common/MaterialCarrier';
 import { GlassMaterial } from '../common/GlassMaterial';
-import { materialAvailable } from '../common/SystemMaterial';
+import { materialAvailable, sheetBlurStyle } from '../common/SystemMaterial';
 
 /** 静态条件数据（模板演示用，后续接真实接口时替换为服务端下发的选项） */
 const STATIC_CAMPUS: EmptyRoomCondition[] = [
@@ -1129,8 +1129,10 @@ export struct KxjsPage {
           preferType: SheetType.BOTTOM,
           height: SheetSize.FIT_CONTENT,
           dragBar: true,
-          backgroundColor: $r('app.color.bg_card'),
-          title: { title: '场地详情' }
+          // 标题/关闭改由面板内自绘（沉浸光感）；显式透明底 + 材质模糊
+          showClose: false,
+          backgroundColor: Color.Transparent,
+          blurStyle: sheetBlurStyle()
         })
         }
         .width('100%')
@@ -1244,8 +1246,9 @@ export struct KxjsPage {
         preferType: SheetType.BOTTOM,
         height: SheetSize.FIT_CONTENT,
         dragBar: true,
-        backgroundColor: $r('app.color.bg_card'),
-        title: { title: this.singlePickerTitle }
+        showClose: false,
+        backgroundColor: Color.Transparent,
+        blurStyle: sheetBlurStyle()
       })
     }
     .width('100%')
@@ -1258,8 +1261,9 @@ export struct KxjsPage {
       preferType: SheetType.BOTTOM,
       height: SheetSize.FIT_CONTENT,
       dragBar: true,
-      backgroundColor: $r('app.color.bg_card'),
-      title: { title: this.multiPickerTitle }
+      showClose: false,
+      backgroundColor: Color.Transparent,
+      blurStyle: sheetBlurStyle()
     })
     .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)
@@ -1269,6 +1273,8 @@ export struct KxjsPage {
   /** 单选弹窗（bindSheet + 自定义 List，点击项直接修改 @State 并关闭） */
   @Builder
   singlePickerSheet() {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false,
+      panelTitle: this.singlePickerTitle, panelShowClose: true, panelOnClose: (): void => { this.showSingleSheet = false; } }) {
     Column() {
       Scroll() {
         Column() {
@@ -1303,11 +1309,14 @@ export struct KxjsPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 8, bottom: 24 })
+    }
   }
 
   /** 多选弹窗：Flex 横排换行 + 底部全选/确定（避免右上角与关闭按钮遮挡） */
   @Builder
   multiPickerSheet() {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false,
+      panelTitle: this.multiPickerTitle, panelShowClose: true, panelOnClose: (): void => { this.showMultiPicker = false; } }) {
     Column() {
       Scroll() {
         Column() {
@@ -1373,6 +1382,7 @@ export struct KxjsPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 8, bottom: 24 })
+    }
   }
 
   /** 网页版空教室查询（WebView 共享登录 Cookie） */
@@ -1388,6 +1398,8 @@ export struct KxjsPage {
   /** 详情弹窗：场地编号/校区/场地类别/楼号/楼层/借用类型/备注/使用部门/使用班级 */
   @Builder
   detailSheet() {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false,
+      panelTitle: '场地详情', panelShowClose: true, panelOnClose: (): void => { this.showDetail = false; } }) {
     Column() {
       if (this.selectedRoom !== null) {
         Row() {
@@ -1440,6 +1452,7 @@ export struct KxjsPage {
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 8, bottom: 24 })
+    }
   }
 
   /** 详情行：彩色圆点 + 标签 + 值（与课程表/考试详情同款） */

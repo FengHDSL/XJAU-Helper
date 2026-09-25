@@ -145,8 +145,9 @@ export struct ScheduleSettingsPanel {
   onClose: () => void = () => {};
   onCfgChange: (c: ScheduleConfig) => void = () => {};
   // 自定义开学时间：当前学期 id / 当前开学日（含已自定义值）/ 变更回调（空串=恢复默认）
-  currentTermId: string = '';
-  currentTermStart: string = '';
+  // @Prop：父组件（课程表页）保存开学日后实时同步进面板，无需退出重进（修复「保存后显示不变化」）
+  @Prop currentTermId: string = '';
+  @Prop currentTermStart: string = '';
   onTermStartChange: (date: string) => void = () => {};
 
   @State bgColor: string = '';
@@ -1068,17 +1069,16 @@ export struct ScheduleSettingsPanel {
           Text('恢复默认设置')
             .width('100%').height(44).fontSize(15).fontColor('#F0524D').textAlign(TextAlign.Center)
         }
-        // 「关闭」：主题色文字 + brand_light 淡绿底 → MaterialButton，btnTint 叠回 brand_light（比例 0.7）
+        // 「关闭」：绿色实底白字（用户指定），材质仍走 Toggle 承载层
         MaterialButton({
           btnRadius: 12,
           btnMargin: { top: 10 },
-          btnBg: $r('app.color.brand_light'),
-          btnTint: '#E4F2EC',
-          btnTintRatio: 0.7,
+          btnBg: '#079841',
+          btnTint: '',
           btnOnClick: () => { this.onClose(); }
         }) {
           Text('关闭')
-            .width('100%').height(44).fontSize(15).fontColor(Theme.colorOf(this.themeColor)).textAlign(TextAlign.Center)
+            .width('100%').height(44).fontSize(15).fontColor(Color.White).textAlign(TextAlign.Center)
         }
         Column().height(24)
       }

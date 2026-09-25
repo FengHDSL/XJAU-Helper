@@ -24,6 +24,8 @@ import { sheetBlurStyle } from '../common/SystemMaterial';
 import { Theme } from '../common/ThemeUtil';
 import { AppState } from '../common/AppState';
 import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
+import { MaterialButton } from './common/MaterialButton';
+import { materialAvailable } from '../common/SystemMaterial';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
 
@@ -356,42 +358,52 @@ export struct FontManagePage {
   // 通用胶囊按钮
   // ══════════════════════════════════════════════════════════════
 
-  /** 字重方案胶囊（选中态=主题色实底） */
+  /** 字重方案胶囊（MaterialButton：沉浸光感开启走材质+主题色叠层，关闭回落实底/玻璃） */
   @Builder
   weightChip(key: string, label: string) {
-    Text(label)
-      .fontSize(12)
-      .fontColor(this.weightMode === key ? Color.White : $r('app.color.text_primary'))
-      .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-      .backgroundColor(this.weightMode === key ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-      .backgroundBlurStyle(BlurStyle.Thin)
-      .border({ width: 1, color: GlassMaterial.BORDER })
-      .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 })
-      .clip(true)
-      .borderRadius(12)
-      .margin({ right: 8, bottom: 8 })
-      .onClick(() => {
+    MaterialButton({
+      btnRadius: 12,
+      btnMargin: { right: 8, bottom: 8 },
+      btnBg: (materialAvailable() && this.immersiveEffect) ? GlassMaterial.surface(this.isDarkMode)
+        : (this.weightMode === key ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip')),
+      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: Theme.colorOf(this.themeColor),
+      btnTintRatio: this.weightMode === key ? 0.85 : 0,
+      btnOnClick: (): void => {
         this.applyWeightMode(key);
-      })
+      }
+    }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.weightMode === key ? Color.White : $r('app.color.text_primary'))
+        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+    }
   }
 
-  /** 字号档位胶囊 */
+  /** 字号档位胶囊（同字重胶囊的材质逻辑） */
   @Builder
   fontScaleChip(label: string, value: number) {
-    Text(label)
-      .fontSize(12)
-      .fontColor(Math.abs(this.fontScale - value) < 0.01 ? Color.White : $r('app.color.text_primary'))
-      .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-      .backgroundColor(Math.abs(this.fontScale - value) < 0.01 ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-      .backgroundBlurStyle(BlurStyle.Thin)
-      .border({ width: 1, color: GlassMaterial.BORDER })
-      .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 })
-      .clip(true)
-      .borderRadius(12)
-      .margin({ right: 8 })
-      .onClick(() => {
+    MaterialButton({
+      btnRadius: 12,
+      btnMargin: { right: 8 },
+      btnBg: (materialAvailable() && this.immersiveEffect) ? GlassMaterial.surface(this.isDarkMode)
+        : (Math.abs(this.fontScale - value) < 0.01 ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip')),
+      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: Theme.colorOf(this.themeColor),
+      btnTintRatio: Math.abs(this.fontScale - value) < 0.01 ? 0.85 : 0,
+      btnOnClick: (): void => {
         this.applyFontScale(value);
-      })
+      }
+    }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor(Math.abs(this.fontScale - value) < 0.01 ? Color.White : $r('app.color.text_primary'))
+        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+    }
   }
 
   // ══════════════════════════════════════════════════════════════

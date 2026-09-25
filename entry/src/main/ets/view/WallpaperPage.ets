@@ -531,34 +531,15 @@ export struct WallpaperPage {
       .width('100%')
       .margin({ bottom: 12 })
 
-      // 顶栏样式：新版（默认渐变）/ 旧版 1.3.1 实色
+      // 顶栏样式：新版（默认渐变）/ 旧版 1.3.1 实色（胶囊按钮走 MaterialButton 沉浸光感）
       Row() {
         Text('顶栏样式')
           .fontSize(13)
           .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
           .fontColor($r('app.color.text_primary'))
         Blank()
-        Text('毛玻璃')
-          .fontSize(12)
-          .fontColor(this.barStyle === 'legacy' ? Color.White : $r('app.color.text_primary'))
-          .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-          .backgroundColor(this.barStyle === 'legacy' ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-          .borderRadius(12)
-          .onClick(() => {
-            AppStorage.setOrCreate('barStyle', 'legacy');
-            DataStore.setBarStyle('legacy');
-          })
-        Text('渐变色')
-          .fontSize(12)
-          .fontColor(this.barStyle === 'new' ? Color.White : $r('app.color.text_primary'))
-          .padding({ left: 12, right: 12, top: 5, bottom: 5 })
-          .backgroundColor(this.barStyle === 'new' ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'))
-          .borderRadius(12)
-          .margin({ left: 8 })
-          .onClick(() => {
-            AppStorage.setOrCreate('barStyle', 'new');
-            DataStore.setBarStyle('new');
-          })
+        this.barStyleChip('毛玻璃', 'legacy')
+        this.barStyleChip('渐变色', 'new')
       }
       .width('100%')
       .margin({ bottom: 12 })
@@ -921,6 +902,31 @@ export struct WallpaperPage {
     }
   }
 
+  /** 顶栏样式胶囊：MaterialButton（选中=主题色叠层白字；写入 barStyle 并持久化） */
+  @Builder
+  barStyleChip(label: string, mode: string) {
+    MaterialButton({
+      btnRadius: 12,
+      btnMargin: { left: mode === 'new' ? 8 : 0 },
+      btnBg: (materialAvailable() && this.immersiveEffect) ? GlassMaterial.surface(this.isDarkMode)
+        : (this.barStyle === mode ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip')),
+      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: Theme.colorOf(this.themeColor),
+      btnTintRatio: this.barStyle === mode ? 0.85 : 0,
+      btnOnClick: (): void => {
+        AppStorage.setOrCreate('barStyle', mode);
+        DataStore.setBarStyle(mode);
+      }
+    }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.barStyle === mode ? Color.White : $r('app.color.text_primary'))
+        .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+    }
+  }
+
   /** 卡片降级样式胶囊：MaterialButton（选中=主题色叠层白字） */
   @Builder
   cardFallbackChip(label: string, mode: string) {
@@ -1031,7 +1037,8 @@ export struct WallpaperPage {
           .alignItems(VerticalAlign.Center)
           .margin({ top: 12 })
 
-          // 卡片降级样式：云母（磨砂玻璃）/ 实色（纯底），默认云母
+          // 卡片降级样式：仅关闭沉浸光感时展示（开启时降级不生效，展示会冲突）
+          if (!this.immersiveEffect) {
           Row() {
             Column({ space: 3 }) {
               Text('卡片降级样式')
@@ -1053,6 +1060,7 @@ export struct WallpaperPage {
           .width('100%')
           .alignItems(VerticalAlign.Center)
           .margin({ top: 12 })
+          }
 
         }
         .width('100%')

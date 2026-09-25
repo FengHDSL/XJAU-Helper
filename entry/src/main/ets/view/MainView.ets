@@ -258,7 +258,8 @@ export struct MainView {
         }
       }
       Navigation(AppState.stack) {
-        HdsTabs({ barPosition: BarPosition.End, index: this.currentIndex, controller: this.tabsController }) {
+        // scrollable=false：禁止左右滑动切换页面——课程表页的横向滑动用于切换周次，二者冲突
+        HdsTabs({ barPosition: BarPosition.End, index: this.currentIndex, controller: this.tabsController, scrollable: false }) {
           TabContent() {
             HomeView({
               onSwitchTab: (index: number) => {
