@@ -992,7 +992,7 @@ export struct WallpaperPage {
                 .fontSize(15)
                 .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                 .fontColor($r('app.color.text_primary'))
-              Text('沉浸光感需鸿蒙7及以上版本，开启后提升美观度，搭配壁纸更佳！注：开启后会导致掉帧卡顿和发热，请谨慎选择开启。')
+              Text('沉浸光感需鸿蒙7及以上版本，开启后提升美观度，搭配壁纸更佳！注：开启后会导致掉帧卡顿和发热，请谨慎选择开启。本效果参考开源项目「鸿米家（miha）」实现，特此致谢——没有它就没有这个效果！')
                 .fontSize(11)
                 .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
             }

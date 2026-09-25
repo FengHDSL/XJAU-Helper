@@ -15,6 +15,7 @@ import { GlassMaterial } from '../common/GlassMaterial';
 import { MaterialCard } from './common/MaterialCard';
 import { MaterialCardLayer } from './common/MaterialCarrier';
 import { materialAvailable } from '../common/SystemMaterial';
+import { WallpaperFill } from './common/WallpaperFill';
 import { BackButton } from './common/BackButton';
 import { AppearanceStore } from '../common/AppearanceStore';
 
@@ -184,10 +185,9 @@ export struct NewsDetailPage {
     NavDestination() {
   /** 顶部装饰层（背景为整页纯色底，见根 Stack） */
   Stack({ alignContent: Alignment.TopStart }) {
-        Column()
-          .width('100%')
-          .height('100%')
-          .backgroundColor($r('app.color.bg_page'))
+        // 底层用壁纸填充（同校公众号等二级页惯例）：此前不透明 bg_page 纯色底会把大卡片
+        // 的系统材质 blur「喂」成纯色 → 玻璃完全隐形；透壁纸后材质才有内容感（用户反馈修复）
+        WallpaperFill()
         // 内容背景玻璃大卡片（用户要求，同农大新闻页）：出血宽 + 材质固定开启 + 跟随正文滚动平移；
         // hitTestBehavior(None) 纯背景不拦截滚动/点击；恒定高度（屏幕高+顶栏让位）滚动零重排
         Column() {
