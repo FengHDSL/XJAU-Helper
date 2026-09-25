@@ -487,6 +487,14 @@ export struct AboutPage {
                 .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
                 .textAlign(TextAlign.Center)
                 .width('100%')
+              // 独立开发者免责声明（红色醒目；措辞与 PrivacyText.ets 独立开发声明保持一致）
+              Text('本应用由学生独立开发，非学校官方应用，与校方无任何隶属或合作关系！')
+                .fontSize(12)
+                .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+                .fontColor('#DB5252')
+                .textAlign(TextAlign.Center)
+                .width('100%')
+                .margin({ top: 8 })
             }
             .width('100%')
             }
