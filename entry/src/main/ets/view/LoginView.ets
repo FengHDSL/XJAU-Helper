@@ -1404,6 +1404,8 @@ export struct LoginView {
             .padding({ left: 24, right: 24 })
           }
           .width('100%')
+          // 大屏不拉宽（用户要求：组件保持手机端宽度）：限宽 420，宽屏下 Scroll 交叉轴自动居中
+          .constraintSize({ maxWidth: 420 })
           .padding({ left: 24, right: 24, bottom: 32 })
         }
         .scrollBar(BarState.Off)

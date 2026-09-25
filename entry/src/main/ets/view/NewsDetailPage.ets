@@ -13,6 +13,8 @@ import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { MaterialCard } from './common/MaterialCard';
+import { MaterialCardLayer } from './common/MaterialCarrier';
+import { materialAvailable } from '../common/SystemMaterial';
 import { BackButton } from './common/BackButton';
 import { AppearanceStore } from '../common/AppearanceStore';
 
@@ -43,6 +45,28 @@ export struct NewsDetailPage {
   @State faved: boolean = false;
   /** 图片 PixelMap，按下标对应 blocks 中 image 块顺序 */
   @State imgPms: (image.PixelMap | null)[] = [];
+
+  /** 内容背景玻璃大卡片（同农大新闻页）：根 Stack 实测宽/高（出血宽 = 宽+32） */
+  @State bgCardW: number = 0;
+  @State bgCardH: number = 0;
+  /** 大卡片跟随滚动偏移（vp）：只驱动 translate.y 平移（恒定尺寸零重排），上限=顶栏让位高度（覆盖完屏幕即停） */
+  @State bgCardOffset: number = 0;
+  /** 正文滚动控制器：onDidScroll 每帧读绝对偏移用 */
+  private bodyScroller: Scroller = new Scroller();
+
+  /**
+   * 大卡片滚动跟随（同 NewsPage 机制）：onDidScroll 每帧读绝对偏移，
+   * 偏移只驱动 translate.y 平移（渲染级变换，卡片布局尺寸全程恒定→材质层零重排）。
+   * 上限=顶栏让位高度：覆盖完屏幕后钳住（正文可无限滑，卡片保持全屏覆盖不再动）。
+   */
+  private syncBgCardOffset(): void {
+    const raw: number = this.bodyScroller.currentOffset().yOffset;
+    const max: number = this.getUIContext().px2vp(this.topInsetPx) + 56;
+    const v: number = Math.min(Math.max(raw, 0), max);
+    if (this.bgCardOffset !== v) {
+      this.bgCardOffset = v;
+    }
+  }
 
   aboutToAppear(): void {
     this.faved = DataStore.isNewsFav(AppState.currentNewsUrl);
@@ -164,6 +188,34 @@ export struct NewsDetailPage {
           .width('100%')
           .height('100%')
           .backgroundColor($r('app.color.bg_page'))
+        // 内容背景玻璃大卡片（用户要求，同农大新闻页）：出血宽 + 材质固定开启 + 跟随正文滚动平移；
+        // hitTestBehavior(None) 纯背景不拦截滚动/点击；恒定高度（屏幕高+顶栏让位）滚动零重排
+        Column() {
+          // 顶部占位恒定：初始把材质区顶边让到顶栏下方
+          Row()
+            .width('100%')
+            .height(this.getUIContext().px2vp(this.topInsetPx) + 56)
+          Stack({ alignContent: Alignment.TopStart }) {
+            if (materialAvailable()) {
+              MaterialCardLayer({ layerRadius: 18, layerShadow: false })
+            }
+            Column()
+              .width('100%')
+              .height('100%')
+              .backgroundColor(materialAvailable() ? Color.Transparent
+                : GlassMaterial.cardBg($r('app.color.bg_card'), this.isDarkMode))
+              .backgroundBlurStyle(materialAvailable() ? BlurStyle.NONE : GlassMaterial.cardBlur())
+              .border({ width: materialAvailable() ? 0 : GlassMaterial.cardBorderWidth(), color: GlassMaterial.borderColor() })
+              .clip(true)
+          }
+          .width('100%')
+          .layoutWeight(1)
+        }
+        .width(this.bgCardW > 0 ? this.bgCardW + 32 : '100%')
+        .height(this.bgCardH > 0 ? this.bgCardH + this.getUIContext().px2vp(this.topInsetPx) + 56 : '100%')
+        // y=-偏移为渲染级平移：offset=0 材质从顶栏下方开始（底边超出屏幕底），offset=顶栏让位 恰好全屏覆盖后钳住
+        .translate({ x: -16, y: -this.bgCardOffset })
+        .hitTestBehavior(HitTestMode.None)
       Column() {
         // 顶栏（两层）：内容(底)/主题渐变(顶)；模糊层已取消
         Stack({ alignContent: Alignment.TopStart }) {
@@ -234,7 +286,7 @@ export struct NewsDetailPage {
         } else {
           // 下拉刷新：Refresh 包 Scroll
           Refresh({ refreshing: $$this.refreshing }) {
-            Scroll() {
+            Scroll({ scroller: this.bodyScroller }) {
               Column() {
                 // 顶栏让位（悬浮顶栏之下才开始正文卡片）
                 Column()
@@ -307,6 +359,8 @@ export struct NewsDetailPage {
             }
             .width('100%').layoutWeight(1).scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring)
+            // 大卡片滚动跟随：每帧同步绝对偏移（钳制与停驻逻辑见 syncBgCardOffset）
+            .onDidScroll((_offset: number, _state: ScrollState) => { this.syncBgCardOffset(); })
           }
           .width('100%').height('100%')
           .onRefreshing(() => { this.refreshData(); })
@@ -318,6 +372,11 @@ export struct NewsDetailPage {
       }
       .width('100%')
       .height('100%')
+      .onAreaChange((_o: Area, n: Area) => {
+        // 实测根 Stack 宽/高：玻璃大卡片超屏宽 = 宽+32；高 = 卡片恒定高度基准（屏幕高+顶栏让位）
+        this.bgCardW = n.width as number;
+        this.bgCardH = n.height as number;
+      })
     }
     .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)

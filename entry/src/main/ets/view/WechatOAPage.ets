@@ -20,6 +20,8 @@ import { MaterialButton } from './common/MaterialButton';
 import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
+import { mediaquery } from '@kit.ArkUI';
+import { ResponsiveUtil } from '../common/ResponsiveUtil';
 
 /** 公众号条目（homeUrl 非空 = 点「去关注」弹出二维码面板：码内容为该链接 + 复制链接兜底；
  *  homeUrl 空 = 复制名称 → 弹窗确认后拉起微信搜索） */
@@ -91,6 +93,41 @@ export struct WechatOAPage {
   /** 扫码关注面板：showQrSheet 控制显隐，qrItem 记录当前公众号（仅 homeUrl 非空时弹出） */
   @State showQrSheet: boolean = false;
   @State qrItem: OAItem | null = null;
+
+  /** 平板/大屏横屏标记：两张分组卡并排两列（用户要求适配），判定规则同 NewsPage */
+  @State isLandscape: boolean = false;
+  private landscapeListener: mediaquery.MediaQueryListener | null = null;
+  private wideListener: mediaquery.MediaQueryListener | null = null;
+  private landscapeMq: boolean = false;
+  private wideMq: boolean = false;
+
+  aboutToAppear(): void {
+    this.listenLayout();
+  }
+
+  /** 页面消失：注销监听 */
+  aboutToDisappear(): void {
+    this.landscapeListener = null;
+    this.wideListener = null;
+  }
+
+  /** 监听窗口尺寸/方向变化：宽 ≥600vp 且横向 → 两列布局（见 ResponsiveUtil.isWideLayout） */
+  private listenLayout(): void {
+    const mq = this.getUIContext().getMediaQuery();
+    this.landscapeMq = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE).matches;
+    this.wideMq = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE).matches;
+    this.isLandscape = ResponsiveUtil.isWideLayout(this.wideMq, this.landscapeMq);
+    this.landscapeListener = mq.matchMediaSync(ResponsiveUtil.QUERY_LANDSCAPE);
+    this.landscapeListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.landscapeMq = res.matches;
+      this.isLandscape = ResponsiveUtil.isWideLayout(this.wideMq, this.landscapeMq);
+    });
+    this.wideListener = mq.matchMediaSync(ResponsiveUtil.QUERY_WIDE);
+    this.wideListener.on('change', (res: mediaquery.MediaQueryResult) => {
+      this.wideMq = res.matches;
+      this.isLandscape = ResponsiveUtil.isWideLayout(this.wideMq, this.landscapeMq);
+    });
+  }
 
   /** 去关注入口：有主页直达链接 → 弹二维码面板（微信扫一扫直达）；无 → 复制名称拉起微信搜索 */
   private follow(item: OAItem): void {
@@ -349,10 +386,26 @@ export struct WechatOAPage {
               .alignItems(HorizontalAlign.Start)
             }
 
-            // 通用组：校级 / 公共服务 / 学生组织
-            this.oaGroupCard('通用')
-            // 学院组：各学院官方号
-            this.oaGroupCard('学院')
+            // 分组卡：大屏横屏两列并排（用户要求适配），手机端保持纵向单列
+            if (this.isLandscape) {
+              Row({ space: 14 }) {
+                Column() {
+                  this.oaGroupCard('通用')
+                }
+                .layoutWeight(1)
+                Column() {
+                  this.oaGroupCard('学院')
+                }
+                .layoutWeight(1)
+              }
+              .width('100%')
+              .alignItems(VerticalAlign.Top)
+            } else {
+              // 通用组：校级 / 公共服务 / 学生组织
+              this.oaGroupCard('通用')
+              // 学院组：各学院官方号
+              this.oaGroupCard('学院')
+            }
 
             Column()
               .height(this.getUIContext().px2vp(this.bottomInsetPx) + 24)

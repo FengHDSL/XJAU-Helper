@@ -2148,6 +2148,8 @@ export struct HomeView {
     .margin({ top: 18 })
     // 日历设置面板（挂日历卡片外框；与根 Column / Scroll 上的其它弹层分属不同组件，避免冲突）
     .bindSheet($$this.showCalEditor, this.calEditorSheet(), {
+      // 宽度对齐其他半模态面板（用户要求：平板/横屏下不再默认超宽）
+      width: SheetUtil.sheetWidth(),
       height: SheetSize.FIT_CONTENT,
       // 关闭按钮/标题改由面板内 MaterialSheetPanel 自绘；显式透明底 + 材质模糊补上沉浸光感
       showClose: false,

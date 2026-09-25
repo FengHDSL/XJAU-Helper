@@ -846,8 +846,13 @@ export struct ScheduleView {
     }
     .width('100%')
     .padding(12)
+    // 普通周改云母磨砂（用户要求）：cardSurface 底 + Thin 磨砂；
+    // 选中周实色主题底/当前周主题淡底保持实色（选中态靠实色背景表达，材质会吃掉选中态）
     .backgroundColor(week === this.viewWeek ? Theme.colorOf(this.themeColor) :
-      (week === this.currentWeek ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : $r('app.color.bg_chip')))
+      (week === this.currentWeek ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12)
+        : GlassMaterial.cardSurfaceColor(this.isDarkMode)))
+    .backgroundBlurStyle(week === this.viewWeek ? BlurStyle.NONE :
+      (week === this.currentWeek ? BlurStyle.NONE : BlurStyle.Thin))
     .borderRadius(10)
     .onClick(onClick)
   }
@@ -878,8 +883,12 @@ export struct ScheduleView {
     }
     .width('100%')
     .padding(10)
+    // 同 weekItemCard：普通周云母磨砂，选中周/当前周保持实色
     .backgroundColor(week === this.viewWeek ? Theme.colorOf(this.themeColor) :
-      (week === this.currentWeek ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12) : $r('app.color.bg_chip')))
+      (week === this.currentWeek ? Theme.rgba(Theme.colorOf(this.themeColor), 0.12)
+        : GlassMaterial.cardSurfaceColor(this.isDarkMode)))
+    .backgroundBlurStyle(week === this.viewWeek ? BlurStyle.NONE :
+      (week === this.currentWeek ? BlurStyle.NONE : BlurStyle.Thin))
     .borderRadius(10)
     .onClick(onClick)
   }
