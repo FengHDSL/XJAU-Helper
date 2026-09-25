@@ -392,10 +392,10 @@ export struct ExamPage {
           }
           .layoutWeight(1)
           Column() {
-            // 原按钮是「浅灰玻璃底 + 亮边 + 磨砂」，回落值按原值写（immersive 关时无磨砂、1vp 亮边）
+            // 红底语义按钮（同 pickExamSheet 红关闭先例）：immersive 开时加磨砂，关时纯实底
             MaterialButton({
               btnRadius: 12,
-              btnBg: $r('app.color.bg_chip'),
+              btnBg: '#DB5252',
               btnBlur: (AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE,
               btnBorderW: 1,
               btnBorderC: 'rgba(255,255,255,0.28)',
@@ -405,7 +405,8 @@ export struct ExamPage {
             }) {
               Text('关闭')
                 .fontSize(15)
-                .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+                // 红底上的文字黑白自适应
+                .fontColor($r('sys.color.font_primary'))
                 .width('100%')
                 .height(44)
                 .textAlign(TextAlign.Center)

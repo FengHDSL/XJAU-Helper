@@ -1,21 +1,22 @@
 /**
  * 校公众号页（我的 → 校园服务 → 校公众号）：
  *  - 展示学校各官方微信公众号（名称 / 微信号 / 简介），点击「去关注」：
- *    复制内容到剪贴板 → 尝试拉起微信（鸿蒙版 com.tencent.wechat，回落 com.tencent.mm）。
- *  - 已知主页直达链接的公众号（homeUrl 非空，__biz 取自公众号文章源码 var biz）：
- *    复制 mp.weixin.qq.com/mp/profile_ext 主页链接，用户在微信任意聊天窗口粘贴打开
- *    即达公众号主页（可点关注）；外部浏览器打开只会提示"请在微信客户端打开"，
- *    因此无法在应用内直接跳转，采用「复制链接 + 拉起微信」的通行做法。
- *  - 无直达链接的公众号：复制名称，在微信搜索框粘贴搜索关注。
+ *    - 已知主页直达链接的公众号（homeUrl 非空，__biz 取自公众号文章源码 var biz）：
+ *      弹出「扫码关注」面板，内置 QRCode 渲染 mp.weixin.qq.com/mp/profile_ext 主页链接，
+ *      微信「扫一扫」扫码直达公众号主页（可点关注）；面板内保留「复制链接并打开微信」兜底
+ *      （profile_ext 链接仅微信内可开，外部浏览器提示"请在微信客户端打开"）。
+ *    - 无直达链接的公众号：复制名称并拉起微信，在微信搜索框粘贴搜索关注。
+ *  - 拉起微信：先试鸿蒙版包名 com.tencent.wechat，回落 com.tencent.mm，均失败提示手动操作。
  */
 import { common, Want } from '@kit.AbilityKit';
 import { pasteboard } from '@kit.BasicServicesKit';
 import { AppState } from '../common/AppState';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
-import { materialAvailable } from '../common/SystemMaterial';
+import { materialAvailable, sheetBlurStyle } from '../common/SystemMaterial';
+import { SheetUtil } from '../common/SheetUtil';
 import { MaterialButton } from './common/MaterialButton';
-import { MaterialCard } from './common/MaterialCard';
+import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
 
@@ -58,10 +59,22 @@ export struct WechatOAPage {
   @StorageProp('fontWeightMode') fwMode: string = 'follow';
   @StorageProp('fontWeightValue') fwValue: number = 400;
 
-  /** 复制内容并拉起微信：homeUrl 非空复制主页直达链接（微信内粘贴打开即达关注页），否则复制名称搜索 */
+  /** 扫码关注面板：showQrSheet 控制显隐，qrItem 记录当前公众号（仅 homeUrl 非空时弹出） */
+  @State showQrSheet: boolean = false;
+  @State qrItem: OAItem | null = null;
+
+  /** 去关注入口：有主页直达链接 → 弹二维码面板（微信扫一扫直达）；无 → 复制名称拉起微信搜索 */
   private follow(item: OAItem): void {
-    const copyText: string = item.homeUrl.length > 0 ? item.homeUrl : item.name;
-    const isHomeLink: boolean = item.homeUrl.length > 0;
+    if (item.homeUrl.length > 0) {
+      this.qrItem = item;
+      this.showQrSheet = true;
+      return;
+    }
+    this.copyTextAndLaunch(item.name, false);
+  }
+
+  /** 复制文本并拉起微信（二维码面板的兜底按钮与无链接公众号共用） */
+  private copyTextAndLaunch(copyText: string, isHomeLink: boolean): void {
     const pasteData: pasteboard.PasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, copyText);
     pasteboard.getSystemPasteboard().setData(pasteData).then(() => {
       this.launchWechat(copyText, isHomeLink);
@@ -96,6 +109,67 @@ export struct WechatOAPage {
   /** 公众号材质是否生效（与其它页 matOn 同判定链） */
   private matOn(): boolean {
     return this.immersiveEffect && materialAvailable();
+  }
+
+  /** 扫码关注面板：白色码区 + QRCode（黑点白底确保微信扫一扫可识别）+ 复制链接兜底按钮 */
+  @Builder
+  qrSheet() {
+    MaterialSheetPanel({ panelRadius: 20, panelPadding: 0, panelFillHeight: false, panelTitle: '扫码关注', panelShowClose: true, panelOnClose: (): void => { this.showQrSheet = false; } }) {
+      Column() {
+        if (this.qrItem !== null) {
+          Text(this.qrItem.name)
+            .fontSize(16)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
+            .fontColor($r('app.color.text_primary'))
+            .width('100%')
+            .textAlign(TextAlign.Center)
+          // 白底码区：QRCode 黑点在白底上对比度最高，深色模式下也保证扫码可识别
+          Column() {
+            QRCode(this.qrItem.homeUrl)
+              .width(200)
+              .height(200)
+              .color('#000000')
+          }
+          .backgroundColor(Color.White)
+          .borderRadius(12)
+          .padding(10)
+          .margin({ top: 12 })
+
+          Text('打开微信「扫一扫」，扫描上方二维码直达公众号主页')
+            .fontSize(12)
+            .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+            .width('100%')
+            .textAlign(TextAlign.Center)
+            .margin({ top: 12 })
+
+          // 兜底：复制主页链接并拉起微信（扫一扫不便时在微信聊天窗口粘贴打开）
+          MaterialButton({
+            btnRadius: 21,
+            btnBg: '#079841',
+            btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+            btnBorderW: GlassMaterial.borderWidth(),
+            btnBorderC: GlassMaterial.borderColor(),
+            btnOnClick: (): void => {
+              if (this.qrItem !== null) {
+                this.showQrSheet = false;
+                this.copyTextAndLaunch(this.qrItem.homeUrl, true);
+              }
+            }
+          }) {
+            Text('复制链接并打开微信')
+              .fontSize(14)
+              .fontColor($r('sys.color.font_primary'))
+              .width('100%')
+              .textAlign(TextAlign.Center)
+              .height(42)
+          }
+          .margin({ top: 14 })
+        }
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Center)
+      .padding({ left: 20, right: 20, top: 8, bottom: 24 })
+    }
   }
 
   build() {
@@ -238,6 +312,18 @@ export struct WechatOAPage {
       .width('100%')
       .height('100%')
       .backgroundColor(Color.Transparent)
+      // 扫码关注面板：挂最外层 Stack（本页唯一 bindSheet，无同组件多次挂载互相覆盖问题）
+      .bindSheet($$this.showQrSheet, this.qrSheet(), {
+        width: SheetUtil.sheetWidth(),
+        preferType: SheetType.BOTTOM,
+        height: SheetSize.FIT_CONTENT,
+        dragBar: true,
+        // 关闭按钮由 MaterialSheetPanel 自绘（沉浸光感），系统 showClose 必须关掉避免双按钮
+        showClose: false,
+        // 必须显式透明：BindOptions.backgroundColor 默认白底会把 MaterialSheetPanel 的材质整块盖住
+        backgroundColor: Color.Transparent,
+        blurStyle: sheetBlurStyle()
+      })
     }
     .backgroundColor($r('app.color.bg_page'))
     .hideTitleBar(true)

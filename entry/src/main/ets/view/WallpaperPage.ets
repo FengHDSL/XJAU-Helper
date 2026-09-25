@@ -1477,7 +1477,8 @@ export struct WallpaperPage {
                 Text('选择图片并裁剪')
                   .fontSize(14)
                   .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-                  .fontColor($r('app.color.brand_on'))
+                  // 彩底按钮文字黑白自适应（brand_on 深色资源是近黑色，深色模式下看不清）
+                  .fontColor($r('sys.color.font_primary'))
                   .width('100%')
                   .textAlign(TextAlign.Center)
                   .height(42)
@@ -1580,7 +1581,8 @@ export struct WallpaperPage {
                 Text('保存')
                   .fontSize(14)
                   .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-                  .fontColor($r('app.color.brand_on'))
+                  // 彩底按钮文字黑白自适应（brand_on 深色资源是近黑色，深色模式下看不清）
+                  .fontColor($r('sys.color.font_primary'))
                   .width(96)
                   .textAlign(TextAlign.Center)
                   .height(42)

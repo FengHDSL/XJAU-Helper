@@ -900,6 +900,9 @@ export struct HomeView {
             .onClick(() => {
               if (this.nextFutureCourse !== null) {
                 AppState.pendingCourse = this.nextFutureCourse.course;
+                // 广播 tick：课程表页已被 Tabs 保活（aboutToAppear 不再触发），靠 @Watch 消费
+                AppStorage.setOrCreate<number>('pendingCourseTick',
+                  (AppStorage.get<number>('pendingCourseTick') ?? 0) + 1);
               }
               this.onSwitchTab(1);
             })
@@ -994,6 +997,9 @@ export struct HomeView {
             .onClick(() => {
               if (this.nextFutureCourse !== null) {
                 AppState.pendingCourse = this.nextFutureCourse.course;
+                // 广播 tick：课程表页已被 Tabs 保活（aboutToAppear 不再触发），靠 @Watch 消费
+                AppStorage.setOrCreate<number>('pendingCourseTick',
+                  (AppStorage.get<number>('pendingCourseTick') ?? 0) + 1);
               }
               this.onSwitchTab(1);
             })
@@ -1082,6 +1088,9 @@ export struct HomeView {
           .onClick(() => {
             if (this.nextClass !== null) {
               AppState.pendingCourse = this.nextClass.course;
+              // 广播 tick：课程表页已被 Tabs 保活（aboutToAppear 不再触发），靠 @Watch 消费
+              AppStorage.setOrCreate<number>('pendingCourseTick',
+                (AppStorage.get<number>('pendingCourseTick') ?? 0) + 1);
             }
             this.onSwitchTab(1);
           })

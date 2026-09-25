@@ -814,7 +814,7 @@ export struct KxjsPage {
       // TextInput 自带小玻璃：半透明白 + Thin 磨砂 + 亮边（不透明底会打断小玻璃观感）
       Stack({ alignContent: Alignment.TopStart }) {
         if (this.matOn()) {
-          MaterialCardLayer({ layerRadius: 23, layerShadow: false })
+          MaterialCardLayer({ layerRadius: 10, layerShadow: false })
         }
         Row() {
           Text('座位数')
@@ -826,7 +826,7 @@ export struct KxjsPage {
             .type(InputType.Number)
             .height(34)
             .enterKeyType(EnterKeyType.Done)
-            .borderRadius(12)
+            .borderRadius(10)
             .fontSize($r('sys.float.Body_L'))
             .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
             .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)')
@@ -847,7 +847,7 @@ export struct KxjsPage {
             .type(InputType.Number)
             .height(34)
             .enterKeyType(EnterKeyType.Done)
-            .borderRadius(12)
+            .borderRadius(10)
             .fontSize($r('sys.float.Body_L'))
             .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
             .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)')
@@ -879,7 +879,7 @@ export struct KxjsPage {
       // 场地名称：PickRow 同款长条胶囊 + TextInput 小玻璃（同「座位数」行）
       Stack({ alignContent: Alignment.TopStart }) {
         if (this.matOn()) {
-          MaterialCardLayer({ layerRadius: 23, layerShadow: false })
+          MaterialCardLayer({ layerRadius: 10, layerShadow: false })
         }
         Row() {
           Text('场地名称')
@@ -890,7 +890,7 @@ export struct KxjsPage {
           TextInput({ placeholder: '场地名称或编号', text: this.roomName })
             .height(34)
             .enterKeyType(EnterKeyType.Done)
-            .borderRadius(12)
+            .borderRadius(10)
             .fontSize($r('sys.float.Body_L'))
             .fontWeight(this.fwMode === 'follow' ? FontWeight.Regular : AppearanceStore.fontWeight(FontWeight.Regular))
             .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)')

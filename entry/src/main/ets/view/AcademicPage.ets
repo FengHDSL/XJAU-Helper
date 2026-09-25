@@ -37,6 +37,21 @@ import { WallpaperTone } from '../common/WallpaperTone';
 // 一并让出，每张卡只剩一层视觉）
 import { MaterialCard } from './common/MaterialCard';
 
+/** 课程明细示例数据：教务未开放「课程修读」数据时（overallCourses 为空）填充展示，
+ *  全部为中性假数据（示例教师/通用课程名），不含任何真实个人信息 */
+const MOCK_DETAIL_COURSES: ScoreItem[] = [
+  { id: 'mock01', courseName: '高等数学（上）', credit: 4, score: 91, scoreText: '91', gradePoint: 4.0, courseType: '必修', examType: '正常考试', teacher: '示例教师A', termId: '2023-2024-1', kclbmc: '必修课' },
+  { id: 'mock02', courseName: '大学外语（一）', credit: 3, score: 86, scoreText: '86', gradePoint: 3.7, courseType: '必修', examType: '正常考试', teacher: '示例教师B', termId: '2023-2024-1', kclbmc: '必修课' },
+  { id: 'mock03', courseName: '思想道德与法治', credit: 3, score: -1, scoreText: '良好', gradePoint: 3.3, courseType: '必修', examType: '正常考试', teacher: '示例教师C', termId: '2023-2024-1', kclbmc: '必修课' },
+  { id: 'mock04', courseName: '大学计算机基础', credit: 2, score: 94, scoreText: '94', gradePoint: 4.0, courseType: '必修', examType: '正常考试', teacher: '示例教师D', termId: '2023-2024-2', kclbmc: '必修课' },
+  { id: 'mock05', courseName: '高等数学（下）', credit: 4, score: 88, scoreText: '88', gradePoint: 3.8, courseType: '必修', examType: '正常考试', teacher: '示例教师A', termId: '2023-2024-2', kclbmc: '必修课' },
+  { id: 'mock06', courseName: '大学体育（二）', credit: 1, score: -1, scoreText: '优秀', gradePoint: 4.0, courseType: '必修', examType: '正常考试', teacher: '示例教师E', termId: '2023-2024-2', kclbmc: '必修课' },
+  { id: 'mock07', courseName: '有机化学', credit: 4, score: 82, scoreText: '82', gradePoint: 3.2, courseType: '必修', examType: '正常考试', teacher: '示例教师F', termId: '2024-2025-1', kclbmc: '必修课' },
+  { id: 'mock08', courseName: '中华优秀传统文化', credit: 2, score: -1, scoreText: '良好', gradePoint: 3.3, courseType: '选修', examType: '正常考试', teacher: '示例教师G', termId: '2024-2025-1', kclbmc: '选修课' },
+  { id: 'mock09', courseName: '概率论与数理统计', credit: 3, score: 90, scoreText: '90', gradePoint: 3.9, courseType: '必修', examType: '正常考试', teacher: '示例教师H', termId: '2024-2025-2', kclbmc: '必修课' },
+  { id: 'mock10', courseName: '大学生创新创业基础', credit: 2, score: -1, scoreText: '中等', gradePoint: 2.7, courseType: '选修', examType: '正常考试', teacher: '示例教师I', termId: '2024-2025-2', kclbmc: '选修课' }
+];
+
 @Component
 export struct AcademicPage {
   /** 会话级拉取节流：5 分钟内重复进入不再全量拉取（缓存照常展示，下拉刷新强制拉取） */
@@ -557,21 +572,24 @@ export struct AcademicPage {
           .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
         Blank()
-        Text(this.overallCourses.length > 0
-          ? `共 ${this.overallCourses.length} 门 · ${this.detailTermCount()} 个学期` : '暂无数据')
+        // 教务未开放课程修读数据时回落示例数据，加角标防误解
+        if (this.overallCourses.length === 0) {
+          Text('示例数据')
+            .fontSize(10)
+            .fontColor(Theme.colorOf(this.themeColor))
+            .border({ width: 1, color: Theme.colorOf(this.themeColor) })
+            .borderRadius(8)
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+            .margin({ right: 6 })
+        }
+        Text(`共 ${this.displayCourses().length} 门 · ${this.detailTermCount()} 个学期`)
           .fontSize(11)
           .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
       }
       .width('100%')
       .margin({ bottom: 10 })
 
-      if (this.overallCourses.length === 0) {
-        Text('暂无课程明细：需教务系统开放学业情况-课程修读数据')
-          .fontSize(12)
-          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-          .width('100%')
-      } else {
-        ForEach(this.detailList(), (item: ScoreItem) => {
+      ForEach(this.detailList(), (item: ScoreItem) => {
           Row() {
             Column() {
               Text(item.courseName)
@@ -609,9 +627,9 @@ export struct AcademicPage {
             .animation({ duration: 260, curve: Curve.Friction }))
         }, (item: ScoreItem) => `${item.courseName}-${item.termId}`)
 
-        if (this.overallCourses.length > 8) {
+        if (this.displayCourses().length > 8) {
           // 展开/收起是纯文字链（原本就没有胶囊底），保持原写法不改为材质按钮
-          Text(this.detailExpanded ? '收起' : `展开全部 ${this.overallCourses.length} 门`)
+          Text(this.detailExpanded ? '收起' : `展开全部 ${this.displayCourses().length} 门`)
             .fontSize(12)
             .fontColor(Theme.colorOf(this.themeColor))
             .width('100%')
@@ -625,21 +643,27 @@ export struct AcademicPage {
               });
             })
         }
-      }
     }
     .width('100%')
     }
   }
 
+  /** 明细数据源：教务未开放课程修读数据（真实数据为空）时回落示例数据 */
+  private displayCourses(): ScoreItem[] {
+    return this.overallCourses.length > 0 ? this.overallCourses : MOCK_DETAIL_COURSES;
+  }
+
   /** 明细展示列表（默认前 8 条） */
   private detailList(): ScoreItem[] {
-    return this.detailExpanded ? this.overallCourses : this.overallCourses.slice(0, 8);
+    const src: ScoreItem[] = this.displayCourses();
+    return this.detailExpanded ? src : src.slice(0, 8);
   }
 
   /** 明细覆盖的学期数（证明"全部学期"） */
   private detailTermCount(): number {
     const ids: string[] = [];
-    for (const c of this.overallCourses) {
+    const src: ScoreItem[] = this.displayCourses();
+    for (const c of src) {
       if (c.termId.length > 0 && ids.indexOf(c.termId) < 0) {
         ids.push(c.termId);
       }

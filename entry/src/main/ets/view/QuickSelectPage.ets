@@ -711,15 +711,28 @@ export struct QuickSelectPage {
         .alignItems(HorizontalAlign.Start)
 
         Row() {
-          Text('取消')
-            .fontSize(15)
-            .fontColor($r('app.color.text_secondary'))
-            .textAlign(TextAlign.Center)
-            .height(42)
-            .layoutWeight(1)
-            .onClick(() => {
-              this.showManualSheet = false;
-            })
+          Column() {
+            // 取消：红底语义按钮（用户指定红底，同「添加」按钮布局；Imm.BgBlur 光感边框同款）
+            MaterialButton({
+              btnRadius: 21,
+              btnBg: '#DB5252',
+              btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+              btnBorderW: GlassMaterial.borderWidth(),
+              btnBorderC: GlassMaterial.borderColor(),
+              btnTint: '',
+              btnOnClick: (): void => {
+                this.showManualSheet = false;
+              }
+            }) {
+              Text('取消')
+                .fontSize(15)
+                .fontColor($r('sys.color.font_primary'))
+                .textAlign(TextAlign.Center)
+                .height(42)
+                .width('100%')
+            }
+          }
+          .layoutWeight(1)
           Column() {
             MaterialButton({
               btnRadius: 21,

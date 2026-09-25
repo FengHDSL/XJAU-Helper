@@ -833,6 +833,10 @@ export struct NewsPage {
           .height(44)
           .alignItems(VerticalAlign.Top)
           .padding({ left: 8, right: 8, top: 6 })
+          // 板块少（内容窄于视口）时整体居中：minWidth 撑满视口后 Center 生效；
+          // 板块超宽时 Row 宽=内容宽、无富余空间，Center 自动失效且 Scroll 仍可正常左滚
+          .constraintSize({ minWidth: '100%' })
+          .justifyContent(FlexAlign.Center)
         }
         .scrollable(ScrollDirection.Horizontal)
         .scrollBar(BarState.Off)

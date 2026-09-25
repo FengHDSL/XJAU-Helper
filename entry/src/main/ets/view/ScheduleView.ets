@@ -50,6 +50,9 @@ export struct ScheduleView {
   /** 灰字广播依赖登记：grayTick 变化触发整页重算（本页为常驻 Tab 页，缺此订阅灰字色不实时刷新） */
   @StorageProp('grayTick') grayTick: number = 0;
   @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
+  /** 首页「下一节课/下次课」点击跳转广播：tick 自增驱动消费 pendingCourse——
+   *  Tabs 保活本页不重建，二次及以后点击 aboutToAppear 不再触发，必须靠 @Watch 兜住 */
+  @StorageProp('pendingCourseTick') @Watch('onPendingCourseTick') pendingCourseTick: number = 0;
   @StorageProp('subtitleColor') subtitleColor: string = '';
   @StorageProp('isDarkMode') isDarkMode: boolean = false;
   /** 壁纸亮度（顶栏文字自适应用） */
@@ -122,13 +125,23 @@ export struct ScheduleView {
       this.sheetWidth = '100%';
     }
     // 首页"下次课"点击跳转：自动打开对应课程详情
+    this.consumePendingCourse();
+    this.listenLandscape();
+  }
+
+  /** 消费首页传来的待打开课程：置空 pendingCourse 并打开对应课程详情面板 */
+  private consumePendingCourse(): void {
     const pc: CourseItem | null = AppState.pendingCourse;
     if (pc !== null && pc.id.length > 0) {
       AppState.pendingCourse = null;
       this.selected = pc;
       this.showSheet = true;
     }
-    this.listenLandscape();
+  }
+
+  /** 二次及以后点击（本页已被 Tabs 保活）：pendingCourseTick 自增触发，同样消费一次 */
+  onPendingCourseTick(): void {
+    this.consumePendingCourse();
   }
 
   /** 首页顶栏切换学期（JwApi.setTerm 广播 currentTermId）后同步本页课表：直接用新学期重载课表 */

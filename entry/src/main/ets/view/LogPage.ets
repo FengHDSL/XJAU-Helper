@@ -15,13 +15,13 @@ import { AppState } from '../common/AppState';
 import { LogStore, LogEntry } from '../common/LogStore';
 import { PageHeader } from './common/UiKit';
 import { GlassMaterial } from '../common/GlassMaterial';
-import { Immersive } from './common/Immersive';
 // 沉浸光感：日志卡片走 MaterialCard（含长按多选），操作栏胶囊按钮走 MaterialButton，
 // 分类筛选 chip 走「MaterialCardLayer 承载层 + 文字」（不用 MaterialButton：其内部 Stack 的 onClick
 // 会吃掉 Tabs 分类条自身的点击）
 import { MaterialCard } from './common/MaterialCard';
 import { MaterialButton } from './common/MaterialButton';
 import { MaterialCardLayer } from './common/MaterialCarrier';
+import { DissolveBurst } from './common/DissolveBurst';
 import { isApi26OrAbove, materialActive } from '../common/SystemMaterial';
 import { AppearanceStore } from '../common/AppearanceStore';
 
@@ -58,6 +58,8 @@ export struct LogPage {
   @State selecting: boolean = false;
   /** 已勾选导出的日志索引集合（数组模拟） */
   @State selectedIdx: number[] = [];
+  /** 清空粒子消散触发序号：确认清空后自增，驱动 DissolveBurst 重播爆散 */
+  @State burstSeq: number = 0;
 
   aboutToAppear(): void {
     this.refresh();
@@ -157,9 +159,13 @@ export struct LogPage {
       ]
     }).then((res) => {
       if (res.index === 1) {
-        LogStore.clearAll(); // 清空日志与附件（图片等文件）
-        this.refresh();
-        this.getUIContext().getPromptAction().showToast({ message: '日志已清空' });
+        // 先播粒子消散（页面中心爆开主题色粒子），320ms 后真正清空——视觉上「日志随粒子散去」
+        this.burstSeq++;
+        setTimeout(() => {
+          LogStore.clearAll(); // 清空日志与附件（图片等文件）
+          this.refresh();
+          this.getUIContext().getPromptAction().showToast({ message: '日志已清空' });
+        }, 320);
       }
     });
   }
@@ -684,11 +690,11 @@ export struct LogPage {
         .margin({ left: 10 })
       Blank()
       if (this.selecting) {
-        // 「取消」淡灰玻璃底 → MaterialButton（光感关闭回落同款玻璃底）
+        // 「取消」淡灰玻璃底 → MaterialButton（亮边/磨砂与排序按钮同配方，光感关闭回落同款玻璃底）
         MaterialButton({
           btnRadius: 16,
           btnBg: $r('app.color.bg_chip'),
-          btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
           btnBorderW: GlassMaterial.borderWidth(),
           btnBorderC: GlassMaterial.borderColor(),
           btnOnClick: () => {
@@ -700,14 +706,17 @@ export struct LogPage {
             .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
             .padding({ left: 14, right: 14, top: 6, bottom: 6 })
         }
-        // 「导出选中」品牌绿实底 + 白字 → 材质生效时靠 btnTint 叠回品牌绿（比例 0.85，承载白字对比度）
+        // 「导出选中」品牌绿实底 + 白字 → 材质生效时靠 btnTint 叠回品牌绿（比例 0.85，承载白字对比度）；
+        // 亮边/磨砂与排序、取消按钮同配方（GlassMaterial 标准光感，immersive 关时无磨砂）
         MaterialButton({
           btnRadius: 16,
           btnMargin: { left: 10 },
           btnBg: $r('app.color.brand'),
           btnTint: '#079841',
           btnTintRatio: 0.85,
-          btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
           btnOnClick: () => {
             this.exportSelected();
           }
@@ -719,13 +728,15 @@ export struct LogPage {
             .padding({ left: 14, right: 14, top: 6, bottom: 6 })
         }
       } else {
-        // 「全部导出」品牌绿实底 + 白字（同上，btnTint 叠回品牌绿）
+        // 「全部导出」品牌绿实底 + 白字（同上，btnTint 叠回品牌绿；亮边/磨砂与排序、取消同配方）
         MaterialButton({
           btnRadius: 16,
           btnBg: $r('app.color.brand'),
           btnTint: '#079841',
           btnTintRatio: 0.85,
-          btnBlur: Immersive.blur(BlurStyle.Thin, this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
           btnOnClick: () => {
             this.exportAll();
           }
@@ -759,10 +770,12 @@ export struct LogPage {
     }
   }
 
-  /** 日志页主体内容（Navigation / 内嵌共用，返回动作由参数注入） */
+  /** 日志页主体内容（Navigation / 内嵌共用，返回动作由参数注入）；
+   *  根包 Stack 承载清空粒子消散层（DissolveBurst 0×0 覆盖点落页面中心，不撑高布局） */
   @Builder
   logContent(onBack: () => void) {
-    Column() {
+    Stack() {
+      Column() {
       PageHeader({
         title: '日志详情',
         subtitle: LogStore.enabled() ? (this.collecting ? '正在收集' : '已暂停') : '日志调试未开启',
@@ -805,5 +818,9 @@ export struct LogPage {
       .width('100%').height('100%')
       // 全局壁纸：二级页根背景透明，透出主框架底层壁纸（无壁纸时由 MainView 底层纯色兜底）
       .backgroundColor(Color.Transparent)
+      // 清空确认后的粒子消散层：叠在内容之上（hitTestBehavior None 不挡交互），burstSeq++ 触发
+      DissolveBurst({ trigger: this.burstSeq })
     }
+    .width('100%').height('100%')
   }
+}
