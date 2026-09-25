@@ -52,6 +52,18 @@ const MOCK_DETAIL_COURSES: ScoreItem[] = [
   { id: 'mock10', courseName: '大学生创新创业基础', credit: 2, score: -1, scoreText: '中等', gradePoint: 2.7, courseType: '选修', examType: '正常考试', teacher: '示例教师I', termId: '2024-2025-2', kclbmc: '选修课' }
 ];
 
+/** 总体成绩示例统计：教务未开放「学业情况-总体」时（overallStats 为空）填充展示，
+ *  数值与 MOCK_DETAIL_COURSES 一致（10 门：优 4 / 良 5 / 中 1），中性假数据 */
+const MOCK_STATS: OverallGradeStats = {
+  gpa: '3.62',
+  credits: '28.5',
+  courseCount: 10,
+  excellent: 4,
+  good: 5,
+  medium: 1,
+  pass: 0
+};
+
 @Component
 export struct AcademicPage {
   /** 会话级拉取节流：5 分钟内重复进入不再全量拉取（缓存照常展示，下拉刷新强制拉取） */
@@ -426,7 +438,17 @@ export struct AcademicPage {
           .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
         Blank()
-        Text(this.overallCourses.length > 0 ? `${this.overallCourses.length} 门` : '累计')
+        // 教务未开放总体统计时回落示例数据，加角标防误解
+        if (this.overallStats === null) {
+          Text('示例数据')
+            .fontSize(10)
+            .fontColor(Theme.colorOf(this.themeColor))
+            .border({ width: 1, color: Theme.colorOf(this.themeColor) })
+            .borderRadius(8)
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+            .margin({ right: 6 })
+        }
+        Text(`共 ${this.displayStats().courseCount} 门`)
           .fontSize(11)
           .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
       }
@@ -435,15 +457,15 @@ export struct AcademicPage {
 
       Row() {
         StatCell({
-          value: this.overallStats !== null ? this.overallStats.gpa : '--',
+          value: this.displayStats().gpa,
           label: '累计绩点'
         })
         StatCell({
-          value: this.overallStats !== null ? this.overallStats.credits : '--',
+          value: this.displayStats().credits,
           label: '已修学分'
         })
         StatCell({
-          value: this.overallStats !== null ? `${this.overallStats.courseCount}` : '--',
+          value: `${this.displayStats().courseCount}`,
           label: '总课程'
         })
       }
@@ -475,6 +497,16 @@ export struct AcademicPage {
           .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
           .fontColor($r('app.color.text_primary'))
         Blank()
+        // 教务未开放总体统计时回落示例数据，加角标防误解
+        if (this.overallStats === null) {
+          Text('示例数据')
+            .fontSize(10)
+            .fontColor(Theme.colorOf(this.themeColor))
+            .border({ width: 1, color: Theme.colorOf(this.themeColor) })
+            .borderRadius(8)
+            .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+            .margin({ right: 6 })
+        }
         Text('按已统计课程划分')
           .fontSize(11)
           .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
@@ -653,6 +685,11 @@ export struct AcademicPage {
     return this.overallCourses.length > 0 ? this.overallCourses : MOCK_DETAIL_COURSES;
   }
 
+  /** 总体成绩数据源：教务未开放总体统计（overallStats 为空）时回落示例数据 */
+  private displayStats(): OverallGradeStats {
+    return this.overallStats !== null ? this.overallStats : MOCK_STATS;
+  }
+
   /** 明细展示列表（默认前 8 条） */
   private detailList(): ScoreItem[] {
     const src: ScoreItem[] = this.displayCourses();
@@ -690,12 +727,9 @@ export struct AcademicPage {
     return termId;
   }
 
-  /** 分布门数（0=优 1=良 2=中 3=及） */
+  /** 分布门数（0=优 1=良 2=中 3=及）；无真实统计时走示例数据 */
   private distCount(index: number): number {
-    const s: OverallGradeStats | null = this.overallStats;
-    if (s === null) {
-      return 0;
-    }
+    const s: OverallGradeStats = this.displayStats();
     if (index === 0) {
       return s.excellent;
     }

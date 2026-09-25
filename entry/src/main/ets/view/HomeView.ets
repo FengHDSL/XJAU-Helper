@@ -645,7 +645,8 @@ export struct HomeView {
     }
     .width('100%')
     .height(this.getUIContext().px2vp(this.topInsetPx) + 60)
-    .alignItems(VerticalAlign.Top)
+    // 左标题与右侧按钮组垂直居中对齐（原 Top 对齐导致两者高低不一）
+    .alignItems(VerticalAlign.Center)
     .padding({ left: 16, right: 16, top: this.getUIContext().px2vp(this.topInsetPx) + 12, bottom: 12 })
     }
     .width('100%')

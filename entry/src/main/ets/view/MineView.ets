@@ -592,6 +592,7 @@ export struct MineView {
     }) {
     Row() {
       if (this.showAvatar) {
+        // 头像出现/消失过渡：淡入+从 0.8 缩放放大（配合 Toggle onChange 的 animateTo 生效）
         if (this.photo.length > 0) {
           Image('data:image/jpeg;base64,' + this.photo)
             .width(52)
@@ -602,6 +603,9 @@ export struct MineView {
             // GlassMaterial.withMaterial() 恒返回传入色——两者均为死代码，已移除，观感不变
             // （头像在 MaterialCard 内部、非点击元素，不需要再叠 Toggle 承载层）。
             .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+            .transition(TransitionEffect.OPACITY
+              .combine(TransitionEffect.scale({ x: 0.8, y: 0.8 }))
+              .animation({ duration: 260, curve: Curve.Friction }))
         } else if (JwApi.USE_MOCK) {
           // 功能浏览模式：使用默认占位头像（死代码清理同上，观感不变）
           Image($r('app.media.default_avatar'))
@@ -610,6 +614,9 @@ export struct MineView {
             .borderRadius(26)
             .objectFit(ImageFit.Cover)
             .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
+            .transition(TransitionEffect.OPACITY
+              .combine(TransitionEffect.scale({ x: 0.8, y: 0.8 }))
+              .animation({ duration: 260, curve: Curve.Friction }))
         } else {
           Text(AppState.avatarText())
             .fontSize(17)
@@ -620,6 +627,9 @@ export struct MineView {
             .borderRadius(26)
             .backgroundColor($r('app.color.bg_chip')).backgroundBlurStyle((AppStorage.get<boolean>('immersiveEffect') ?? false) ? BlurStyle.Thin : BlurStyle.NONE).border({ width: 1, color: 'rgba(255,255,255,0.28)' }).shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
             .textAlign(TextAlign.Center)
+            .transition(TransitionEffect.OPACITY
+              .combine(TransitionEffect.scale({ x: 0.8, y: 0.8 }))
+              .animation({ duration: 260, curve: Curve.Friction }))
         }
       }
 
@@ -890,7 +900,10 @@ export struct MineView {
               Toggle({ type: ToggleType.Switch, isOn: this.showAvatar })
                 .selectedColor(Theme.colorOf(this.themeColor))
                 .onChange((isOn: boolean) => {
-                  this.showAvatar = isOn;
+                  // 显式动画包裹：头像块按 .transition 播放淡入/缩放出现（与信息列 margin 联动过渡）
+                  this.getUIContext().animateTo({ duration: 260, curve: Curve.Friction }, () => {
+                    this.showAvatar = isOn;
+                  });
                   DataStore.put(DataStore.KEY_SHOW_AVATAR, isOn ? '1' : '0');
                 })
             }
@@ -1276,7 +1289,10 @@ export struct MineView {
         Toggle({ type: ToggleType.Switch, isOn: this.showAvatar })
           .selectedColor(Theme.colorOf(this.themeColor))
           .onChange((isOn: boolean) => {
-            this.showAvatar = isOn;
+            // 显式动画包裹：头像块按 .transition 播放淡入/缩放出现（与信息列 margin 联动过渡）
+            this.getUIContext().animateTo({ duration: 260, curve: Curve.Friction }, () => {
+              this.showAvatar = isOn;
+            });
             DataStore.put(DataStore.KEY_SHOW_AVATAR, isOn ? '1' : '0');
           })
       }

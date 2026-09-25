@@ -13,6 +13,7 @@ import { pasteboard } from '@kit.BasicServicesKit';
 import { AppState } from '../common/AppState';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
+import { Theme } from '../common/ThemeUtil';
 import { materialAvailable, sheetBlurStyle } from '../common/SystemMaterial';
 import { SheetUtil } from '../common/SheetUtil';
 import { MaterialButton } from './common/MaterialButton';
@@ -20,29 +21,56 @@ import { MaterialCard, MaterialSheetPanel } from './common/MaterialCard';
 import { PageHeader } from './common/UiKit';
 import { WallpaperFill } from './common/WallpaperFill';
 
-/** 公众号条目（homeUrl 非空 = 已知主页 profile_ext 直达链接：复制后微信内粘贴打开即达关注页） */
+/** 公众号条目（homeUrl 非空 = 已知主页 profile_ext 直达链接：扫码/复制后微信内打开即达关注页） */
 interface OAItem {
   name: string;
   wxid: string;
   desc: string;
   homeUrl: string;
+  /** 分组：'通用'（校级/公共服务/学生组织）| '学院'（各学院官方号） */
+  group: string;
 }
 
-/** 学校官方公众号清单（数据来源：学校官网/招生网公示；主页链接 __biz 取自公众号文章源码 var biz） */
+/** 由 __biz 拼公众号主页链接（微信内打开/扫码直达关注页） */
+function homeUrlOf(biz: string): string {
+  return biz.length > 0
+    ? `https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=${biz}#wechat_redirect`
+    : '';
+}
+
+/** 学校官方公众号清单（名称/biz 抓取自公众号文章页 var biz 与 nickname，2026-09-25 核实）；
+ *  group 为自动分类：校级部门/公共服务/学生组织归「通用」，各学院官方号归「学院」 */
 const OA_LIST: OAItem[] = [
-  {
-    name: '新疆农业大学',
-    wxid: 'xjnydx1952',
-    desc: '学校官方订阅号：校园资讯、通知公告、校史馆预约等',
-    homeUrl: ''
-  },
-  {
-    name: '新农大小薇',
-    wxid: '微信内搜索「新农大小薇」',
-    desc: '迎新与学工服务号：录取查询、迎新预报到、缴费、学工服务',
-    // profile_ext 主页链接：微信内打开即达公众号主页（可点关注）
-    homeUrl: 'https://mp.weixin.qq.com/mp/profile_ext?action=home&__biz=MzA5MjM5MzgyMw==#wechat_redirect'
-  }
+  // ── 通用 ──
+  { name: '新疆农业大学', wxid: 'xjnydx1952', desc: '学校官方订阅号：校园资讯、通知公告、文化活动', homeUrl: homeUrlOf('MjM5MTY3OTEwNQ=='), group: '通用' },
+  { name: '新农大小薇', wxid: '微信内搜索「新农大小薇」', desc: '迎新与学工服务号：录取查询、迎新预报到、缴费、学工服务', homeUrl: homeUrlOf('MzA5MjM5MzgyMw=='), group: '通用' },
+  { name: '新疆农业大学图书馆', wxid: '', desc: '图书馆官方号：书目检索、讲座培训、开放安排', homeUrl: homeUrlOf('MzA5ODg4NTA5Mg=='), group: '通用' },
+  { name: '新疆农业大学学生会', wxid: '', desc: '校学生会：二课学时、校园活动、权益服务', homeUrl: homeUrlOf('MzAwMzQ3MzEzNw=='), group: '通用' },
+  { name: '新农大研究生', wxid: '', desc: '研究生教育服务：招生培养、学位学术活动', homeUrl: homeUrlOf('MzI0ODExODIwNg=='), group: '通用' },
+  { name: '新农暖阳心理', wxid: '', desc: '心理健康教育中心：心理科普、咨询预约、朋辈活动', homeUrl: homeUrlOf('Mzk0NjU2OTk5OA=='), group: '通用' },
+  { name: '新疆农业大学校友会', wxid: '', desc: '校友之家：校友动态、返校服务、征稿活动', homeUrl: homeUrlOf('MzU5OTEzMTIxNw=='), group: '通用' },
+  { name: '新疆农业大学网信中心', wxid: '', desc: '信息化服务：上网认证、软件正版化、网络报修', homeUrl: homeUrlOf('MzkwNDU5NTEzNA=='), group: '通用' },
+  { name: '新疆农业大学塔城校区', wxid: '', desc: '塔城校区官方号：校区资讯与学生活动', homeUrl: homeUrlOf('MzY5NjQ1MTI4Mg=='), group: '通用' },
+  { name: '新疆农业大学学报', wxid: '', desc: '学术期刊：论文荐读、编委动态、投稿指南', homeUrl: homeUrlOf('MzE5ODE1Mjk5MA=='), group: '通用' },
+  { name: '平安新农大', wxid: '', desc: '安全保卫：安全提醒、反诈宣传、户籍服务', homeUrl: homeUrlOf('MzkzMjU2MjQzNw=='), group: '通用' },
+  { name: '农大科研', wxid: '', desc: '科研管理处：项目申报、学术讲座、科研政策', homeUrl: homeUrlOf('Mzg5Mjg4MjU3NQ=='), group: '通用' },
+  { name: '新疆农业大学动物中心医院', wxid: '', desc: '第一动物医院：诊疗服务、行业交流', homeUrl: homeUrlOf('Mzg4OTQ1MzY5NQ=='), group: '通用' },
+  // ── 学院 ──
+  { name: '新疆农业大学农学院', wxid: '', desc: '农学院官方号：学院资讯、教学科研、学生活动', homeUrl: homeUrlOf('MzAxMTA5NDIzNg=='), group: '学院' },
+  { name: '新疆农业大学化学化工学院', wxid: '', desc: '化学化工学院官方号：招聘宣讲、实验安全、学生活动', homeUrl: homeUrlOf('MzA3MDQ1NzUwOQ=='), group: '学院' },
+  { name: '新疆农业大学外国语学院', wxid: '', desc: '外国语学院官方号：教学科研、外语竞赛、学院资讯', homeUrl: homeUrlOf('MjM5Nzc5ODk4MQ=='), group: '学院' },
+  { name: '新疆农业大学国际教育学院', wxid: '', desc: '国际教育学院官方号：国际合作、留学项目、学院资讯', homeUrl: homeUrlOf('MzA4OTAxMDQxMw=='), group: '学院' },
+  { name: '新疆农业大学动物科学学院', wxid: '', desc: '动物科学学院官方号：学院资讯、宣讲实践、学生活动', homeUrl: homeUrlOf('MzA3NzY0MDQxNA=='), group: '学院' },
+  { name: '新疆农业大学园艺学院', wxid: '', desc: '园艺学院官方号：耕读教育、学院资讯、学生活动', homeUrl: homeUrlOf('MzkwOTI3NzU5NQ=='), group: '学院' },
+  { name: '新农资环', wxid: '', desc: '资源与环境学院官方号：田间实践、科研动态、学生活动', homeUrl: homeUrlOf('MzI4MDI3MTAxNw=='), group: '学院' },
+  { name: '阳光中语', wxid: '', desc: '中国语言文学与艺术学院官方号：文化活动、学院资讯', homeUrl: homeUrlOf('MzA4NTAwODU5MQ=='), group: '学院' },
+  { name: '新疆农业大学生命科学学院', wxid: '', desc: '生命科学学院官方号：学院资讯、教学科研、学生活动', homeUrl: homeUrlOf('Mzg5NTY3NjkyMQ=='), group: '学院' },
+  { name: '新农大动医', wxid: '', desc: '动物医学学院官方号：学院资讯、三进两联一交友、学生活动', homeUrl: homeUrlOf('MzA5MDc0MjcyNg=='), group: '学院' },
+  { name: '新农ITShow', wxid: '', desc: '计算机与信息工程学院官方号：技术活动、学院资讯', homeUrl: homeUrlOf('MzI1MzE1MDM0Mw=='), group: '学院' },
+  { name: '新疆农业大学机电工程学院', wxid: '', desc: '机电工程学院官方号：学院资讯、师生交流、学生活动', homeUrl: homeUrlOf('Mzg3NjE3MDI0Mg=='), group: '学院' },
+  { name: '新农大淼垚之声', wxid: '', desc: '水利与土木工程学院官方号：学院资讯、文化活动', homeUrl: homeUrlOf('MzA4Mzk1OTQ5OQ=='), group: '学院' },
+  // 文章页未暴露 __biz（仅 gh_ 原始 id，无法拼主页链接）→ 走「复制名称搜索」路径
+  { name: '公共管理学院（法学院）', wxid: '', desc: '学院官方号：微信内搜索名称后关注', homeUrl: '', group: '学院' }
 ];
 
 @Component
@@ -84,7 +112,11 @@ export struct WechatOAPage {
     });
   }
 
-  /** 拉起微信：先试鸿蒙版包名，回落 Android 包名，均失败则提示手动操作 */
+  /** 拉起微信（三级回落）：
+   *  ① 显式 Want：bundleName + abilityName（鸿蒙微信入口 UIAbility 为 EntryAbility——
+   *     只写 bundleName 时部分设备/版本解析不到入口，实测拉不起，必须补 abilityName）
+   *  ② 回落 Android 包名 com.tencent.mm
+   *  ③ weixin:// scheme 隐式拉起（系统路由到微信） */
   private launchWechat(copied: string, isHomeLink: boolean): void {
     const okMsg: string = isHomeLink
       ? '已复制公众号主页链接，在微信任意聊天窗口粘贴并打开，即可直达关注页'
@@ -93,15 +125,20 @@ export struct WechatOAPage {
       ? '已复制公众号主页链接，未检测到微信，请手动打开微信粘贴打开'
       : `已复制「${copied}」，未检测到微信，请手动打开微信搜索关注`;
     const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    const wantHm: Want = { bundleName: 'com.tencent.wechat' };
+    const wantHm: Want = { deviceId: '', bundleName: 'com.tencent.wechat', abilityName: 'EntryAbility' };
     ctx.startAbility(wantHm).then((): void => {
       this.getUIContext().getPromptAction().showToast({ message: okMsg });
     }).catch((): void => {
-      const wantApk: Want = { bundleName: 'com.tencent.mm' };
+      const wantApk: Want = { deviceId: '', bundleName: 'com.tencent.mm' };
       ctx.startAbility(wantApk).then((): void => {
         this.getUIContext().getPromptAction().showToast({ message: okMsg });
       }).catch((): void => {
-        this.getUIContext().getPromptAction().showToast({ message: failMsg });
+        const wantScheme: Want = { deviceId: '', uri: 'weixin://' };
+        ctx.startAbility(wantScheme).then((): void => {
+          this.getUIContext().getPromptAction().showToast({ message: okMsg });
+        }).catch((): void => {
+          this.getUIContext().getPromptAction().showToast({ message: failMsg });
+        });
       });
     });
   }
@@ -173,6 +210,102 @@ export struct WechatOAPage {
     }
   }
 
+  /** 分组内的公众号数量 */
+  private groupCount(groupName: string): number {
+    let n: number = 0;
+    for (const it of OA_LIST) {
+      if (it.group === groupName) {
+        n++;
+      }
+    }
+    return n;
+  }
+
+  /** 分组列表卡：按 group 过滤渲染；行内不放头像徽标（用户要求），名称+简介+去关注按钮 */
+  @Builder
+  oaGroupCard(groupName: string) {
+    MaterialCard({
+      cardRadius: 18,
+      cardPadding: 6,
+      cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
+      cardBlur: GlassMaterial.cardBlur(),
+      cardBorderW: GlassMaterial.cardBorderWidth(),
+      cardBorderC: GlassMaterial.borderColor(),
+      cardShadow: GlassMaterial.cardShadowStyle(),
+      cardMargin: { top: 14 }
+    }) {
+      Column() {
+        Row() {
+          Text(groupName)
+            .fontSize(13)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
+            .fontColor(Theme.colorOf(this.themeColor))
+          Blank()
+          Text(`${this.groupCount(groupName)} 个`)
+            .fontSize(11)
+            .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+        }
+        .width('100%')
+        .padding({ top: 10, bottom: 4, left: 10, right: 10 })
+
+        ForEach(OA_LIST.filter((it: OAItem): boolean => it.group === groupName), (item: OAItem, index: number) => {
+          Column() {
+            Row() {
+              Column({ space: 3 }) {
+                Text(item.name)
+                  .fontSize(15)
+                  .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+                  .fontColor($r('app.color.text_primary'))
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                if (item.wxid.length > 0) {
+                  Text(item.wxid)
+                    .fontSize(11)
+                    .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                }
+                Text(item.desc)
+                  .fontSize(11)
+                  .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+                  .lineHeight(16)
+              }
+              .layoutWeight(1)
+              .alignItems(HorizontalAlign.Start)
+
+              // 右：去关注（绿色实底，文字黑白自动对比度）
+              MaterialButton({
+                btnRadius: 15,
+                btnBg: '#079841',
+                btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+                btnBorderW: GlassMaterial.borderWidth(),
+                btnBorderC: GlassMaterial.borderColor(),
+                btnMargin: { left: 10 },
+                btnOnClick: (): void => {
+                  this.follow(item);
+                }
+              }) {
+                Text('去关注')
+                  .fontSize(12)
+                  .fontColor($r('sys.color.font_primary'))
+                  .padding({ left: 12, right: 12, top: 7, bottom: 7 })
+              }
+            }
+            .width('100%')
+            .alignItems(VerticalAlign.Center)
+            .padding({ top: 12, bottom: 12, left: 10, right: 10 })
+
+            if (index < this.groupCount(groupName) - 1) {
+              Divider().color($r('app.color.divider'))
+            }
+          }
+          .width('100%')
+        }, (item: OAItem) => item.name)
+      }
+      .width('100%')
+    }
+  }
+
   build() {
     NavDestination() {
       Stack({ alignContent: Alignment.TopStart }) {
@@ -200,7 +333,7 @@ export struct WechatOAPage {
                   .fontSize(15)
                   .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
                   .fontColor($r('app.color.text_primary'))
-                Text('点击「去关注」会复制并尝试打开微信：新农大小薇已内置主页直达链接，在微信任意聊天窗口粘贴打开即达关注页；其他公众号复制名称后在微信搜索关注。')
+                Text('点击「去关注」弹出二维码：打开微信「扫一扫」扫码直达公众号主页；也可复制主页链接在微信内粘贴打开（大部分公众号已收录主页直达链接）。列表按「通用 / 学院」自动分组。')
                   .fontSize(12)
                   .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
                   .lineHeight(18)
@@ -209,84 +342,10 @@ export struct WechatOAPage {
               .alignItems(HorizontalAlign.Start)
             }
 
-            // 公众号列表卡
-            MaterialCard({
-              cardRadius: 18,
-              cardPadding: 6,
-              cardBg: GlassMaterial.homeCardBg($r('app.color.bg_card')),
-              cardBlur: GlassMaterial.cardBlur(),
-              cardBorderW: GlassMaterial.cardBorderWidth(),
-              cardBorderC: GlassMaterial.borderColor(),
-              cardShadow: GlassMaterial.cardShadowStyle(),
-              cardMargin: { top: 14 }
-            }) {
-              Column() {
-                ForEach(OA_LIST, (item: OAItem, index: number) => {
-                  Column() {
-                    Row() {
-                      // 左：公众号头像占位（首字圆形徽标）；文字随系统深浅色自动黑白
-                      Text(item.name.substring(0, 1))
-                        .fontSize(20)
-                        .fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold))
-                        .fontColor($r('sys.color.font_primary'))
-                        .width(46)
-                        .height(46)
-                        .textAlign(TextAlign.Center)
-                        .backgroundColor('#22079841')
-                        .borderRadius(23)
-                      // 中：名称 / 微信号 / 简介
-                      Column({ space: 3 }) {
-                        Text(item.name)
-                          .fontSize(15)
-                          .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
-                          .fontColor($r('app.color.text_primary'))
-                          .maxLines(1)
-                          .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        Text(item.wxid)
-                          .fontSize(11)
-                          .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-                          .maxLines(1)
-                          .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        Text(item.desc)
-                          .fontSize(11)
-                          .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
-                          .lineHeight(16)
-                      }
-                      .layoutWeight(1)
-                      .alignItems(HorizontalAlign.Start)
-                      .margin({ left: 12 })
-
-                      // 右：去关注（绿色实底，文字黑白自动对比度）
-                      MaterialButton({
-                        btnRadius: 15,
-                        btnBg: '#079841',
-                        btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
-                        btnBorderW: GlassMaterial.borderWidth(),
-                        btnBorderC: GlassMaterial.borderColor(),
-                        btnMargin: { left: 10 },
-                        btnOnClick: (): void => {
-                          this.follow(item);
-                        }
-                      }) {
-                        Text('去关注')
-                          .fontSize(12)
-                          .fontColor($r('sys.color.font_primary'))
-                          .padding({ left: 12, right: 12, top: 7, bottom: 7 })
-                      }
-                    }
-                    .width('100%')
-                    .alignItems(VerticalAlign.Center)
-                    .padding({ top: 12, bottom: 12, left: 10, right: 10 })
-
-                    if (index < OA_LIST.length - 1) {
-                      Divider().color($r('app.color.divider'))
-                    }
-                  }
-                  .width('100%')
-                }, (item: OAItem) => item.name)
-              }
-              .width('100%')
-            }
+            // 通用组：校级 / 公共服务 / 学生组织
+            this.oaGroupCard('通用')
+            // 学院组：各学院官方号
+            this.oaGroupCard('学院')
 
             Column()
               .height(this.getUIContext().px2vp(this.bottomInsetPx) + 24)

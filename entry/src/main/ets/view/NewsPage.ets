@@ -138,6 +138,10 @@ export struct NewsPage {
   @State refreshing: boolean = false;
   /** 顶栏板块（农大要闻等）是否收起：上滑浏览时隐藏、下滑回顶时展示 */
   @State tabsBarHidden: boolean = false;
+  /** 板块栏视口宽 / 胶囊内容总宽（onAreaChange 实测 vp 值）：内容窄于视口时居中、超宽时左对齐可滚。
+   *  不用 minWidth '100%'——横向 Scroll 滚动方向无确定约束，百分比 minWidth 解析不可靠 */
+  @State tabViewportW: number = 0;
+  @State tabContentW: number = 0;
   /** 各板块列表上次滚动起始下标（用于判断滚动方向） */
   private lastTabStart: number[] = [0, 0, 0, 0];
   /** 每个板块的新闻列表 */
@@ -704,8 +708,9 @@ export struct NewsPage {
         }
         .width('100%')
         .height('100%')
-        // 顶边从顶栏（topInset + 60）下沿起，底部直达屏幕底（延伸感）；左右各留 8（比 12 稍微加宽）
-        .padding({ left: 8, right: 8, top: this.getUIContext().px2vp(this.topInsetPx) + 56, bottom: 0 })
+        // 顶边从顶栏（topInset + 60）下沿起，底部直达屏幕底（延伸感）；
+        // 左右 16 与新闻列表内容 padding 对齐——卡片边缘即文本边缘，整体水平居中于屏幕
+        .padding({ left: 16, right: 16, top: this.getUIContext().px2vp(this.topInsetPx) + 56, bottom: 0 })
         .hitTestBehavior(HitTestMode.None)
       }
       // 底层大卡片之上的原内容包裹层（原根 Column，内部结构不变）
@@ -826,23 +831,33 @@ export struct NewsPage {
         // 板块较多时横向滑动（右侧自动裁剪无遮拦），点击/滑动仍联动 TabsController
         Scroll() {
           Row() {
-            ForEach(this.tabs, (name: string, index: number) => {
-              this.tabPill(index, name)
-            }, (name: string) => name)
+            // 内层：胶囊内容容器（自适应内容宽），onAreaChange 实测真实内容宽（不受外层 minWidth 影响）
+            Row() {
+              ForEach(this.tabs, (name: string, index: number) => {
+                this.tabPill(index, name)
+              }, (name: string) => name)
+            }
+            .alignItems(VerticalAlign.Top)
+            .onAreaChange((_o: Area, n: Area) => {
+              this.tabContentW = n.width;
+            })
           }
           .height(44)
           .alignItems(VerticalAlign.Top)
           .padding({ left: 8, right: 8, top: 6 })
-          // 板块少（内容窄于视口）时整体居中：minWidth 撑满视口后 Center 生效；
-          // 板块超宽时 Row 宽=内容宽、无富余空间，Center 自动失效且 Scroll 仍可正常左滚
-          .constraintSize({ minWidth: '100%' })
-          .justifyContent(FlexAlign.Center)
+          // 内容窄于视口：minWidth 用实测视口宽（数值，无百分比解析歧义）撑满后 Center 居中；
+          // 内容超宽：minWidth 不起作用、无富余空间 Center 自动失效，Start 左对齐可正常左滚
+          .constraintSize({ minWidth: this.tabViewportW > 0 ? this.tabViewportW : 0 })
+          .justifyContent(this.tabContentW < this.tabViewportW ? FlexAlign.Center : FlexAlign.Start)
         }
         .scrollable(ScrollDirection.Horizontal)
         .scrollBar(BarState.Off)
         .edgeEffect(EdgeEffect.None)
         .width('100%')
         .height(44)
+        .onAreaChange((_o: Area, n: Area) => {
+          this.tabViewportW = n.width;
+        })
       }
       .width('100%')
       .height(this.tabsBarHidden ? 0 : 44)
