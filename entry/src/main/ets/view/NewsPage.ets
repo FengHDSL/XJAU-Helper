@@ -565,6 +565,9 @@ export struct NewsPage {
     MaterialButton({
       btnRadius: 16,
       btnMargin: { right: 8 },
+      // btnPersistent: true 常驻（用户要求 2026-09-26：标签光感不可关闭）——缺省时按钮内部
+      // 判 immersiveEffect && materialActive()，开关一关材质层消失只剩半透明深底 = 纯黑胶囊
+      btnPersistent: true,
       // 常驻玻璃胶囊（材质可用即开，不看 immersiveEffect）；设备不支持时选中回落实色主题底
       btnBg: materialAvailable() ? GlassMaterial.surface(this.isDarkMode)
         : (this.currentTab === index ? Theme.colorOf(this.themeColor) : GlassMaterial.surface(this.isDarkMode)),
@@ -831,7 +834,9 @@ export struct NewsPage {
             .height(this.getUIContext().px2vp(this.topInsetPx) + 56)
           Stack({ alignContent: Alignment.TopStart }) {
             if (this.bgMatOn()) {
-              MaterialCardLayer({ layerRadius: 18, layerShadow: false })
+              // layerForce: true 常驻（用户要求 2026-09-26：新闻页光感不可关闭）——
+              // 缺省时承载层内部仍判全局 immersiveEffect，开关一关承载层不渲染 + 底色恒透明 = 大卡片整个消失
+              MaterialCardLayer({ layerRadius: 18, layerShadow: false, layerForce: true })
             }
             Column()
               .width('100%')
@@ -877,7 +882,8 @@ export struct NewsPage {
         // 尺寸恢复 32 高/16 圆角胶囊：与设置/网页端按钮同款对齐（9a02ba9 统一输入框时误拉成 48，顶栏里显笨重）。
         Stack() {
           if (this.matOn()) {
-            MaterialCardLayer({ layerRadius: 16, layerShadow: false })
+            // layerForce: true 常驻（同大卡片：承载层内部缺省会判全局开关，开关关→无光感）
+            MaterialCardLayer({ layerRadius: 16, layerShadow: false, layerForce: true })
           }
           Row() {
             TextInput({ text: this.keyword, placeholder: '搜索新闻' })
