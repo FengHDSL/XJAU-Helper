@@ -288,7 +288,7 @@ export struct MineView {
     }
   }
 
-  /** 导出备份：全部应用信息 → AES 加密容器（.xjbackup，密码保护） */
+  /** 导出备份：全部应用信息 → .xnd 加密容器（纯 ArkTS 实现，密码保护） */
   private exportBackup(password: string): void {
     try {
       const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -322,8 +322,8 @@ export struct MineView {
       }
       // 用户选位置保存 .zip
       const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
-      options.newFileNames = [`xjau-helper_backup_${stamp}.xjbackup`];
-      options.fileSuffixChoices = ['.xjbackup'];
+      options.newFileNames = [`xjau-helper_backup_${stamp}.xnd`];
+      options.fileSuffixChoices = ['.xnd'];
       const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
       docPicker.save(options).then((uris: string[]) => {
         if (uris.length === 0) {
@@ -342,13 +342,15 @@ export struct MineView {
           }
           this.getUIContext().getPromptAction().showToast({ message: '备份已导出（加密备份文件，导入需输入密码）' });
         } catch (e) {
-          this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
+          const em: string = (e as Error).message ?? '';
+          this.getUIContext().getPromptAction().showToast({ message: em.length > 0 ? `导出失败：${em}` : '导出失败' });
         }
       }).catch(() => {
         this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
       });
     } catch (e) {
-      this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
+      const em: string = (e as Error).message ?? '';
+      this.getUIContext().getPromptAction().showToast({ message: em.length > 0 ? `导出失败：${em}` : '导出失败' });
     }
   }
 
@@ -358,7 +360,7 @@ export struct MineView {
       const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: picker.DocumentSelectOptions = new picker.DocumentSelectOptions();
       options.maxSelectNumber = 1;
-      options.fileSuffixFilters = ['xjbackup', 'txt'];
+      options.fileSuffixFilters = ['xnd', 'txt'];
       const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
       docPicker.select(options).then((uris: string[]) => {
         if (uris.length === 0) {
@@ -380,13 +382,15 @@ export struct MineView {
           const content: string = fileIo.readTextSync(new fileUri.FileUri(uris[0]).path);
           this.applyBackupContent(content);
         } catch (e) {
-          this.getUIContext().getPromptAction().showToast({ message: '导入失败，文件格式不正确' });
+          const em: string = (e as Error).message ?? '';
+          this.getUIContext().getPromptAction().showToast({ message: em.length > 0 ? `导入失败：${em}` : '导入失败，文件格式不正确' });
         }
-      }).catch(() => {
-        this.getUIContext().getPromptAction().showToast({ message: '导入失败' });
+      }).catch((e: Error) => {
+        this.getUIContext().getPromptAction().showToast({ message: `导入失败：${e.message}` });
       });
     } catch (e) {
-      this.getUIContext().getPromptAction().showToast({ message: '导入失败' });
+      const em: string = (e as Error).message ?? '';
+      this.getUIContext().getPromptAction().showToast({ message: em.length > 0 ? `导入失败：${em}` : '导入失败' });
     }
   }
 
@@ -862,7 +866,7 @@ export struct MineView {
     Column() {
       if (this.backupStage === 'menu') {
       Text('备份包含：课程表、成绩、考试、学业情况、消息与新闻缓存，以及课表设置、主题颜色、深色模式、壁纸、日历与收藏等全部应用信息。\n'
-        + '导出为加密备份文件（.xjbackup，需设置密码，其他软件无法打开，导入时须输入相同密码）；不包含账号、密码与登录 Cookie。导入会覆盖当前对应数据，请确认后再恢复。')
+        + '导出为加密备份文件（.xnd，需设置密码，其他软件无法打开，导入时须输入相同密码）；不包含账号、密码与登录 Cookie。导入会覆盖当前对应数据，请确认后再恢复。')
         .fontSize(12)
         .lineHeight(19)
         .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
