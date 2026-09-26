@@ -23,7 +23,8 @@ const IV_LEN: number = 16;
 /** 字符串 → UTF-8 字节（Buffer.from 默认 utf-8；JSON 含中文课程名等多字节字符） */
 function utf8Bytes(s: string): Uint8Array {
   const b: buffer.Buffer = buffer.from(s);
-  return new Uint8Array(b.buffer, b.byteOffset, b.byteLength);
+  // Buffer 类型声明无 byteLength 属性（编译器 10505001），用 length 等价
+  return new Uint8Array(b.buffer, b.byteOffset, b.length);
 }
 
 /** 密码派生密钥：SHA256(盐 + '|' + 密码) → 32 字节 */
