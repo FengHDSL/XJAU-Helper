@@ -16,9 +16,8 @@
  * - 其他软件无法打开（专属格式），必须在本 App 内输入密码解密导入
  * - 密码错误：tag 校验必然失败 → 抛「wrong password or corrupted file」，提示「密码错误」
  * - SHA-256 为 FIPS 180-4 标准实现（纯 JS 位运算，步骤均 >>>0 保持无符号）
+ * - UTF-8 编解码亦为纯 JS 实现（不依赖 @ohos.buffer，规避真机与 Node 的行为差异）
  */
-import { buffer } from '@kit.ArkTS';
-
 const BACKUP_MAGIC_TEXT: string = 'XNDBKP01';
 const KEY_SALT: string = 'xjau-helper-backup-xnd-v1';
 const MAGIC_LEN: number = 8;
@@ -121,16 +120,92 @@ export function sha256(msg: Uint8Array): Uint8Array {
   return out;
 }
 
-/** 字符串 → UTF-8 字节（Buffer.from 默认 utf-8；JSON 含中文课程名等多字节字符） */
+/**
+ * 字符串 → UTF-8 字节（纯 JS 实现：不依赖 @ohos.buffer，避免真机与 Node 行为差异；
+ * 代理对按 4 字节编码，孤立代理按 U+FFFD 替换）
+ */
 function utf8Bytes(s: string): Uint8Array {
-  const b: buffer.Buffer = buffer.from(s);
-  // Buffer 类型声明无 byteLength 属性（编译器 10505001），用 length 等价
-  return new Uint8Array(b.buffer, b.byteOffset, b.length);
+  const out: number[] = [];
+  for (let i: number = 0; i < s.length; i++) {
+    const c: number = s.charCodeAt(i);
+    if (c >= 0xD800 && c <= 0xDBFF && i + 1 < s.length) {
+      const lo: number = s.charCodeAt(i + 1);
+      if (lo >= 0xDC00 && lo <= 0xDFFF) {
+        const cp: number = 0x10000 + ((c - 0xD800) << 10) + (lo - 0xDC00);
+        out.push(0xF0 | ((cp >> 18) & 0x3F));
+        out.push(0x80 | ((cp >> 12) & 0x3F));
+        out.push(0x80 | ((cp >> 6) & 0x3F));
+        out.push(0x80 | (cp & 0x3F));
+        i++;
+        continue;
+      }
+    }
+    if (c >= 0xD800 && c <= 0xDFFF) {
+      // 孤立代理 → U+FFFD
+      out.push(0xEF, 0xBF, 0xBD);
+    } else if (c < 0x80) {
+      out.push(c);
+    } else if (c < 0x800) {
+      out.push(0xC0 | (c >> 6));
+      out.push(0x80 | (c & 0x3F));
+    } else {
+      out.push(0xE0 | (c >> 12));
+      out.push(0x80 | ((c >> 6) & 0x3F));
+      out.push(0x80 | (c & 0x3F));
+    }
+  }
+  return new Uint8Array(out);
 }
 
-/** UTF-8 字节 → 字符串（Buffer.toString 默认 utf-8） */
+/** UTF-8 字节 → 字符串（纯 JS 实现；非法字节按 U+FFFD） */
 function utf8Text(bytes: Uint8Array): string {
-  return buffer.from(bytes).toString();
+  const codes: number[] = [];
+  let i: number = 0;
+  while (i < bytes.length) {
+    const c: number = bytes[i];
+    let cp: number = 0;
+    let n: number = 1;
+    if (c < 0x80) {
+      cp = c;
+      n = 1;
+    } else if ((c & 0xE0) === 0xC0) {
+      cp = c & 0x1F;
+      n = 2;
+    } else if ((c & 0xF0) === 0xE0) {
+      cp = c & 0x0F;
+      n = 3;
+    } else if ((c & 0xF8) === 0xF0) {
+      cp = c & 0x07;
+      n = 4;
+    } else {
+      codes.push(0xFFFD);
+      i++;
+      continue;
+    }
+    if (i + n > bytes.length) {
+      codes.push(0xFFFD);
+      i++;
+      continue;
+    }
+    for (let k: number = 1; k < n; k++) {
+      cp = (cp << 6) | (bytes[i + k] & 0x3F);
+    }
+    i += n;
+    if (cp > 0xFFFF) {
+      const v: number = cp - 0x10000;
+      codes.push(0xD800 + (v >> 10), 0xDC00 + (v & 0x3FF));
+    } else {
+      codes.push(cp);
+    }
+  }
+  // 分块拼接（避免超长参数导致 fromCharCode 异常）
+  let out: string = '';
+  const CHUNK: number = 4096;
+  for (let s: number = 0; s < codes.length; s += CHUNK) {
+    const part: number[] = codes.slice(s, s + CHUNK);
+    out += String.fromCharCode(...part);
+  }
+  return out;
 }
 
 /** 拼接两个字节数组 */
@@ -174,6 +249,17 @@ function xorBytes(data: Uint8Array, ks: Uint8Array): Uint8Array {
     out[i] = (data[i] ^ ks[i]) & 0xff;
   }
   return out;
+}
+
+/** 真机算法自检用：字符串 SHA-256 的十六进制（'abc' 期望值 ba7816bf8f01cfea…） */
+export function sha256Hex(text: string): string {
+  const d: Uint8Array = sha256(utf8Bytes(text));
+  let s: string = '';
+  for (let i: number = 0; i < d.length; i++) {
+    const h: string = d[i].toString(16);
+    s += h.length === 1 ? '0' + h : h;
+  }
+  return s;
 }
 
 /** 嗅探：是否为本 App 的 .xnd 加密备份（导入时区分加密备份与旧版明文 txt） */

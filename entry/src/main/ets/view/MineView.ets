@@ -15,7 +15,7 @@ import { promptAction, mediaquery } from '@kit.ArkUI';
 import { ResponsiveUtil } from '../common/ResponsiveUtil';
 import { common, contextConstant, ConfigurationConstant, Want } from '@kit.AbilityKit';
 import { storageStatistics, fileIo, picker, fileUri } from '@kit.CoreFileKit';
-import { isEncryptedBackup, encryptBackup, decryptBackup } from '../common/BackupCrypto';
+import { isEncryptedBackup, encryptBackup, decryptBackup, sha256Hex } from '../common/BackupCrypto';
 import { webview } from '@kit.ArkWeb';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
@@ -291,6 +291,12 @@ export struct MineView {
   /** 导出备份：全部应用信息 → .xnd 加密容器（纯 ArkTS 实现，密码保护） */
   private exportBackup(password: string): void {
     try {
+      // 真机算法自检：纯 JS SHA-256 标准向量（'abc'）——异常时直接暴露真实摘要便于定位
+      const probe: string = sha256Hex('abc');
+      if (probe !== 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad') {
+        this.getUIContext().getPromptAction().showToast({ message: `算法自检失败：${probe.slice(0, 16)}` });
+        return;
+      }
       const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const d: Date = new Date();
       const stamp: string = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}_${d.getHours().toString().padStart(2, '0')}${d.getMinutes().toString().padStart(2, '0')}`;
