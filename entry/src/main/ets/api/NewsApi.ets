@@ -42,12 +42,12 @@ export class SearchItem {
 
 export class NewsApi {
   static readonly BASE: string = 'https://news.xjau.edu.cn';
-  /** 板块 → 列表页 URL */
+  /** 板块 → 列表页 URL（键 = NewsPage.tabs 标签短名；全称键已废弃——曾致全部栏目兜底到「要闻」） */
   static readonly SECTION_URLS: Record<string, string> = {
-    '农大要闻': 'https://news.xjau.edu.cn/ndyw/list.htm',
-    '综合新闻': 'https://news.xjau.edu.cn/xydt/list.htm',
-    '教学科研': 'https://news.xjau.edu.cn/kxyj/list.htm',
-    '媒体农大': 'https://news.xjau.edu.cn/mtnd/list.htm'
+    '要闻': 'https://news.xjau.edu.cn/ndyw/list.htm',
+    '综合': 'https://news.xjau.edu.cn/xydt/list.htm',
+    '科研': 'https://news.xjau.edu.cn/kxyj/list.htm',
+    '媒体': 'https://news.xjau.edu.cn/mtnd/list.htm'
   };
   /** 已下载的图片（避免重复请求），退出时清空 */
   private static imgCache: Map<string, image.PixelMap> = new Map<string, image.PixelMap>();
@@ -58,7 +58,7 @@ export class NewsApi {
     if (JwApi.USE_MOCK && !AppState.debugNetwork) {
       return [];
     }
-    const base: string = NewsApi.SECTION_URLS[section] ?? NewsApi.SECTION_URLS['农大要闻'];
+    const base: string = NewsApi.SECTION_URLS[section] ?? NewsApi.SECTION_URLS['要闻'];
     let url: string = base;
     if (pageIndex > 1) {
       url = base.replace(/list\.htm$/i, `list${pageIndex}.htm`);
