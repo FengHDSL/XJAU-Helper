@@ -61,7 +61,7 @@ export struct AboutPage {
   /** 调试模式是否开启（日志/联网任一）：驱动「退出调试」红胶囊显隐（AppState 静态字段非响应式，需本地镜像） */
   @State debugActive: boolean = false;
   /** 当前应用版本（与界面「版本」文本保持同步，发版时两处一起改） */
-  private readonly currentVersion: string = '1.3.9';
+  private readonly currentVersion: string = '1.4.0';
   /** 检查更新请求进行中 */
   @State checkingUpdate: boolean = false;
   /** 连点计时器（超时重置计数） */
