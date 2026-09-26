@@ -15,6 +15,8 @@ import { promptAction, mediaquery } from '@kit.ArkUI';
 import { ResponsiveUtil } from '../common/ResponsiveUtil';
 import { common, contextConstant, ConfigurationConstant, Want } from '@kit.AbilityKit';
 import { storageStatistics, fileIo, picker, fileUri } from '@kit.CoreFileKit';
+import zlib from '@ohos.zlib';
+import { isEncryptedBackup, encryptBackup, decryptBackup } from '../common/BackupCrypto';
 import { webview } from '@kit.ArkWeb';
 import { JwApi } from '../api/JwApi';
 import { AppState } from '../common/AppState';
@@ -70,6 +72,12 @@ export struct MineView {
   @State isLandscape: boolean = false;
   /** 恢复备份：半模态面板 */
   @State showBackupSheet: boolean = false;
+  /** 备份面板阶段：menu（说明+入口） / exportPwd（设置导出密码） / importPwd（输入导入密码） */
+  @State backupStage: string = 'menu';
+  /** 备份密码输入（导出/导入共用，确认后清空） */
+  @State backupPassword: string = '';
+  /** 待解密的导入备份容器字节（picker 选中后暂存，密码确认后消费） */
+  private pendingZipBytes: Uint8Array = new Uint8Array(0);
   private landscapeListener: mediaquery.MediaQueryListener | null = null;
   /** 窗口宽度断点监听（PC 窗口缩放时切换布局） */
   private wideListener: mediaquery.MediaQueryListener | null = null;
@@ -280,15 +288,15 @@ export struct MineView {
     }
   }
 
-  /** 导出备份：课表内容 + 课程表设置项 + 主题颜色 → 打包 txt */
-  private exportBackup(): void {
+  /** 导出备份：全部应用信息 → backup.json → zlib 压缩 zip → AES 加密容器 → 存 .zip（密码保护） */
+  private async exportBackup(password: string): Promise<void> {
+    const cacheDir: string = (this.getUIContext().getHostContext() as common.UIAbilityContext).cacheDir;
+    const jsonPath: string = `${cacheDir}/backup_stage.json`;
+    const zipPath: string = `${cacheDir}/backup_stage.zip`;
     try {
       const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const d: Date = new Date();
       const stamp: string = `${d.getFullYear()}${(d.getMonth() + 1).toString().padStart(2, '0')}${d.getDate().toString().padStart(2, '0')}_${d.getHours().toString().padStart(2, '0')}${d.getMinutes().toString().padStart(2, '0')}`;
-      const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
-      options.newFileNames = [`xjau-helper_backup_${stamp}.txt`];
-      options.fileSuffixChoices = ['.txt'];
       // 打包备份数据：应用全部信息（设置项 + 数据缓存 + 个人化内容；不含账号、密码与登录 Cookie）
       const payload: string = JSON.stringify(DataStore.exportAll());
       const d2: Date = new Date();
@@ -302,6 +310,19 @@ export struct MineView {
         'payload': payload
       };
       const content: string = JSON.stringify(data);
+      // 1. 写沙箱 JSON（压缩源）
+      const f1: fileIo.File = fileIo.openSync(jsonPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC);
+      fileIo.writeSync(f1.fd, content);
+      fileIo.closeSync(f1);
+      // 2. zlib 压缩成真 zip（options 传 {} 同 JwApi 解压先例）
+      await zlib.compressFile(jsonPath, zipPath, {});
+      // 3. 读 zip 字节 → 密码加密容器
+      const zipBytes: Uint8Array = this.readFileBytes(zipPath);
+      const enc: Uint8Array = encryptBackup(zipBytes, password);
+      // 4. 用户选位置保存 .zip
+      const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
+      options.newFileNames = [`xjau-helper_backup_${stamp}.zip`];
+      options.fileSuffixChoices = ['.zip'];
       const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
       docPicker.save(options).then((uris: string[]) => {
         if (uris.length === 0) {
@@ -310,9 +331,9 @@ export struct MineView {
         }
         try {
           const file: fileIo.File = fileIo.openSync(uris[0], fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
-          fileIo.writeSync(file.fd, content);
+          fileIo.writeSync(file.fd, enc.buffer);
           fileIo.closeSync(file);
-          this.getUIContext().getPromptAction().showToast({ message: '备份已导出（不含账号与登录 Cookie）' });
+          this.getUIContext().getPromptAction().showToast({ message: '备份已导出（加密 zip，导入需输入密码）' });
         } catch (e) {
           this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
         }
@@ -321,16 +342,19 @@ export struct MineView {
       });
     } catch (e) {
       this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
+    } finally {
+      try { fileIo.unlinkSync(jsonPath); } catch (e) { /* 忽略 */ }
+      try { fileIo.unlinkSync(zipPath); } catch (e) { /* 忽略 */ }
     }
   }
 
-  /** 导入备份：选择 txt → 解析 → 恢复课表内容/课程表设置项/主题颜色 */
+  /** 导入备份：选择文件（加密 zip / 旧版明文 txt）→ 加密容器暂存待密码，明文直接解析恢复 */
   private importBackup(): void {
     try {
       const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: picker.DocumentSelectOptions = new picker.DocumentSelectOptions();
       options.maxSelectNumber = 1;
-      options.fileSuffixFilters = ['txt'];
+      options.fileSuffixFilters = ['zip', 'txt'];
       const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
       docPicker.select(options).then((uris: string[]) => {
         if (uris.length === 0) {
@@ -338,52 +362,18 @@ export struct MineView {
           return;
         }
         try {
-          const content: string = fileIo.readTextSync(new fileUri.FileUri(uris[0]).path);
-          const obj: Record<string, string> = JSON.parse(content) as Record<string, string>;
-          const btype: string = obj['type'] ?? '';
-          // 校验备份格式（v2 全量备份 / v1 旧版课表备份）
-          if (obj['app'] !== 'xjau-helper' || (btype !== 'full-backup' && btype !== 'schedule-backup')) {
-            this.getUIContext().getPromptAction().showToast({ message: '不是有效的备份文件' });
+          const bytes: Uint8Array = this.readFileBytes(uris[0]);
+          if (isEncryptedBackup(bytes)) {
+            // 加密容器：暂存字节，弹密码输入面板（重新打开备份面板切到 importPwd 阶段）
+            this.pendingZipBytes = bytes;
+            this.backupPassword = '';
+            this.backupStage = 'importPwd';
+            this.showBackupSheet = true;
             return;
           }
-          if (btype === 'full-backup') {
-            // 全量恢复：设置项 + 数据缓存 + 个人化内容（自动跳过账号、密码、Cookie）
-            const payloadText: string = obj['payload'] ?? '{}';
-            const payload: Record<string, string> = JSON.parse(payloadText) as Record<string, string>;
-            const n: number = DataStore.importAll(payload);
-            // 主题色（旧字段，兼容）
-            const theme0: string = obj['themeColor'] ?? '';
-            if (Theme.isBuiltin(theme0)) {
-              Theme.apply(theme0);
-            } else {
-              Theme.restore();
-            }
-            // 关键项即时同步到 AppStorage（避免需重启才生效）
-            AppStorage.setOrCreate('barStyle', DataStore.barStyle());
-            AppStorage.setOrCreate('subtitleColor', DataStore.subtitleColor());
-            AppStorage.setOrCreate('wallpaperMask', DataStore.wallpaperMaskOn());
-            const wp: string = DataStore.loadWallpaper();
-            AppStorage.setOrCreate('wallpaperId', wp.length > 0 ? wp : 'none');
-            if (DataStore.hasDarkSetting()) {
-              AppStorage.setOrCreate('isDarkMode', DataStore.isDarkOn());
-            }
-            // 备份里的深色设置可能变化 → 派生色（沾色/页面背景）重算并广播
-            AppearanceStore.broadcastDerived();
-            this.getUIContext().getPromptAction().showToast({ message: `已恢复 ${n} 项数据（不含账号与登录 Cookie）` });
-          } else {
-            // 旧版 v1：仅课表内容 + 课程表设置项 + 主题颜色
-            DataStore.put(DataStore.KEY_COURSES, obj['courses'] ?? '');
-            DataStore.setScheduleCfg(obj['scheduleCfg'] ?? '');
-            DataStore.setScheduleBg(obj['scheduleBg'] ?? '');
-            DataStore.put(DataStore.KEY_SCHEDULE_DASHED, obj['scheduleDashed'] ?? '');
-            DataStore.put(DataStore.KEY_COURSE_COLOR_MAP, obj['courseColorMap'] ?? '');
-            DataStore.setCourseCustomColors(obj['courseCustomColor'] ?? '');
-            const theme: string = obj['themeColor'] ?? '';
-            if (Theme.isBuiltin(theme)) {
-              Theme.apply(theme);
-            }
-            this.getUIContext().getPromptAction().showToast({ message: '恢复成功（旧版备份），重新进入课程表查看' });
-          }
+          // 旧版明文 txt 备份（v1/v2）：直接按文本解析恢复
+          const content: string = fileIo.readTextSync(new fileUri.FileUri(uris[0]).path);
+          this.applyBackupContent(content);
         } catch (e) {
           this.getUIContext().getPromptAction().showToast({ message: '导入失败，文件格式不正确' });
         }
@@ -392,6 +382,116 @@ export struct MineView {
       });
     } catch (e) {
       this.getUIContext().getPromptAction().showToast({ message: '导入失败' });
+    }
+  }
+
+  /** 备份密码面板确认：导出阶段带密码走导出；导入阶段解密恢复 */
+  private confirmBackupPassword(): void {
+    const pwd: string = this.backupPassword;
+    if (pwd.length === 0) {
+      this.getUIContext().getPromptAction().showToast({ message: '请输入密码' });
+      return;
+    }
+    this.backupPassword = ''; // 密码用后即清
+    if (this.backupStage === 'exportPwd') {
+      this.backupStage = 'menu';
+      this.showBackupSheet = false;
+      this.exportBackup(pwd);
+    } else {
+      this.decryptAndImport(pwd);
+    }
+  }
+
+  /** 解密导入：容器字节 → AES 解密还原 zip → zlib 解压 → 读 backup.json → 恢复 */
+  private async decryptAndImport(password: string): Promise<void> {
+    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+    const zipPath: string = `${ctx.cacheDir}/backup_import.zip`;
+    const outDir: string = `${ctx.cacheDir}/backup_import`;
+    try {
+      let zipBytes: Uint8Array;
+      try {
+        zipBytes = decryptBackup(this.pendingZipBytes, password);
+      } catch (e) {
+        this.getUIContext().getPromptAction().showToast({ message: '密码错误或文件损坏' });
+        return;
+      }
+      const fz: fileIo.File = fileIo.openSync(zipPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC);
+      fileIo.writeSync(fz.fd, zipBytes.buffer);
+      fileIo.closeSync(fz);
+      try { fileIo.rmdirSync(outDir); } catch (e) { /* 目录不存在 */ }
+      fileIo.mkdirSync(outDir);
+      await zlib.decompressFile(zipPath, outDir, {});
+      const content: string = fileIo.readTextSync(`${outDir}/backup.json`);
+      this.showBackupSheet = false;
+      this.applyBackupContent(content);
+    } catch (e) {
+      this.getUIContext().getPromptAction().showToast({ message: '密码错误或文件损坏' });
+    } finally {
+      try { fileIo.unlinkSync(zipPath); } catch (e) { /* 忽略 */ }
+      try { fileIo.rmdirSync(outDir); } catch (e) { /* 忽略 */ }
+    }
+  }
+
+  /** 读取文件字节（picker uri 或沙箱路径均可，openSync 直接支持） */
+  private readFileBytes(pathOrUri: string): Uint8Array {
+    const f: fileIo.File = fileIo.openSync(pathOrUri, fileIo.OpenMode.READ_ONLY);
+    const size: number = fileIo.statSync(f.fd).size;
+    const buf: ArrayBuffer = new ArrayBuffer(size);
+    fileIo.readSync(f.fd, buf);
+    fileIo.closeSync(f);
+    return new Uint8Array(buf);
+  }
+
+  /** 解析并应用备份内容（v2 全量 / v1 旧版课表；加密导入与旧 txt 导入共用） */
+  private applyBackupContent(content: string): void {
+    try {
+      const obj: Record<string, string> = JSON.parse(content) as Record<string, string>;
+      const btype: string = obj['type'] ?? '';
+      // 校验备份格式（v2 全量备份 / v1 旧版课表备份）
+      if (obj['app'] !== 'xjau-helper' || (btype !== 'full-backup' && btype !== 'schedule-backup')) {
+        this.getUIContext().getPromptAction().showToast({ message: '不是有效的备份文件' });
+        return;
+      }
+      if (btype === 'full-backup') {
+        // 全量恢复：设置项 + 数据缓存 + 个人化内容（自动跳过账号、密码、Cookie）
+        const payloadText: string = obj['payload'] ?? '{}';
+        const payload: Record<string, string> = JSON.parse(payloadText) as Record<string, string>;
+        const n: number = DataStore.importAll(payload);
+        // 主题色（旧字段，兼容）
+        const theme0: string = obj['themeColor'] ?? '';
+        if (Theme.isBuiltin(theme0)) {
+          Theme.apply(theme0);
+        } else {
+          Theme.restore();
+        }
+        // 关键项即时同步到 AppStorage（避免需重启才生效）
+        AppStorage.setOrCreate('barStyle', DataStore.barStyle());
+        AppStorage.setOrCreate('subtitleColor', DataStore.subtitleColor());
+        AppStorage.setOrCreate('wallpaperMask', DataStore.wallpaperMaskOn());
+        const wp: string = DataStore.loadWallpaper();
+        AppStorage.setOrCreate('wallpaperId', wp.length > 0 ? wp : 'none');
+        if (DataStore.hasDarkSetting()) {
+          AppStorage.setOrCreate('isDarkMode', DataStore.isDarkOn());
+        }
+        // 备份里的深色设置可能变化 → 派生色（沾色/页面背景）重算并广播
+        AppearanceStore.broadcastDerived();
+        this.getUIContext().getPromptAction().showToast({ message: `已恢复 ${n} 项数据（不含账号与登录 Cookie）` });
+      } else {
+        // 旧版 v1：仅课表内容 + 课程表设置项 + 主题颜色
+        DataStore.put(DataStore.KEY_COURSES, obj['courses'] ?? '');
+        DataStore.setScheduleCfg(obj['scheduleCfg'] ?? '');
+        DataStore.setScheduleBg(obj['scheduleBg'] ?? '');
+        DataStore.put(DataStore.KEY_SCHEDULE_DASHED, obj['scheduleDashed'] ?? '');
+        DataStore.put(DataStore.KEY_COURSE_COLOR_MAP, obj['courseColorMap'] ?? '');
+        DataStore.setCourseCustomColors(obj['courseCustomColor'] ?? '');
+        const theme: string = obj['themeColor'] ?? '';
+        if (Theme.isBuiltin(theme)) {
+          Theme.apply(theme);
+        }
+        this.getUIContext().getPromptAction().showToast({ message: '恢复成功（旧版备份），重新进入课程表查看' });
+      }
+    } catch (e) {
+      this.getUIContext().getPromptAction().showToast({ message: '导入失败，文件格式不正确' });
     }
   }
 
@@ -760,16 +860,18 @@ export struct MineView {
     }
   }
 
-  /** 恢复备份：半模态面板（说明 + 导出/导入） */
+  /** 恢复备份：半模态面板（三阶段：menu 说明+入口 → exportPwd 设置导出密码 / importPwd 输入导入密码） */
   @Builder
   backupSheet() {
     // 弹窗内容套 MaterialSheetPanel：bindSheet 自身的 systemMaterial 挂在面板上、内容区不生效，
     // 由 MaterialSheetPanel 的 Toggle 承载层渲染材质；配套要求是 bindSheet 显式 backgroundColor: Color.Transparent。
     // 本弹窗高度随内容（SheetSize.FIT_CONTENT），故 panelFillHeight: false（不写 height('100%')，避免被撑成整屏）。
-    MaterialSheetPanel({ panelRadius: 24, panelPadding: 0, panelFillHeight: false, panelTitle: '恢复备份', panelShowClose: true, panelOnClose: (): void => { this.showBackupSheet = false; } }) {
+    // 同一组件只能挂一个 bindSheet（多次仅最后生效），导出/导入的密码输入集成在面板内以阶段切换。
+    MaterialSheetPanel({ panelRadius: 24, panelPadding: 0, panelFillHeight: false, panelTitle: this.backupStage === 'menu' ? '恢复备份' : (this.backupStage === 'exportPwd' ? '设置备份密码' : '输入备份密码'), panelShowClose: true, panelOnClose: (): void => { this.showBackupSheet = false; } }) {
     Column() {
+      if (this.backupStage === 'menu') {
       Text('备份包含：课程表、成绩、考试、学业情况、消息与新闻缓存，以及课表设置、主题颜色、深色模式、壁纸、日历与收藏等全部应用信息。\n'
-        + '出于安全考虑，备份文件不包含账号、密码与登录 Cookie。导入会覆盖当前对应数据，请确认后再恢复。')
+        + '导出为加密 zip 文件（需设置密码，导入时须输入相同密码）；不包含账号、密码与登录 Cookie。导入会覆盖当前对应数据，请确认后再恢复。')
         .fontSize(12)
         .lineHeight(19)
         .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
@@ -790,8 +892,8 @@ export struct MineView {
             btnBorderC: GlassMaterial.borderColor(),
             btnTint: '',
             btnOnClick: () => {
-              this.showBackupSheet = false;
-              this.exportBackup();
+              this.backupPassword = '';
+              this.backupStage = 'exportPwd';
             }
           }) {
             Text('导出备份')
@@ -832,6 +934,53 @@ export struct MineView {
       }
       .width('100%')
       .margin({ top: 18 })
+      }
+      if (this.backupStage === 'exportPwd' || this.backupStage === 'importPwd') {
+      Text(this.backupStage === 'exportPwd'
+        ? '设置一个密码用于加密备份文件，导入时需输入相同密码。请牢记密码，遗失后备份无法恢复。'
+        : '该备份文件已加密，输入导出时设置的密码进行解密恢复。')
+        .fontSize(12)
+        .lineHeight(19)
+        .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+        .width('100%')
+        .margin({ top: 10 })
+      Stack() {
+        TextInput({ placeholder: this.backupStage === 'exportPwd' ? '设置备份密码' : '输入备份密码', text: this.backupPassword })
+          .type(InputType.Password)
+          .height(40)
+          .borderRadius(10)
+          .fontSize(14)
+          .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)')
+          .backgroundBlurStyle(BlurStyle.Thin)
+          .border({ width: 1, color: GlassMaterial.borderColor() })
+          .caretStyle({ color: $r('sys.color.font_emphasize') })
+          .onChange((v: string) => { this.backupPassword = v; })
+          .onSubmit(() => { this.confirmBackupPassword(); })
+      }
+      .width('100%')
+      .margin({ top: 14 })
+      Column() {
+        MaterialButton({
+          btnRadius: 21,
+          btnBg: '#079841',
+          btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+          btnBorderW: GlassMaterial.borderWidth(),
+          btnBorderC: GlassMaterial.borderColor(),
+          btnTint: '',
+          btnOnClick: () => { this.confirmBackupPassword(); }
+        }) {
+          Text(this.backupStage === 'exportPwd' ? '导出' : '开始恢复')
+            .fontSize(14)
+            .fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+            .fontColor($r('sys.color.font_primary'))
+            .width('100%')
+            .height(42)
+            .textAlign(TextAlign.Center)
+        }
+      }
+      .width('100%')
+      .margin({ top: 16 })
+      }
     }
     .width('100%')
     .padding({ left: 20, right: 20, top: 6, bottom: 26 })
