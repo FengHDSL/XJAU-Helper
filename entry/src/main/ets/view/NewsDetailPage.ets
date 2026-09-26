@@ -183,6 +183,7 @@ export struct NewsDetailPage {
             .layoutWeight(1)
           // 右上角：加入收藏 / 取消收藏（分享按钮左边）
           // 统一按钮质感（同返回按钮：白玻璃底 + 细亮边 + 微阴影 + 磨砂）；收藏态保留主题色实底以示激活
+          // 磨砂常驻（用户要求 2026-09-26：详情页收藏/分享光感不可关闭，不受全局沉浸开关控制）
           Text(this.faved ? '取消收藏' : '收藏')
             .fontSize(13)
             .fontColor(this.faved ? Color.White : WallpaperTone.onWallpaper(this.wallpaperTone, this.isDarkMode))
@@ -190,7 +191,7 @@ export struct NewsDetailPage {
             .padding({ left: 14, right: 14 })
             .backgroundColor(this.faved ? Theme.colorOf(this.themeColor) :
               (this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)'))
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, true))
             .border({ width: 1, color: 'rgba(255,255,255,0.28)' })
             .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
             .borderRadius(17)
@@ -202,7 +203,7 @@ export struct NewsDetailPage {
             .height(34)
             .padding({ left: 14, right: 14 })
             .backgroundColor(this.isDarkMode ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.24)')
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect))
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, true))
             .border({ width: 1, color: 'rgba(255,255,255,0.28)' })
             .shadow({ radius: 6, color: 'rgba(0,0,0,0.10)', offsetY: 1 }).clip(true)
             .borderRadius(17)
