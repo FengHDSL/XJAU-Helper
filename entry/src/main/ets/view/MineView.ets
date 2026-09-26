@@ -25,6 +25,7 @@ import { Theme } from '../common/ThemeUtil';
 import { AppearanceStore } from '../common/AppearanceStore';
 import { GlassMaterial } from '../common/GlassMaterial';
 import { ChevronRight } from './common/ChevronRight';
+import { BackButton } from './common/BackButton';
 import { WallpaperTone } from '../common/WallpaperTone';
 import { Immersive } from './common/Immersive';
 import { AcademicReport, UserProfile } from '../model/Models';
@@ -308,6 +309,17 @@ export struct MineView {
       const content: string = JSON.stringify(data);
       // 生成加密容器字节（其他软件无法打开，导入须输密码）
       const enc: Uint8Array = encryptBackup(content, password);
+      // roundtrip 自检：立即解密比对，锁定「生成即坏」还是「文件写读环节坏」
+      try {
+        const rt: string = decryptBackup(enc, password);
+        if (rt !== content) {
+          this.getUIContext().getPromptAction().showToast({ message: '导出自检失败（加解密不一致），请重试' });
+          return;
+        }
+      } catch (e) {
+        this.getUIContext().getPromptAction().showToast({ message: '导出自检失败（解密异常），请重试' });
+        return;
+      }
       // 用户选位置保存 .zip
       const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
       options.newFileNames = [`xjau-helper_backup_${stamp}.xjbackup`];
@@ -322,6 +334,12 @@ export struct MineView {
           const file: fileIo.File = fileIo.openSync(uris[0], fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
           fileIo.writeSync(file.fd, enc.buffer);
           fileIo.closeSync(file);
+          // 回读自检：确认落盘文件完整（排除写读环节问题）
+          const back: Uint8Array = this.readFileBytes(uris[0]);
+          if (back.length !== enc.length) {
+            this.getUIContext().getPromptAction().showToast({ message: '备份文件写入异常（回读长度不一致），请重试' });
+            return;
+          }
           this.getUIContext().getPromptAction().showToast({ message: '备份已导出（加密备份文件，导入需输入密码）' });
         } catch (e) {
           this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
@@ -348,7 +366,8 @@ export struct MineView {
           return;
         }
         try {
-          const bytes: Uint8Array = this.readFileBytes(uris[0]);
+          // 与旧 txt 导入一致：经 FileUri.path 打开（picker uri 直开存在兼容风险）
+          const bytes: Uint8Array = this.readFileBytes(new fileUri.FileUri(uris[0]).path);
           if (isEncryptedBackup(bytes)) {
             // 加密容器：暂存字节，弹密码输入面板（重新打开备份面板切到 importPwd 阶段）
             this.pendingZipBytes = bytes;
@@ -395,7 +414,10 @@ export struct MineView {
       this.showBackupSheet = false;
       this.applyBackupContent(content);
     } catch (e) {
-      this.getUIContext().getPromptAction().showToast({ message: '密码错误或文件损坏' });
+      const msg: string = (e as Error).message ?? '';
+      this.getUIContext().getPromptAction().showToast({
+        message: msg.indexOf('password') >= 0 ? '密码错误' : '密码错误或文件损坏'
+      });
     } finally {
       this.pendingZipBytes = new Uint8Array(0);
     }
@@ -905,6 +927,12 @@ export struct MineView {
       .margin({ top: 18 })
       }
       if (this.backupStage === 'exportPwd' || this.backupStage === 'importPwd') {
+      // 返回行：回到 menu 阶段（系统返回键会关闭整个面板，面板内提供显式返回）
+      Row() {
+        BackButton({ onBack: (): void => { this.backupStage = 'menu'; this.backupPassword = ''; } })
+        Blank()
+      }
+      .width('100%')
       Text(this.backupStage === 'exportPwd'
         ? '设置一个密码用于加密备份文件，导入时需输入相同密码。请牢记密码，遗失后备份无法恢复。'
         : '该备份文件已加密，输入导出时设置的密码进行解密恢复。')
