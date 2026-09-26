@@ -287,7 +287,7 @@ export struct MineView {
     }
   }
 
-  /** 导出备份：全部应用信息 → 标准加密 zip（STORED+ZipCrypto，单条目 backup.json）→ 存 .zip（密码保护） */
+  /** 导出备份：全部应用信息 → AES 加密容器（.xjbackup，密码保护） */
   private exportBackup(password: string): void {
     try {
       const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -306,7 +306,7 @@ export struct MineView {
         'payload': payload
       };
       const content: string = JSON.stringify(data);
-      // 生成标准加密 zip 字节（解压软件输密码可开）
+      // 生成加密容器字节（其他软件无法打开，导入须输密码）
       const enc: Uint8Array = encryptBackup(content, password);
       // 用户选位置保存 .zip
       const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
@@ -322,7 +322,7 @@ export struct MineView {
           const file: fileIo.File = fileIo.openSync(uris[0], fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
           fileIo.writeSync(file.fd, enc.buffer);
           fileIo.closeSync(file);
-          this.getUIContext().getPromptAction().showToast({ message: '备份已导出（加密 zip，导入需输入密码）' });
+          this.getUIContext().getPromptAction().showToast({ message: '备份已导出（加密备份文件，导入需输入密码）' });
         } catch (e) {
           this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
         }
@@ -334,7 +334,7 @@ export struct MineView {
     }
   }
 
-  /** 导入备份：选择文件（加密 zip / 旧版明文 txt）→ 加密容器暂存待密码，明文直接解析恢复 */
+  /** 导入备份：选择文件（加密容器 / 旧版明文 txt）→ 加密容器暂存待密码，明文直接解析恢复 */
   private importBackup(): void {
     try {
       const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -388,7 +388,7 @@ export struct MineView {
     }
   }
 
-  /** 解密导入：标准加密 zip → ZipCrypto 解密（CRC32 校验）→ backup.json → 恢复 */
+  /** 解密导入：加密容器 → AES 解密（PKCS7 校验密码）→ backup JSON → 恢复 */
   private decryptAndImport(password: string): void {
     try {
       const content: string = decryptBackup(this.pendingZipBytes, password);
