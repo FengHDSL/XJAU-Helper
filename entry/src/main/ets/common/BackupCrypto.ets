@@ -25,10 +25,9 @@ function utf8Bytes(s: string): Uint8Array {
   return new Uint8Array(b.buffer, b.byteOffset, b.length);
 }
 
-/** UTF-8 字节 → 字符串 */
+/** UTF-8 字节 → 字符串（Buffer.toString 默认 utf-8） */
 function utf8Text(bytes: Uint8Array): string {
-  const decoder: util.TextDecoder = util.TextDecoder.create('utf-8');
-  return decoder.decodeToString(bytes);
+  return buffer.from(bytes).toString();
 }
 
 /** 密码派生密钥：SHA256(盐 + '|' + 密码) → 32 字节 */
