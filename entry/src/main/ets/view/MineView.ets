@@ -310,8 +310,8 @@ export struct MineView {
       const enc: Uint8Array = encryptBackup(content, password);
       // 用户选位置保存 .zip
       const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
-      options.newFileNames = [`xjau-helper_backup_${stamp}.zip`];
-      options.fileSuffixChoices = ['.zip'];
+      options.newFileNames = [`xjau-helper_backup_${stamp}.xjbackup`];
+      options.fileSuffixChoices = ['.xjbackup'];
       const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
       docPicker.save(options).then((uris: string[]) => {
         if (uris.length === 0) {
@@ -340,7 +340,7 @@ export struct MineView {
       const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const options: picker.DocumentSelectOptions = new picker.DocumentSelectOptions();
       options.maxSelectNumber = 1;
-      options.fileSuffixFilters = ['zip', 'txt'];
+      options.fileSuffixFilters = ['xjbackup', 'txt'];
       const docPicker: picker.DocumentViewPicker = new picker.DocumentViewPicker(ctx);
       docPicker.select(options).then((uris: string[]) => {
         if (uris.length === 0) {
@@ -840,7 +840,7 @@ export struct MineView {
     Column() {
       if (this.backupStage === 'menu') {
       Text('备份包含：课程表、成绩、考试、学业情况、消息与新闻缓存，以及课表设置、主题颜色、深色模式、壁纸、日历与收藏等全部应用信息。\n'
-        + '导出为加密 zip 文件（需设置密码，导入时须输入相同密码）；不包含账号、密码与登录 Cookie。导入会覆盖当前对应数据，请确认后再恢复。')
+        + '导出为加密备份文件（.xjbackup，需设置密码，其他软件无法打开，导入时须输入相同密码）；不包含账号、密码与登录 Cookie。导入会覆盖当前对应数据，请确认后再恢复。')
         .fontSize(12)
         .lineHeight(19)
         .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
