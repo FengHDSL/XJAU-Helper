@@ -15,7 +15,6 @@ import { promptAction, mediaquery } from '@kit.ArkUI';
 import { ResponsiveUtil } from '../common/ResponsiveUtil';
 import { common, contextConstant, ConfigurationConstant, Want } from '@kit.AbilityKit';
 import { storageStatistics, fileIo, picker, fileUri } from '@kit.CoreFileKit';
-import zlib from '@ohos.zlib';
 import { isEncryptedBackup, encryptBackup, decryptBackup } from '../common/BackupCrypto';
 import { webview } from '@kit.ArkWeb';
 import { JwApi } from '../api/JwApi';
@@ -288,11 +287,8 @@ export struct MineView {
     }
   }
 
-  /** 导出备份：全部应用信息 → backup.json → zlib 压缩 zip → AES 加密容器 → 存 .zip（密码保护） */
-  private async exportBackup(password: string): Promise<void> {
-    const cacheDir: string = (this.getUIContext().getHostContext() as common.UIAbilityContext).cacheDir;
-    const jsonPath: string = `${cacheDir}/backup_stage.json`;
-    const zipPath: string = `${cacheDir}/backup_stage.zip`;
+  /** 导出备份：全部应用信息 → 标准加密 zip（STORED+ZipCrypto，单条目 backup.json）→ 存 .zip（密码保护） */
+  private exportBackup(password: string): void {
     try {
       const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
       const d: Date = new Date();
@@ -310,16 +306,9 @@ export struct MineView {
         'payload': payload
       };
       const content: string = JSON.stringify(data);
-      // 1. 写沙箱 JSON（压缩源）
-      const f1: fileIo.File = fileIo.openSync(jsonPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC);
-      fileIo.writeSync(f1.fd, content);
-      fileIo.closeSync(f1);
-      // 2. zlib 压缩成真 zip（options 传 {} 同 JwApi 解压先例）
-      await zlib.compressFile(jsonPath, zipPath, {});
-      // 3. 读 zip 字节 → 密码加密容器
-      const zipBytes: Uint8Array = this.readFileBytes(zipPath);
-      const enc: Uint8Array = encryptBackup(zipBytes, password);
-      // 4. 用户选位置保存 .zip
+      // 生成标准加密 zip 字节（解压软件输密码可开）
+      const enc: Uint8Array = encryptBackup(content, password);
+      // 用户选位置保存 .zip
       const options: picker.DocumentSaveOptions = new picker.DocumentSaveOptions();
       options.newFileNames = [`xjau-helper_backup_${stamp}.zip`];
       options.fileSuffixChoices = ['.zip'];
@@ -342,9 +331,6 @@ export struct MineView {
       });
     } catch (e) {
       this.getUIContext().getPromptAction().showToast({ message: '导出失败' });
-    } finally {
-      try { fileIo.unlinkSync(jsonPath); } catch (e) { /* 忽略 */ }
-      try { fileIo.unlinkSync(zipPath); } catch (e) { /* 忽略 */ }
     }
   }
 
@@ -402,33 +388,16 @@ export struct MineView {
     }
   }
 
-  /** 解密导入：容器字节 → AES 解密还原 zip → zlib 解压 → 读 backup.json → 恢复 */
-  private async decryptAndImport(password: string): Promise<void> {
-    const ctx: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    const zipPath: string = `${ctx.cacheDir}/backup_import.zip`;
-    const outDir: string = `${ctx.cacheDir}/backup_import`;
+  /** 解密导入：标准加密 zip → ZipCrypto 解密（CRC32 校验）→ backup.json → 恢复 */
+  private decryptAndImport(password: string): void {
     try {
-      let zipBytes: Uint8Array;
-      try {
-        zipBytes = decryptBackup(this.pendingZipBytes, password);
-      } catch (e) {
-        this.getUIContext().getPromptAction().showToast({ message: '密码错误或文件损坏' });
-        return;
-      }
-      const fz: fileIo.File = fileIo.openSync(zipPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE | fileIo.OpenMode.TRUNC);
-      fileIo.writeSync(fz.fd, zipBytes.buffer);
-      fileIo.closeSync(fz);
-      try { fileIo.rmdirSync(outDir); } catch (e) { /* 目录不存在 */ }
-      fileIo.mkdirSync(outDir);
-      await zlib.decompressFile(zipPath, outDir, {});
-      const content: string = fileIo.readTextSync(`${outDir}/backup.json`);
+      const content: string = decryptBackup(this.pendingZipBytes, password);
       this.showBackupSheet = false;
       this.applyBackupContent(content);
     } catch (e) {
       this.getUIContext().getPromptAction().showToast({ message: '密码错误或文件损坏' });
     } finally {
-      try { fileIo.unlinkSync(zipPath); } catch (e) { /* 忽略 */ }
-      try { fileIo.rmdirSync(outDir); } catch (e) { /* 忽略 */ }
+      this.pendingZipBytes = new Uint8Array(0);
     }
   }
 
