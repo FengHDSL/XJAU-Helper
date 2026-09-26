@@ -520,11 +520,11 @@ export struct NewsPage {
   }
 
   /**
-   * 沉浸光感生效判定（与 WallpaperPage 同款）：全局开关 + 材质可用性。
-   * 搜索框承载层是否画材质、外壳是否降级玻璃，都以此为准。
+   * 搜索框沉浸光感判定：**常驻开启**（用户要求 2026-09-26：搜索框与 5 个板块标签的光感
+   * 不可关闭，不再受全局沉浸开关控制，仅看设备材质能力；不可用时回落玻璃胶囊）。
    */
   private matOn(): boolean {
-    return this.immersiveEffect && materialAvailable();
+    return materialAvailable();
   }
 
   /** 背景大卡片材质判定：固定开启沉浸光感（用户要求，不受全局沉浸开关控制，仅看设备材质能力） */
@@ -557,18 +557,18 @@ export struct NewsPage {
 
   /** 自绘板块按钮（视觉同原 Tabs bar：选中主题色/白字；点击/滑动共用 TabsController 切换）。
    *  颜色固定浅色观感，不受深色模式影响（新闻页自身为白字/主题渐变风格）。
-   *  → MaterialButton（Toggle 承载层）：选中态改走 btnTint 叠主题色（比例 0.85，承载白字对比度），
-   *    未选中比例 0（材质+玻璃胶囊，无色叠层）。不能用实色底——材质生效时底色让出会把选中态吃掉。
-   *  原胶囊微阴影随材质统一让出（材质生效即无自绘投影）。 */
+   *  → MaterialButton（Toggle 承载层）：**常驻沉浸光感**（用户定论 2026-09-26：搜索框 + 5 个板块
+   *    标签的光感不可关闭，不受全局沉浸开关影响）。选中态 = 玻璃胶囊 + btnTint 叠主题色 0.85
+   *    （承载白字对比度），未选中比例 0（材质+玻璃胶囊，无色叠层）；不能用实色底——材质生效时
+   *    底色让出会把选中态吃掉。仅设备不支持材质时选中回落实色主题底（无玻璃可用）。 */
   @Builder tabPill(index: number, name: string) {
     MaterialButton({
       btnRadius: 16,
       btnMargin: { right: 8 },
-      // 未选中：原玻璃胶囊底（光感关闭回落）；选中：材质生效时 btnTint 叠主题色 0.85；
-      // 光感关闭/材质不可用时选中恢复**实色主题底**（用户反馈：关闭光感后选中标签要回到之前的绿底）
-      btnBg: (materialAvailable() && this.immersiveEffect) ? GlassMaterial.surface(this.isDarkMode)
+      // 常驻玻璃胶囊（材质可用即开，不看 immersiveEffect）；设备不支持时选中回落实色主题底
+      btnBg: materialAvailable() ? GlassMaterial.surface(this.isDarkMode)
         : (this.currentTab === index ? Theme.colorOf(this.themeColor) : GlassMaterial.surface(this.isDarkMode)),
-      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBlur: GlassMaterial.bgBlur(materialAvailable()),
       btnBorderW: GlassMaterial.borderWidth(),
       btnBorderC: GlassMaterial.borderColor(),
       btnTint: Theme.colorOf(this.themeColor),
