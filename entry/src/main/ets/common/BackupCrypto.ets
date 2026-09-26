@@ -55,12 +55,15 @@ export function sha256(msg: Uint8Array): Uint8Array {
   const m: Uint8Array = new Uint8Array(total);
   m.set(msg, 0);
   m[msg.length] = 0x80;
-  m[total - 8] = Math.floor(bitLen / 0x100000000) & 0xff;
-  m[total - 7] = Math.floor(bitLen / 0x1000000) & 0xff;
-  m[total - 6] = Math.floor(bitLen / 0x10000) & 0xff;
-  m[total - 5] = Math.floor(bitLen / 0x100) & 0xff;
-  m[total - 4] = bitLen & 0xff;
-  // 高 32 位留 0（备份数据远小于 512MB）
+  // 末尾 8 字节大端位长：高 4 字节恒 0（备份数据远小于 512MB），低 4 字节为 bitLen
+  m[total - 8] = 0;
+  m[total - 7] = 0;
+  m[total - 6] = 0;
+  m[total - 5] = 0;
+  m[total - 4] = (bitLen >>> 24) & 0xff;
+  m[total - 3] = (bitLen >>> 16) & 0xff;
+  m[total - 2] = (bitLen >>> 8) & 0xff;
+  m[total - 1] = bitLen & 0xff;
 
   const w: Uint32Array = new Uint32Array(64);
   for (let off: number = 0; off < total; off += 64) {
