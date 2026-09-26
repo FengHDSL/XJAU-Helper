@@ -173,12 +173,9 @@ export struct AboutPage {
         .fontColor($r('app.color.text_primary'))
         .width('100%')
         .margin({ bottom: 10 })
-      // 本项目双平台入口（GitHub / Gitee）+ 协议在线文档（仓库根 terms.md / privacy.md，
-      // GitHub 与 Gitee 均可直接渲染阅读；App 内完整版入口见页面底部协议卡）
+      // 本项目双平台入口（GitHub / Gitee）；Gitee 入口同时见于《用户协议》《隐私政策》联系方式
       this.linkRow('XJAU-Helper（GitHub）', 'https://github.com/FengHDSL/XJAU-Helper')
       this.linkRow('XJAU-Helper（Gitee）', 'https://gitee.com/pandasoos/XJAU-Helper')
-      this.linkRow('用户协议', 'https://github.com/FengHDSL/XJAU-Helper/blob/main/terms.md')
-      this.linkRow('隐私政策', 'https://github.com/FengHDSL/XJAU-Helper/blob/main/privacy.md')
       this.linkRow('miha_hm（参考）', 'https://github.com/MrCashmere/miha_hm')
       this.linkRow('zhengfang-apk（参考）', 'https://github.com/znjhahaha/zhengfang-apk')
       this.linkRow('HiXD（参考）', 'https://github.com/PollenWang6/HiXD')
@@ -375,7 +372,7 @@ export struct AboutPage {
         .fontSize(13)
         .fontColor(GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
         .layoutWeight(1)
-      Text(url.replace('https://github.com/', ''))
+      Text(url.replace('https://github.com/', '').replace('https://gitee.com/', ''))
         .fontSize(12)
         .fontColor(Theme.colorOf(this.themeColor))
         .maxLines(1)

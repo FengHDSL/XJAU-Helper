@@ -82,4 +82,6 @@
 
 [GitHub Issues FengHDSL/XJAU-Helper](https://github.com/FengHDSL/XJAU-Helper/issues)
 
+[Gitee pandasoos/XJAU-Helper](https://gitee.com/pandasoos/XJAU-Helper)
+
 9.2 我们将在收到你的请求后尽快处理并答复。

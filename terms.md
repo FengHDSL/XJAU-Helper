@@ -103,3 +103,5 @@
 11.3 如对本协议有疑问、意见或投诉，可通过以下方式联系开发者：
 
 [GitHub Issues FengHDSL/XJAU-Helper](https://github.com/FengHDSL/XJAU-Helper/issues)
+
+[Gitee pandasoos/XJAU-Helper](https://gitee.com/pandasoos/XJAU-Helper)
