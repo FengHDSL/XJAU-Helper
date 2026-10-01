@@ -23,7 +23,7 @@
 - **GitHub**：[XJAU-Helper](https://github.com/FengHDSL/XJAU-Helper)
 - **Gitee**：[XJAU-Helper](https://gitee.com/pandasoos/XJAU-Helper)
 - **HAP Store资源站**：[新农助手](https://www.sydxky.cn/detail.php?id=796)
-- **华为应用市场（邀测）**：[华为邀测](https://appgallery.huawei.com/link/invite-test-wap?taskId=ea1118d761449a8b47d1af8190d2cc92&invitationCode=7f0Oz56PxoP)，邀测邀请码：`7f0Oz56PxoP`
+- **华为应用市场（邀测）**：[华为邀测](https://appgallery.huawei.com/link/invite-test-wap?taskId=e09bc53729cc5ab57931e926a8606c51&invitationCode=7ykq2YFTIFF)，邀测邀请码：`7ykq2YFTIFF`
 
 ---
 
