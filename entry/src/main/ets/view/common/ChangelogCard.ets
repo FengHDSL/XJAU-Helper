@@ -10,7 +10,10 @@
  */
 import { GlassMaterial } from '../../common/GlassMaterial';
 import { MaterialCard } from './MaterialCard';
+import { MaterialButton } from './MaterialButton';
 import { AppearanceStore } from '../../common/AppearanceStore';
+import { Theme } from '../../common/ThemeUtil';
+import { pasteboard } from '@kit.BasicServicesKit';
 
 @Component
 export struct ChangelogCard {
@@ -23,6 +26,25 @@ export struct ChangelogCard {
   @StorageProp('fontWeightValue') fwValue: number = 400;
   /** 该版本的条目文本（静态数据，无需响应式） */
   items: string[] = [];
+  /** 沉浸光感开关（右上角复制胶囊的材质判定）与主题色（胶囊文字色），订阅保证切换后即时刷新 */
+  @StorageProp('immersiveEffect') immersiveEffect: boolean = false;
+  @StorageProp('themeColor') themeColor: string = 'green';
+
+  /** 复制本版本更新日志到剪贴板（文本与卡片展示一致：分组标记去前缀、逐条前缀「·」） */
+  private copyLogs(): void {
+    let text: string = `新农助手 v${this.version}（${this.date}）更新日志\n`;
+    for (let i: number = 0; i < this.items.length; i++) {
+      const it: string = this.items[i];
+      const clean: string = (it.startsWith('@新增@') || it.startsWith('@修复@')) ? it.substring(3) : it;
+      text += `· ${clean}\n`;
+    }
+    try {
+      pasteboard.getSystemPasteboard().setDataSync(pasteboard.createPlainTextData(text));
+      this.getUIContext().getPromptAction().showToast({ message: `已复制 v${this.version} 更新日志` });
+    } catch (e) {
+      this.getUIContext().getPromptAction().showToast({ message: '复制失败' });
+    }
+  }
 
   build() {
     // 原 Stack 上的 backgroundColor / systemMaterial / 磨砂 / 边框 / 阴影 / 圆角 / 外边距
@@ -49,8 +71,24 @@ export struct ChangelogCard {
           Text(`  ${this.date}`)
             .fontSize(12)
             .fontColor(GlassMaterial.grayTertiary(this.grayTick, $r('app.color.text_tertiary'))).fontStyle(GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick)).linearGradient({ angle: 90, colors: GlassMaterial.styleGlowColors(this.grayTick) })
+          Blank()
+          // 右上角「复制」小胶囊：一键复制本版本更新日志（走 MaterialButton 的 Toggle 承载层 → 支持沉浸光感）
+          MaterialButton({
+            btnRadius: 9,
+            btnBg: $r('app.color.bg_chip'),
+            btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+            btnBorderW: GlassMaterial.borderWidth(),
+            btnBorderC: GlassMaterial.borderColor(),
+            btnOnClick: () => { this.copyLogs(); }
+          }) {
+            Text('复制')
+              .fontSize(11)
+              .fontColor(Theme.colorOf(this.themeColor))
+              .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+          }
         }
         .width('100%')
+        .alignItems(VerticalAlign.Center)
         .margin({ bottom: 8 })
 
         ForEach(this.items, (item: string) => {
