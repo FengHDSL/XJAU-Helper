@@ -119,7 +119,7 @@ export class MockData {
       } else {
         i = 1;
       }
-      const startDate: string = i === 1 ? `${y}-09-01` : `${y + 1}-03-01`;
+      const startDate: string = DateUtil.defaultTermStart(`${y}-${y + 1}-${i}`);
       list.push({
         id: `${y}-${y + 1}-${i}`,
         label: `${y}-${y + 1}学年 ${i === 1 ? '第一学期' : '第二学期'}`,

@@ -106,11 +106,13 @@ export class JwApi {
     const list: TermInfo[] = [];
     for (let y: number = curStartYear + 1; y >= startYear; y--) {
       for (let s: number = 1; s <= 2; s++) {
-        const startDate: string = s === 1 ? `${y}-09-01` : `${y + 1}-03-01`;
+        const id: string = `${y}-${y + 1}-${s}`;
         list.push({
-          id: `${y}-${y + 1}-${s}`,
+          id: id,
           label: `${y}-${y + 1}学年 ${s === 1 ? '第一' : '第二'}学期`,
-          startDate: startDate,
+          // 统一走 defaultTermStart（含各学年特例，如 2026-2027 第一学期为 8-31），
+          // 与启动默认学期、自定义开学日覆盖保持同一基线
+          startDate: DateUtil.defaultTermStart(id),
           totalWeeks: 20
         });
       }

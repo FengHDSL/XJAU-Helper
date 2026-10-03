@@ -67,12 +67,13 @@ export class DateUtil {
     const month: number = now.getMonth() + 1;
     let firstTerm: boolean = month >= 9;
     let beginYear: number = firstTerm ? year : year - 1;
-    const startDate: string = firstTerm ? `${year}-09-01` : `${year}-03-01`;
+    const id: string = `${beginYear}-${beginYear + 1}-${firstTerm ? 1 : 2}`;
     const label: string = `${beginYear}-${beginYear + 1}学年 ${firstTerm ? '第一学期' : '第二学期'}`;
     return {
-      id: `${beginYear}-${beginYear + 1}-${firstTerm ? 1 : 2}`,
+      id: id,
       label: label,
-      startDate: startDate,
+      // 统一走 defaultTermStart（含各学年特例），避免与自定义/列表基线出现 9-01 与 8-31 两个来源
+      startDate: DateUtil.defaultTermStart(id),
       totalWeeks: 20
     };
   }
@@ -87,10 +88,13 @@ export class DateUtil {
     // 9月之前：上学年仍在进行（如 2026-03 → 2025-2026学年）
     const beginYear: number = month >= 9 ? year : year - 1;
     const label: string = `${beginYear}-${beginYear + 1}学年 第一学期`;
+    const id: string = `${beginYear}-${beginYear + 1}-1`;
     return {
-      id: `${beginYear}-${beginYear + 1}-1`,
+      id: id,
       label: label,
-      startDate: `${beginYear}-09-01`,
+      // 统一走 defaultTermStart（含各学年特例，如 2026-2027 第一学期实为 8-31），
+      // 避免与「跟随教务系统」基线/自定义开学日出现 8-31 与 9-01 两个来源
+      startDate: DateUtil.defaultTermStart(id),
       totalWeeks: 20
     };
   }

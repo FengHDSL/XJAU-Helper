@@ -62,17 +62,19 @@ struct Index {
     } else {
       HttpClient.setOfflineMode(false);
     }
-    // 启动时优先恢复用户上次选择的学期（全局设置）
+    // 启动时恢复学期：优先用户上次选择的学期，否则当前默认学期（最新学年第一学期）。
+    // ⚠ 必须统一经 JwApi.setTerm（内部 applyCustomStart）初始化——历史 bug：
+    //   仅在「有历史学期 id」时才调 setTerm，从未切过学期的用户重启后自定义开学时间不生效（回到 9-01）。
     const termId: string = DataStore.get(DataStore.KEY_DS_TERM);
-    if (termId.length > 0) {
-      const terms: TermInfo[] = JwApi.buildLocalTerms();
-      for (const t of terms) {
-        if (t.id === termId) {
-          JwApi.setTerm(t);
-          break;
-        }
+    const startTerms: TermInfo[] = JwApi.buildLocalTerms();
+    let picked: TermInfo | null = null;
+    for (const t of startTerms) {
+      if (t.id === termId) {
+        picked = t;
+        break;
       }
     }
+    JwApi.setTerm(picked !== null ? picked : (startTerms.length > 0 ? startTerms[0] : AppState.term));
 
     // ── 冷启动会话恢复策略（核心：服务大厅登录态在 → 必须先"从服务大厅重新打开新教务系统"再取数据）──
     //  有 CASTGC（服务大厅登录成功且保持登录态）：教务系统会话不可持久化 →
