@@ -5,6 +5,7 @@ import { JwApi } from '../api/JwApi';
 import { HttpClient } from '../api/HttpClient';
 import { DataStore } from '../common/DataStore';
 import { AppState } from '../common/AppState';
+import { DateUtil } from '../common/DateUtil';
 import { LoginView } from '../view/LoginView';
 import { MainView } from '../view/MainView';
 import { PrivacyGatePage } from '../view/PrivacyGatePage';
@@ -53,11 +54,12 @@ struct Index {
     // 首次启动隐私引导：未同意隐私协议 → 全屏覆盖引导页（隐私协议→开发者声明），
     // 同意/暂不同意后才进入下方登录/主界面逻辑（LoginView 不再自动弹隐私弹窗）。
     this.privacyGate = !DataStore.isPrivacyAgreed();
-    // 功能浏览模式（USE_MOCK=true）：学期默认即最新学年第一学期（AppState.term），
-    // 这里仅固定展示周次为第二周，确保所有功能都有数据。同时启用 HttpClient 离线模式，
-    // 禁止所有真实网络请求，避免意外访问教务系统泄露数据。
+    // 功能浏览模式（USE_MOCK=true）：仅启用离线模式（禁止真实网络请求，避免误访教务系统）。
+    // ⚠ 周次按**真实日期**推算（用户要求：日历/课表的日期定位必须是真实周次，不能固定演示值）；
+    //   口径与真实模式一致（学期外 <1 时兜底第 1 周）。
     if (JwApi.USE_MOCK) {
-      AppState.mockCurrentWeek = 2;
+      const mockW: number = DateUtil.weekOfTerm(AppState.term, new Date());
+      AppState.mockCurrentWeek = mockW < 1 ? 1 : mockW;
       HttpClient.setOfflineMode(true);
     } else {
       HttpClient.setOfflineMode(false);
