@@ -67,8 +67,17 @@ export class Theme {
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
-  /** 顶栏渐变颜色段：两档均为"顶部实色 → 底部渐隐透明"（旧版实色仅为命名，实际同为渐变+毛玻璃） */
+  /**
+   * 顶栏背景色段（按顶栏样式分档）：
+   *  - 'new'（渐变色）：主题色 → 底部渐隐透明的竖直渐变（悬浮透明观感）
+   *  - 'legacy'（毛玻璃）：**均匀半透明主题色**（两档同色，不做渐变），
+   *    配合各页 `backgroundBlurStyle(Thin)` 磨砂形成玻璃观感（磨砂与全局光感开关解耦）
+   */
   static barGradient(key: string, style: string): [ResourceColor, number][] {
+    if (style === 'legacy') {
+      const c: string = Theme.rgba(Theme.colorOf(key), 0.62);
+      return [[c, 0], [c, 1]];
+    }
     return [[Theme.colorOf(key), 0], [Theme.rgba(Theme.colorOf(key), 0), 1]];
   }
 

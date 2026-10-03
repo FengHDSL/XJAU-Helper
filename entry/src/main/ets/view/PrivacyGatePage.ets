@@ -230,7 +230,7 @@ export struct PrivacyGatePage {
             angle: 180,
             colors: Theme.barGradient(this.themeColor, this.barStyle)
           })
-          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
+          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.barStyle === 'legacy'))
       Row() {
         Text(this.stepTitle())
           .fontSize(19)

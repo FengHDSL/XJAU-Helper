@@ -1114,7 +1114,7 @@ export struct QuickSelectPage {
                 }) {
                   Text('手动添加课程')
                     .fontSize(14)
-                    .fontColor($r('sys.color.font_primary'))
+                    .fontColor(Color.White)
                     .width('100%')
                     .height(42)
                     .textAlign(TextAlign.Center)

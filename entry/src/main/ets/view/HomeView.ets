@@ -580,7 +580,7 @@ export struct HomeView {
           angle: 180,
           colors: Theme.barGradient(this.themeColor, this.barStyle)
         })
-        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
+        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.barStyle === 'legacy'))
     Row() {
       BarTitle({ title: '首页' })
       // 手动重登模式 + 校历为空：标题右侧显示"重登"胶囊（点击执行自动重新登录）

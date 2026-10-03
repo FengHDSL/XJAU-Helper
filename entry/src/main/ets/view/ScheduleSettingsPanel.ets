@@ -148,6 +148,9 @@ export struct ScheduleSettingsPanel {
   @Prop currentTermId: string = '';
   @Prop currentTermStart: string = '';
   onTermStartChange: (date: string) => void = () => {};
+  // 开学时间来源：'auto' 跟随教务系统 / 'custom' 使用自定义时间（选 custom 后同步课表一直沿用自定义日）
+  @Prop currentTermStartMode: string = 'auto';
+  onTermStartModeChange: (mode: string) => void = () => {};
 
   @State bgColor: string = '';
   @State hdrColor: string = '';
@@ -380,6 +383,30 @@ export struct ScheduleSettingsPanel {
         this.onTermStartChange(DateUtil.format(new Date(y, m, d)));
       }
     });
+  }
+
+  /**
+   * 开学时间来源胶囊（跟随教务系统 / 使用自定义时间）：
+   * 选中 = btnTint 叠主题色 0.85 + 白字；未选中 = bg_chip 底 + 主文字色（与面板内其他胶囊同款配方）。
+   */
+  @Builder
+  termStartModeChip(label: string, mode: string) {
+    MaterialButton({
+      btnRadius: 12,
+      btnMargin: { left: 8 },
+      btnBg: this.currentTermStartMode === mode ? Theme.colorOf(this.themeColor) : $r('app.color.bg_chip'),
+      btnBlur: GlassMaterial.bgBlur(this.immersiveEffect),
+      btnBorderW: GlassMaterial.borderWidth(),
+      btnBorderC: GlassMaterial.borderColor(),
+      btnTint: Theme.colorOf(this.themeColor),
+      btnTintRatio: this.currentTermStartMode === mode ? 0.85 : 0,
+      btnOnClick: (): void => { this.onTermStartModeChange(mode); }
+    }) {
+      Text(label)
+        .fontSize(12)
+        .fontColor(this.currentTermStartMode === mode ? Color.White : $r('app.color.text_primary'))
+        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+    }
   }
 
   // ===== 节次编辑面板：同一面板内页面转换（参考官方 BindSheetExample）=====
@@ -641,6 +668,18 @@ export struct ScheduleSettingsPanel {
         Text('整体').fontSize(17).fontWeight(this.fwMode === 'follow' ? FontWeight.Bold : AppearanceStore.fontWeight(FontWeight.Bold)).fontColor(Theme.colorOf(this.themeColor))
           .width('100%').textAlign(TextAlign.Start).margin({ top: 16, bottom: 8 })
 
+        // 开学时间来源（跟随教务系统 / 使用自定义时间）——选「使用自定义时间」后，
+        // 后续每次同步课程表都沿用该学期的自定义开学日（不被教务值覆盖）
+        Divider().color($r('app.color.divider')).margin({ top: 12, bottom: 12 })
+        Row() {
+          Text('开学时间来源').fontSize(14).fontWeight(this.fwMode === 'follow' ? FontWeight.Medium : AppearanceStore.fontWeight(FontWeight.Medium))
+            .fontColor($r('app.color.text_primary')).layoutWeight(1)
+          Row() {
+            this.termStartModeChip('跟随教务系统', 'auto')
+            this.termStartModeChip('使用自定义时间', 'custom')
+          }
+        }.width('100%').margin({ top: 4, bottom: 6 })
+
         // 自定义开学时间（覆盖默认 9-01/3-01 推算，用于修正周次）
         Divider().color($r('app.color.divider')).margin({ top: 12, bottom: 12 })
         Row() {
@@ -663,10 +702,18 @@ export struct ScheduleSettingsPanel {
         }.width('100%').margin({ top: 4, bottom: 6 })
         Row() {
           Text(this.currentTermStart.length > 0 ? this.currentTermStart : DateUtil.defaultTermStart(this.currentTermId))
-            .fontSize(15).fontColor($r('app.color.text_primary')).layoutWeight(1)
+            .fontSize(15)
+            .fontColor(this.currentTermStartMode === 'custom' ? $r('app.color.text_primary') : GlassMaterial.graySecondary(this.grayTick, $r('app.color.text_secondary'))).fontStyle(this.currentTermStartMode === 'custom' ? FontStyle.Normal : GlassMaterial.styleItalic(this.grayTick)).fontWeight(GlassMaterial.styleWeight(this.grayTick))
+            .layoutWeight(1)
           ChevronRight({ iconSize: 14 })
         }.width('100%')
-        .onClick(() => { this.openTermStartPicker(); })
+        .onClick(() => {
+          if (this.currentTermStartMode !== 'custom') {
+            this.getUIContext().getPromptAction().showToast({ message: '请先选择「使用自定义时间」' });
+            return;
+          }
+          this.openTermStartPicker();
+        })
 
         // 课程节数
         Divider().color($r('app.color.divider')).margin({ top: 12, bottom: 12 })

@@ -168,7 +168,7 @@ export struct NoticePage {
               angle: 180,
               colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.barStyle === 'legacy'))
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
 
@@ -318,7 +318,7 @@ export struct NoticeDetailPage {
               angle: 180,
               colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.barStyle === 'legacy'))
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
 

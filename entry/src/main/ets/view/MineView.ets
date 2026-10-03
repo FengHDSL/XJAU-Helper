@@ -666,7 +666,7 @@ export struct MineView {
           angle: 180,
           colors: Theme.barGradient(this.themeColor, this.barStyle)
         })
-        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
+        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.barStyle === 'legacy'))
     Row() {
       BarTitle({ title: '我的' })
       Blank()
@@ -1282,7 +1282,7 @@ export struct MineView {
             Divider().color($r('app.color.divider'))
             // 8. 关于（打开独立页面）
             SettingRow({
-              icon: '', title: '关于应用', value: 'v1.4.0', onTap: () => {
+              icon: '', title: '关于应用', value: 'v1.4.1', onTap: () => {
                 AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
               }
             })
@@ -1654,7 +1654,7 @@ export struct MineView {
       Divider().color($r('app.color.divider'))
       // 8. 关于（打开独立页面）
       SettingRow({
-        icon: '', title: '关于应用', value: 'v1.4.0', onTap: () => {
+        icon: '', title: '关于应用', value: 'v1.4.1', onTap: () => {
           AppState.stack.pushPath({ name: Const.ROUTE_ABOUT });
         }
       })

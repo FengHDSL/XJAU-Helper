@@ -872,7 +872,7 @@ export struct NewsPage {
             angle: 180,
             colors: Theme.barGradient(this.themeColor, this.barStyle)
           })
-          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
+          .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.barStyle === 'legacy'))
       Row() {
         BarTitle({ title: '农大新闻' })
         // 搜索框：输入框，回车跳转搜索结果页。

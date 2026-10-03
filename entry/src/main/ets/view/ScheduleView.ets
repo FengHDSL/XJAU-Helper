@@ -79,6 +79,8 @@ export struct ScheduleView {
   @State scheduleBg: string = ''; // base64 图片数据，空=无背景
   @State cfg: ScheduleConfig = new ScheduleConfig(); // 完整自定义配置
   @State customTermStart: string = ''; // 当前学期开学日（含自定义覆盖），用于设置面板回显
+  /** 开学时间来源：'auto' 跟随教务系统 / 'custom' 使用自定义时间（设置面板回显） */
+  @State termStartMode: string = 'auto';
   /** 课程独立颜色（课程名 → 自定义 hex），空=按课程名 hash 默认 */
   @State customColors: Record<string, string> = {};
   private currentWeek: number = 1;
@@ -109,6 +111,7 @@ export struct ScheduleView {
     }
     this.viewWeek = this.currentWeek;
     this.customTermStart = AppState.term.startDate;
+    this.termStartMode = DataStore.termStartMode();
     // 注册全局学期切换监听（首页顶栏切换后立即同步本页）
     AppState.registerTermListener('schedule', () => {
       this.onGlobalTermChanged();
@@ -189,6 +192,39 @@ export struct ScheduleView {
     AppState.term = term;
     this.customTermStart = start;
     // 开学日变化影响周次映射，重新计算当前周
+    const week: number = DateUtil.weekOfTerm(term, new Date());
+    this.currentWeek = week < 1 ? 1 : week;
+    this.viewWeek = this.currentWeek;
+  }
+
+  /**
+   * 设置面板切换开学时间来源：
+   *  - 'custom'：若该学期尚无自定义日，把当前显示值落盘（选中即生效）；此后**每次同步课程表都沿用自定义日**
+   *  - 'auto'：自定义日保留但不生效，开学日回到教务系统的默认推算值
+   */
+  private onTermStartModeChanged(mode: string): void {
+    this.termStartMode = mode;
+    DataStore.setTermStartMode(mode);
+    const id: string = AppState.term.id;
+    if (mode === 'custom' && DataStore.getCustomTermStart(id).length === 0) {
+      const cur: string = this.customTermStart.length > 0 ? this.customTermStart : DateUtil.defaultTermStart(id);
+      DataStore.setCustomTermStart(id, cur);
+    }
+    const base: TermInfo = {
+      id: id,
+      label: AppState.term.label,
+      startDate: mode === 'custom'
+        ? (DataStore.getCustomTermStart(id).length > 0 ? DataStore.getCustomTermStart(id) : DateUtil.defaultTermStart(id))
+        : DateUtil.defaultTermStart(id),
+      totalWeeks: AppState.term.totalWeeks
+    };
+    const term: TermInfo = JwApi.applyCustomStart(base);
+    AppState.term = term;
+    if (this.terms[this.selectedTermIndex]) {
+      const t: TermInfo = this.terms[this.selectedTermIndex];
+      this.terms[this.selectedTermIndex] = { id: t.id, label: t.label, startDate: term.startDate, totalWeeks: t.totalWeeks };
+    }
+    this.customTermStart = term.startDate;
     const week: number = DateUtil.weekOfTerm(term, new Date());
     this.currentWeek = week < 1 ? 1 : week;
     this.viewWeek = this.currentWeek;
@@ -573,7 +609,7 @@ export struct ScheduleView {
           angle: 180,
           colors: Theme.barGradient(this.themeColor, this.barStyle)
         })
-        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
+        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.barStyle === 'legacy'))
     Column() {
       Row() {
         Column() {
@@ -1251,7 +1287,9 @@ export struct ScheduleView {
         onCfgChange: (c: ScheduleConfig) => { this.cfg = c; c.save(); },
         currentTermId: AppState.term.id,
         currentTermStart: this.customTermStart,
-        onTermStartChange: (d: string) => { this.onTermStartChanged(d); }
+        onTermStartChange: (d: string) => { this.onTermStartChanged(d); },
+        currentTermStartMode: this.termStartMode,
+        onTermStartModeChange: (m: string) => { this.onTermStartModeChanged(m); }
       })
     }
   }

@@ -455,7 +455,7 @@ export struct ScoreView {
           angle: 180,
           colors: Theme.barGradient(this.themeColor, this.barStyle)
         })
-        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
+        .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.barStyle === 'legacy'))
       Row() {
         Column() {
           // 统一标题组件（大标题固定高 28，副标题独立行）

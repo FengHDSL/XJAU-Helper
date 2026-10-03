@@ -721,10 +721,14 @@ export class JwApi {
    * 持久化到 DataStore.KEY_DS_TERM 供启动恢复。各页（首页/课表/成绩/考试）依赖 term 重新计算周次/拉数据。
    */
   /**
-   * 应用「自定义开学时间」覆盖：若该学期存在用户自定义的开学日，则返回覆盖后的副本，
-   * 否则原样返回。集中在此处理，保证首页/课程表/桌面卡片等所有周次推算一致。
+   * 应用「自定义开学时间」覆盖：仅当开学时间来源为「使用自定义时间」（DataStore.termStartMode()==='custom'）
+   * 且该学期存在自定义开学日时，返回覆盖后的副本；「跟随教务系统」或未自定义时原样返回。
+   * 集中在此处理，保证首页/课程表/桌面卡片等所有周次推算一致，且同步课表不会被教务值改回。
    */
   static applyCustomStart(term: TermInfo): TermInfo {
+    if (DataStore.termStartMode() !== 'custom') {
+      return term;
+    }
     const custom: string = DataStore.getCustomTermStart(term.id);
     return custom.length > 0
       ? { id: term.id, label: term.label, startDate: custom, totalWeeks: term.totalWeeks }

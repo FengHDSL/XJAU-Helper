@@ -1087,7 +1087,7 @@ export struct KxjsPage {
               angle: 180,
               colors: Theme.barGradient(this.themeColor, this.barStyle)
             })
-            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.immersiveEffect && this.barStyle === 'legacy'))
+            .backgroundBlurStyle(Immersive.blur(BlurStyle.Thin, this.barStyle === 'legacy'))
         Row() {
           BackButton({ onBack: () => { AppState.stack.pop(); } })
           BarTitle({ title: '空闲教室查询' })

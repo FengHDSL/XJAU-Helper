@@ -309,6 +309,30 @@ export class DataStore {
   static readonly KEY_DS_TERM: string = 'current_term_id';
   // 自定义开学时间：各学期 termId -> 自定义开学日(yyyy-MM-dd)，覆盖默认 9-01/3-01 推算；空串=未自定义
   static readonly KEY_CUSTOM_TERM_START: string = 'custom_term_start';
+  /**
+   * 开学时间来源模式：'auto' = 跟随教务系统（默认推算）/ 'custom' = 使用自定义时间。
+   * 选 custom 并设好自定义日后，后续每次同步课程表都沿用自定义日（不被教务值覆盖）。
+   */
+  static readonly KEY_TERM_START_MODE: string = 'term_start_mode';
+
+  /**
+   * 开学时间来源（未显式设置时按老数据推断：已有自定义日 → custom，否则 auto，
+   * 保证升级用户原有的自定义开学时间仍生效）
+   */
+  static termStartMode(): string {
+    const v: string = DataStore.get(DataStore.KEY_TERM_START_MODE);
+    if (v === 'auto' || v === 'custom') {
+      return v;
+    }
+    const raw: string = DataStore.get(DataStore.KEY_CUSTOM_TERM_START);
+    return raw.length > 0 && raw !== '{}' ? 'custom' : 'auto';
+  }
+
+  /** 设置开学时间来源（'auto' 跟随教务系统 / 'custom' 使用自定义时间） */
+  static setTermStartMode(mode: string): void {
+    DataStore.put(DataStore.KEY_TERM_START_MODE, mode === 'custom' ? 'custom' : 'auto');
+  }
+
   /** 自定义学期结束日（yyyy-MM-dd，空 = 使用校历解析值） */
   static readonly KEY_CUSTOM_TERM_END: string = 'custom_term_end';
   /** 自定义学年学期标题（空 = 使用校历解析值） */

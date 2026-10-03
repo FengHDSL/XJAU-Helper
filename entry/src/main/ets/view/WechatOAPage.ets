@@ -331,7 +331,7 @@ export struct WechatOAPage {
               }) {
                 Text('去关注')
                   .fontSize(12)
-                  .fontColor($r('sys.color.font_primary'))
+                  .fontColor(Color.White)
                   .padding({ left: 12, right: 12, top: 7, bottom: 7 })
               }
             }
