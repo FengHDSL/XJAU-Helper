@@ -11,7 +11,7 @@
 [![Version](https://img.shields.io/badge/version-1.4.1-blue)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.4.1)
 [![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT%20(API%2026)-orange)](https://developer.huawei.com/consumer/cn/harmonyos/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.4.1)
+[![Release](https://img.shields.io/badge/download-HAP-success)](https://github.com/FengHDSL/XJAU-Helper/raw/release-assets/XJAU-Helper_v1.4.1.hap)
 
 </div>
 
@@ -19,7 +19,7 @@
 
 ## 📦 下载安装
 
-- **GitHub Release**：[XJAU-Helper_v1.4.1.hap](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.4.1)
+- **GitHub Release**：[XJAU-Helper_v1.4.1.hap](https://github.com/FengHDSL/XJAU-Helper/raw/release-assets/XJAU-Helper_v1.4.1.hap)（[Release 页](https://github.com/FengHDSL/XJAU-Helper/releases/tag/v1.4.1)）
 - **GitHub**：[XJAU-Helper](https://github.com/FengHDSL/XJAU-Helper)
 - **Gitee**：[XJAU-Helper](https://gitee.com/pandasoos/XJAU-Helper)
 - **HAP Store资源站**：[新农助手](https://www.sydxky.cn/detail.php?id=796)
